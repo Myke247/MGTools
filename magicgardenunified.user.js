@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.3.2
+// @version      1.3.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1164,6 +1164,10 @@ if (typeof window.saveJSON !== 'function') {
     window.saveJSON = MGA_saveJSON;
 }
 
+// Also export to global scope for direct access
+window.MGA_loadJSON = MGA_loadJSON;
+window.MGA_saveJSON = MGA_saveJSON;
+
 // Diagnostic function for localStorage issues
 window.MGA_debugStorage = function() {
     console.log('🔍 [MGA-STORAGE] localStorage Diagnostic Report');
@@ -2294,6 +2298,10 @@ window.MGA_debugStorage = function() {
     window.MGA_Internal.setupPetsTabHandlers = setupPetsTabHandlers;
     window.MGA_Internal.setupSeedsTabHandlers = setupSeedsTabHandlers;
     window.MGA_Internal.setupSettingsTabHandlers = setupSettingsTabHandlers;
+
+    // Export storage functions
+    window.MGA_Internal.MGA_loadJSON = MGA_loadJSON;
+    window.MGA_Internal.MGA_saveJSON = MGA_saveJSON;
 
     // ==================== IN-GAME OVERLAY SYSTEM ====================
 
@@ -4264,6 +4272,24 @@ window.MGA_debugStorage = function() {
             </div>
         `;
 
+        // Seed ID mapping for checking saved state (same as setupSeedsTabHandlers)
+        const seedIdMap = {
+            "Carrot": "Carrot", "Strawberry": "Strawberry", "Aloe": "Aloe",
+            "Blueberry": "Blueberry", "Apple": "Apple", "Tulip": "OrangeTulip",
+            "Tomato": "Tomato", "Daffodil": "Daffodil", "Sunflower": "Sunflower", "Corn": "Corn",
+            "Watermelon": "Watermelon", "Pumpkin": "Pumpkin", "Echeveria": "Echeveria",
+            "Coconut": "Coconut", "Banana": "Banana", "Lily": "Lily",
+            "BurrosTail": "BurrosTail", "Mushroom": "Mushroom", "Cactus": "Cactus",
+            "Bamboo": "Bamboo", "Grape": "Grape", "Pepper": "Pepper",
+            "Lemon": "Lemon", "PassionFruit": "PassionFruit", "DragonFruit": "DragonFruit",
+            "Lychee": "Lychee", "Starweaver": "Starweaver", "Moonbinder": "Moonbinder", "Dawnbinder": "Dawnbinder"
+        };
+
+        console.log('🔍 [SEEDS DEBUG] Applying saved state to checkboxes:', {
+            savedSeedsToDelete: UnifiedState.data.seedsToDelete,
+            savedSeedsCount: UnifiedState.data.seedsToDelete?.length || 0
+        });
+
         seedGroups.forEach(group => {
             html += `
                 <div class="mga-section">
@@ -4278,9 +4304,17 @@ window.MGA_debugStorage = function() {
                 const disabledAttr = isProtected ? 'disabled' : '';
                 const protectedStyle = isProtected ? 'opacity: 0.5; cursor: not-allowed;' : '';
                 const protectedLabel = isProtected ? ' 🔒' : '';
+
+                // Check if this seed should be checked based on saved state
+                const internalId = seedIdMap[seed] || seed;
+                const isChecked = UnifiedState.data.seedsToDelete?.includes(internalId) || false;
+                const checkedAttr = isChecked ? 'checked' : '';
+
+                console.log(`🔍 [SEEDS DEBUG] Seed ${seed} (${internalId}): checked=${isChecked}`);
+
                 html += `
                     <label class="mga-checkbox-group" style="${protectedStyle}">
-                        <input type="checkbox" class="mga-checkbox seed-checkbox" data-seed="${seed}" ${disabledAttr}>
+                        <input type="checkbox" class="mga-checkbox seed-checkbox" data-seed="${seed}" ${disabledAttr} ${checkedAttr}>
                         <span class="mga-label" style="color: ${group.color}">${seed}${protectedLabel}</span>
                     </label>
                 `;
@@ -8633,8 +8667,29 @@ window.MGA_debugStorage = function() {
     }
 
     function loadSavedData() {
-        // Load pet presets with debugging
-        console.log('📦 [STORAGE] Loading saved data...');
+        // Enhanced storage diagnostics
+        console.log('📦 [STORAGE] Starting comprehensive data loading with diagnostics...');
+
+        // Storage availability check
+        console.log('📊 [STORAGE-DIAGNOSTICS] Basic localStorage info:', {
+            available: typeof localStorage !== 'undefined',
+            totalItems: localStorage.length,
+            mgaKeys: Object.keys(localStorage).filter(k => k.startsWith('MGA_')),
+            storageQuota: (() => {
+                try {
+                    const testKey = 'MGA_storageTest_' + Date.now();
+                    const testData = 'x'.repeat(1024); // 1KB test
+                    localStorage.setItem(testKey, testData);
+                    localStorage.removeItem(testKey);
+                    return 'Working';
+                } catch (e) {
+                    return `Error: ${e.message}`;
+                }
+            })()
+        });
+
+        // Load pet presets with enhanced debugging
+        console.log('📦 [STORAGE] Loading pet presets...');
         const rawPresets = localStorage.getItem('MGA_petPresets');
         console.log('📦 [STORAGE] Raw pet presets from localStorage:', rawPresets ? rawPresets.substring(0, 200) + '...' : 'null');
 
@@ -8701,6 +8756,62 @@ window.MGA_debugStorage = function() {
 
         // Reset ability tracking on each initialization to fix reconnection issues
         UnifiedState.data.lastAbilityTimestamps = {};
+
+        // ==================== STORAGE LOADING SUMMARY ====================
+        console.log('📊 [STORAGE-SUMMARY] Data loading complete:', {
+            petPresets: {
+                loaded: Object.keys(UnifiedState.data.petPresets).length,
+                presets: Object.keys(UnifiedState.data.petPresets),
+                rawExists: !!rawPresets
+            },
+            abilityLogs: {
+                loaded: UnifiedState.data.petAbilityLogs.length,
+                rawExists: !!localStorage.getItem('MGA_petAbilityLogs')
+            },
+            seedSettings: {
+                seedsToDelete: UnifiedState.data.seedsToDelete.length,
+                autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled,
+                rawSeedsExists: !!rawSeedsData,
+                rawAutoDeleteExists: !!rawAutoDeleteData
+            },
+            settings: {
+                loaded: Object.keys(UnifiedState.data.settings).length,
+                rawExists: !!localStorage.getItem('MGA_settings')
+            },
+            allMgaKeys: Object.keys(localStorage).filter(k => k.startsWith('MGA_')),
+            timestamp: new Date().toISOString()
+        });
+
+        // Persistence verification test
+        setTimeout(() => {
+            console.log('🔍 [STORAGE-VERIFICATION] Testing immediate save/load cycle...');
+            const testKey = 'MGA_persistenceTest';
+            const testData = { test: true, timestamp: Date.now() };
+
+            try {
+                MGA_saveJSON(testKey, testData);
+                const retrieved = MGA_loadJSON(testKey, null);
+                const success = retrieved && retrieved.test === true;
+
+                console.log('📊 [STORAGE-VERIFICATION] Persistence test result:', {
+                    success: success,
+                    saved: testData,
+                    retrieved: retrieved,
+                    matching: JSON.stringify(testData) === JSON.stringify(retrieved)
+                });
+
+                // Clean up test data
+                localStorage.removeItem(testKey);
+
+                if (!success) {
+                    console.error('❌ [STORAGE-VERIFICATION] Persistence test FAILED - data may not be saving correctly');
+                } else {
+                    console.log('✅ [STORAGE-VERIFICATION] Persistence test PASSED - storage is working correctly');
+                }
+            } catch (error) {
+                console.error('❌ [STORAGE-VERIFICATION] Persistence test ERROR:', error);
+            }
+        }, 100);
     }
 
     function startIntervals() {
@@ -9645,96 +9756,78 @@ window.MGA_debugStorage = function() {
             console.log('🌱 Magic Garden Unified Assistant initializing...');
             console.log('📊 Connection Status:', window.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
 
-        // ==================== COMPREHENSIVE IDLE TIMEOUT PREVENTION ====================
-        // Enhanced anti-idle system to prevent game timeouts completely
+        // ==================== SAFE IDLE TIMEOUT PREVENTION ====================
+        // Safe anti-idle system that doesn't interfere with game loading
         const preventIdle = () => {
-            // Try to override visibility API with non-configurable properties
-            try {
-                Object.defineProperty(document, 'hidden', {
-                    value: false,
-                    writable: false,
-                    configurable: false
-                });
-            } catch (e) {
-                console.log('📝 Note: Could not redefine document.hidden (property already exists)');
+            // Check if aggressive idle prevention is enabled (disabled by default for game stability)
+            const enableAggressiveIdlePrevention = UnifiedState.data.settings?.aggressiveIdlePrevention || false;
+
+            if (enableAggressiveIdlePrevention) {
+                console.log('⚠️ [IDLE-PREVENTION] Aggressive mode enabled - may cause game loading issues');
+
+                // AGGRESSIVE MODE (ONLY IF EXPLICITLY ENABLED)
+                // WARNING: This can interfere with game loading and should only be used if needed
+
+                // Try to override visibility API with non-configurable properties
+                try {
+                    Object.defineProperty(document, 'hidden', {
+                        value: false,
+                        writable: false,
+                        configurable: false
+                    });
+                } catch (e) {
+                    console.log('📝 Note: Could not redefine document.hidden (property already exists)');
+                }
+
+                try {
+                    Object.defineProperty(document, 'visibilityState', {
+                        value: 'visible',
+                        writable: false,
+                        configurable: false
+                    });
+                } catch (e) {
+                    console.log('📝 Note: Could not redefine document.visibilityState (property already exists)');
+                }
+
+                // WARNING: This can break game loading - only enable if absolutely necessary
+                const stopVisibilityChange = (e) => {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    return false;
+                };
+
+                document.addEventListener('visibilitychange', stopVisibilityChange, true);
+                window.addEventListener('visibilitychange', stopVisibilityChange, true);
+                window.addEventListener('blur', (e) => {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                }, true);
+                window.addEventListener('focus', (e) => {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                }, true);
+
+                console.log('⚠️ [IDLE-PREVENTION] Aggressive event blocking enabled');
+            } else {
+                console.log('✅ [IDLE-PREVENTION] Using safe mode (recommended)');
             }
 
-            try {
-                Object.defineProperty(document, 'visibilityState', {
-                    value: 'visible',
-                    writable: false,
-                    configurable: false
-                });
-            } catch (e) {
-                console.log('📝 Note: Could not redefine document.visibilityState (property already exists)');
-            }
-
-            // Try to override Page Visibility API at window level (may fail if already defined)
-            try {
-                Object.defineProperty(window, 'document', {
-                    value: new Proxy(document, {
-                        get: function(target, property) {
-                            if (property === 'hidden') return false;
-                            if (property === 'visibilityState') return 'visible';
-                            return target[property];
-                        }
-                    }),
-                    writable: false,
-                    configurable: false
-                });
-            } catch (e) {
-                console.log('📝 Note: Could not redefine window.document (property already exists)');
-            }
-
-            // Prevent all visibility change events
-            const stopVisibilityChange = (e) => {
-                e.stopImmediatePropagation();
-                e.preventDefault();
-                return false;
-            };
-
-            // Add comprehensive event blocking
-            document.addEventListener('visibilitychange', stopVisibilityChange, true);
-            window.addEventListener('visibilitychange', stopVisibilityChange, true);
-            window.addEventListener('blur', (e) => {
-                e.stopImmediatePropagation();
-                e.preventDefault();
-            }, true);
-            window.addEventListener('focus', (e) => {
-                e.stopImmediatePropagation();
-                e.preventDefault();
-            }, true);
-
-            // Simulate user activity every 30 seconds
+            // SAFE MODE: Activity simulation only (always enabled)
             const simulateActivity = () => {
                 try {
-                    // Simulate mouse movement
-                    const mouseEvent = new MouseEvent('mousemove', {
-                        view: window,
-                        bubbles: true,
-                        cancelable: true,
-                        clientX: Math.random() * window.innerWidth,
-                        clientY: Math.random() * window.innerHeight
-                    });
-                    document.dispatchEvent(mouseEvent);
-
-                    // Simulate key press
-                    const keyEvent = new KeyboardEvent('keypress', {
-                        key: ' ',
-                        code: 'Space',
-                        keyCode: 32,
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    document.dispatchEvent(keyEvent);
+                    // Safe activity simulation that doesn't interfere with game
 
                     // Update page focus timestamp if it exists
                     if (window.performance && window.performance.now) {
                         window.lastActivity = window.performance.now();
                     }
 
-                    debugLog('IDLE_PREVENTION', 'Simulated user activity', {
-                        timestamp: Date.now()
+                    // Light activity simulation - just update activity markers
+                    // Removed aggressive mouse/keyboard event dispatching that could interfere
+
+                    debugLog('IDLE_PREVENTION', 'Simulated safe activity', {
+                        timestamp: Date.now(),
+                        mode: enableAggressiveIdlePrevention ? 'aggressive' : 'safe'
                     });
                 } catch (error) {
                     debugError('IDLE_PREVENTION', 'Failed to simulate activity', error);
@@ -9744,38 +9837,43 @@ window.MGA_debugStorage = function() {
             // Start activity simulation using managed interval
             setManagedInterval('activitySimulator', simulateActivity, 30000); // Every 30 seconds
 
-            // Override setTimeout and setInterval to prevent idle detection
-            const originalSetTimeout = window.setTimeout;
-            const originalSetInterval = window.setInterval;
+            // Safe timer override (only if aggressive mode enabled)
+            if (enableAggressiveIdlePrevention) {
+                console.log('⚠️ [IDLE-PREVENTION] Enabling timer override (may interfere with game)');
 
-            window.setTimeout = function(callback, delay, ...args) {
-                // Intercept any potential idle timers (> 5 minutes)
-                if (delay > 300000) {
-                    debugLog('IDLE_PREVENTION', 'Intercepted potential idle timeout', { delay });
-                    delay = Math.min(delay, 30000); // Cap at 30 seconds
-                }
-                return originalSetTimeout.call(window, callback, delay, ...args);
-            };
+                const originalSetTimeout = window.setTimeout;
+                const originalSetInterval = window.setInterval;
 
-            window.setInterval = function(callback, delay, ...args) {
-                // Intercept any potential idle timers
-                if (delay > 300000) {
-                    debugLog('IDLE_PREVENTION', 'Intercepted potential idle interval', { delay });
-                    delay = Math.min(delay, 30000);
-                }
-                return originalSetInterval.call(window, callback, delay, ...args);
-            };
+                window.setTimeout = function(callback, delay, ...args) {
+                    // Intercept any potential idle timers (> 5 minutes)
+                    if (delay > 300000) {
+                        debugLog('IDLE_PREVENTION', 'Intercepted potential idle timeout', { delay });
+                        delay = Math.min(delay, 30000); // Cap at 30 seconds
+                    }
+                    return originalSetTimeout.call(window, callback, delay, ...args);
+                };
+
+                window.setInterval = function(callback, delay, ...args) {
+                    // Intercept any potential idle timers
+                    if (delay > 300000) {
+                        debugLog('IDLE_PREVENTION', 'Intercepted potential idle interval', { delay });
+                        delay = Math.min(delay, 30000);
+                    }
+                    return originalSetInterval.call(window, callback, delay, ...args);
+                };
+            }
 
             // Start immediate activity simulation
             simulateActivity();
 
-            debugLog('IDLE_PREVENTION', 'Comprehensive idle prevention initialized', {
+            debugLog('IDLE_PREVENTION', 'Safe idle prevention initialized', {
+                aggressiveMode: enableAggressiveIdlePrevention,
                 visibilityState: document.visibilityState,
                 hidden: document.hidden
             });
         };
 
-        // Initialize idle prevention
+        // Initialize safe idle prevention (aggressive mode disabled by default)
         preventIdle();
 
         try {
@@ -9803,6 +9901,40 @@ window.MGA_debugStorage = function() {
 
             // Initialize keyboard shortcuts
             initializeKeyboardShortcuts();
+
+            // Force UI refresh to apply saved state (timing fix for data persistence)
+            console.log('🔄 Applying delayed UI refresh to ensure saved state is displayed...');
+            setTimeout(() => {
+                // Update main tab content to reflect loaded data
+                if (typeof updateTabContent === 'function') {
+                    updateTabContent();
+                    console.log('✅ [DATA-PERSISTENCE] UI refreshed with saved state');
+                }
+
+                // Update any open popout overlays
+                if (UnifiedState.data?.popouts?.overlays) {
+                    UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                        if (overlay && document.contains(overlay)) {
+                            try {
+                                const content = getContentForTab(tabName, true);
+                                const contentEl = overlay.querySelector('.mga-overlay-content, .mga-content');
+                                if (contentEl) {
+                                    contentEl.innerHTML = content;
+                                    // Set up handlers for the refreshed content
+                                    if (tabName === 'seeds' && typeof setupSeedsTabHandlers === 'function') {
+                                        setupSeedsTabHandlers(overlay);
+                                    } else if (tabName === 'pets' && typeof setupPetsTabHandlers === 'function') {
+                                        setupPetsTabHandlers(overlay);
+                                    }
+                                    console.log(`✅ [DATA-PERSISTENCE] Refreshed ${tabName} overlay with saved state`);
+                                }
+                            } catch (error) {
+                                console.warn(`⚠️ [DATA-PERSISTENCE] Failed to refresh ${tabName} overlay:`, error);
+                            }
+                        }
+                    });
+                }
+            }, 500); // 500ms delay to ensure all data loading is complete
 
             // Initialize teleport system
             initializeTeleportSystem();
@@ -10605,7 +10737,7 @@ window.MGA_debugStorage = function() {
     console.log(
         "╔════════════════════════════════════════╗\n" +
         "║   🌱 Magic Garden Unified Assistant    ║\n" +
-        "║            Version 1.3.1               ║\n" +
+        "║            Version 1.3.2               ║\n" +
         "║                                        ║\n" +
         "║  🎮 Works in ANY browser console!     ║\n" +
         "║  • Game Mode: Full integration        ║\n" +
