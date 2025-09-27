@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.3.1
+// @version      1.3.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -18,7 +18,7 @@
     console.log('🚀 Magic Garden Unified Assistant script loaded!');
 
     // ==================== INITIALIZATION ====================
-    console.log('🔍 CHECKPOINT: INITIALIZATION_START');
+    /* CHECKPOINT removed: INITIALIZATION_START */
 
     // ==================== GLOBAL STYLES ====================
     const UNIFIED_STYLES = `
@@ -35,8 +35,8 @@
             min-height: 250px;
             max-width: 90vw;
             max-height: 80vh;
-            width: 420px;
-            height: 500px;
+            width: 380px;
+            height: 450px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -542,9 +542,169 @@
             }
         }
 
+        /* Compact Active Pets Display for Popout Only */
+        .mga-popout-content .mga-active-pets-display {
+            padding: 6px 8px !important;
+            margin-bottom: 8px !important;
+        }
+
+        .mga-popout-content .mga-active-pets-header {
+            font-size: 10px !important;
+            margin-bottom: 4px !important;
+        }
+
+        .mga-popout-content .mga-active-pets-list {
+            gap: 3px !important;
+        }
+
+        .mga-popout-content .mga-pet-badge {
+            font-size: 10px !important;
+            padding: 2px 6px !important;
+        }
+
+        /* Compact Active Pets Display for In-Game Overlays Only */
+        .mga-overlay-content-only .mga-active-pets-display {
+            padding: 6px 8px !important;
+            margin-bottom: 8px !important;
+        }
+
+        .mga-overlay-content-only .mga-active-pets-header {
+            font-size: 10px !important;
+            margin-bottom: 4px !important;
+        }
+
+        .mga-overlay-content-only .mga-active-pets-list {
+            gap: 3px !important;
+        }
+
+        .mga-overlay-content-only .mga-pet-badge {
+            font-size: 10px !important;
+            padding: 2px 6px !important;
+        }
+
+        /* Removed problematic Pet Preset Card Styling - using clean compact version below */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /* Removed all problematic overlay-specific CSS with !important declarations - now using clean compact styling */
+
+        /* Clean, Professional Pet Preset Styling */
+        .mga-preset {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: background-color 0.15s ease;
+            cursor: pointer;
+        }
+
+        .mga-preset:hover {
+            background: rgba(30, 41, 59, 0.6);
+            border-color: rgba(74, 158, 255, 0.3);
+        }
+
+        .mga-preset-clickable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .mga-preset-clickable:hover {
+            background: rgba(30, 41, 59, 0.7) !important;
+            border-color: rgba(74, 158, 255, 0.5) !important;
+        }
+
+        /* Prevent hover conflicts when main HUD pets panel is open */
+        .mga-overlay-content-only .mga-preset-clickable:hover {
+            transition: none !important;
+            transform: none !important;
+        }
+
+        .mga-preset-clickable:active {
+            background: rgba(74, 158, 255, 0.3) !important;
+            border-color: rgba(74, 158, 255, 0.7) !important;
+            transform: translateY(0);
+        }
+
+        .mga-preset-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.15);
+        }
+
+        .mga-preset-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a9eff;
+        }
+
+        .mga-preset-pets {
+            color: #e0e7ff;
+            font-size: 12px;
+            padding: 6px 10px;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 4px;
+            border-left: 2px solid #4a9eff;
+            line-height: 1.4;
+        }
+
+        /* Active Pets Display */
+        .mga-active-pets-display {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(74, 158, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .mga-active-pets-header {
+            color: #93c5fd;
+            font-size: 12px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .mga-active-pets-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .mga-pet-badge {
+            background: rgba(74, 158, 255, 0.15);
+            border: 1px solid rgba(74, 158, 255, 0.3);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            color: #93c5fd;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* Presets Container */
+        .mga-presets-container {
+            max-height: 300px !important;
+            overflow-y: auto !important;
+        }
+
     `;
 
-    console.log('🔍 CHECKPOINT: GLOBAL_STYLES_COMPLETE');
+    /* CHECKPOINT removed: GLOBAL_STYLES_COMPLETE */
 
     // ==================== DEBUG SYSTEM ====================
 
@@ -578,14 +738,68 @@
         }
     }
 
-    console.log('🔍 CHECKPOINT: DEBUG_SYSTEM_COMPLETE');
+    /* CHECKPOINT removed: DEBUG_SYSTEM_COMPLETE */
+
+    // ==================== RESPONSIVE TEXT SCALING ====================
+    // Global responsive text scaling function for overlays
+    function applyResponsiveTextScaling(overlay, width, height) {
+        try {
+            // Calculate scale factor based on overlay dimensions
+            const baseWidth = 400; // Reference width for 100% scale
+            const baseHeight = 300; // Reference height for 100% scale
+
+            const widthScale = width / baseWidth;
+            const heightScale = height / baseHeight;
+            const scale = Math.min(widthScale, heightScale); // Use smaller scale to maintain readability
+
+            // Clamp scale between reasonable bounds
+            const clampedScale = Math.max(0.7, Math.min(1.3, scale));
+
+            // Apply scaling to text elements
+            const textElements = overlay.querySelectorAll('*');
+            textElements.forEach(element => {
+                const computedStyle = window.getComputedStyle(element);
+                const currentFontSize = parseFloat(computedStyle.fontSize);
+
+                if (currentFontSize && currentFontSize > 0) {
+                    const newFontSize = Math.max(10, currentFontSize * clampedScale);
+                    element.style.fontSize = `${newFontSize}px`;
+                }
+            });
+
+            debugLog('OVERLAY_LIFECYCLE', 'Applied responsive text scaling', {
+                overlayId: overlay.id,
+                width,
+                height,
+                scale: clampedScale
+            });
+        } catch (error) {
+            debugError('OVERLAY_LIFECYCLE', 'Failed to apply responsive text scaling', error, {
+                overlayId: overlay.id,
+                width,
+                height
+            });
+        }
+    }
 
     // ==================== UNIFIED STATE ====================
     // Global initialization mutex to prevent double initialization
-    if (window._MGA_INITIALIZING || window._MGA_INITIALIZED) {
+    // Allow re-initialization with force parameter or manual override
+    const forceInit = window.location.search.includes('force=true') || window._MGA_FORCE_INIT;
+
+    if ((window._MGA_INITIALIZING || window._MGA_INITIALIZED) && !forceInit) {
         console.log('🔒 MGA already initializing or initialized, stopping duplicate execution');
+        console.log('💡 Use ?force=true in URL or MGA.forceInit() to re-initialize for debugging');
         return;
     }
+
+    // Clear flags if forcing re-initialization
+    if (forceInit) {
+        console.log('🔄 Force initialization requested - clearing existing flags');
+        window._MGA_INITIALIZED = false;
+        window._MGA_FORCE_INIT = false;
+    }
+
     window._MGA_INITIALIZING = true;
 
     const UnifiedState = {
@@ -654,7 +868,7 @@
             }
         },
         atoms: {
-            activePets: null,
+            activePets: [], // Initialize as empty array to prevent null errors
             petAbility: null,
             inventory: null,
             currentCrop: null,
@@ -664,7 +878,89 @@
         }
     };
 
-    console.log('🔍 CHECKPOINT: UNIFIED_STATE_COMPLETE');
+    /* CHECKPOINT removed: UNIFIED_STATE_COMPLETE */
+
+    // ==================== SIMPLE PET DETECTION ====================
+    function getActivePetsFromRoomState() {
+        console.log('🔧 [DEBUG] getActivePetsFromRoomState() called - checking for pets...');
+        try {
+            // CORRECT path: Get the actual atom value that console shows
+            const roomState = window.MagicCircle_RoomConnection?.lastRoomStateJsonable;
+            console.log('🔧 [DEBUG] roomState available:', !!roomState, roomState?.child?.data ? 'data exists' : 'no data');
+            if (!roomState?.child?.data) {
+                console.log('🐾 [SIMPLE-PETS] No room state data');
+                return [];
+            }
+
+            // Debug: Log the actual structure we're working with
+            console.log('🐾 [DEBUG] Actual roomState.child.data structure:', JSON.stringify(roomState.child.data, null, 2).substring(0, 500));
+            console.log('🐾 [DEBUG] roomState.child.data keys:', Object.keys(roomState.child.data || {}));
+
+            // Try multiple data sources in priority order
+            let petData = null;
+
+            // Source 1: Check if pet data is directly in child.data (field1, field2, field3 format)
+            if (roomState.child.data.field1 !== undefined) {
+                petData = roomState.child.data;
+                console.log('🐾 [SIMPLE-PETS] Found pet data in child.data directly');
+            }
+
+            // Source 2: No longer needed - using myPetSlotsAtom instead
+            // Room state userSlots doesn't contain species info
+
+            if (!petData) {
+                console.log('🐾 [SIMPLE-PETS] No pet data found in room state');
+
+                // FALLBACK: Use atom data if available
+                if (window.activePets && window.activePets.length > 0) {
+                    console.log('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
+                    return window.activePets;
+                }
+
+                console.log('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
+                return [];
+            }
+
+            // Extract pets from field1, field2, field3 format (the actual console format)
+            const pets = [];
+            const fields = [petData.field1, petData.field2, petData.field3];
+            fields.forEach((species, index) => {
+                if (species && species !== '' && typeof species === 'string') {
+                    pets.push({ petSpecies: species, slot: index + 1 });
+                }
+            });
+
+            console.log('🐾 [SIMPLE-PETS] Extracted pets:', pets);
+            return pets;
+        } catch (error) {
+            console.log('🐾 [SIMPLE-PETS] Error:', error.message);
+            return [];
+        }
+    }
+
+    function updateActivePetsFromRoomState() {
+        console.log('🔧 [DEBUG] updateActivePetsFromRoomState() called');
+        const pets = getActivePetsFromRoomState();
+        const previousCount = UnifiedState.atoms.activePets.length;
+
+        UnifiedState.atoms.activePets = pets;
+        window.activePets = pets; // Expose globally for debugging
+
+        const newCount = pets.length;
+        if (newCount !== previousCount) {
+            console.log(`🐾 [SIMPLE-PETS] Pet count changed: ${previousCount} → ${newCount}`);
+
+            // Update UI if pets tab is active
+            if (UnifiedState.activeTab === 'pets') {
+                const context = document.getElementById('mga-tab-content');
+                if (context && typeof updateActivePetsDisplay === 'function') {
+                    updateActivePetsDisplay(context);
+                }
+            }
+        }
+
+        return pets;
+    }
 
     // ==================== INTERVAL MANAGEMENT ====================
     function setManagedInterval(name, callback, delay) {
@@ -714,7 +1010,7 @@
         UnifiedState.popoutWindows.clear();
     }
 
-    console.log('🔍 CHECKPOINT: INTERVAL_MANAGEMENT_COMPLETE');
+    /* CHECKPOINT removed: INTERVAL_MANAGEMENT_COMPLETE */
 
     // ==================== ENVIRONMENT DETECTION ====================
     function detectEnvironment() {
@@ -789,21 +1085,140 @@
     return demoData;
 }
 
-console.log('🔍 CHECKPOINT: ENVIRONMENT_DETECTION_COMPLETE');
+/* CHECKPOINT removed: ENVIRONMENT_DETECTION_COMPLETE */
 
 // ==================== UTILITIES ====================
-function loadJSON(key, fallback) {
+// MGA-specific storage functions to prevent conflicts with other scripts
+function MGA_loadJSON(key, fallback) {
     try {
         const val = localStorage.getItem(key);
         return val ? JSON.parse(val) : fallback;
     } catch (e) {
+        console.error(`❌ [MGA-STORAGE] Failed to load ${key}:`, e);
         return fallback;
     }
 }
 
-function saveJSON(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
+function MGA_saveJSON(key, value) {
+    try {
+        const jsonString = JSON.stringify(value);
+
+        // Check localStorage availability and conflicts
+        if (typeof localStorage === 'undefined') {
+            console.error(`❌ [MGA-STORAGE] localStorage not available!`);
+            return false;
+        }
+
+        // Check for storage quota issues
+        try {
+            localStorage.setItem(key, jsonString);
+        } catch (quotaError) {
+            if (quotaError.name === 'QuotaExceededError') {
+                console.error(`❌ [MGA-STORAGE] Storage quota exceeded for ${key}`);
+                // Try to clear some space by removing old non-MGA items
+                const mgaKeys = Object.keys(localStorage).filter(k => k.startsWith('MGA_'));
+                console.log(`🔧 [MGA-STORAGE] Found ${mgaKeys.length} MGA keys, localStorage has ${localStorage.length} total items`);
+            }
+            throw quotaError;
+        }
+
+        // Verify the save worked
+        const verification = localStorage.getItem(key);
+        if (verification !== jsonString) {
+            console.error(`❌ [MGA-STORAGE] Save verification failed for ${key}! Expected: ${jsonString.substring(0, 100)}..., Got: ${verification ? verification.substring(0, 100) + '...' : 'null'}`);
+            return false;
+        }
+
+        // Add specific debugging for pet presets
+        if (key === 'MGA_petPresets') {
+            console.log('💾 [MGA-STORAGE] ✅ Pet presets saved successfully:', {
+                key: key,
+                count: Object.keys(value || {}).length,
+                presets: Object.keys(value || {}),
+                size: jsonString.length + ' chars',
+                verified: true
+            });
+        } else if (key.startsWith('MGA_')) {
+            console.log(`💾 [MGA-STORAGE] ✅ Saved ${key}:`, typeof value === 'object' ? Object.keys(value).length + ' items' : value);
+        }
+
+        return true;
+    } catch (error) {
+        console.error(`❌ [MGA-STORAGE] Failed to save ${key}:`, error);
+        console.error(`❌ [MGA-STORAGE] Error details:`, {
+            name: error.name,
+            message: error.message,
+            localStorage: typeof localStorage,
+            storageLength: localStorage?.length,
+            keyExists: localStorage?.getItem(key) !== null
+        });
+        return false;
+    }
 }
+
+// Backward compatibility - provide old function names if not already defined by other scripts
+if (typeof window.loadJSON !== 'function') {
+    window.loadJSON = MGA_loadJSON;
+}
+if (typeof window.saveJSON !== 'function') {
+    window.saveJSON = MGA_saveJSON;
+}
+
+// Diagnostic function for localStorage issues
+window.MGA_debugStorage = function() {
+    console.log('🔍 [MGA-STORAGE] localStorage Diagnostic Report');
+    console.log('=====================================');
+
+    try {
+        // Check basic availability
+        console.log('📊 Basic Info:');
+        console.log('  localStorage available:', typeof localStorage !== 'undefined');
+        console.log('  Total items in localStorage:', localStorage.length);
+
+        // Check MGA-specific keys
+        const mgaKeys = Object.keys(localStorage).filter(k => k.startsWith('MGA_'));
+        console.log('  MGA-specific keys found:', mgaKeys.length);
+        console.log('  MGA keys:', mgaKeys);
+
+        // Check each MGA key
+        console.log('\n📝 MGA Data Status:');
+        mgaKeys.forEach(key => {
+            try {
+                const value = localStorage.getItem(key);
+                const parsed = JSON.parse(value);
+                console.log(`  ${key}:`, {
+                    exists: true,
+                    size: value.length + ' chars',
+                    type: typeof parsed,
+                    itemCount: Array.isArray(parsed) ? parsed.length : Object.keys(parsed || {}).length
+                });
+            } catch (e) {
+                console.log(`  ${key}: ❌ Invalid JSON - ${e.message}`);
+            }
+        });
+
+        // Check conflicts
+        console.log('\n⚠️ Potential Conflicts:');
+        console.log('  window.loadJSON defined by:', window.loadJSON === MGA_loadJSON ? 'MGA' : 'Other script');
+        console.log('  window.saveJSON defined by:', window.saveJSON === MGA_saveJSON ? 'MGA' : 'Other script');
+
+        // Storage space test
+        console.log('\n💾 Storage Test:');
+        const testKey = 'MGA_storageTest';
+        const testData = { test: true, timestamp: Date.now() };
+        try {
+            MGA_saveJSON(testKey, testData);
+            const retrieved = MGA_loadJSON(testKey, null);
+            console.log('  Storage test result:', retrieved && retrieved.test === true ? '✅ PASSED' : '❌ FAILED');
+            localStorage.removeItem(testKey);
+        } catch (e) {
+            console.log('  Storage test result: ❌ FAILED -', e.message);
+        }
+
+    } catch (error) {
+        console.error('❌ [MGA-STORAGE] Diagnostic failed:', error);
+    }
+};
 
     function safeSendMessage(message) {
         try {
@@ -848,30 +1263,64 @@ function saveJSON(key, value) {
 
     function hookAtom(atomPath, windowKey, callback) {
         if (!globalThis.jotaiAtomCache) {
-            if (UnifiedState.data?.settings?.debugMode) {
-                console.log(`⏳ Waiting for jotaiAtomCache for ${windowKey}...`);
-            }
+            console.log(`⏳ Waiting for jotaiAtomCache for ${windowKey}...`);
             setTimeout(() => hookAtom(atomPath, windowKey, callback), 1000);
             return;
         }
-        if (UnifiedState.data?.settings?.debugMode) {
-            console.log(`🔗 Hooking atom: ${windowKey}`);
-        }
+        console.log(`🔗 Attempting to hook atom: ${windowKey} at path: ${atomPath}`);
 
         try {
             const atom = globalThis.jotaiAtomCache.get(atomPath);
             if (!atom || !atom.read) {
-                console.warn(`Could not find atom for ${atomPath}`);
+                console.warn(`❌ Could not find atom for ${atomPath}`);
+                // List available atoms for debugging
+                const allAtoms = Array.from(globalThis.jotaiAtomCache.keys());
+                const petAtoms = allAtoms.filter(key => key.includes('Pet') || key.includes('pet') || key.includes('Slot'));
+                console.log('🔍 Pet-related atoms:', petAtoms);
+                console.log('🔍 All atoms (first 20):', allAtoms.slice(0, 20));
                 return;
             }
 
             const originalRead = atom.read;
             atom.read = function(get) {
-                const value = originalRead.call(this, get);
-                UnifiedState.atoms[windowKey] = value;
-                window[windowKey] = value;
-                if (callback) callback(value);
-                return value;
+                const rawValue = originalRead.call(this, get);
+
+                // Enhanced debugging for activePets
+                if (windowKey === 'activePets') {
+                    console.log(`🐾 [ATOM-DEBUG] ${windowKey} raw value:`, {
+                        value: rawValue,
+                        type: typeof rawValue,
+                        isArray: Array.isArray(rawValue),
+                        length: rawValue?.length,
+                        firstItem: rawValue?.[0]
+                    });
+                }
+
+                // Allow callback to transform the value before storing
+                let finalValue = rawValue;
+                if (callback) {
+                    const callbackResult = callback(rawValue);
+                    // If callback returns a value, use it; otherwise use raw value
+                    if (callbackResult !== undefined) {
+                        finalValue = callbackResult;
+                        if (windowKey === 'activePets') {
+                            console.log(`🐾 [ATOM-DEBUG] ${windowKey} transformed by callback:`, finalValue);
+                        }
+                    }
+                }
+
+                // Store the final (possibly transformed) value
+                UnifiedState.atoms[windowKey] = finalValue;
+                window[windowKey] = finalValue;
+
+                if (windowKey === 'activePets') {
+                    console.log(`🐾 [ATOM-DEBUG] ${windowKey} stored in UnifiedState:`, {
+                        count: finalValue?.length || 0,
+                        value: finalValue
+                    });
+                }
+
+                return rawValue; // Return raw value to game
             };
             if (UnifiedState.data?.settings?.debugMode) {
                 console.log(`Successfully hooked ${windowKey}`);
@@ -1011,7 +1460,7 @@ function saveJSON(key, value) {
     // Save main HUD position
     function saveMainHUDPosition(position) {
         try {
-            saveJSON('MGA_mainHUDPosition', position);
+            MGA_saveJSON('MGA_mainHUDPosition', position);
             debugLog('OVERLAY_LIFECYCLE', 'Saved main HUD position', { position });
         } catch (error) {
             debugError('OVERLAY_LIFECYCLE', 'Failed to save main HUD position', error, { position });
@@ -1021,7 +1470,7 @@ function saveJSON(key, value) {
     // Load main HUD position on startup
     function loadMainHUDPosition(element) {
         try {
-            const savedPosition = loadJSON('MGA_mainHUDPosition', null);
+            const savedPosition = MGA_loadJSON('MGA_mainHUDPosition', null);
             if (savedPosition && savedPosition.left && savedPosition.top) {
                 const leftPx = parseInt(savedPosition.left);
                 const topPx = parseInt(savedPosition.top);
@@ -1243,7 +1692,7 @@ function saveJSON(key, value) {
 
                     // Save visibility state
                     UnifiedState.data.settings.panelVisible = newVisibility;
-                    saveJSON('MGA_settings', UnifiedState.data.settings);
+                    MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
 
                     debugLog('OVERLAY_LIFECYCLE', `Panel toggled: ${newVisibility ? 'visible' : 'hidden'}`);
                 }
@@ -1257,7 +1706,7 @@ function saveJSON(key, value) {
     // Save toggle button position
     function saveToggleButtonPosition(position) {
         try {
-            saveJSON('MGA_toggleButtonPosition', position);
+            MGA_saveJSON('MGA_toggleButtonPosition', position);
             debugLog('OVERLAY_LIFECYCLE', 'Saved toggle button position', { position });
         } catch (error) {
             debugError('OVERLAY_LIFECYCLE', 'Failed to save toggle button position', error, { position });
@@ -1267,7 +1716,7 @@ function saveJSON(key, value) {
     // Load toggle button position on startup
     function loadToggleButtonPosition(toggleBtn) {
         try {
-            const savedPosition = loadJSON('MGA_toggleButtonPosition', null);
+            const savedPosition = MGA_loadJSON('MGA_toggleButtonPosition', null);
             if (savedPosition) {
                 if (savedPosition.left && savedPosition.top) {
                     const leftPx = parseInt(savedPosition.left);
@@ -1334,7 +1783,7 @@ function saveJSON(key, value) {
             const panel = UnifiedState.panels.main;
             const currentVisibility = panel.style.display !== 'none';
             UnifiedState.data.settings.panelVisible = currentVisibility;
-            saveJSON('MGA_settings', UnifiedState.data.settings);
+            MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
 
             if (UnifiedState.data.settings.debugMode) {
                 console.log(`💾 Window blurred - Panel state saved: ${currentVisibility ? 'visible' : 'hidden'}`);
@@ -1391,7 +1840,7 @@ function saveJSON(key, value) {
                 <span class="mga-tab-popout" data-popout="abilities" data-tooltip="Open abilities in separate window">↗️</span>
             </div>
             <div class="mga-tab" data-tab="seeds" data-tooltip="Mass seed deletion and inventory management">
-                <span data-icon="🌱">🌱 Seeds</span>
+                <span data-icon="S">Seeds</span>
                 <span class="mga-tab-popout" data-popout="seeds" data-tooltip="Open seeds in separate window">↗️</span>
             </div>
             <div class="mga-tab" data-tab="values" data-tooltip="Resource dashboard with analytics and tracking">
@@ -1419,6 +1868,49 @@ function saveJSON(key, value) {
         content.className = 'mga-content mga-scrollable';
         content.innerHTML = '<div id="mga-tab-content"></div>';
         panel.appendChild(content);
+
+        // Add MutationObserver to handle React re-renders (pets flash issue fix)
+        const tabContentEl = content.querySelector('#mga-tab-content');
+        if (tabContentEl) {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    // Only react to childList changes (React re-renders)
+                    if (mutation.type === 'childList' && UnifiedState.activeTab === 'pets') {
+                        // 🔍 REACT INTERFERENCE DEBUG: Track when React modifies our DOM
+                        console.log('🔄 [REACT-INTERFERENCE] Detected DOM mutation in pets tab', {
+                            timestamp: new Date().toLocaleTimeString(),
+                            mutationType: mutation.type,
+                            addedNodes: mutation.addedNodes.length,
+                            removedNodes: mutation.removedNodes.length,
+                            target: mutation.target.className || mutation.target.id || 'unknown',
+                            activeTab: UnifiedState.activeTab
+                        });
+
+                        // Check current pet count before and after interference
+                        const beforePets = tabContentEl.querySelectorAll('.mga-pet-item').length;
+
+                        setTimeout(() => {
+                            const afterPets = tabContentEl.querySelectorAll('.mga-pet-item').length;
+                            console.log('🔄 [REACT-INTERFERENCE] Updating pets display after React interference', {
+                                petElementsBefore: beforePets,
+                                petElementsAfter: afterPets,
+                                atomPetsAvailable: UnifiedState.atoms.activePets?.length || 0,
+                                interferenceRecovery: 'updateActivePetsDisplay'
+                            });
+                            updateActivePetsDisplay(tabContentEl);
+                        }, 50); // Small delay to let React finish
+                    }
+                });
+            });
+
+            observer.observe(tabContentEl, {
+                childList: true,
+                subtree: true
+            });
+
+            // Store observer for cleanup
+            UnifiedState.mutationObserver = observer;
+        }
 
         // Resize functionality will be added by makeElementResizable
 
@@ -1559,7 +2051,7 @@ function saveJSON(key, value) {
         const title = `Magic Garden Assistant - ${tabTitles[tabName] || tabName}`;
 
         // Calculate window size based on tab content
-        const windowFeatures = 'width=500,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+        const windowFeatures = 'width=450,height=550,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
 
         const popoutWindow = window.open('', `mga_popout_${tabName}`, windowFeatures);
 
@@ -1620,10 +2112,7 @@ function saveJSON(key, value) {
             font-size: var(--responsive-font-size);
         }
 
-        /* Apply responsive scaling to all elements */
-        * {
-            font-size: calc(var(--base-font-size) * var(--panel-scale)) !important;
-        }
+        /* Removed universal font scaling to prevent oversized popout UI */
         .popout-header {
             display: flex;
             justify-content: space-between;
@@ -1686,22 +2175,22 @@ function saveJSON(key, value) {
             let freshContent = '';
             switch(tabName) {
                 case 'pets':
-                    freshContent = mainWindow.getPetsPopoutContent ? mainWindow.getPetsPopoutContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getPetsPopoutContent ? mainWindow.MGA_Internal?.getPetsPopoutContent() : 'Content unavailable';
                     break;
                 case 'abilities':
-                    freshContent = mainWindow.getAbilitiesTabContent ? mainWindow.getAbilitiesTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getAbilitiesTabContent ? mainWindow.MGA_Internal?.getAbilitiesTabContent() : 'Content unavailable';
                     break;
                 case 'seeds':
-                    freshContent = mainWindow.getSeedsTabContent ? mainWindow.getSeedsTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getSeedsTabContent ? mainWindow.MGA_Internal?.getSeedsTabContent() : 'Content unavailable';
                     break;
                 case 'values':
-                    freshContent = mainWindow.getValuesTabContent ? mainWindow.getValuesTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getValuesTabContent ? mainWindow.MGA_Internal?.getValuesTabContent() : 'Content unavailable';
                     break;
                 case 'timers':
-                    freshContent = mainWindow.getTimersTabContent ? mainWindow.getTimersTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getTimersTabContent ? mainWindow.MGA_Internal?.getTimersTabContent() : 'Content unavailable';
                     break;
                 case 'settings':
-                    freshContent = mainWindow.getSettingsTabContent ? mainWindow.getSettingsTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getSettingsTabContent ? mainWindow.MGA_Internal?.getSettingsTabContent() : 'Content unavailable';
                     break;
             }
 
@@ -1790,20 +2279,21 @@ function saveJSON(key, value) {
         console.log(`✅ Pop-out window opened for ${tabName} tab`);
     }
 
-    // Expose content functions globally for pop-out windows
-    window.getPetsTabContent = getPetsTabContent;
-    window.getPetsPopoutContent = getPetsPopoutContent;
-    window.setupPetPopoutHandlers = setupPetPopoutHandlers;
-    window.getAbilitiesTabContent = getAbilitiesTabContent;
-    window.getSeedsTabContent = getSeedsTabContent;
-    window.getValuesTabContent = getValuesTabContent;
-    window.getTimersTabContent = getTimersTabContent;
-    window.getSettingsTabContent = getSettingsTabContent;
-    window.setupAbilitiesTabHandlers = setupAbilitiesTabHandlers;
-    window.updateAbilityLogDisplay = updateAbilityLogDisplay;
-    window.setupPetsTabHandlers = setupPetsTabHandlers;
-    window.setupSeedsTabHandlers = setupSeedsTabHandlers;
-    window.setupSettingsTabHandlers = setupSettingsTabHandlers;
+    // Expose content functions in MGA namespace for pop-out windows (prevents conflicts)
+    window.MGA_Internal = window.MGA_Internal || {};
+    window.MGA_Internal.getPetsTabContent = getPetsTabContent;
+    window.MGA_Internal.getPetsPopoutContent = getPetsPopoutContent;
+    window.MGA_Internal.setupPetPopoutHandlers = setupPetPopoutHandlers;
+    window.MGA_Internal.getAbilitiesTabContent = getAbilitiesTabContent;
+    window.MGA_Internal.getSeedsTabContent = getSeedsTabContent;
+    window.MGA_Internal.getValuesTabContent = getValuesTabContent;
+    window.MGA_Internal.getTimersTabContent = getTimersTabContent;
+    window.MGA_Internal.getSettingsTabContent = getSettingsTabContent;
+    window.MGA_Internal.setupAbilitiesTabHandlers = setupAbilitiesTabHandlers;
+    window.MGA_Internal.updateAbilityLogDisplay = updateAbilityLogDisplay;
+    window.MGA_Internal.setupPetsTabHandlers = setupPetsTabHandlers;
+    window.MGA_Internal.setupSeedsTabHandlers = setupSeedsTabHandlers;
+    window.MGA_Internal.setupSettingsTabHandlers = setupSettingsTabHandlers;
 
     // ==================== IN-GAME OVERLAY SYSTEM ====================
 
@@ -1935,16 +2425,16 @@ function saveJSON(key, value) {
         overlay.focus();
 
         // INVISIBLE DRAGGING - No chrome, entire overlay is draggable
-        // Add subtle visual feedback on hover
+        // Add subtle visual feedback on hover (skip for pets popouts to prevent stutter)
         overlay.addEventListener('mouseenter', () => {
-            if (!overlay.hasAttribute('data-dragging')) {
+            if (!overlay.hasAttribute('data-dragging') && !overlay.id.includes('mga-pets-popout') && !overlay.id.includes('pets')) {
                 overlay.style.transform = 'scale(1.005)';
                 overlay.style.transition = 'transform 0.15s ease';
             }
         });
 
         overlay.addEventListener('mouseleave', () => {
-            if (!overlay.hasAttribute('data-dragging')) {
+            if (!overlay.hasAttribute('data-dragging') && !overlay.id.includes('mga-pets-popout') && !overlay.id.includes('pets')) {
                 overlay.style.transform = 'scale(1)';
             }
         });
@@ -2072,6 +2562,8 @@ function saveJSON(key, value) {
 
         // Add professional resize functionality
         addResizeHandleToOverlay(overlay);
+
+        // Function now available globally - moved to global scope
 
         // Load saved position and dimensions
         loadOverlayPosition(overlay);
@@ -2432,9 +2924,9 @@ function saveJSON(key, value) {
 
     function saveOverlayDimensions(overlayId, dimensions) {
         try {
-            const savedDimensions = loadJSON('MGA_overlayDimensions', {});
+            const savedDimensions = MGA_loadJSON('MGA_overlayDimensions', {});
             savedDimensions[overlayId] = dimensions;
-            saveJSON('MGA_overlayDimensions', savedDimensions);
+            MGA_saveJSON('MGA_overlayDimensions', savedDimensions);
 
             debugLog('OVERLAY_LIFECYCLE', 'Saved overlay dimensions', {
                 overlayId,
@@ -2448,49 +2940,10 @@ function saveJSON(key, value) {
         }
     }
 
-    function applyResponsiveTextScaling(overlay, width, height) {
-        try {
-            // Calculate scale factor based on overlay dimensions
-            const baseWidth = 400; // Reference width for 100% scale
-            const baseHeight = 300; // Reference height for 100% scale
-
-            const widthScale = width / baseWidth;
-            const heightScale = height / baseHeight;
-            const scale = Math.min(widthScale, heightScale); // Use smaller scale to maintain readability
-
-            // Clamp scale between reasonable bounds
-            const clampedScale = Math.max(0.7, Math.min(1.3, scale));
-
-            // Apply scaling to text elements
-            const textElements = overlay.querySelectorAll('*');
-            textElements.forEach(element => {
-                const computedStyle = window.getComputedStyle(element);
-                const currentFontSize = parseFloat(computedStyle.fontSize);
-
-                if (currentFontSize && currentFontSize > 0) {
-                    const newFontSize = Math.max(10, currentFontSize * clampedScale);
-                    element.style.fontSize = `${newFontSize}px`;
-                }
-            });
-
-            debugLog('OVERLAY_LIFECYCLE', 'Applied responsive text scaling', {
-                overlayId: overlay.id,
-                width,
-                height,
-                scale: clampedScale
-            });
-        } catch (error) {
-            debugError('OVERLAY_LIFECYCLE', 'Failed to apply responsive text scaling', error, {
-                overlayId: overlay.id,
-                width,
-                height
-            });
-        }
-    }
 
     function loadOverlayDimensions(overlay) {
         try {
-            const savedDimensions = loadJSON('MGA_overlayDimensions', {});
+            const savedDimensions = MGA_loadJSON('MGA_overlayDimensions', {});
             const dimensions = savedDimensions[overlay.id];
 
             if (dimensions && dimensions.width && dimensions.height) {
@@ -2526,7 +2979,7 @@ function saveJSON(key, value) {
         const snapGrid = 10; // Snap to 10px increments
 
         // Check if we have a saved position first
-        const savedPositions = loadJSON('MGA_overlayPositions', {});
+        const savedPositions = MGA_loadJSON('MGA_overlayPositions', {});
         const savedPosition = savedPositions[`mga-overlay-${tabName}`];
 
         if (savedPosition) {
@@ -2715,9 +3168,9 @@ function saveJSON(key, value) {
     // OVERLAY POSITION PERSISTENCE SYSTEM
     function saveOverlayPosition(overlayId, position) {
         try {
-            const savedPositions = loadJSON('MGA_overlayPositions', {});
+            const savedPositions = MGA_loadJSON('MGA_overlayPositions', {});
             savedPositions[overlayId] = position;
-            saveJSON('MGA_overlayPositions', savedPositions);
+            MGA_saveJSON('MGA_overlayPositions', savedPositions);
 
             debugLog('OVERLAY_LIFECYCLE', 'Saved overlay position', {
                 overlayId,
@@ -2733,7 +3186,7 @@ function saveJSON(key, value) {
 
     function loadOverlayPosition(overlay) {
         try {
-            const savedPositions = loadJSON('MGA_overlayPositions', {});
+            const savedPositions = MGA_loadJSON('MGA_overlayPositions', {});
             const position = savedPositions[overlay.id];
 
             if (position) {
@@ -2823,9 +3276,9 @@ function saveJSON(key, value) {
         }
 
         // Save minimized state
-        const overlayStates = loadJSON('MGA_overlayStates', {});
+        const overlayStates = MGA_loadJSON('MGA_overlayStates', {});
         overlayStates[overlay.id] = { minimized: !isMinimized };
-        saveJSON('MGA_overlayStates', overlayStates);
+        MGA_saveJSON('MGA_overlayStates', overlayStates);
 
         // Add smooth animation
         overlay.style.transition = 'height 0.2s ease, min-height 0.2s ease, max-height 0.2s ease';
@@ -2836,7 +3289,7 @@ function saveJSON(key, value) {
 
     function loadOverlayState(overlay) {
         try {
-            const overlayStates = loadJSON('MGA_overlayStates', {});
+            const overlayStates = MGA_loadJSON('MGA_overlayStates', {});
             const state = overlayStates[overlay.id];
 
             if (state && state.minimized) {
@@ -3108,7 +3561,7 @@ function saveJSON(key, value) {
         };
 
         const title = `Magic Garden Assistant - ${tabTitles[tabName] || tabName}`;
-        const windowFeatures = 'width=500,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+        const windowFeatures = 'width=450,height=550,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         const popoutWindow = window.open('', `mga_popout_${tabName}`, windowFeatures);
 
         if (!popoutWindow) {
@@ -3168,10 +3621,7 @@ function saveJSON(key, value) {
             font-size: var(--responsive-font-size);
         }
 
-        /* Apply responsive scaling to all elements */
-        * {
-            font-size: calc(var(--base-font-size) * var(--panel-scale)) !important;
-        }
+        /* Removed universal font scaling to prevent oversized popout UI */
         .popout-header {
             display: flex;
             justify-content: space-between;
@@ -3231,22 +3681,22 @@ function saveJSON(key, value) {
             let freshContent = '';
             switch(tabName) {
                 case 'pets':
-                    freshContent = mainWindow.getPetsPopoutContent ? mainWindow.getPetsPopoutContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getPetsPopoutContent ? mainWindow.MGA_Internal?.getPetsPopoutContent() : 'Content unavailable';
                     break;
                 case 'abilities':
-                    freshContent = mainWindow.getAbilitiesTabContent ? mainWindow.getAbilitiesTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getAbilitiesTabContent ? mainWindow.MGA_Internal?.getAbilitiesTabContent() : 'Content unavailable';
                     break;
                 case 'seeds':
-                    freshContent = mainWindow.getSeedsTabContent ? mainWindow.getSeedsTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getSeedsTabContent ? mainWindow.MGA_Internal?.getSeedsTabContent() : 'Content unavailable';
                     break;
                 case 'values':
-                    freshContent = mainWindow.getValuesTabContent ? mainWindow.getValuesTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getValuesTabContent ? mainWindow.MGA_Internal?.getValuesTabContent() : 'Content unavailable';
                     break;
                 case 'timers':
-                    freshContent = mainWindow.getTimersTabContent ? mainWindow.getTimersTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getTimersTabContent ? mainWindow.MGA_Internal?.getTimersTabContent() : 'Content unavailable';
                     break;
                 case 'settings':
-                    freshContent = mainWindow.getSettingsTabContent ? mainWindow.getSettingsTabContent() : 'Content unavailable';
+                    freshContent = mainWindow.MGA_Internal?.getSettingsTabContent ? mainWindow.MGA_Internal?.getSettingsTabContent() : 'Content unavailable';
                     break;
             }
 
@@ -3396,7 +3846,36 @@ function saveJSON(key, value) {
 
         switch(UnifiedState.activeTab) {
             case 'pets':
-                contentEl.innerHTML = getPetsTabContent();
+                // 🔍 RENDER CYCLE DEBUG: Track pets tab content generation
+                console.log('🔄 [RENDER-CYCLE] Starting pets tab content generation', {
+                    timestamp: new Date().toLocaleTimeString(),
+                    activeTab: UnifiedState.activeTab,
+                    atomActivePets: UnifiedState.atoms.activePets?.length || 0,
+                    windowActivePets: window.activePets?.length || 0,
+                    renderTrigger: 'updateTabContent'
+                });
+
+                const petsHtml = getPetsTabContent();
+                console.log('🔄 [RENDER-CYCLE] Generated pets HTML', {
+                    htmlLength: petsHtml.length,
+                    containsActivePets: petsHtml.includes('Active Pets'),
+                    containsPetData: petsHtml.includes('mga-pet-'),
+                    renderStage: 'html-generated'
+                });
+
+                contentEl.innerHTML = petsHtml;
+
+                // Check what was actually rendered to DOM
+                setTimeout(() => {
+                    const activePetsElements = contentEl.querySelectorAll('.mga-pet-item');
+                    console.log('🔄 [RENDER-CYCLE] DOM render result', {
+                        activePetsInDOM: activePetsElements.length,
+                        elementsFound: activePetsElements.length > 0,
+                        renderStage: 'dom-updated',
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                }, 10);
+
                 setupPetsTabHandlers();
 
                 // Restore input state after HTML regeneration
@@ -3445,23 +3924,42 @@ function saveJSON(key, value) {
     // Simplified pets content for popouts - JUST preset selection
     function getPetsPopoutContent() {
         console.log('🔍 [PETS DEBUG] getPetsPopoutContent() called');
-        const activePets = UnifiedState.atoms.activePets || [];
+        // Use multiple sources for pet data (same as updateActivePetsDisplay)
+        const activePets = UnifiedState.atoms.activePets || window.activePets || [];
         const petPresets = UnifiedState.data.petPresets;
-        console.log('🔍 [PETS DEBUG] Data check:', { activePetsCount: activePets.length, presetsCount: Object.keys(petPresets).length });
+        console.log('🔍 [PETS DEBUG] Data check:', {
+            activePetsCount: activePets.length,
+            presetsCount: Object.keys(petPresets).length,
+            unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
+            windowActivePets: window.activePets?.length || 0
+        });
 
         if (Object.keys(petPresets).length === 0) {
             return `
                 <div class="mga-section">
-                    <div class="mga-section-title">🐾 Active Pets</div>
-                    <div style="color: #4a9eff; font-size: 13px; margin-bottom: 12px;">
-                        ${activePets.length > 0 ? activePets.map(p => p.petSpecies).join(', ') : 'No active pets'}
+                    <div class="mga-section-title mga-pet-section-title">Active Pets</div>
+                    <div class="mga-active-pets-display">
+                        ${activePets.length > 0 ? `
+                            <div style="color: #93c5fd; font-size: 12px; margin-bottom: 4px;">Currently Equipped:</div>
+                            <div class="mga-active-pets-list">
+                                ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                            </div>
+                        ` : `
+                            <div class="mga-empty-state">
+                                <div class="mga-empty-state-icon">—</div>
+                                <div class="mga-empty-state-description">No pets currently active</div>
+                            </div>
+                        `}
                     </div>
                 </div>
                 <div class="mga-section">
-                    <div class="mga-section-title">📋 No Saved Presets</div>
-                    <div style="color: #aaa; text-align: center; padding: 20px; line-height: 1.6;">
-                        <div style="margin-bottom: 12px;">You haven't saved any pet loadout presets yet.</div>
-                        <div style="font-size: 12px;">Open the main HUD Pets tab to create presets from your current active pets.</div>
+                    <div class="mga-empty-state" style="padding: 40px 20px;">
+                        <div class="mga-empty-state-icon">📋</div>
+                        <div class="mga-empty-state-title">No Saved Presets</div>
+                        <div class="mga-empty-state-description">
+                            You haven't saved any pet loadout presets yet.<br>
+                            Open the main HUD Pets tab to create presets from your current active pets.
+                        </div>
                     </div>
                 </div>
             `;
@@ -3469,9 +3967,19 @@ function saveJSON(key, value) {
 
         let html = `
             <div class="mga-section">
-                <div class="mga-section-title">Active Pets</div>
-                <div style="color: #4a9eff; font-size: 13px; margin-bottom: 8px; word-wrap: break-word;">
-                    ${activePets.length > 0 ? activePets.map(p => p.petSpecies).join(', ') : 'No active pets'}
+                <div class="mga-section-title mga-pet-section-title">Active Pets</div>
+                <div class="mga-active-pets-display">
+                    ${activePets.length > 0 ? `
+                        <div class="mga-active-pets-header">Currently Equipped:</div>
+                        <div class="mga-active-pets-list">
+                            ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                        </div>
+                    ` : `
+                        <div class="mga-empty-state">
+                            <div class="mga-empty-state-icon">—</div>
+                            <div class="mga-empty-state-description">No pets currently active</div>
+                        </div>
+                    `}
                 </div>
             </div>
 
@@ -3479,23 +3987,16 @@ function saveJSON(key, value) {
                 <div class="mga-section-title">Load Pet Preset</div>
         `;
 
-        // Create clickable preset buttons instead of dropdown
+        // Create clickable preset cards (consistent with main HUD structure)
         for (const [name, pets] of Object.entries(petPresets)) {
             const petList = pets.map(p => p.petSpecies).join(', ');
             html += `
-                <button class="mga-btn" data-preset="${name}" style="
-                    width: 100%;
-                    margin-bottom: 8px;
-                    text-align: left;
-                    padding: 12px;
-                    font-size: 12px;
-                    line-height: 1.2;
-                    white-space: normal;
-                    word-wrap: break-word;
-                " id="load-preset-${name.replace(/[^a-zA-Z0-9]/g, '')}">
-                    <div style="font-weight: bold; color: #4a9eff; margin-bottom: 4px;">${name}</div>
-                    <div style="color: #ccc; font-size: 11px;">${petList}</div>
-                </button>
+                <div class="mga-preset mga-preset-clickable" data-preset="${name}">
+                    <div class="mga-preset-header">
+                        <span class="mga-preset-name">${name}</span>
+                    </div>
+                    <div class="mga-preset-pets">${petList}</div>
+                </div>
             `;
         }
 
@@ -3506,15 +4007,15 @@ function saveJSON(key, value) {
 
     // Setup handlers specifically for pet popout preset buttons
     function setupPetPopoutHandlers(context = document) {
-        // Set up preset button handlers
-        context.querySelectorAll('button[data-preset]').forEach(button => {
-            if (button.hasAttribute('data-handler-setup')) {
+        // Set up preset card handlers (updated for div structure)
+        context.querySelectorAll('.mga-preset-clickable[data-preset]').forEach(presetCard => {
+            if (presetCard.hasAttribute('data-handler-setup')) {
                 return; // Already set up
             }
-            button.setAttribute('data-handler-setup', 'true');
+            presetCard.setAttribute('data-handler-setup', 'true');
 
-            button.addEventListener('click', (e) => {
-                const presetName = e.target.dataset.preset || e.target.closest('button[data-preset]').dataset.preset;
+            presetCard.addEventListener('click', (e) => {
+                const presetName = e.currentTarget.dataset.preset;
 
                 if (!presetName || !UnifiedState.data.petPresets[presetName]) {
                     alert('Preset not found!');
@@ -3544,33 +4045,53 @@ function saveJSON(key, value) {
                     });
                 });
 
-                // Visual feedback
-                button.style.background = '#10b981';
-                button.style.transform = 'scale(0.95)';
+                // Visual feedback - gentle highlight, no transform (prevents stutter)
+                // Temporarily disable pointer events to prevent hover conflicts
+                presetCard.style.pointerEvents = 'none';
+                const originalBackground = presetCard.style.background;
+                presetCard.style.background = 'rgba(16, 185, 129, 0.3)';
                 setTimeout(() => {
-                    button.style.background = '';
-                    button.style.transform = '';
+                    presetCard.style.background = originalBackground;
+                    presetCard.style.pointerEvents = '';
                 }, 200);
 
-                console.log(`✅ Loaded pet preset: ${presetName}`);
+                console.log(`✅ [MGA-PETS] Loaded preset: ${presetName}`);
             });
         });
     }
 
     function getPetsTabContent() {
-        const activePets = UnifiedState.atoms.activePets || [];
+        // Use multiple sources for pet data (same as updateActivePetsDisplay)
+        const activePets = UnifiedState.atoms.activePets || window.activePets || [];
         const petPresets = UnifiedState.data.petPresets;
+
+        console.log('🐾 [PETS-TAB-CONTENT] Generating HTML with pets:', {
+            unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
+            windowActivePets: window.activePets?.length || 0,
+            finalActivePets: activePets.length,
+            activePetsData: activePets
+        });
 
         let html = `
             <div class="mga-section">
-                <div class="mga-section-title">Active Pets</div>
-                <div style="color: #4a9eff; font-size: 13px; margin-bottom: 8px;">
-                    ${activePets.length > 0 ? activePets.map(p => p.petSpecies).join(', ') : 'No active pets'}
+                <div class="mga-section-title mga-pet-section-title">Active Pets</div>
+                <div class="mga-active-pets-display">
+                    ${activePets.length > 0 ? `
+                        <div class="mga-active-pets-header">Currently Equipped:</div>
+                        <div class="mga-active-pets-list">
+                            ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                        </div>
+                    ` : `
+                        <div class="mga-empty-state">
+                            <div class="mga-empty-state-icon">—</div>
+                            <div class="mga-empty-state-description">No pets currently active</div>
+                        </div>
+                    `}
                 </div>
             </div>
 
             <div class="mga-section">
-                <div class="mga-section-title">Quick Load Preset</div>
+                <div class="mga-section-title mga-pet-section-title">Quick Load Preset</div>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: stretch;">
                     <select class="mga-select" id="preset-quick-select" style="flex: 1;">
                         <option value="">-- Select Preset --</option>
@@ -3583,7 +4104,7 @@ function saveJSON(key, value) {
             </div>
 
             <div class="mga-section">
-                <div class="mga-section-title">Create New Preset</div>
+                <div class="mga-section-title mga-pet-section-title">Create New Preset</div>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: stretch;">
                     <input type="text" class="mga-input" id="preset-name-input" placeholder="Preset name..." style="flex: 1;">
                     <button class="mga-btn" id="add-preset-btn" style="white-space: nowrap; min-width: 60px; flex-shrink: 0;">Save Current</button>
@@ -3591,8 +4112,8 @@ function saveJSON(key, value) {
             </div>
 
             <div class="mga-section">
-                <div class="mga-section-title">Manage Presets</div>
-                <div id="presets-list" class="mga-scrollable" style="max-height: 300px; overflow-y: auto;">
+                <div class="mga-section-title mga-pet-section-title">Manage Presets</div>
+                <div id="presets-list" class="mga-scrollable mga-presets-container">
         `;
 
         for (const [name, pets] of Object.entries(petPresets)) {
@@ -3704,14 +4225,15 @@ function saveJSON(key, value) {
 
     function getSeedsTabContent() {
         debugLog('SEEDS_TAB', 'getSeedsTabContent() called - generating full content');
-        console.log('🔍 [SEEDS DEBUG] getSeedsTabContent() called');
+        console.log('🔍 [SEEDS DEBUG] getSeedsTabContent() called - generating content');
         const seedGroups = [
             { name: "Common", color: "#fff", seeds: ["Carrot", "Strawberry", "Aloe"] },
             { name: "Uncommon", color: "#0f0", seeds: ["Apple", "Tulip", "Tomato", "Blueberry"] },
-            { name: "Rare", color: "#0af", seeds: ["Daffodil", "Sunflower", "Corn", "Watermelon", "Pumpkin"] },
+            { name: "Rare", color: "#0af", seeds: ["Daffodil", "Corn", "Watermelon", "Pumpkin"] },
             { name: "Legendary", color: "#ff0", seeds: ["Echeveria", "Coconut", "Banana", "Lily", "BurrosTail"] },
             { name: "Mythical", color: "#a0f", seeds: ["Mushroom", "Cactus", "Bamboo", "Grape"] },
-            { name: "Divine", color: "orange", seeds: ["Pepper", "Lemon", "PassionFruit", "DragonFruit", "Lychee", "Starweaver"] }
+            { name: "Divine", color: "orange", seeds: ["Sunflower", "Pepper", "Lemon", "PassionFruit", "DragonFruit", "Lychee"] },
+            { name: "Celestial", color: "#ff69b4", seeds: ["Starweaver", "Moonbinder", "Dawnbinder"], protected: true }
         ];
 
         let html = `
@@ -3750,10 +4272,16 @@ function saveJSON(key, value) {
             `;
 
             group.seeds.forEach(seed => {
+                const isGroupProtected = group.protected === true;
+                const isIndividuallyProtected = ['Starweaver', 'Moonbinder', 'Dawnbinder', 'Sunflower'].includes(seed);
+                const isProtected = isGroupProtected || isIndividuallyProtected;
+                const disabledAttr = isProtected ? 'disabled' : '';
+                const protectedStyle = isProtected ? 'opacity: 0.5; cursor: not-allowed;' : '';
+                const protectedLabel = isProtected ? ' 🔒' : '';
                 html += `
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox seed-checkbox" data-seed="${seed}">
-                        <span class="mga-label" style="color: ${group.color}">${seed}</span>
+                    <label class="mga-checkbox-group" style="${protectedStyle}">
+                        <input type="checkbox" class="mga-checkbox seed-checkbox" data-seed="${seed}" ${disabledAttr}>
+                        <span class="mga-label" style="color: ${group.color}">${seed}${protectedLabel}</span>
                     </label>
                 `;
             });
@@ -3959,7 +4487,6 @@ function saveJSON(key, value) {
                         <option value="Tomato">🍅 Tomato</option>
                         <option value="Blueberry">🫐 Blueberry</option>
                         <option value="Daffodil">🌻 Daffodil</option>
-                        <option value="Sunflower">🌻 Sunflower</option>
                         <option value="Corn">🌽 Corn</option>
                         <option value="Watermelon">🍉 Watermelon</option>
                         <option value="Pumpkin">🎃 Pumpkin</option>
@@ -3972,12 +4499,15 @@ function saveJSON(key, value) {
                         <option value="Cactus">🌵 Cactus</option>
                         <option value="Bamboo">🎋 Bamboo</option>
                         <option value="Grape">🍇 Grape</option>
+                        <option value="Sunflower">🌻 Sunflower</option>
                         <option value="Pepper">🌶️ Pepper</option>
                         <option value="Lemon">🍋 Lemon</option>
                         <option value="PassionFruit">🥭 PassionFruit</option>
                         <option value="DragonFruit">🐉 DragonFruit</option>
                         <option value="Lychee">🍒 Lychee</option>
                         <option value="Starweaver">⭐ Starweaver</option>
+                        <option value="Moonbinder">🌙 Moonbinder</option>
+                        <option value="Dawnbinder">🌅 Dawnbinder</option>
                     </select>
                 </div>
 
@@ -4003,7 +4533,6 @@ function saveJSON(key, value) {
                         <option value="Tomato">🍅 Tomato</option>
                         <option value="Blueberry">🫐 Blueberry</option>
                         <option value="Daffodil">🌻 Daffodil</option>
-                        <option value="Sunflower">🌻 Sunflower</option>
                         <option value="Corn">🌽 Corn</option>
                         <option value="Watermelon">🍉 Watermelon</option>
                         <option value="Pumpkin">🎃 Pumpkin</option>
@@ -4016,12 +4545,15 @@ function saveJSON(key, value) {
                         <option value="Cactus">🌵 Cactus</option>
                         <option value="Bamboo">🎋 Bamboo</option>
                         <option value="Grape">🍇 Grape</option>
+                        <option value="Sunflower">🌻 Sunflower</option>
                         <option value="Pepper">🌶️ Pepper</option>
                         <option value="Lemon">🍋 Lemon</option>
                         <option value="PassionFruit">🥭 PassionFruit</option>
                         <option value="DragonFruit">🐉 DragonFruit</option>
                         <option value="Lychee">🍒 Lychee</option>
                         <option value="Starweaver">⭐ Starweaver</option>
+                        <option value="Moonbinder">🌙 Moonbinder</option>
+                        <option value="Dawnbinder">🌅 Dawnbinder</option>
                     </select>
                 </div>
 
@@ -4101,6 +4633,49 @@ function saveJSON(key, value) {
         debugLog('PETS_UI', 'Updated preset dropdown without full refresh');
     }
 
+    function updateActivePetsDisplay(context = document, retryCount = 0) {
+        console.log('🐾 [ACTIVE-PETS] Updating display', {
+            retryCount,
+            unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
+            windowActivePets: window.activePets?.length || 0,
+            context: context === document ? 'document' : 'overlay'
+        });
+
+        // Try multiple sources for pet data (React timing issue workaround)
+        let activePets = UnifiedState.atoms.activePets || window.activePets || [];
+
+        // If no pets found and this is first try, wait and retry (DOM timing fix)
+        if (activePets.length === 0 && retryCount < 3) {
+            console.log(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
+            setTimeout(() => updateActivePetsDisplay(context, retryCount + 1), 100 * (retryCount + 1));
+            return;
+        }
+
+        // Find all Active Pets display elements in the given context
+        const activePetsDisplays = context.querySelectorAll('.mga-active-pets-display');
+
+        activePetsDisplays.forEach(display => {
+            const innerHTML = activePets.length > 0 ? `
+                <div class="mga-active-pets-header">Currently Equipped:</div>
+                <div class="mga-active-pets-list">
+                    ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                </div>
+            ` : `
+                <div class="mga-empty-state">
+                    <div class="mga-empty-state-icon">—</div>
+                    <div class="mga-empty-state-description">No pets currently active</div>
+                </div>
+            `;
+
+            display.innerHTML = innerHTML;
+        });
+
+        console.log('🐾 [ACTIVE-PETS] Updated display elements:', {
+            elementsFound: activePetsDisplays.length,
+            activePetsCount: activePets.length
+        });
+    }
+
     function addPresetToList(context, name, preset) {
         const presetsList = context.querySelector('#presets-list');
         if (!presetsList) return;
@@ -4130,7 +4705,7 @@ function saveJSON(key, value) {
 
                 if (action === 'save') {
                     UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
-                    saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                     updatePetPresetDropdown(context);
                     refreshSeparateWindowPopouts('pets');
                     debugLog('BUTTON_INTERACTIONS', `Saved preset: ${presetName} (from added element)`);
@@ -4161,7 +4736,7 @@ function saveJSON(key, value) {
                     debugLog('BUTTON_INTERACTIONS', `Placed preset: ${presetName} (from added element)`);
                 } else if (action === 'remove') {
                     delete UnifiedState.data.petPresets[presetName];
-                    saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                     presetDiv.remove();
                     updatePetPresetDropdown(context);
                     refreshSeparateWindowPopouts('pets');
@@ -4329,7 +4904,7 @@ function saveJSON(key, value) {
                         petSpecies: p.petSpecies,
                         mutations: p.mutations || []
                     }));
-                    saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                     input.value = ''; // Clear input after successful add
 
                     // Add new preset to list without full refresh
@@ -4374,7 +4949,7 @@ function saveJSON(key, value) {
 
                 if (action === 'save') {
                     UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
-                    saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
 
                     // Update only the quick select dropdown without full refresh
                     updatePetPresetDropdown(context);
@@ -4434,7 +5009,7 @@ function saveJSON(key, value) {
                     }, 100);
                 } else if (action === 'remove') {
                     delete UnifiedState.data.petPresets[presetName];
-                    saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
 
                     // Remove the preset element from DOM without full refresh
                     const presetElement = e.target.closest('.mga-preset');
@@ -4606,7 +5181,7 @@ function saveJSON(key, value) {
             clearBtn.addEventListener('click', () => {
                 if (confirm('Clear all ability logs? This cannot be undone!')) {
                     UnifiedState.data.petAbilityLogs = [];
-                    saveJSON('MGA_petAbilityLogs', []);
+                    MGA_saveJSON('MGA_petAbilityLogs', []);
                     updateAbilityLogDisplay(context);
                 }
             });
@@ -4628,8 +5203,8 @@ function saveJSON(key, value) {
             context: context === document ? 'document' : 'element'
         });
 
-        // Update the ability logs display (show newest first, up to 100 logs)
-        const logs = UnifiedState.data.petAbilityLogs.slice(-100).reverse();
+        // Update the ability logs display (show newest first, all logs)
+        const logs = UnifiedState.data.petAbilityLogs.slice().reverse();
         if (logs.length === 0) {
             abilityLogs.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">No ability logs recorded yet</div>';
         } else {
@@ -4729,7 +5304,7 @@ function saveJSON(key, value) {
                 checkbox.addEventListener('change', (e) => {
                     const filterKey = e.target.dataset.filter;
                     UnifiedState.data.abilityFilters[filterKey] = e.target.checked;
-                    saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
+                    MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
 
                     // Update ALL overlays with ability logs
                     updateAllAbilityLogDisplays();
@@ -4744,7 +5319,7 @@ function saveJSON(key, value) {
             clearLogsBtn.setAttribute('data-handler-setup', 'true');
             clearLogsBtn.addEventListener('click', () => {
                 UnifiedState.data.petAbilityLogs = [];
-                saveJSON('MGA_petAbilityLogs', []);
+                MGA_saveJSON('MGA_petAbilityLogs', []);
                 updateTabContent();
                 updateAllAbilityLogDisplays();
             });
@@ -4825,7 +5400,7 @@ function saveJSON(key, value) {
             return;
         }
 
-        const logs = UnifiedState.data.petAbilityLogs.slice(0, 50); // Show more logs with virtual scrolling
+        const logs = UnifiedState.data.petAbilityLogs.slice(); // Show all logs - user requested 100% persistence
         const filteredLogs = logs.filter(log => {
             return shouldLogAbility(log.abilityType, log.petName);
         });
@@ -5091,19 +5666,17 @@ function saveJSON(key, value) {
             UnifiedState.data.petAbilityLogs.unshift(log);
         });
 
-        // Keep only the latest 100 logs
-        if (UnifiedState.data.petAbilityLogs.length > 100) {
-            UnifiedState.data.petAbilityLogs = UnifiedState.data.petAbilityLogs.slice(0, 100);
-        }
+        // Logs are now 100% persistent until manually cleared by user
+        // No automatic pruning - user requested full persistence
 
-        saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+        MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
         console.log('Added comprehensive test abilities covering all 7 categories!');
     }
 
     // PAL4 Filter System Functions
     function switchFilterMode(mode) {
         UnifiedState.data.filterMode = mode;
-        saveJSON('MGA_filterMode', mode);
+        MGA_saveJSON('MGA_filterMode', mode);
 
         // Update button states
         document.querySelectorAll('[id^="filter-mode-"]').forEach(btn => btn.classList.remove('active'));
@@ -5161,7 +5734,7 @@ function saveJSON(key, value) {
 
             checkbox.addEventListener('change', (e) => {
                 UnifiedState.data.petFilters.selectedPets[pet] = e.target.checked;
-                saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
+                MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
                 updateAbilityLogDisplay();
             });
 
@@ -5200,7 +5773,7 @@ function saveJSON(key, value) {
 
             checkbox.addEventListener('change', (e) => {
                 UnifiedState.data.customMode.selectedAbilities[ability] = e.target.checked;
-                saveJSON('MGA_customMode', UnifiedState.data.customMode);
+                MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
                 updateAbilityLogDisplay();
             });
 
@@ -5241,20 +5814,20 @@ function saveJSON(key, value) {
                 const checkbox = document.querySelector(`[data-filter="${key}"]`);
                 if (checkbox) checkbox.checked = true;
             });
-            saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
+            MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
         } else if (mode === 'byPet') {
             const pets = getAllUniquePets();
             pets.forEach(pet => {
                 UnifiedState.data.petFilters.selectedPets[pet] = true;
             });
-            saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
+            MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
             populatePetSpeciesList();
         } else if (mode === 'custom') {
             const abilities = getAllUniqueAbilities();
             abilities.forEach(ability => {
                 UnifiedState.data.customMode.selectedAbilities[ability] = true;
             });
-            saveJSON('MGA_customMode', UnifiedState.data.customMode);
+            MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
             populateIndividualAbilities();
         }
         updateAbilityLogDisplay();
@@ -5267,14 +5840,14 @@ function saveJSON(key, value) {
                 const checkbox = document.querySelector(`[data-filter="${key}"]`);
                 if (checkbox) checkbox.checked = false;
             });
-            saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
+            MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
         } else if (mode === 'byPet') {
             UnifiedState.data.petFilters.selectedPets = {};
-            saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
+            MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
             populatePetSpeciesList();
         } else if (mode === 'custom') {
             UnifiedState.data.customMode.selectedAbilities = {};
-            saveJSON('MGA_customMode', UnifiedState.data.customMode);
+            MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
             populateIndividualAbilities();
         }
         updateAbilityLogDisplay();
@@ -5314,6 +5887,19 @@ function saveJSON(key, value) {
     }
 
     function setupSeedsTabHandlers(context = document) {
+        // Seed ID mapping for initialization
+        const seedIdMap = {
+            "Carrot": "Carrot", "Strawberry": "Strawberry", "Aloe": "Aloe",
+            "Blueberry": "Blueberry", "Apple": "Apple", "Tulip": "OrangeTulip",
+            "Tomato": "Tomato", "Daffodil": "Daffodil", "Sunflower": "Sunflower", "Corn": "Corn",
+            "Watermelon": "Watermelon", "Pumpkin": "Pumpkin", "Echeveria": "Echeveria",
+            "Coconut": "Coconut", "Banana": "Banana", "Lily": "Lily",
+            "BurrosTail": "BurrosTail", "Mushroom": "Mushroom", "Cactus": "Cactus",
+            "Bamboo": "Bamboo", "Grape": "Grape", "Pepper": "Pepper",
+            "Lemon": "Lemon", "PassionFruit": "PassionFruit", "DragonFruit": "DragonFruit",
+            "Lychee": "Lychee", "Starweaver": "Starweaver", "Moonbinder": "Moonbinder", "Dawnbinder": "Dawnbinder"
+        };
+
         context.querySelectorAll('.seed-checkbox').forEach(checkbox => {
             // Prevent duplicate event listeners
             if (checkbox.hasAttribute('data-handler-setup')) {
@@ -5321,15 +5907,35 @@ function saveJSON(key, value) {
             }
             checkbox.setAttribute('data-handler-setup', 'true');
 
+            // Initialize checkbox state based on saved seedsToDelete
+            const seed = checkbox.dataset.seed;
+            const internalId = seedIdMap[seed] || seed;
+            if (UnifiedState.data.seedsToDelete.includes(internalId)) {
+                checkbox.checked = true;
+            }
+
             checkbox.addEventListener('change', (e) => {
                 const seed = e.target.dataset.seed;
+
+                // Prevent adding protected seeds to deletion list
+                if (e.target.checked && ['Starweaver', 'Moonbinder', 'Dawnbinder', 'Sunflower'].includes(seed)) {
+                    e.target.checked = false;
+                    const seedType = seed === 'Sunflower' ? 'Divine' : 'Celestial';
+                    alert(`❌ ${seed} is a protected ${seedType} seed and cannot be deleted!`);
+                    return;
+                }
+
+                // Map display name to internal ID for storage (using seedIdMap from function scope)
+                const internalId = seedIdMap[seed] || seed;
+
                 if (e.target.checked) {
-                    if (!UnifiedState.data.seedsToDelete.includes(seed)) {
-                        UnifiedState.data.seedsToDelete.push(seed);
+                    if (!UnifiedState.data.seedsToDelete.includes(internalId)) {
+                        UnifiedState.data.seedsToDelete.push(internalId);
                     }
                 } else {
-                    UnifiedState.data.seedsToDelete = UnifiedState.data.seedsToDelete.filter(s => s !== seed);
+                    UnifiedState.data.seedsToDelete = UnifiedState.data.seedsToDelete.filter(s => s !== internalId);
                 }
+                MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
                 debugLog('BUTTON_INTERACTIONS', `Seed checkbox changed: ${seed}`, {
                     checked: e.target.checked,
                     seedsToDelete: UnifiedState.data.seedsToDelete
@@ -5341,12 +5947,29 @@ function saveJSON(key, value) {
         if (autoDeleteCheckbox && !autoDeleteCheckbox.hasAttribute('data-handler-setup')) {
             autoDeleteCheckbox.setAttribute('data-handler-setup', 'true');
             autoDeleteCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    // Confirmation dialog for enabling auto-delete
+                    const selectedSeedsText = UnifiedState.data.seedsToDelete.length > 0 ? UnifiedState.data.seedsToDelete.join(', ') : 'No seeds currently selected';
+                    const confirmMessage = `⚠️ WARNING: Auto-Delete will IRREVERSIBLY delete seeds!\n\nSelected seeds for auto-deletion:\n${selectedSeedsText}\n\nAuto-delete will continuously remove these seed types from your inventory as soon as they appear. This action cannot be undone.\n\nAre you sure you want to enable Auto-Delete?`;
+
+                    if (!confirm(confirmMessage)) {
+                        e.target.checked = false; // Uncheck the box if user cancels
+                        return;
+                    }
+                }
                 UnifiedState.data.autoDeleteEnabled = e.target.checked;
+                MGA_saveJSON('MGA_autoDeleteEnabled', e.target.checked);
                 if (e.target.checked) {
                     startAutoDelete();
                 }
                 debugLog('BUTTON_INTERACTIONS', `Auto-delete toggled: ${e.target.checked}`);
             });
+
+            // Initialize checkbox state from saved settings
+            autoDeleteCheckbox.checked = UnifiedState.data.autoDeleteEnabled;
+            if (UnifiedState.data.autoDeleteEnabled) {
+                startAutoDelete();
+            }
         }
 
         const deleteSelectedBtn = context.querySelector('#delete-selected-btn');
@@ -5366,12 +5989,22 @@ function saveJSON(key, value) {
             selectAllBtn.setAttribute('data-handler-setup', 'true');
             selectAllBtn.addEventListener('click', () => {
                 context.querySelectorAll('.seed-checkbox').forEach(checkbox => {
-                    checkbox.checked = true;
                     const seed = checkbox.dataset.seed;
-                    if (!UnifiedState.data.seedsToDelete.includes(seed)) {
-                        UnifiedState.data.seedsToDelete.push(seed);
+
+                    // Skip protected seeds
+                    if (['Starweaver', 'Moonbinder', 'Dawnbinder', 'Sunflower'].includes(seed)) {
+                        checkbox.checked = false;
+                        return;
+                    }
+
+                    checkbox.checked = true;
+                    // Map to internal ID for storage (using seedIdMap from function scope)
+                    const internalId = seedIdMap[seed] || seed;
+                    if (!UnifiedState.data.seedsToDelete.includes(internalId)) {
+                        UnifiedState.data.seedsToDelete.push(internalId);
                     }
                 });
+                MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
                 debugLog('BUTTON_INTERACTIONS', 'Selected all seeds');
             });
         }
@@ -5441,14 +6074,22 @@ function saveJSON(key, value) {
         });
         UnifiedState.data.seedsToDelete = [];
 
-        // Then select the specified seeds
+        // Then select the specified seeds (excluding protected seeds)
         context.querySelectorAll('.seed-checkbox').forEach(checkbox => {
             const seed = checkbox.dataset.seed;
+
+            // Skip protected seeds
+            if (['Starweaver', 'Moonbinder', 'Dawnbinder', 'Sunflower'].includes(seed)) {
+                checkbox.checked = false;
+                return;
+            }
+
             if (seedList.includes(seed)) {
                 checkbox.checked = true;
                 UnifiedState.data.seedsToDelete.push(seed);
             }
         });
+        MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
     }
 
     // Helper function to calculate selected seeds value
@@ -5465,7 +6106,9 @@ function saveJSON(key, value) {
             // Mythical seeds
             "Mushroom": 500, "Cactus": 600, "Bamboo": 750, "Grape": 800,
             // Divine seeds
-            "Pepper": 1000, "Lemon": 1200, "PassionFruit": 1500, "DragonFruit": 2000, "Lychee": 2500, "Starweaver": 3000
+            "Pepper": 1000, "Lemon": 1200, "PassionFruit": 1500, "DragonFruit": 2000, "Lychee": 2500, "Sunflower": 3000,
+            // Celestial seeds
+            "Starweaver": 5000, "Moonbinder": 7500, "Dawnbinder": 10000
         };
 
         if (!UnifiedState.atoms.inventory || !UnifiedState.atoms.inventory.items) {
@@ -5518,7 +6161,7 @@ function saveJSON(key, value) {
                 // Update label
                 const label = opacitySlider.previousElementSibling;
                 label.textContent = `Main HUD Opacity: ${opacity}%`;
-                saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -5532,7 +6175,7 @@ function saveJSON(key, value) {
                 // Update label
                 const label = popoutOpacitySlider.previousElementSibling;
                 label.textContent = `Pop-out Opacity: ${popoutOpacity}%`;
-                saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -5542,7 +6185,7 @@ function saveJSON(key, value) {
             gradientSelect.addEventListener('change', (e) => {
                 UnifiedState.data.settings.gradientStyle = e.target.value;
                 applyTheme();
-                saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -5552,7 +6195,7 @@ function saveJSON(key, value) {
             effectSelect.addEventListener('change', (e) => {
                 UnifiedState.data.settings.effectStyle = e.target.value;
                 applyTheme();
-                saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -5561,7 +6204,7 @@ function saveJSON(key, value) {
         if (ultraCompactCheckbox) {
             ultraCompactCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.ultraCompactMode = e.target.checked;
-                saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
                 applyUltraCompactMode(e.target.checked);
                 console.log(`📱 Ultra-compact mode ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
@@ -5572,7 +6215,7 @@ function saveJSON(key, value) {
         if (overlayCheckbox) {
             overlayCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.useInGameOverlays = e.target.checked;
-                saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
                 console.log(`🎮 Overlay mode ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
         }
@@ -5619,7 +6262,7 @@ function saveJSON(key, value) {
             resetLoadoutsBtn.addEventListener('click', () => {
                 if (confirm('⚠️ Are you sure you want to reset all pet loadouts? This cannot be undone.')) {
                     UnifiedState.data.petPresets = {};
-                    saveJSON('MGA_data', UnifiedState.data);
+                    MGA_saveJSON('MGA_data', UnifiedState.data);
                     console.log('🔄 Pet loadouts have been reset');
                     // Update the UI if we're in the pets tab
                     if (UnifiedState.activeTab === 'pets') {
@@ -5790,8 +6433,8 @@ function saveJSON(key, value) {
         }
     }
 
-    // Tile override utility functions
-    window.setTileSpecies = function(index, species) {
+    // Tile override utility functions (MGA namespaced to prevent conflicts)
+    window.MGA_Internal.setTileSpecies = function(index, species) {
         if (species == null) {
             delete window.__tileOverrides[index];
         } else {
@@ -5799,7 +6442,7 @@ function saveJSON(key, value) {
         }
     };
 
-    window.setTileSlotTargetScale = function(tileIndex, slotIndex, targetScale) {
+    window.MGA_Internal.setTileSlotTargetScale = function(tileIndex, slotIndex, targetScale) {
         if (!window.__slotTargetOverrides[tileIndex]) {
             window.__slotTargetOverrides[tileIndex] = {};
         }
@@ -5810,12 +6453,12 @@ function saveJSON(key, value) {
         }
     };
 
-    window.removeTileOverrides = function(tileIndex) {
+    window.MGA_Internal.removeTileOverrides = function(tileIndex) {
         delete window.__tileOverrides[tileIndex];
         delete window.__slotTargetOverrides[tileIndex];
     };
 
-    window.removeAllTileOverrides = function() {
+    window.MGA_Internal.removeAllTileOverrides = function() {
         window.__tileOverrides = {};
         window.__slotTargetOverrides = {};
     };
@@ -6318,6 +6961,18 @@ function saveJSON(key, value) {
         }
     };
 
+    // Backward compatibility aliases to prevent conflicts with other scripts
+    // These key functions are exposed with MGA_ prefix to coexist with other mods
+    window.MGA_removeAllTileOverrides = window.MGA_Internal.removeAllTileOverrides;
+    window.MGA_highlightTilesByMutation = window.highlightTilesByMutation;
+    window.MGA_setTileSpecies = window.MGA_Internal.setTileSpecies;
+
+    // For scripts that might still depend on the global names, check if they exist
+    // If not (meaning no conflict), provide them. If they do exist, skip to avoid conflicts.
+    if (typeof window.removeAllTileOverrides !== 'function') {
+        window.removeAllTileOverrides = window.MGA_Internal.removeAllTileOverrides;
+    }
+
     console.log('🌱 Crop highlighting debugging tools installed:');
     console.log('  • debugCropHighlighting() - Full diagnostic');
     console.log('  • MGA_CropDebug.debug() - Same as above');
@@ -6384,7 +7039,7 @@ function saveJSON(key, value) {
 
         applyTheme();
         updateTabContent(); // Refresh the settings tab
-        saveJSON('MGA_settings', settings);
+        MGA_saveJSON('MGA_settings', settings);
     }
 
     // Universal theme generation function with dual opacity support
@@ -6900,12 +7555,10 @@ function saveJSON(key, value) {
 
             UnifiedState.data.petAbilityLogs.unshift(abilityLog);
 
-            // Keep only last 100 logs
-            if (UnifiedState.data.petAbilityLogs.length > 100) {
-                UnifiedState.data.petAbilityLogs = UnifiedState.data.petAbilityLogs.slice(0, 100);
-            }
+            // Logs are now 100% persistent until manually cleared by user
+            // No automatic pruning - user requested full persistence
 
-            saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+            MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
 
             // Update ability logs across all overlays and contexts
             updateAllAbilityLogDisplays();
@@ -6962,15 +7615,35 @@ function saveJSON(key, value) {
 
     // ==================== VALUE CALCULATIONS ====================
     const speciesValues = {
-        Sunflower: 750000, Starweaver: 10000000, Lychee: 50000,
-        DragonFruit: 24500, PassionFruit: 24500, Lemon: 10000,
-        Pepper: 7220, Grape: 7085, Bamboo: 500000,
-        Cactus: 287000, Mushroom: 160000, BurrosTail: 6000,
-        Lily: 20123, Banana: 1750, Coconut: 302,
-        Echeveria: 5520, Pumpkin: 3700, Watermelon: 2708,
-        Corn: 36, Daffodil: 1090, Tomato: 27,
-        OrangeTulip: 767, Apple: 73, Blueberry: 23,
-        Aloe: 310, Strawberry: 14, Carrot: 20
+        Sunflower: 750000,
+        Starweaver: 10000000,
+        DawnCelestial: 11000000,
+        MoonCelestial: 11000000,
+        Lychee: 50000,
+        DragonFruit: 24500,
+        PassionFruit: 24500,
+        Lemon: 10000,
+        Pepper: 7220,
+        Grape: 7085,
+        Bamboo: 500000,
+        Cactus: 287000,
+        Mushroom: 160000,
+        BurrosTail: 6000,
+        Lily: 20123,
+        Banana: 1750,
+        Coconut: 302,
+        Echeveria: 5520,
+        Pumpkin: 3700,
+        Watermelon: 2708,
+        Corn: 36,
+        Daffodil: 1090,
+        Tomato: 27,
+        OrangeTulip: 767,
+        Apple: 73,
+        Blueberry: 23,
+        Aloe: 310,
+        Strawberry: 14,
+        Carrot: 20
     };
 
     function calculateMutationMultiplier(mutations) {
@@ -7297,23 +7970,32 @@ function saveJSON(key, value) {
             return;
         }
 
-        const seedIdMap = {
-            "Carrot": "Carrot", "Strawberry": "Strawberry", "Aloe": "Aloe",
-            "Blueberry": "Blueberry", "Apple": "Apple", "Tulip": "OrangeTulip",
-            "Tomato": "Tomato", "Daffodil": "Daffodil", "Corn": "Corn",
-            "Watermelon": "Watermelon", "Pumpkin": "Pumpkin", "Echeveria": "Echeveria",
-            "Coconut": "Coconut", "Banana": "Banana", "Lily": "Lily",
-            "BurrosTail": "BurrosTail", "Mushroom": "Mushroom", "Cactus": "Cactus",
-            "Bamboo": "Bamboo", "Grape": "Grape", "Pepper": "Pepper",
-            "Lemon": "Lemon", "PassionFruit": "PassionFruit", "DragonFruit": "DragonFruit",
-            "Lychee": "Lychee"
-        };
+        // Confirmation dialog for manual deletion
+        const selectedSeedsText = UnifiedState.data.seedsToDelete.join(', ');
+        const confirmMessage = `⚠️ WARNING: This action is IRREVERSIBLE!\n\nYou are about to permanently delete the following seeds:\n${selectedSeedsText}\n\nThis cannot be undone. Are you sure you want to continue?`;
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        // seedsToDelete now contains internal IDs (e.g., "OrangeTulip"), so direct comparison works
+        console.log('🌱 [SEED-DELETE-DEBUG] Deletion attempt:', {
+            seedsToDelete: UnifiedState.data.seedsToDelete,
+            inventoryItems: UnifiedState.atoms.inventory.items?.map(item => ({species: item.species, quantity: item.quantity})) || 'No inventory',
+            inventoryCount: UnifiedState.atoms.inventory.items?.length || 0
+        });
 
         const itemsToDelete = UnifiedState.atoms.inventory.items.filter(item =>
-            item && item.species && UnifiedState.data.seedsToDelete.includes(seedIdMap[item.species] || item.species)
+            item && item.species && UnifiedState.data.seedsToDelete.includes(item.species)
         );
 
+        console.log('🌱 [SEED-DELETE-DEBUG] Items found for deletion:', itemsToDelete.map(item => ({species: item.species, quantity: item.quantity})));
+
         if (!itemsToDelete.length) {
+            console.log('🌱 [SEED-DELETE-DEBUG] No matching items found. Details:', {
+                selectedSeeds: UnifiedState.data.seedsToDelete,
+                availableSpecies: UnifiedState.atoms.inventory.items?.map(item => item.species) || []
+            });
             alert('No matching seeds found in inventory!');
             return;
         }
@@ -7327,7 +8009,7 @@ function saveJSON(key, value) {
                     safeSendMessage({
                         scopePath: ["Room", "Quinoa"],
                         type: "Wish",
-                        itemId: seedIdMap[item.species] || item.species
+                        itemId: item.species
                     });
                 }
             });
@@ -7372,21 +8054,10 @@ function saveJSON(key, value) {
                 const inventory = UnifiedState.atoms.inventory;
                 if (!inventory || !inventory.items) return;
 
-                const seedIdMap = {
-                    "Carrot": "Carrot", "Strawberry": "Strawberry", "Aloe": "Aloe",
-                    "Blueberry": "Blueberry", "Apple": "Apple", "Tulip": "OrangeTulip",
-                    "Tomato": "Tomato", "Daffodil": "Daffodil", "Corn": "Corn",
-                    "Watermelon": "Watermelon", "Pumpkin": "Pumpkin", "Echeveria": "Echeveria",
-                    "Coconut": "Coconut", "Banana": "Banana", "Lily": "Lily",
-                    "BurrosTail": "BurrosTail", "Mushroom": "Mushroom", "Cactus": "Cactus",
-                    "Bamboo": "Bamboo", "Grape": "Grape", "Pepper": "Pepper",
-                    "Lemon": "Lemon", "PassionFruit": "PassionFruit", "DragonFruit": "DragonFruit",
-                    "Lychee": "Lychee"
-                };
-
+                // seedsToDelete now contains internal IDs (e.g., "OrangeTulip"), so direct comparison works
                 UnifiedState.data.seedsToDelete.forEach(seedToDelete => {
                     const matchingItems = inventory.items.filter(item =>
-                        item && item.species && (seedIdMap[item.species] || item.species) === seedToDelete
+                        item && item.species && item.species === seedToDelete
                     );
 
                     matchingItems.forEach(item => {
@@ -7596,7 +8267,7 @@ function saveJSON(key, value) {
 
         saveTimerState() {
             try {
-                saveJSON('MGA_timerStates', UnifiedState.data.activeTimers);
+                MGA_saveJSON('MGA_timerStates', UnifiedState.data.activeTimers);
             } catch (error) {
                 debugError('TIMER_MANAGER', 'Failed to save timer state', error);
             }
@@ -7604,7 +8275,7 @@ function saveJSON(key, value) {
 
         loadPersistedTimers() {
             try {
-                const saved = loadJSON('MGA_timerStates', {});
+                const saved = MGA_loadJSON('MGA_timerStates', {});
                 UnifiedState.data.activeTimers = { ...saved };
                 debugLog('TIMER_MANAGER', 'Loaded persisted timer states', {
                     count: Object.keys(saved).length
@@ -7758,36 +8429,162 @@ function saveJSON(key, value) {
         updateTimerElement('timer-lunar', UnifiedState.data.timers.lunar);
     }
 
+    // ==================== DEBUGGING UTILITIES ====================
+    window.debugPets = function() {
+        console.log('🔍 [DEBUG] Debugging pets data...');
+        console.log('🐾 UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
+        console.log('🐾 window.activePets:', window.activePets);
+
+        // Try to access game's pet data directly
+        if (window.MagicCircle_RoomConnection) {
+            const roomState = window.MagicCircle_RoomConnection.lastRoomStateJsonable;
+            console.log('🎮 Room state pets:', roomState?.child?.data?.petSlots);
+            console.log('🎮 User slots:', roomState?.child?.data?.userSlots);
+        }
+
+        // Check jotai atoms
+        if (globalThis.jotaiAtomCache) {
+            const allAtoms = Array.from(globalThis.jotaiAtomCache.keys());
+            const petAtoms = allAtoms.filter(key =>
+                key.toLowerCase().includes('pet') ||
+                key.toLowerCase().includes('slot') ||
+                key.toLowerCase().includes('animal')
+            );
+            console.log('🔍 Pet-related atoms found:', petAtoms);
+        }
+
+        console.log('🏠 Presets saved:', Object.keys(UnifiedState.data.petPresets));
+    };
+
+    // Manual fallback to force update Active Pets display
+    window.forceUpdateActivePets = function() {
+        console.log('🔧 [MANUAL] Force updating Active Pets display...');
+
+        // Try to get pets from room state as fallback
+        if (window.MagicCircle_RoomConnection) {
+            const roomState = window.MagicCircle_RoomConnection.lastRoomStateJsonable;
+            const petSlots = roomState?.child?.data?.petSlots;
+
+            if (petSlots && Array.isArray(petSlots)) {
+                // Convert room state format to our expected format
+                const activePetsFromRoom = petSlots.filter(slot => slot && slot.item).map(slot => ({
+                    id: slot.item.id,
+                    petSpecies: slot.item.species || 'Unknown',
+                    mutations: slot.item.mutations || []
+                }));
+
+                console.log('🐾 [FALLBACK] Found pets in room state:', activePetsFromRoom);
+
+                // Manually set the active pets data
+                UnifiedState.atoms.activePets = activePetsFromRoom;
+                window.activePets = activePetsFromRoom;
+
+                // Force update displays
+                updateActivePetsDisplay(document);
+                UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                    if (overlay && document.contains(overlay) && tabName === 'pets') {
+                        updateActivePetsDisplay(overlay);
+                    }
+                });
+
+                console.log('✅ [FALLBACK] Active pets display updated manually');
+                return activePetsFromRoom;
+            }
+        }
+
+        console.warn('❌ [FALLBACK] Could not find pet data in room state');
+        return null;
+    };
+
+
     // ==================== INITIALIZATION ====================
     function initializeAtoms() {
-        // Hook pet atoms
+        console.log('🔗 [SIMPLE-ATOMS] Starting simple atom initialization...');
+
+        // Start simple pet detection using room state
+        console.log('🐾 [SIMPLE-ATOMS] Setting up room state pet detection...');
+        updateActivePetsFromRoomState(); // Get initial pets immediately
+
+        // Set up periodic pet detection
+        setManagedInterval('petDetection', () => {
+            updateActivePetsFromRoomState();
+        }, 3000); // Check every 3 seconds
+
+        // Hook #1: Pet SPECIES data (for active pets display)
         hookAtom(
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/_archive/myPetSlotsAtom.ts/myPetSlotsAtom",
             "activePets",
-            () => {
-                // Only update pets tab when not actively typing to prevent input flashing
-                const activeInput = document.getElementById('preset-name-input');
-                const isTyping = activeInput && document.activeElement === activeInput;
-                if (UnifiedState.activeTab === 'pets' && !isTyping) {
-                    // Use targeted updates instead of full DOM rebuild to prevent UI interruption
-                    const context = document.getElementById('mga-tab-content');
-                    if (context) {
-                        updatePetPresetDropdown(context);
-                        // Update popouts without touching main tab
-                        refreshSeparateWindowPopouts('pets');
+            (petSlots) => {
+                console.log('🐾 [ATOM-DEBUG] myPetSlotsAtom raw value:', {
+                    value: petSlots,
+                    type: typeof petSlots,
+                    isArray: Array.isArray(petSlots),
+                    length: petSlots?.length,
+                    valueIsArray: Array.isArray(petSlots?.value),
+                    valueLength: petSlots?.value?.length
+                });
+
+                // Extract the actual array from the wrapper object
+                const actualPetSlots = Array.isArray(petSlots) ? petSlots : petSlots?.value;
+
+                console.log('🐾 [EXTRACTION-DEBUG] Actual pet slots to process:', {
+                    actualPetSlots,
+                    isArray: Array.isArray(actualPetSlots),
+                    length: actualPetSlots?.length,
+                    firstItem: actualPetSlots?.[0]
+                });
+
+                // Extract active pets with species info
+                if (Array.isArray(actualPetSlots)) {
+                    const activePets = actualPetSlots
+                        .filter(slot => slot && slot.petSpecies)
+                        .map((slot, index) => ({
+                            id: slot.id || `pet_${index}`,
+                            petSpecies: slot.petSpecies || 'Unknown',
+                            mutations: slot.mutations || [],
+                            abilities: slot.abilities || [],
+                            slot: index + 1
+                        }));
+
+                    console.log('🐾 [PETS] Extracted active pets:', activePets);
+
+                    const previousCount = UnifiedState.atoms.activePets?.length || 0;
+
+                    if (activePets.length !== previousCount) {
+                        console.log(`🐾 [PETS] Pet count changed: ${previousCount} → ${activePets.length}`);
+
+                        // Update UI if pets tab is active
+                        if (UnifiedState.activeTab === 'pets') {
+                            const context = document.getElementById('mga-tab-content');
+                            if (context && typeof updateActivePetsDisplay === 'function') {
+                                updateActivePetsDisplay(context);
+                            }
+                        }
+
+                        // Update all pet overlays
                         UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
                             if (overlay && document.contains(overlay) && tabName === 'pets') {
-                                if (overlay.className.includes('mga-overlay-content-only')) {
-                                    updatePureOverlayContent(overlay, tabName);
-                                }
+                                updateActivePetsDisplay(overlay);
                             }
                         });
                     }
+
+                    // CRITICAL: Return the extracted array so hookAtom stores it correctly
+                    console.log('🔄 [RENDER-CYCLE] Atom callback returning pets to hookAtom system:', {
+                        petsCount: activePets.length,
+                        petsList: activePets.map(p => p.petSpecies),
+                        willUpdateUnifiedState: true,
+                        willUpdateWindowActivePets: true
+                    });
+                    return activePets;
+                } else {
+                    console.log('🐾 [EXTRACTION-ERROR] actualPetSlots is not an array:', actualPetSlots);
+                    return [];
                 }
-                monitorPetAbilities();
             }
         );
 
+        // Hook #2: Pet ABILITY data (keep existing for ability logs)
         hookAtom(
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myPetSlotInfosAtom",
             "petAbility",
@@ -7831,12 +8628,27 @@ function saveJSON(key, value) {
             "quinoaData",
             () => updateTimers()
         );
+
+        console.log('✅ [SIMPLE-ATOMS] Simple atom initialization complete');
     }
 
     function loadSavedData() {
-        UnifiedState.data.petPresets = loadJSON('MGA_petPresets', {});
-        UnifiedState.data.petAbilityLogs = loadJSON('MGA_petAbilityLogs', []);
-        UnifiedState.data.settings = loadJSON('MGA_settings', {
+        // Load pet presets with debugging
+        console.log('📦 [STORAGE] Loading saved data...');
+        const rawPresets = localStorage.getItem('MGA_petPresets');
+        console.log('📦 [STORAGE] Raw pet presets from localStorage:', rawPresets ? rawPresets.substring(0, 200) + '...' : 'null');
+
+        UnifiedState.data.petPresets = MGA_loadJSON('MGA_petPresets', {});
+        console.log('📦 [STORAGE] Loading pet presets, found:', Object.keys(UnifiedState.data.petPresets).length);
+        if (Object.keys(UnifiedState.data.petPresets).length > 0) {
+            console.log('✅ [STORAGE] Pet presets restored:', Object.keys(UnifiedState.data.petPresets));
+        } else {
+            console.warn('⚠️ [STORAGE] No pet presets found in localStorage');
+        }
+
+        UnifiedState.data.petAbilityLogs = MGA_loadJSON('MGA_petAbilityLogs', []);
+        console.log('📦 [STORAGE] Loading pet ability logs, found:', UnifiedState.data.petAbilityLogs.length, 'entries');
+        UnifiedState.data.settings = MGA_loadJSON('MGA_settings', {
             opacity: 95,
             popoutOpacity: 50,
             theme: 'default',
@@ -7848,8 +8660,8 @@ function saveJSON(key, value) {
         });
 
         // Load PAL4 filter system data
-        UnifiedState.data.filterMode = loadJSON('MGA_filterMode', 'categories');
-        UnifiedState.data.abilityFilters = loadJSON('MGA_abilityFilters', {
+        UnifiedState.data.filterMode = MGA_loadJSON('MGA_filterMode', 'categories');
+        UnifiedState.data.abilityFilters = MGA_loadJSON('MGA_abilityFilters', {
             xpBoost: true,
             cropSizeBoost: true,
             selling: true,
@@ -7858,8 +8670,34 @@ function saveJSON(key, value) {
             specialMutations: true,
             other: true
         });
-        UnifiedState.data.customMode = loadJSON('MGA_customMode', { selectedAbilities: {} });
-        UnifiedState.data.petFilters = loadJSON('MGA_petFilters', { selectedPets: {} });
+        UnifiedState.data.customMode = MGA_loadJSON('MGA_customMode', { selectedAbilities: {} });
+        UnifiedState.data.petFilters = MGA_loadJSON('MGA_petFilters', { selectedPets: {} });
+
+        // Load seed deletion settings with fallback
+        const rawSeedsData = localStorage.getItem('MGA_seedsToDelete');
+        const rawAutoDeleteData = localStorage.getItem('MGA_autoDeleteEnabled');
+
+        UnifiedState.data.seedsToDelete = MGA_loadJSON('MGA_seedsToDelete', []);
+        UnifiedState.data.autoDeleteEnabled = MGA_loadJSON('MGA_autoDeleteEnabled', false);
+
+        console.log('📦 [STORAGE] Loading seed deletion settings:', {
+            seedsToDelete: UnifiedState.data.seedsToDelete.length + ' seeds',
+            autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled,
+            seeds: UnifiedState.data.seedsToDelete,
+            rawSeedsToDeleteFromStorage: rawSeedsData,
+            rawAutoDeleteFromStorage: rawAutoDeleteData,
+            parsedSeedsData: rawSeedsData ? JSON.parse(rawSeedsData) : null,
+            parsedAutoDeleteData: rawAutoDeleteData ? JSON.parse(rawAutoDeleteData) : null
+        });
+
+        // Force save to ensure persistence
+        setTimeout(() => {
+            if (UnifiedState.data.seedsToDelete.length > 0 || UnifiedState.data.autoDeleteEnabled) {
+                MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
+                MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
+                console.log('🔄 [STORAGE] Force-saved seed settings for persistence');
+            }
+        }, 1000);
 
         // Reset ability tracking on each initialization to fix reconnection issues
         UnifiedState.data.lastAbilityTimestamps = {};
@@ -8190,6 +9028,7 @@ function saveJSON(key, value) {
     // ==================== CROP HIGHLIGHTING SYSTEM ====================
     // Ctrl+H clears highlights, UI in settings for crop highlighting
     function setupCropHighlightingSystem() {
+        console.log('🌱 [DEBUG] setupCropHighlightingSystem() called - setting up crop highlighting...');
         // FIRST: Verify crop highlighting utilities are installed
         if (typeof window.removeAllTileOverrides !== 'function') {
             debugLog('CROP_HIGHLIGHT', 'Crop highlighting utilities not available - they should have been installed earlier');
@@ -8251,13 +9090,13 @@ function saveJSON(key, value) {
     function initializeKeyboardShortcuts() {
         const shortcuts = {
             // Panel Management
-            'Alt+H': () => {
+            'Alt+M': () => {
                 const panel = UnifiedState.panels.main;
                 if (panel) {
                     const isVisible = panel.style.display !== 'none';
                     panel.style.display = isVisible ? 'none' : 'block';
                     UnifiedState.data.settings.panelVisible = !isVisible;
-                    console.log(`🎮 Keyboard shortcut: Panel ${isVisible ? 'hidden' : 'shown'}`);
+                    console.log(`🎮 MGA Keyboard shortcut: Panel ${isVisible ? 'hidden' : 'shown'}`);
                 }
             },
 
@@ -8289,11 +9128,11 @@ function saveJSON(key, value) {
             'Alt+R': () => refreshAllContent(),
 
             // Quick Pet Actions
-            '1': () => loadPresetByNumber(1),
-            '2': () => loadPresetByNumber(2),
-            '3': () => loadPresetByNumber(3),
-            '4': () => loadPresetByNumber(4),
-            '5': () => loadPresetByNumber(5),
+            'Shift+1': () => loadPresetByNumber(1),
+            'Shift+2': () => loadPresetByNumber(2),
+            'Shift+3': () => loadPresetByNumber(3),
+            'Shift+4': () => loadPresetByNumber(4),
+            'Shift+5': () => loadPresetByNumber(5),
 
             // Crop Highlighting
             'Ctrl+H': () => clearCropHighlighting(),
@@ -8454,6 +9293,7 @@ function saveJSON(key, value) {
 
     // ==================== TELEPORT SYSTEM ====================
     function initializeTeleportSystem() {
+        console.log('🚀 [DEBUG] initializeTeleportSystem() called - setting up teleport system...');
         // FIRST: Install window.localTeleport if not already installed
         if (typeof window.localTeleport !== 'function' || !window.localTeleport.__installed) {
             installLocalTeleport();
@@ -8778,8 +9618,32 @@ function saveJSON(key, value) {
             return;
         }
 
-        console.log('🌱 Magic Garden Unified Assistant initializing...');
-        console.log('📊 Connection Status:', window.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
+        // Improved initialization timing to prevent splash screen stall
+        console.log('⏳ Waiting for game initialization to complete...');
+        let retryCount = 0;
+        const maxRetries = 5;
+        const initialDelay = 8000; // Increased from 5s to 8s
+
+        const attemptInit = () => {
+            // Check if game is ready
+            if (globalThis.jotaiAtomCache && window.MagicCircle_RoomConnection) {
+                console.log('✅ Game ready, initializing script...');
+                continueInitialization();
+            } else if (retryCount < maxRetries) {
+                retryCount++;
+                console.log(`⏳ Game not ready (jotaiAtomCache: ${!!globalThis.jotaiAtomCache}, RoomConnection: ${!!window.MagicCircle_RoomConnection}), retry ${retryCount}/${maxRetries} in 2s...`);
+                setTimeout(attemptInit, 2000);
+            } else {
+                console.warn('⚠️ Max retries reached, initializing anyway...');
+                continueInitialization();
+            }
+        };
+
+        setTimeout(attemptInit, initialDelay);
+
+        function continueInitialization() {
+            console.log('🌱 Magic Garden Unified Assistant initializing...');
+            console.log('📊 Connection Status:', window.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
 
         // ==================== COMPREHENSIVE IDLE TIMEOUT PREVENTION ====================
         // Enhanced anti-idle system to prevent game timeouts completely
@@ -8985,15 +9849,16 @@ function saveJSON(key, value) {
             console.error('Stack trace:', error.stack);
             UnifiedState.initialized = false; // Allow retry
         }
+        } // End continueInitialization function
     }
 
     // ==================== ENVIRONMENT-AWARE INITIALIZATION ====================
-    console.log('🔍 CHECKPOINT: ENVIRONMENT_INITIALIZATION_START');
+    /* CHECKPOINT removed: ENVIRONMENT_INITIALIZATION_START */
 
     function initializeBasedOnEnvironment() {
-        console.log('🔍 CHECKPOINT: DETECT_ENVIRONMENT_CALL');
+        /* CHECKPOINT removed: DETECT_ENVIRONMENT_CALL */
         const environment = detectEnvironment();
-        console.log('🔍 CHECKPOINT: DETECT_ENVIRONMENT_COMPLETE');
+        /* CHECKPOINT removed: DETECT_ENVIRONMENT_COMPLETE */
 
         console.log('📊 Environment Analysis:', {
             domain: environment.domain,
@@ -9058,23 +9923,26 @@ function saveJSON(key, value) {
     }
 
     // Start environment-based initialization
-    console.log('🔍 CHECKPOINT: CALLING_MAIN_INITIALIZATION');
+    /* CHECKPOINT removed: CALLING_MAIN_INITIALIZATION */
     try {
         initializeBasedOnEnvironment();
-        console.log('🔍 CHECKPOINT: MAIN_INITIALIZATION_COMPLETE');
+        /* CHECKPOINT removed: MAIN_INITIALIZATION_COMPLETE */
     } catch (error) {
         console.error('❌ MAIN_INITIALIZATION_FAILED:', error);
         console.error('🔧 This error caused the script to stop working');
     }
 
     // ==================== IMMEDIATE TEST INITIALIZATION ====================
-    // Additional fallback for manual testing
+    // Additional fallback for manual testing - only if initialization failed
     console.log('🧪 Setting up fallback timer for manual testing...');
     setTimeout(() => {
-        if (!UnifiedState.initialized) {
+        // Only run demo mode if game mode completely failed to initialize
+        if (!UnifiedState.initialized && !window._MGA_INITIALIZING) {
             console.log('🔧 Final fallback - trying demo mode');
             console.log('💡 Use MGA.init() to force game mode initialization if needed');
             initializeStandalone();
+        } else if (UnifiedState.initialized) {
+            console.log('✅ Game mode already initialized - skipping demo fallback');
         }
     }, 8000);
 
@@ -9158,6 +10026,8 @@ function saveJSON(key, value) {
                 console.log('Result:', result ? '✅ Success' : '❌ Failed');
                 return result;
             },
+
+            debugStorage: () => window.MGA_debugStorage(),
 
             // Test functions
             testAbilityLog: () => {
@@ -9290,7 +10160,7 @@ function saveJSON(key, value) {
                 try {
                     const data = JSON.parse(jsonString);
                     UnifiedState.data.petPresets = data;
-                    saveJSON('MGA_petPresets', data);
+                    MGA_saveJSON('MGA_petPresets', data);
                     if (UnifiedState.activeTab === 'pets') {
                         // Use targeted update to prevent UI interruption
                         const context = document.getElementById('mga-tab-content');
@@ -9310,11 +10180,11 @@ function saveJSON(key, value) {
                     const data = JSON.parse(jsonString);
                     if (data.petPresets) {
                         UnifiedState.data.petPresets = data.petPresets;
-                        saveJSON('MGA_petPresets', data.petPresets);
+                        MGA_saveJSON('MGA_petPresets', data.petPresets);
                     }
                     if (data.petAbilityLogs) {
                         UnifiedState.data.petAbilityLogs = data.petAbilityLogs;
-                        saveJSON('MGA_petAbilityLogs', data.petAbilityLogs);
+                        MGA_saveJSON('MGA_petAbilityLogs', data.petAbilityLogs);
                     }
                     if (data.settings) {
                         if (data.settings.seedsToDelete) {
@@ -9337,7 +10207,7 @@ function saveJSON(key, value) {
             petPresets: () => {
                 if (confirm('Clear all pet presets?')) {
                     UnifiedState.data.petPresets = {};
-                    saveJSON('MGA_petPresets', {});
+                    MGA_saveJSON('MGA_petPresets', {});
                     if (UnifiedState.activeTab === 'pets') {
                         // Use targeted update to prevent UI interruption
                         const context = document.getElementById('mga-tab-content');
@@ -9352,7 +10222,7 @@ function saveJSON(key, value) {
             abilityLogs: () => {
                 if (confirm('Clear all ability logs?')) {
                     UnifiedState.data.petAbilityLogs = [];
-                    saveJSON('MGA_petAbilityLogs', []);
+                    MGA_saveJSON('MGA_petAbilityLogs', []);
                     if (UnifiedState.activeTab === 'abilities') updateTabContent();
 
                     // Also update ability overlays
@@ -9381,10 +10251,54 @@ function saveJSON(key, value) {
                     UnifiedState.data.petAbilityLogs = [];
                     UnifiedState.data.seedsToDelete = [];
                     UnifiedState.data.autoDeleteEnabled = false;
-                    saveJSON('MGA_petPresets', {});
-                    saveJSON('MGA_petAbilityLogs', []);
+                    MGA_saveJSON('MGA_petPresets', {});
+                    MGA_saveJSON('MGA_petAbilityLogs', []);
                     updateTabContent();
                 }
+            }
+        },
+
+        // Debug controls for development and testing
+        debug: {
+            forceInit: () => {
+                console.log('🔄 [DEBUG] Force re-initialization requested');
+                window._MGA_FORCE_INIT = true;
+                location.reload();
+            },
+
+            resetFlags: () => {
+                console.log('🔄 [DEBUG] Resetting initialization flags');
+                window._MGA_INITIALIZED = false;
+                window._MGA_INITIALIZING = false;
+                window._MGA_FORCE_INIT = false;
+                console.log('✅ [DEBUG] Flags reset - you can now re-run the script');
+            },
+
+            checkPets: () => {
+                console.log('🐾 [DEBUG] Current pet state:');
+                console.log('• UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
+                console.log('• window.activePets:', window.activePets);
+                console.log('• Room state pets:', getActivePetsFromRoomState());
+                return {
+                    unifiedState: UnifiedState.atoms.activePets,
+                    windowPets: window.activePets,
+                    roomState: getActivePetsFromRoomState()
+                };
+            },
+
+            refreshPets: () => {
+                console.log('🔄 [DEBUG] Manually refreshing pets from room state');
+                const pets = updateActivePetsFromRoomState();
+                console.log('✅ [DEBUG] Pets refreshed:', pets);
+                return pets;
+            },
+
+            listIntervals: () => {
+                console.log('⏰ [DEBUG] Active managed intervals:');
+                Object.entries(UnifiedState.intervals).forEach(([name, interval]) => {
+                    console.log(`• ${name}: ${interval ? 'Running' : 'Stopped'}`);
+                });
+                return UnifiedState.intervals;
             }
         }
     };
@@ -9653,53 +10567,16 @@ function saveJSON(key, value) {
     styleSheet.textContent = additionalStyles;
     document.head.appendChild(styleSheet);
 
-    // ==================== KEYBOARD SHORTCUTS ====================
-    document.addEventListener('keydown', (e) => {
-        // Alt + M to toggle main panel
-        if (e.altKey && e.key === 'm') {
-            e.preventDefault();
-            const panel = UnifiedState.panels.main;
-            if (panel) {
-                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-            }
-        }
 
-        // Ctrl + Q/W/E/R/T/Y to switch tabs when panel is open
-        if (e.ctrlKey && UnifiedState.panels.main && UnifiedState.panels.main.style.display !== 'none') {
-            const keyToTab = {
-                'q': 0, // Pets
-                'w': 1, // Abilities
-                'e': 2, // Seeds
-                'r': 3, // Values
-                't': 4, // Timers
-                'y': 5  // Settings
-            };
 
-            const tabs = ['pets', 'abilities', 'seeds', 'values', 'timers', 'settings'];
-            const key = e.key.toLowerCase();
-
-            if (keyToTab.hasOwnProperty(key)) {
-                e.preventDefault();
-                const index = keyToTab[key];
-                UnifiedState.activeTab = tabs[index];
-                document.querySelectorAll('.mga-tab').forEach((tab, i) => {
-                    tab.classList.toggle('active', i === index);
-                });
-                updateTabContent();
-            }
-        }
-
-        // Escape to close panel
-        if (e.key === 'Escape' && UnifiedState.panels.main && UnifiedState.panels.main.style.display !== 'none') {
-            UnifiedState.panels.main.style.display = 'none';
-        }
-    });
 
     // ==================== AUTO-SAVE ====================
     // Auto-save data every 30 seconds using managed interval
     setManagedInterval('autoSave', () => {
-        saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
-        saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+        MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+        MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+        MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
+        MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
 
         // Update resource tracking
         if (window.resourceDashboard) {
@@ -9710,8 +10587,10 @@ function saveJSON(key, value) {
     // ==================== CLEANUP ====================
     window.addEventListener('beforeunload', () => {
         // Save all data before leaving
-        saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
-        saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+        MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+        MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+        MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
+        MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
 
         // Clean up all managed intervals
         clearAllManagedIntervals();
@@ -9746,21 +10625,20 @@ function saveJSON(key, value) {
         "║  • MGA.showPanel() - Show UI          ║\n" +
         "║  • MGA.init() - Manual start          ║\n" +
         "║  • Alt+M - Toggle panel               ║\n" +
+        "║                                        ║\n" +
+        "║  Debugging (if issues occur):         ║\n" +
+        "║  • MGA.debug.debugStorage() - Storage ║\n" +
+        "║  • MGA_debugStorage() - Same as above ║\n" +
         "╚════════════════════════════════════════╝"
     );
 
     // ==================== IMMEDIATE INITIALIZATION TEST ====================
-    // Final safety initialization for testing
-    console.log('🧪 Setting up final safety initialization...');
-    setTimeout(() => {
-        if (!UnifiedState.initialized) {
-            console.log('🔧 Final safety initialization - demo mode');
-            initializeStandalone();
-        }
-    }, 2000);
+    // Final safety initialization for testing - removed to prevent demo mode interference
+    // Demo mode is only triggered by the 8-second fallback if game mode completely fails
+    console.log('🧪 Skipping 2-second fallback to prevent demo mode interference');
 
     // Final checkpoint - script execution complete
-    console.log('🔍 CHECKPOINT: SCRIPT_EXECUTION_COMPLETE');
+    /* CHECKPOINT removed: SCRIPT_EXECUTION_COMPLETE */
     console.log('✅ Magic Garden Assistant script finished loading');
 
 })();
