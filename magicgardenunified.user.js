@@ -2191,7 +2191,7 @@ window.MGA_ConflictDetection = {
         this.mainScriptDetected = hasMainScriptFunctions || hasMainScriptVars || hasVisibilityOverride;
 
         if (this.mainScriptDetected) {
-            console.log('🔍 [MGA-ISOLATION] MainScript.txt detected - enabling full isolation mode');
+            // console.log('🔍 [MGA-ISOLATION] MainScript.txt detected - enabling full isolation mode');
             console.log('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or MainScript variables');
             console.log('📝 [MGA-ISOLATION] Protected variables:', this.protectedGlobals);
         } else {
@@ -2210,7 +2210,7 @@ window.MGA_ConflictDetection = {
         this.protectedGlobals.forEach(globalVar => {
             if (window[globalVar] !== undefined) {
                 // MainScript global exists - make sure we don't interfere
-                console.log(`🔍 [MGA-ISOLATION] MainScript global '${globalVar}' is active - ensuring no interference`);
+                // console.log(`🔍 [MGA-ISOLATION] MainScript global '${globalVar}' is active - ensuring no interference`);
             }
         });
 
@@ -9912,28 +9912,12 @@ window.MGA_debugStorage = function() {
                 // Extract the actual array from the wrapper object
                 const actualPetSlots = Array.isArray(petSlots) ? petSlots : petSlots?.value;
 
-                console.log('🐾 [EXTRACTION-DEBUG] Actual pet slots to process:', {
-                    actualPetSlots,
-                    isArray: Array.isArray(actualPetSlots),
-                    length: actualPetSlots?.length,
-                    firstItem: actualPetSlots?.[0],
-                    firstItemKeys: actualPetSlots?.[0] ? Object.keys(actualPetSlots[0]) : [],
-                    allItems: actualPetSlots
-                });
-
                 // Extract active pets with species info
                 if (Array.isArray(actualPetSlots)) {
-                    console.log('🔍 [BEFORE-FILTER] actualPetSlots count:', actualPetSlots.length);
-                    if (actualPetSlots.length > 0) {
-                        console.log('🔍 [FIRST-SLOT-KEYS]:', Object.keys(actualPetSlots[0]));
-                        console.log('🔍 [FIRST-SLOT-DATA]:', JSON.stringify(actualPetSlots[0]));
-                    }
-
                     const activePets = actualPetSlots
                         .filter(slot => {
                             // Check if slot has pet data (handle multiple possible property names)
                             const hasPet = slot && (slot.petSpecies || slot.species || slot.petId || slot.id);
-                            console.log('🔍 [FILTER] slot keys:', slot ? Object.keys(slot).join(', ') : 'null', 'hasPet:', hasPet);
                             return hasPet;
                         })
                         .map((slot, index) => ({
@@ -10227,7 +10211,7 @@ window.MGA_debugStorage = function() {
 
         // Persistence verification test
         setTimeout(() => {
-            console.log('🔍 [STORAGE-VERIFICATION] Testing immediate save/load cycle...');
+            // console.log('🔍 [STORAGE-VERIFICATION] Testing immediate save/load cycle...');
             const testKey = 'MGA_persistenceTest';
             const testData = { test: true, timestamp: Date.now() };
 
@@ -11348,15 +11332,15 @@ window.MGA_debugStorage = function() {
             loadSavedData();
 
             // Verify data loaded before UI creation
-            console.log('🔍 [STARTUP-VERIFY] Data loaded before UI creation:', {
-                petPresets: Object.keys(UnifiedState.data.petPresets).length,
-                seedsToDelete: UnifiedState.data.seedsToDelete.length,
-                autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled,
-                dataLoaded: !!UnifiedState.data
-            });
+            // console.log('🔍 [STARTUP-VERIFY] Data loaded before UI creation:', {
+            //     petPresets: Object.keys(UnifiedState.data.petPresets).length,
+            //     seedsToDelete: UnifiedState.data.seedsToDelete.length,
+            //     autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled,
+            //     dataLoaded: !!UnifiedState.data
+            // });
 
             // Create UI
-            console.log('🎨 Creating UI...');
+            // console.log('🎨 Creating UI...');
             if (window.MGA_DEBUG) {
                 window.MGA_DEBUG.logStage('CREATE_UI_STARTING', {
                     dataLoaded: !!UnifiedState.data,
@@ -11390,11 +11374,11 @@ window.MGA_debugStorage = function() {
             // Verify UI reflects loaded data immediately after creation
             setTimeout(() => {
                 const checkedSeeds = targetDocument.querySelectorAll('.seed-checkbox:checked');
-                console.log('🔍 [UI-VERIFY] UI state after creation:', {
-                    checkedSeedsInUI: checkedSeeds.length,
-                    seedsInState: UnifiedState.data.seedsToDelete.length,
-                    matches: checkedSeeds.length === UnifiedState.data.seedsToDelete.length
-                });
+                // console.log('🔍 [UI-VERIFY] UI state after creation:', {
+                //     checkedSeedsInUI: checkedSeeds.length,
+                //     seedsInState: UnifiedState.data.seedsToDelete.length,
+                //     matches: checkedSeeds.length === UnifiedState.data.seedsToDelete.length
+                // });
             }, 100);
 
             // Initialize atom hooks
@@ -11479,7 +11463,7 @@ window.MGA_debugStorage = function() {
             window._MGA_TIMESTAMP = Date.now();  // Update timestamp on completion
 
             // NOW run conflict detection after game has loaded successfully
-            console.log('🔍 [MGA-ISOLATION] Running post-initialization MainScript conflict detection...');
+            // console.log('🔍 [MGA-ISOLATION] Running post-initialization MainScript conflict detection...');
             if (window.MGA_ConflictDetection) {
                 // Detect MainScript presence
                 const mainScriptDetected = window.MGA_ConflictDetection.detectMainScript();
