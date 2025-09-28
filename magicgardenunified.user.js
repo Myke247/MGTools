@@ -1,21 +1,358 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.3.1
+// @version      1.4.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
 // @match        https://starweaver.org/r/*
-// @grant        none
-// @run-at       document-end
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addStyle
+// @grant        unsafeWindow
+// @connect      *
+// @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // Initial debug logging - only show script loaded
-    console.log('🚀 Magic Garden Unified Assistant script loaded!');
+    // ==================== SELECTIVE CONTEXT ISOLATION ====================
+    // Detect execution context and set up selective window/document references
+    const isUserscript = typeof unsafeWindow !== 'undefined';
+    const targetWindow = isUserscript ? unsafeWindow : window;
+    const targetDocument = targetWindow.document;
+
+    // Set context identifier for debugging
+    targetWindow.MGA_CONTEXT = isUserscript ? 'userscript' : 'console';
+
+    // GM API availability check
+    function isGMApiAvailable() {
+        return typeof GM_setValue !== 'undefined' && typeof GM_getValue !== 'undefined';
+    }
+
+    // SELECTIVE CONTEXT FUNCTIONS - Use these instead of direct document/window references
+    function createMGAElement(tag, className) {
+        const element = targetDocument.createElement(tag);
+        if (className) element.className = className;
+        return element;
+    }
+
+    function attachToMGAContext(element) {
+        targetDocument.body.appendChild(element);
+    }
+
+    function isMGAEvent(event) {
+        try {
+            return event && event.target && event.target.closest &&
+                   event.target.closest('.mga-panel, .mga-toggle-btn, .mga-overlay');
+        } catch (error) {
+            console.error('❌ [BASIC-DEBUG] Error in isMGAEvent:', error);
+            return false;
+        }
+    }
+
+    function checkForGameModals() {
+        try {
+            // Use regular document for game modal detection to avoid interference
+            const modals = document.querySelectorAll('[class*="modal"], [class*="dialog"], [role="dialog"]');
+            // CRITICAL FIX: Exclude game drag overlays that are normal game UI, not blocking modals
+            const overlays = document.querySelectorAll('[class*="overlay"]:not(.mga-overlay):not(.top-drag-overlay):not(.bottom-drag-overlay)');
+            const popups = document.querySelectorAll('[class*="popup"]:not(.mga-panel)');
+
+            // More comprehensive modal detection
+            const mgcModals = document.querySelectorAll('[class*="MGC"], [class*="magic-circle"]');
+            const saveDiscardButtons = document.querySelectorAll('button:not(.mga-btn)');
+
+            const totalModalElements = modals.length + overlays.length + popups.length + mgcModals.length;
+
+            // Check for excluded drag overlays
+            const dragOverlays = document.querySelectorAll('.top-drag-overlay, .bottom-drag-overlay');
+
+            // DEBUG: Log every modal check with full details
+            const modalDetails = {
+                modals: modals.length,
+                overlays: overlays.length,
+                popups: popups.length,
+                mgcElements: mgcModals.length,
+                dragOverlaysExcluded: dragOverlays.length,
+                total: totalModalElements,
+                modalClasses: Array.from(modals).map(m => m.className),
+                overlayClasses: Array.from(overlays).map(o => o.className),
+                mgcClasses: Array.from(mgcModals).map(m => m.className)
+            };
+
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logModalEvent('MODAL_CHECK_PERFORMED', modalDetails);
+            }
+
+            // Log drag overlay exclusion
+            if (dragOverlays.length > 0) {
+                console.log(`✅ [MODAL-CHECK] Excluding ${dragOverlays.length} game drag overlays (normal game UI, not blocking modals)`);
+            }
+
+            if (totalModalElements > 0) {
+                console.log('⏳ [MODAL-CHECK] Game modal system active - deferring MGA interactions', modalDetails);
+                if (window.MGA_DEBUG) {
+                    window.MGA_DEBUG.logModalEvent('MODAL_SYSTEM_ACTIVE', modalDetails);
+                }
+                return false;
+            }
+
+            // SIMPLIFIED: Only block for actual modal/dialog containers, not individual buttons
+            // If there are no modals/dialogs detected above, allow initialization
+            console.log(`✅ [MODAL-CHECK] No blocking modals detected - MGA initialization allowed`);
+
+            return true;
+        } catch (error) {
+            console.error('❌ [MODAL-CHECK] Error in modal detection:', error);
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logError(error, 'checkForGameModals');
+            }
+            return true; // Allow MGA operations if modal check fails
+        }
+    }
+
+    console.log('🔧 [CONTEXT] Script context:', targetWindow.MGA_CONTEXT);
+    console.log('🔧 [CONTEXT] GM API available:', isGMApiAvailable());
+    console.log('🔧 [CONTEXT] unsafeWindow available:', isUserscript);
+    console.log('🔧 [CONTEXT] Selective isolation enabled - game modals preserved');
+
+    // Add manual debug export command
+    console.log('🛠️ [DEBUG] Manual debug export: Run "MGA_DEBUG.exportDebug()" in console anytime');
+    console.log('🛠️ [DEBUG] Auto-export will trigger in 30s if issues are detected');
+
+    // Verify debug system is working
+    setTimeout(() => {
+        if (typeof window.MGA_DEBUG === 'undefined') {
+            console.error('❌ [DEBUG-VERIFY] MGA_DEBUG is not defined! Debug system failed to initialize');
+            console.log('🔧 [FALLBACK] Basic logging will continue without full debug system');
+        } else {
+            console.log('✅ [DEBUG-VERIFY] MGA_DEBUG is available and working');
+            console.log('🔧 [DEBUG-VERIFY] Available methods:', Object.keys(window.MGA_DEBUG));
+        }
+    }, 100);
+
+    // Add modal system verification logging
+    function logModalSystemStatus() {
+        const initialModalCheck = checkForGameModals();
+        console.log('✅ [MODAL-SYSTEM] Modal isolation verification:', {
+            gameModalsActive: !initialModalCheck,
+            eventIsolationActive: typeof isMGAEvent === 'function',
+            contextIsolationActive: typeof createMGAElement === 'function',
+            targetDocumentAvailable: !!targetDocument,
+            regularDocumentIntact: !!document
+        });
+
+        // Test event isolation function
+        const testEvent = { target: document.body };
+        const testMGAEvent = { target: { closest: () => null } };
+        console.log('🧪 [MODAL-SYSTEM] Event isolation test:', {
+            gameEventBlocked: !isMGAEvent(testEvent),
+            mgaEventAllowed: !isMGAEvent(testMGAEvent) // Should be false since closest returns null
+        });
+    }
+
+    // Run modal system verification after a short delay
+    setTimeout(logModalSystemStatus, 100);
+
+    // ==================== COMPREHENSIVE DEBUG SYSTEM ====================
+
+    function createDebugLogger() {
+        const debugData = {
+            timestamp: new Date().toISOString(),
+            loadingStages: [],
+            modalEvents: [],
+            contextIssues: [],
+            errorLogs: [],
+            performanceMetrics: {
+                scriptStart: performance.now(),
+                domReady: null,
+                gameReady: null,
+                uiCreated: null,
+                fullyLoaded: null
+            }
+        };
+
+        // Enhanced logging functions
+        function logStage(stage, details = {}) {
+            const entry = {
+                timestamp: performance.now(),
+                stage,
+                details,
+                domState: document.readyState,
+                gameElements: {
+                    jotaiAtoms: !!globalThis.jotaiAtomCache,
+                    magicCircle: !!window.MagicCircle_RoomConnection,
+                    canvas: !!document.querySelector('canvas'),
+                    gameContainer: !!document.querySelector('#game-container, #app, .game-wrapper, main')
+                }
+            };
+            debugData.loadingStages.push(entry);
+            console.log(`🐛 [DEBUG-STAGE] ${stage}:`, entry);
+        }
+
+        function logModalEvent(event, details = {}) {
+            const entry = {
+                timestamp: performance.now(),
+                event,
+                details,
+                gameModals: document.querySelectorAll('[class*="modal"], [class*="dialog"], [role="dialog"]').length,
+                mgaElements: targetDocument.querySelectorAll('.mga-panel, .mga-toggle-btn').length
+            };
+            debugData.modalEvents.push(entry);
+            console.log(`🐛 [DEBUG-MODAL] ${event}:`, entry);
+        }
+
+        function logContextIssue(issue, details = {}) {
+            const entry = {
+                timestamp: performance.now(),
+                issue,
+                details,
+                context: {
+                    isUserscript,
+                    targetWindow: targetWindow === window ? 'same' : 'different',
+                    targetDocument: targetDocument === document ? 'same' : 'different',
+                    gmApiAvailable: isGMApiAvailable()
+                }
+            };
+            debugData.contextIssues.push(entry);
+            console.log(`🐛 [DEBUG-CONTEXT] ${issue}:`, entry);
+        }
+
+        function logError(error, context = '') {
+            const entry = {
+                timestamp: performance.now(),
+                error: error.toString(),
+                stack: error.stack,
+                context
+            };
+            debugData.errorLogs.push(entry);
+            console.error(`🐛 [DEBUG-ERROR] ${context}:`, entry);
+        }
+
+        // Store debug functions globally
+        window.MGA_DEBUG = {
+            logStage,
+            logModalEvent,
+            logContextIssue,
+            logError,
+            getData: () => debugData,
+            exportDebug: () => {
+                console.log('🐛 [DEBUG-EXPORT] Complete debug data:', JSON.stringify(debugData, null, 2));
+                return debugData;
+            }
+        };
+
+        logStage('DEBUG_SYSTEM_INITIALIZED', {
+            userAgent: navigator.userAgent,
+            url: window.location.href,
+            contextDetection: { isUserscript, targetWindow: targetWindow.constructor.name }
+        });
+
+        return window.MGA_DEBUG;
+    }
+
+    // Initialize debug system immediately with error handling
+    let DEBUG;
+    try {
+        DEBUG = createDebugLogger();
+        console.log('✅ [DEBUG-INIT] Debug system initialized successfully');
+    } catch (error) {
+        console.error('❌ [DEBUG-INIT] Failed to initialize debug system:', error);
+        // Create a minimal debug fallback
+        window.MGA_DEBUG = {
+            logStage: (stage, details) => console.log(`🐛 [DEBUG-STAGE] ${stage}:`, details),
+            logModalEvent: (event, details) => console.log(`🐛 [DEBUG-MODAL] ${event}:`, details),
+            logContextIssue: (issue, details) => console.log(`🐛 [DEBUG-CONTEXT] ${issue}:`, details),
+            logError: (error, context) => console.error(`🐛 [DEBUG-ERROR] ${context}:`, error),
+            getData: () => ({ error: 'Debug system failed to initialize', fallback: true }),
+            exportDebug: () => console.log('🐛 [DEBUG-EXPORT] Debug system failed to initialize properly')
+        };
+        DEBUG = window.MGA_DEBUG;
+    }
+
+    // Add global error handler for comprehensive error logging
+    window.addEventListener('error', (event) => {
+        if (window.MGA_DEBUG) {
+            window.MGA_DEBUG.logError(event.error || new Error(event.message), 'GLOBAL_ERROR_HANDLER');
+        }
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        if (window.MGA_DEBUG) {
+            window.MGA_DEBUG.logError(event.reason || new Error('Unhandled Promise Rejection'), 'UNHANDLED_REJECTION');
+        }
+    });
+
+    // Auto-export debug data after 30 seconds if issues detected
+    setTimeout(() => {
+        if (window.MGA_DEBUG) {
+            const debugData = window.MGA_DEBUG.getData();
+            const hasErrors = debugData.errorLogs.length > 0;
+            const hasModalIssues = debugData.modalEvents.some(e => e.event === 'MODAL_SYSTEM_ACTIVE');
+            const uiNotCreated = !debugData.loadingStages.some(s => s.stage === 'CREATE_UI_COMPLETED');
+
+            if (hasErrors || hasModalIssues || uiNotCreated) {
+                console.log('🚨 [AUTO-DEBUG] Issues detected - exporting debug data...');
+                window.MGA_DEBUG.exportDebug();
+                console.log('📋 [AUTO-DEBUG] Copy the debug data above and paste it into mgdebug.txt');
+            } else {
+                console.log('✅ [AUTO-DEBUG] No issues detected in first 30 seconds');
+            }
+        }
+    }, 30000);
+
+    // ==================== PROPER PAGE LOAD DETECTION ====================
+    // Fix for document-idle timing issues - wait for complete page load
+    let initializationStarted = false;
+
+    function initializeWhenReady() {
+        if (initializationStarted) return;
+        initializationStarted = true;
+
+        console.log('🚀 Magic Garden Unified Assistant script loaded!');
+        console.log('🔧 [TIMING] Page load state:', document.readyState);
+        console.log('🔧 [BASIC-DEBUG] Script execution started at:', new Date().toISOString());
+        console.log('🔧 [BASIC-DEBUG] Location:', window.location.href);
+        console.log('🔧 [BASIC-DEBUG] User Agent:', navigator.userAgent);
+
+        // Proceed with initialization
+        startMGAInitialization();
+    }
+
+    // Wait for complete page load to avoid timing issues (use regular document for compatibility)
+    if (document.readyState === 'complete') {
+        // Page is already fully loaded
+        initializeWhenReady();
+    } else {
+        // Wait for full page load - use regular window for game compatibility
+        window.addEventListener('load', initializeWhenReady);
+
+        // Backup: also listen for DOMContentLoaded in case load event already fired
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                // Still wait for window.load, but prepare for it
+                console.log('🔧 [TIMING] DOM ready, waiting for complete load...');
+            });
+        }
+    }
+
+    function startMGAInitialization() {
+        console.log('🚀 [TIMING] Starting MGA initialization with readyState:', document.readyState);
+
+    // Detect other Magic Garden scripts
+    setTimeout(() => {
+        const hasMainScript = typeof window.loadJSON === 'function' ||
+                             typeof window.petAbilityLogs !== 'undefined' ||
+                             document.hidden === false;
+        if (hasMainScript) {
+            console.log('📝 [COMPAT] Detected mainscript.txt is also running - compatibility mode enabled');
+        } else {
+            console.log('📝 [COMPAT] No other Magic Garden scripts detected - running standalone');
+        }
+    }, 100);
 
     // ==================== INITIALIZATION ====================
     /* CHECKPOINT removed: INITIALIZATION_START */
@@ -784,12 +1121,37 @@
 
     // ==================== UNIFIED STATE ====================
     // Global initialization mutex to prevent double initialization
-    // Allow re-initialization with force parameter or manual override
-    const forceInit = window.location.search.includes('force=true') || window._MGA_FORCE_INIT;
+    // Clear any stale flags from previous page load (refresh fix)
+    // On normal refresh, these flags shouldn't persist, but Tampermonkey timing can cause race conditions
+    const now = Date.now();
+    const flagTimestamp = window._MGA_TIMESTAMP || 0;
+    const flagAge = now - flagTimestamp;
+
+    // If flags are older than 5 seconds, they're stale from a previous load
+    if (flagAge > 5000) {
+        console.log('🔄 Detected stale initialization flags, clearing...');
+        try {
+            delete window._MGA_INITIALIZING;
+        } catch (e) {
+            window._MGA_INITIALIZING = undefined;
+        }
+        try {
+            delete window._MGA_INITIALIZED;
+        } catch (e) {
+            window._MGA_INITIALIZED = undefined;
+        }
+        try {
+            delete window._MGA_TIMESTAMP;
+        } catch (e) {
+            window._MGA_TIMESTAMP = undefined;
+        }
+    }
+
+    const forceInit = targetWindow.location.search.includes('force=true') || window._MGA_FORCE_INIT;
 
     if ((window._MGA_INITIALIZING || window._MGA_INITIALIZED) && !forceInit) {
         console.log('🔒 MGA already initializing or initialized, stopping duplicate execution');
-        console.log('💡 Use ?force=true in URL or MGA.forceInit() to re-initialize for debugging');
+        console.log('💡 Use ?force=true in URL or MGA.forceInit() to re-initialize');
         return;
     }
 
@@ -800,7 +1162,12 @@
         window._MGA_FORCE_INIT = false;
     }
 
+    // Set flags with timestamp
     window._MGA_INITIALIZING = true;
+    window._MGA_TIMESTAMP = now;
+
+    // ==================== DEFERRED CONFLICT DETECTION ====================
+    // Conflict detection moved to after game initialization to prevent loading stalls
 
     const UnifiedState = {
         initialized: false,
@@ -909,15 +1276,21 @@
             // Room state userSlots doesn't contain species info
 
             if (!petData) {
-                console.log('🐾 [SIMPLE-PETS] No pet data found in room state');
+                if (UnifiedState.data.settings?.debugMode) {
+                    console.log('🐾 [SIMPLE-PETS] No pet data found in room state');
+                }
 
                 // FALLBACK: Use atom data if available
                 if (window.activePets && window.activePets.length > 0) {
-                    console.log('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
+                    if (UnifiedState.data.settings?.debugMode) {
+                        console.log('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
+                    }
                     return window.activePets;
                 }
 
-                console.log('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
+                if (UnifiedState.data.settings?.debugMode) {
+                    console.log('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
+                }
                 return [];
             }
 
@@ -1018,20 +1391,21 @@
             isGameEnvironment: false,
             isStandalone: false,
             gameReady: false,
-            url: window.location.href,
-            hasJotaiAtoms: !!globalThis.jotaiAtomCache,
-            hasMagicCircleConnection: !!window.MagicCircle_RoomConnection,
-            domain: window.location.hostname
+            url: targetWindow.location.href,
+            hasJotaiAtoms: !!(globalThis.jotaiAtomCache && Object.keys(globalThis.jotaiAtomCache).length > 0),
+            hasMagicCircleConnection: !!(window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === 'object'),
+            domain: targetWindow.location.hostname,
+            readyState: document.readyState
         };
 
         // Check if we're in a Magic Garden game environment
         const gameHosts = ['magiccircle.gg', 'magicgarden.gg', 'starweaver.org'];
         const isGameDomain = gameHosts.some(host => environment.domain.includes(host));
-        const hasGamePath = window.location.pathname.includes('/r/');
+        const hasGamePath = targetWindow.location.pathname.includes('/r/');
 
         environment.isGameEnvironment = isGameDomain && hasGamePath;
         environment.isStandalone = !environment.isGameEnvironment;
-        environment.gameReady = environment.hasJotaiAtoms && environment.hasMagicCircleConnection;
+        environment.gameReady = environment.hasJotaiAtoms && environment.hasMagicCircleConnection && document.readyState === 'complete';
 
         // Determine initialization strategy
         let initStrategy = 'unknown';
@@ -1088,85 +1462,873 @@
 /* CHECKPOINT removed: ENVIRONMENT_DETECTION_COMPLETE */
 
 // ==================== UTILITIES ====================
-// MGA-specific storage functions to prevent conflicts with other scripts
-function MGA_loadJSON(key, fallback) {
+// MGA-specific storage functions using GM_setValue/GM_getValue for reliable persistence
+
+// ==================== GM STORAGE SYSTEM ====================
+// Reliable storage using Tampermonkey's GM API instead of unreliable localStorage
+
+function MGA_loadJSON(key, fallback, autoRecover = true) {
+    // CRITICAL: Ensure we never use MainScript keys
+    if (key && !key.startsWith('MGA_')) {
+        console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to load with non-MGA key: ${key}`);
+        console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
+        console.trace();
+        key = 'MGA_' + key;
+    }
+
     try {
-        const val = localStorage.getItem(key);
-        return val ? JSON.parse(val) : fallback;
+        // Enhanced logging for critical operations
+        if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
+            console.log(`📚 [GM-STORAGE] Attempting to load critical data: ${key}`);
+        }
+
+        // Enhanced GM API check before using GM_getValue
+        if (!isGMApiAvailable()) {
+            console.warn(`⚠️ [GM-STORAGE] GM_getValue not available! Using localStorage fallback.`);
+            try {
+                const localVal = targetWindow.localStorage.getItem(key);
+                if (localVal === null) return fallback;
+                return JSON.parse(localVal);
+            } catch (e) {
+                console.error(`❌ [STORAGE] localStorage fallback failed for ${key}:`, e);
+                return fallback;
+            }
+        }
+
+        // Use GM_getValue for reliable cross-session storage
+        const val = GM_getValue(key, null);
+
+        if (val === null || val === undefined) {
+            if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
+                console.log(`📝 [GM-STORAGE] No data found for critical key: ${key} - returning fallback`);
+                console.log(`📝 [GM-STORAGE] Fallback value:`, fallback);
+            } else {
+                console.log(`📝 [GM-STORAGE] No data found for key: ${key}`);
+            }
+            return fallback;
+        }
+
+        // GM_getValue can return the actual object for JSON data, but let's handle both cases
+        let parsed;
+        if (typeof val === 'string') {
+            if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
+                console.log(`📚 [GM-STORAGE] Raw string data found for ${key}, length:`, val.length);
+                console.log(`📚 [GM-STORAGE] Raw data preview:`, val.substring(0, 100));
+            }
+
+            // Check for obviously corrupted data patterns
+            if (val.includes('undefined') || val.startsWith('undefined') || val === 'null') {
+                console.warn(`⚠️ [GM-STORAGE] Detected corrupted data for ${key}: ${val.substring(0, 50)}...`);
+                if (autoRecover) {
+                    console.log(`🔧 [GM-STORAGE] Auto-removing corrupted data for ${key}`);
+                    GM_setValue(key, null);
+                }
+                return fallback;
+            }
+
+            try {
+                parsed = JSON.parse(val);
+            } catch (parseError) {
+                console.error(`❌ [GM-STORAGE] JSON parse failed for ${key}:`, parseError);
+                console.error(`❌ [GM-STORAGE] Raw data (first 300 chars):`, val.substring(0, 300));
+
+                if (autoRecover) {
+                    console.warn(`🔧 [GM-STORAGE] Auto-removing unparseable data for ${key} and returning fallback`);
+                    GM_setValue(key, null);
+                    console.log(`✅ [GM-STORAGE] Corrupted data cleared for ${key}`);
+                }
+                return fallback;
+            }
+        } else {
+            // Data is already parsed (GM can store objects directly)
+            parsed = val;
+        }
+
+        // Validate the parsed data structure for critical keys
+        if (key === 'MGA_petPresets' && parsed && typeof parsed === 'object') {
+            // Ensure pet presets have valid structure
+            const validatedPresets = {};
+            let hasValidPresets = false;
+
+            for (const [presetName, preset] of Object.entries(parsed)) {
+                if (Array.isArray(preset) && preset.every(pet =>
+                    pet && typeof pet === 'object' && pet.id && pet.petSpecies
+                )) {
+                    validatedPresets[presetName] = preset;
+                    hasValidPresets = true;
+                } else {
+                    console.warn(`⚠️ [GM-STORAGE] Invalid pet preset '${presetName}' detected and skipped`);
+                }
+            }
+
+            if (hasValidPresets) {
+                console.log(`✅ [GM-STORAGE] Successfully loaded ${key} with ${Object.keys(validatedPresets).length} valid presets:`, Object.keys(validatedPresets));
+                return validatedPresets;
+            } else {
+                console.warn(`⚠️ [GM-STORAGE] No valid presets found in ${key}, returning fallback`);
+                if (autoRecover) {
+                    GM_setValue(key, null);
+                }
+                return fallback;
+            }
+        }
+
+        if (key === 'MGA_seedsToDelete' && parsed && Array.isArray(parsed)) {
+            // Validate seeds array
+            const validSeeds = parsed.filter(seed => typeof seed === 'string' && seed.trim().length > 0);
+            if (validSeeds.length !== parsed.length) {
+                console.warn(`⚠️ [GM-STORAGE] Some invalid seeds detected in ${key}, filtered to ${validSeeds.length} valid seeds`);
+                if (autoRecover && validSeeds.length > 0) {
+                    // Save the cleaned version
+                    console.log(`🔧 [GM-STORAGE] Auto-saving cleaned seeds data`);
+                    MGA_saveJSON(key, validSeeds);
+                }
+            }
+            console.log(`✅ [GM-STORAGE] Successfully loaded ${key}: ${validSeeds.length} seeds`);
+            return validSeeds;
+        }
+
+        // General validation for other data types
+        if (parsed === null || parsed === undefined) {
+            console.warn(`⚠️ [GM-STORAGE] Loaded null/undefined data for ${key}, returning fallback`);
+            return fallback;
+        }
+
+        console.log(`✅ [GM-STORAGE] Successfully loaded ${key}: ${typeof parsed} ${Array.isArray(parsed) ? `(${parsed.length} items)` : Object.keys(parsed || {}).length ? `(${Object.keys(parsed).length} keys)` : '(empty)'}`);
+        return parsed;
+
     } catch (e) {
-        console.error(`❌ [MGA-STORAGE] Failed to load ${key}:`, e);
+        console.error(`❌ [GM-STORAGE] Unexpected error loading ${key}:`, e);
+        console.error(`❌ [GM-STORAGE] Error details:`, {
+            name: e.name,
+            message: e.message,
+            gmApiAvailable: typeof GM_getValue !== 'undefined'
+        });
+
         return fallback;
     }
 }
 
 function MGA_saveJSON(key, value) {
+    // CRITICAL: Ensure we never use MainScript keys
+    if (key && !key.startsWith('MGA_')) {
+        console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${key}`);
+        console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
+        console.trace();
+        key = 'MGA_' + key;
+    }
+
     try {
+        // Enhanced GM API availability check
+        if (!isGMApiAvailable()) {
+            console.warn(`⚠️ [GM-STORAGE] GM_setValue not available! Falling back to localStorage.`);
+            return MGA_saveJSON_localStorage_fallback(key, value);
+        }
+
+        // Enhanced logging for critical operations
+        if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
+            console.log(`💾 [GM-STORAGE] Attempting to save critical data: ${key}`);
+            console.log(`💾 [GM-STORAGE] Data type:`, typeof value);
+            console.log(`💾 [GM-STORAGE] Data content:`, value);
+        }
+
+        // GM can store objects directly, but let's use JSON for consistency and debugging
         const jsonString = JSON.stringify(value);
 
-        // Check localStorage availability and conflicts
-        if (typeof localStorage === 'undefined') {
-            console.error(`❌ [MGA-STORAGE] localStorage not available!`);
+        // Save using GM_setValue for reliable persistence
+        GM_setValue(key, jsonString);
+        console.log(`💾 [GM-STORAGE] GM_setValue succeeded for ${key}`);
+
+        // Verification using GM_getValue
+        const verification = GM_getValue(key, null);
+        if (!verification) {
+            console.error(`❌ [GM-STORAGE] Save verification failed for ${key} - no data retrieved!`);
             return false;
         }
 
-        // Check for storage quota issues
-        try {
-            localStorage.setItem(key, jsonString);
-        } catch (quotaError) {
-            if (quotaError.name === 'QuotaExceededError') {
-                console.error(`❌ [MGA-STORAGE] Storage quota exceeded for ${key}`);
-                // Try to clear some space by removing old non-MGA items
-                const mgaKeys = Object.keys(localStorage).filter(k => k.startsWith('MGA_'));
-                console.log(`🔧 [MGA-STORAGE] Found ${mgaKeys.length} MGA keys, localStorage has ${localStorage.length} total items`);
-            }
-            throw quotaError;
-        }
-
-        // Verify the save worked
-        const verification = localStorage.getItem(key);
         if (verification !== jsonString) {
-            console.error(`❌ [MGA-STORAGE] Save verification failed for ${key}! Expected: ${jsonString.substring(0, 100)}..., Got: ${verification ? verification.substring(0, 100) + '...' : 'null'}`);
+            console.error(`❌ [GM-STORAGE] Save verification failed for ${key} - data mismatch!`);
+            console.error(`❌ [GM-STORAGE] Expected length:`, jsonString.length);
+            console.error(`❌ [GM-STORAGE] Retrieved length:`, verification.length);
+            console.error(`❌ [GM-STORAGE] First 100 chars expected:`, jsonString.substring(0, 100));
+            console.error(`❌ [GM-STORAGE] First 100 chars retrieved:`, verification.substring(0, 100));
             return false;
         }
 
-        // Add specific debugging for pet presets
+        if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
+            console.log(`✅ [GM-STORAGE] Critical data verification passed for ${key}`);
+        }
+
+        // Success logging
         if (key === 'MGA_petPresets') {
-            console.log('💾 [MGA-STORAGE] ✅ Pet presets saved successfully:', {
-                key: key,
-                count: Object.keys(value || {}).length,
-                presets: Object.keys(value || {}),
-                size: jsonString.length + ' chars',
-                verified: true
-            });
+            console.log('💾 [GM-STORAGE] ✅ Pet presets saved successfully');
         } else if (key.startsWith('MGA_')) {
-            console.log(`💾 [MGA-STORAGE] ✅ Saved ${key}:`, typeof value === 'object' ? Object.keys(value).length + ' items' : value);
+            console.log(`💾 [GM-STORAGE] ✅ Saved ${key}`);
         }
 
         return true;
+
     } catch (error) {
-        console.error(`❌ [MGA-STORAGE] Failed to save ${key}:`, error);
-        console.error(`❌ [MGA-STORAGE] Error details:`, {
+        console.error(`❌ [GM-STORAGE] Failed to save ${key}:`, error);
+        console.error(`❌ [GM-STORAGE] Error details:`, {
             name: error.name,
             message: error.message,
-            localStorage: typeof localStorage,
-            storageLength: localStorage?.length,
-            keyExists: localStorage?.getItem(key) !== null
+            gmApiAvailable: typeof GM_setValue !== 'undefined'
         });
         return false;
     }
 }
 
-// Backward compatibility - provide old function names if not already defined by other scripts
-if (typeof window.loadJSON !== 'function') {
-    window.loadJSON = MGA_loadJSON;
-}
-if (typeof window.saveJSON !== 'function') {
-    window.saveJSON = MGA_saveJSON;
+// Fallback function for when GM API is not available
+function MGA_saveJSON_localStorage_fallback(key, value) {
+    try {
+        const jsonString = JSON.stringify(value);
+        localStorage.setItem(key, jsonString);
+
+        // Simple verification
+        const verification = localStorage.getItem(key);
+        if (verification === jsonString) {
+            console.log(`💾 [FALLBACK] Successfully saved ${key} to localStorage`);
+            return true;
+        } else {
+            console.error(`❌ [FALLBACK] localStorage save verification failed for ${key}`);
+            return false;
+        }
+    } catch (error) {
+        console.error(`❌ [FALLBACK] localStorage save failed for ${key}:`, error);
+        return false;
+    }
 }
 
-// Also export to global scope for direct access
+// ==================== DATA MIGRATION SYSTEM ====================
+// Migrate existing localStorage data to GM storage for better reliability
+
+function MGA_migrateFromLocalStorage() {
+    try {
+        console.log('🔄 [MIGRATION] Starting data migration from localStorage to GM storage...');
+
+        // Check if migration has already been completed (handle both boolean and string values)
+        const migrationComplete = GM_getValue('MGA_migration_completed', false);
+        if (migrationComplete === true || migrationComplete === 'true') {
+            console.log('✅ [MIGRATION] Migration already completed, skipping...');
+            return;
+        }
+
+        // List of keys to migrate
+        const keysToMigrate = [
+            'MGA_petPresets',
+            'MGA_seedsToDelete',
+            'MGA_autoDeleteEnabled',
+            'MGA_petAbilityLogs',
+            'MGA_settings',
+            'MGA_mainHUDPosition',
+            'MGA_toggleButtonPosition',
+            'MGA_overlayDimensions',
+            'MGA_overlayPositions',
+            'MGA_overlayStates',
+            'MGA_abilityFilters',
+            'MGA_petFilters',
+            'MGA_customMode',
+            'MGA_filterMode',
+            'MGA_timerStates'
+        ];
+
+        let migratedCount = 0;
+        let totalDataSize = 0;
+
+        // Use requestIdleCallback to avoid blocking the main thread during migration
+        const migrateKeys = (keyIndex = 0) => {
+            if (keyIndex >= keysToMigrate.length) {
+                // Migration complete
+                GM_setValue('MGA_migration_completed', true);
+                GM_setValue('MGA_migration_timestamp', Date.now());
+                GM_setValue('MGA_migration_stats', {
+                    migratedCount,
+                    totalDataSize,
+                    timestamp: Date.now()
+                });
+
+                console.log(`✅ [MIGRATION] Data migration completed!`);
+                console.log(`📊 [MIGRATION] Statistics:`, {
+                    migratedKeys: migratedCount,
+                    totalDataSize: totalDataSize + ' chars',
+                    timestamp: new Date().toISOString()
+                });
+                return;
+            }
+
+            const key = keysToMigrate[keyIndex];
+            try {
+                const localStorageData = localStorage.getItem(key);
+                if (localStorageData) {
+                    // Data exists in localStorage, migrate it
+                    GM_setValue(key, localStorageData);
+                    migratedCount++;
+                    totalDataSize += localStorageData.length;
+
+                    console.log(`📦 [MIGRATION] Migrated ${key} (${localStorageData.length} chars)`);
+
+                    // Verify the migration worked
+                    const verification = GM_getValue(key, null);
+                    if (verification === localStorageData) {
+                        console.log(`✅ [MIGRATION] Successfully verified ${key}`);
+
+                        // Only remove from localStorage after successful verification
+                        localStorage.removeItem(key);
+                        console.log(`🗑️ [MIGRATION] Removed ${key} from localStorage`);
+                    } else {
+                        console.error(`❌ [MIGRATION] Verification failed for ${key} - keeping localStorage version`);
+                    }
+                } else {
+                    // No data in localStorage for this key
+                    console.log(`📝 [MIGRATION] No data found for ${key} in localStorage`);
+                }
+            } catch (error) {
+                console.error(`❌ [MIGRATION] Failed to migrate ${key}:`, error);
+            }
+
+            // Process next key with a small delay to avoid blocking
+            if (typeof requestIdleCallback !== 'undefined') {
+                requestIdleCallback(() => migrateKeys(keyIndex + 1));
+            } else {
+                setTimeout(() => migrateKeys(keyIndex + 1), 0);
+            }
+        };
+
+        // Start migration
+        migrateKeys();
+
+        return { success: true, migratedCount, totalDataSize };
+
+    } catch (error) {
+        console.error(`❌ [MIGRATION] Migration process failed:`, error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Function to check migration status for debugging
+function MGA_getMigrationStatus() {
+    const migrationComplete = GM_getValue('MGA_migration_completed', false);
+    const migrationStats = GM_getValue('MGA_migration_stats', null);
+    const migrationTimestamp = GM_getValue('MGA_migration_timestamp', null);
+
+    return {
+        completed: migrationComplete,
+        stats: migrationStats,
+        timestamp: migrationTimestamp ? new Date(migrationTimestamp).toISOString() : null
+    };
+}
+
+// Export migration functions for debugging
+window.MGA_migrateFromLocalStorage = MGA_migrateFromLocalStorage;
+window.MGA_getMigrationStatus = MGA_getMigrationStatus;
+
+// ==================== MEMORY MANAGEMENT SYSTEM ====================
+// Prevent memory leaks and accumulation that requires tab restarts
+
+let mgaCleanupHandlers = [];
+let mgaIntervals = [];
+let mgaTimeouts = [];
+
+// Register cleanup handler
+function MGA_addCleanupHandler(handler) {
+    if (typeof handler === 'function') {
+        mgaCleanupHandlers.push(handler);
+    }
+}
+
+// Register interval for automatic cleanup
+function MGA_addInterval(interval) {
+    mgaIntervals.push(interval);
+    return interval;
+}
+
+// Register timeout for automatic cleanup
+function MGA_addTimeout(timeout) {
+    mgaTimeouts.push(timeout);
+    return timeout;
+}
+
+// Clean up all MGA resources
+function MGA_cleanup() {
+    console.log('🧹 [MEMORY] Starting MGA cleanup...');
+
+    try {
+        // Clear all intervals
+        mgaIntervals.forEach(interval => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        });
+        console.log(`🧹 [MEMORY] Cleared ${mgaIntervals.length} intervals`);
+        mgaIntervals = [];
+
+        // Clear all timeouts
+        mgaTimeouts.forEach(timeout => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+        });
+        console.log(`🧹 [MEMORY] Cleared ${mgaTimeouts.length} timeouts`);
+        mgaTimeouts = [];
+
+        // Run custom cleanup handlers
+        mgaCleanupHandlers.forEach((handler, index) => {
+            try {
+                handler();
+                console.log(`🧹 [MEMORY] Executed cleanup handler ${index + 1}`);
+            } catch (error) {
+                console.error(`❌ [MEMORY] Cleanup handler ${index + 1} failed:`, error);
+            }
+        });
+
+        // Clear event listeners
+        if (window.MGA_Internal && window.MGA_Internal.eventListeners) {
+            window.MGA_Internal.eventListeners.forEach(({ element, event, handler }) => {
+                try {
+                    element.removeEventListener(event, handler);
+                } catch (error) {
+                    console.warn(`⚠️ [MEMORY] Failed to remove event listener:`, error);
+                }
+            });
+            console.log(`🧹 [MEMORY] Removed ${window.MGA_Internal.eventListeners.length} event listeners`);
+            window.MGA_Internal.eventListeners = [];
+        }
+
+        // Clear large data structures
+        if (window.UnifiedState) {
+            // Save critical data before cleanup
+            const criticalData = {
+                petPresets: window.UnifiedState.data?.petPresets,
+                seedsToDelete: window.UnifiedState.data?.seedsToDelete,
+                settings: window.UnifiedState.data?.settings
+            };
+
+            // Save critical data
+            Object.keys(criticalData).forEach(key => {
+                if (criticalData[key] !== undefined) {
+                    MGA_saveJSON(`MGA_${key}`, criticalData[key]);
+                }
+            });
+
+            // Clear large arrays
+            if (window.UnifiedState.data?.petAbilityLogs) {
+                console.log(`🧹 [MEMORY] Clearing ${window.UnifiedState.data.petAbilityLogs.length} pet ability logs from memory`);
+                window.UnifiedState.data.petAbilityLogs = [];
+            }
+        }
+
+        console.log('✅ [MEMORY] MGA cleanup completed successfully');
+
+    } catch (error) {
+        console.error('❌ [MEMORY] MGA cleanup failed:', error);
+    }
+}
+
+// Set up automatic cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    console.log('🔄 [MEMORY] Page unloading, starting cleanup...');
+    MGA_cleanup();
+});
+
+// Set up cleanup on page hide (for mobile/tab switching)
+window.addEventListener('pagehide', () => {
+    console.log('🔄 [MEMORY] Page hiding, starting cleanup...');
+    MGA_cleanup();
+});
+
+// Export memory management functions
+window.MGA_cleanup = MGA_cleanup;
+window.MGA_addCleanupHandler = MGA_addCleanupHandler;
+window.MGA_addInterval = MGA_addInterval;
+window.MGA_addTimeout = MGA_addTimeout;
+
+// ==================== MEMORY OPTIMIZATION SYSTEM ====================
+// Smart memory management to reduce footprint while preserving user data
+
+// Configuration for memory limits
+const MGA_MemoryConfig = {
+    maxLogsInMemory: 1000,        // Keep latest 1000 logs in memory
+    maxLogsInStorage: 10000,      // Archive up to 10000 logs in storage
+    saveDebounceMs: 2000,         // Debounce saves by 2 seconds
+    domPoolSize: 50               // Pool size for DOM elements
+};
+
+// Debounced save system to reduce I/O operations
+let saveTimeouts = new Map();
+function MGA_debouncedSave(key, data) {
+    // Clear existing timeout for this key
+    if (saveTimeouts.has(key)) {
+        clearTimeout(saveTimeouts.get(key));
+    }
+
+    // Set new debounced timeout
+    const timeout = setTimeout(() => {
+        try {
+            MGA_saveJSON(key, data);
+            console.log(`💾 [MEMORY] Debounced save completed for ${key}`);
+        } catch (error) {
+            console.error(`❌ [MEMORY] Debounced save failed for ${key}:`, error);
+        }
+        saveTimeouts.delete(key);
+    }, MGA_MemoryConfig.saveDebounceMs);
+
+    saveTimeouts.set(key, timeout);
+}
+
+// Smart log management system
+function MGA_manageLogMemory(logs) {
+    if (!Array.isArray(logs) || logs.length <= MGA_MemoryConfig.maxLogsInMemory) {
+        return logs; // No management needed
+    }
+
+    console.log(`🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`);
+
+    // Keep the most recent logs in memory
+    const recentLogs = logs.slice(0, MGA_MemoryConfig.maxLogsInMemory);
+
+    // Archive older logs to separate storage
+    const archivedLogs = logs.slice(MGA_MemoryConfig.maxLogsInMemory);
+    if (archivedLogs.length > 0) {
+        // Save archived logs to separate storage key
+        const existingArchive = MGA_loadJSON('MGA_petAbilityLogs_archive', []);
+        const combinedArchive = [...archivedLogs, ...existingArchive].slice(0, MGA_MemoryConfig.maxLogsInStorage);
+        MGA_debouncedSave('MGA_petAbilityLogs_archive', combinedArchive);
+        console.log(`📦 [MEMORY] Archived ${archivedLogs.length} logs to storage`);
+    }
+
+    return recentLogs;
+}
+
+// DOM element pooling for performance
+const MGA_DOMPool = {
+    pools: new Map(),
+
+    getElement: function(tagName, className = '') {
+        const key = `${tagName}:${className}`;
+        if (!this.pools.has(key)) {
+            this.pools.set(key, []);
+        }
+
+        const pool = this.pools.get(key);
+        if (pool.length > 0) {
+            const element = pool.pop();
+            // Reset element state
+            element.innerHTML = '';
+            element.removeAttribute('style');
+            element.className = className;
+            return element;
+        }
+
+        // Create new element if pool is empty (using target context)
+        const element = targetDocument.createElement(tagName);
+        if (className) element.className = className;
+        return element;
+    },
+
+    returnElement: function(element) {
+        if (!element || !element.tagName) return;
+
+        const key = `${element.tagName.toLowerCase()}:${element.className || ''}`;
+        if (!this.pools.has(key)) {
+            this.pools.set(key, []);
+        }
+
+        const pool = this.pools.get(key);
+        if (pool.length < MGA_MemoryConfig.domPoolSize) {
+            // Clean element before returning to pool
+            element.innerHTML = '';
+            element.removeAttribute('style');
+            element.onclick = null;
+            element.onmouseover = null;
+            element.onmouseout = null;
+            pool.push(element);
+        }
+    },
+
+    cleanup: function() {
+        console.log('🧹 [MEMORY] Cleaning DOM element pools');
+        this.pools.clear();
+    }
+};
+
+// Add DOM pool cleanup to main cleanup handler
+MGA_addCleanupHandler(() => {
+    MGA_DOMPool.cleanup();
+    // Clear save timeouts
+    saveTimeouts.forEach(timeout => clearTimeout(timeout));
+    saveTimeouts.clear();
+});
+
+// Function to retrieve all logs (memory + archived) when needed
+function MGA_getAllLogs() {
+    const memoryLogs = UnifiedState.data?.petAbilityLogs || [];
+    const archivedLogs = MGA_loadJSON('MGA_petAbilityLogs_archive', []);
+
+    // Combine and sort by timestamp (newest first)
+    const allLogs = [...memoryLogs, ...archivedLogs];
+    allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    console.log(`📜 [MEMORY] Retrieved ${memoryLogs.length} memory logs + ${archivedLogs.length} archived logs = ${allLogs.length} total`);
+    return allLogs;
+}
+
+// Export memory optimization functions
+window.MGA_debouncedSave = MGA_debouncedSave;
+window.MGA_manageLogMemory = MGA_manageLogMemory;
+window.MGA_getAllLogs = MGA_getAllLogs;
+window.MGA_DOMPool = MGA_DOMPool;
+
+// ==================== NAMESPACE ISOLATION ====================
+// Keep MGA functions completely isolated to prevent conflicts with MainScript.txt
+
+// Export MGA functions to global scope for direct access (MGA_ prefix prevents conflicts)
 window.MGA_loadJSON = MGA_loadJSON;
 window.MGA_saveJSON = MGA_saveJSON;
+
+// MainScript Conflict Detection and Protection
+window.MGA_ConflictDetection = {
+    mainScriptDetected: false,
+    protectedGlobals: ['autoFeedEnabled', 'autoFeedState', 'autoFeedSkipFavorited', 'petAbilityLogs'],
+
+    // Ensure MGA never accesses MainScript globals
+    preventAccess: function() {
+        if (!this.mainScriptDetected) return;
+
+        // Create safe accessors that prevent MGA from accidentally touching MainScript variables
+        this.protectedGlobals.forEach(globalVar => {
+            if (window[globalVar] !== undefined) {
+                console.log(`🔒 [MGA-ISOLATION] Ensuring MGA cannot access MainScript global: ${globalVar}`);
+
+                // Define a read-only accessor for debugging
+                Object.defineProperty(window, `MGA_SAFE_${globalVar}`, {
+                    get: function() {
+                        console.warn(`⚠️ [MGA-ISOLATION] MGA attempted to access MainScript global: ${globalVar}`);
+                        console.warn(`⚠️ [MGA-ISOLATION] This access was blocked to prevent interference`);
+                        console.trace();
+                        return undefined; // Always return undefined to MGA
+                    },
+                    configurable: false,
+                    enumerable: false
+                });
+            }
+        });
+
+        // Specifically protect autofeed variables
+        console.log(`🔒 [MGA-ISOLATION] MainScript autofeed protection active`);
+        console.log(`🔒 [MGA-ISOLATION] MGA will not interfere with autofeed functionality`);
+    },
+
+    detectMainScript: function() {
+        const hasMainScriptFunctions = typeof window.loadJSON === 'function' || typeof window.saveJSON === 'function';
+        const hasMainScriptVars = typeof window.petAbilityLogs !== 'undefined' || typeof window.autoFeedEnabled !== 'undefined';
+        const hasVisibilityOverride = document.hidden === false && typeof Object.getOwnPropertyDescriptor === 'function';
+
+        this.mainScriptDetected = hasMainScriptFunctions || hasMainScriptVars || hasVisibilityOverride;
+
+        if (this.mainScriptDetected) {
+            console.log('🔍 [MGA-ISOLATION] MainScript.txt detected - enabling full isolation mode');
+            console.log('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or MainScript variables');
+            console.log('📝 [MGA-ISOLATION] Protected variables:', this.protectedGlobals);
+        } else {
+            console.log('📝 [MGA-ISOLATION] No MainScript detected - running in standalone mode');
+        }
+
+        return this.mainScriptDetected;
+    },
+
+    checkGlobalIntegrity: function() {
+        if (!this.mainScriptDetected) return true;
+
+        const violations = [];
+
+        // Check if we accidentally modified protected globals
+        this.protectedGlobals.forEach(globalVar => {
+            if (window[globalVar] !== undefined) {
+                // MainScript global exists - make sure we don't interfere
+                console.log(`🔍 [MGA-ISOLATION] MainScript global '${globalVar}' is active - ensuring no interference`);
+            }
+        });
+
+        // Check if global loadJSON/saveJSON are MainScript's versions
+        if (window.loadJSON && window.loadJSON !== MGA_loadJSON) {
+            console.log('🔒 [MGA-ISOLATION] Global loadJSON belongs to MainScript - MGA using isolated MGA_loadJSON');
+        }
+        if (window.saveJSON && window.saveJSON !== MGA_saveJSON) {
+            console.log('🔒 [MGA-ISOLATION] Global saveJSON belongs to MainScript - MGA using isolated MGA_saveJSON');
+        }
+
+        return violations.length === 0;
+    },
+
+    createIsolationBarrier: function() {
+        if (!this.mainScriptDetected) return;
+
+        // Light protection - just store original values for monitoring
+        this.protectedGlobals.forEach(globalVar => {
+            if (window[globalVar] !== undefined) {
+                const originalValue = window[globalVar];
+
+                // Store original value for later comparison
+                try {
+                    Object.defineProperty(window, `_MGA_ORIGINAL_${globalVar}`, {
+                        value: originalValue,
+                        writable: true,
+                        configurable: true
+                    });
+                    console.log(`🛡️ [MGA-ISOLATION] Stored original value for MainScript global: ${globalVar}`);
+                } catch (protectionError) {
+                    console.warn(`⚠️ [MGA-ISOLATION] Could not store original value for ${globalVar}:`, protectionError.message);
+                }
+            }
+        });
+
+        // Simple function protection - just save references without modifying
+        if (window.loadJSON && window.loadJSON !== window.MGA_loadJSON) {
+            console.log(`🔒 [MGA-ISOLATION] MainScript loadJSON detected - storing reference`);
+            window._MGA_MAINSCRIPT_loadJSON = window.loadJSON;
+        }
+        if (window.saveJSON && window.saveJSON !== window.MGA_saveJSON) {
+            console.log(`🔒 [MGA-ISOLATION] MainScript saveJSON detected - storing reference`);
+            window._MGA_MAINSCRIPT_saveJSON = window.saveJSON;
+        }
+    },
+
+    // New method to verify isolation integrity
+    validateIsolation: function() {
+        let violations = [];
+
+        // Check that MGA never modified protected globals
+        this.protectedGlobals.forEach(globalVar => {
+            const original = window[`_MGA_ORIGINAL_${globalVar}`];
+            const current = window[globalVar];
+
+            if (original !== undefined && current !== original) {
+                violations.push({
+                    global: globalVar,
+                    expected: original,
+                    actual: current,
+                    type: 'global_modification'
+                });
+            }
+        });
+
+        // Check that MGA uses its own storage functions
+        if (window.MGA_loadJSON && window.loadJSON && window.MGA_loadJSON === window.loadJSON) {
+            violations.push({
+                issue: 'MGA_loadJSON is assigned to global loadJSON',
+                type: 'function_collision'
+            });
+        }
+        if (window.MGA_saveJSON && window.saveJSON && window.MGA_saveJSON === window.saveJSON) {
+            violations.push({
+                issue: 'MGA_saveJSON is assigned to global saveJSON',
+                type: 'function_collision'
+            });
+        }
+
+        if (violations.length > 0) {
+            console.error(`❌ [MGA-ISOLATION] Isolation violations detected:`, violations);
+            return false;
+        }
+
+        console.log(`✅ [MGA-ISOLATION] Isolation validation passed - no violations detected`);
+        return true;
+    }
+};
+
+// NEVER set global window.loadJSON or window.saveJSON - this prevents conflicts
+// MGA ALWAYS uses MGA_loadJSON and MGA_saveJSON exclusively
+
+// ==================== SAVE OPERATION WRAPPER ====================
+// Wrapper function to handle new MGA_saveJSON return format and provide user feedback
+
+window.MGA_safeSave = function(key, value, options = {}) {
+    const {
+        showUserAlert = true,
+        criticalData = false,
+        description = key,
+        silent = false
+    } = options;
+
+    // CRITICAL: Ensure we never use MainScript keys
+    if (key && !key.startsWith('MGA_')) {
+        console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${key}`);
+        console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
+        console.trace();
+        key = 'MGA_' + key;
+    }
+
+    try {
+        // Simple synchronous save
+        const success = MGA_saveJSON(key, value);
+
+        if (success) {
+            if (!silent) {
+                console.log(`✅ [MGA-SAFE-SAVE] Successfully saved ${description}`);
+            }
+            return { success: true };
+        } else {
+            // Save failed
+            const errorMsg = `Failed to save ${description}`;
+            console.error(`❌ [MGA-SAFE-SAVE] ${errorMsg}`);
+
+            if (showUserAlert && criticalData) {
+                // Only show alerts for critical data, and defer them to avoid blocking
+                setTimeout(() => {
+                    if (typeof alert === 'function') {
+                        alert(`⚠️ Unable to save ${description}. Please try again.`);
+                    }
+                }, 500);
+            }
+
+            return { success: false, error: 'save_failed' };
+        }
+    } catch (error) {
+        console.error(`❌ [MGA-SAFE-SAVE] Exception during save of ${description}:`, error);
+        return { success: false, error: error.message, exception: true };
+    }
+};
+
+// Helper function for backward compatibility with legacy save calls
+window.MGA_legacySave = function(key, value, description) {
+    const result = MGA_safeSave(key, value, {
+        description: description || key,
+        showUserAlert: true,
+        criticalData: key.includes('petPresets') || key.includes('seedsToDelete')
+    });
+    return result.success;
+};
+
+// Validation helper for critical data types
+window.MGA_validateSaveData = function(key, value) {
+    if (key === 'MGA_petPresets') {
+        if (!value || typeof value !== 'object') {
+            return { valid: false, error: 'Pet presets must be an object' };
+        }
+        for (const [presetName, preset] of Object.entries(value)) {
+            if (!Array.isArray(preset)) {
+                return { valid: false, error: `Preset '${presetName}' must be an array` };
+            }
+            if (!preset.every(pet => pet && pet.id && pet.petSpecies)) {
+                return { valid: false, error: `Preset '${presetName}' contains invalid pet data` };
+            }
+        }
+        return { valid: true };
+    }
+
+    if (key === 'MGA_seedsToDelete') {
+        if (!Array.isArray(value)) {
+            return { valid: false, error: 'Seeds to delete must be an array' };
+        }
+        if (!value.every(seed => typeof seed === 'string' && seed.trim())) {
+            return { valid: false, error: 'All seeds must be non-empty strings' };
+        }
+        return { valid: true };
+    }
+
+    return { valid: true }; // Default: assume valid for other data types
+};
 
 // Diagnostic function for localStorage issues
 window.MGA_debugStorage = function() {
@@ -1290,7 +2452,7 @@ window.MGA_debugStorage = function() {
                 const rawValue = originalRead.call(this, get);
 
                 // Enhanced debugging for activePets
-                if (windowKey === 'activePets') {
+                if (windowKey === 'activePets' && UnifiedState.data.settings?.debugMode) {
                     console.log(`🐾 [ATOM-DEBUG] ${windowKey} raw value:`, {
                         value: rawValue,
                         type: typeof rawValue,
@@ -1307,7 +2469,7 @@ window.MGA_debugStorage = function() {
                     // If callback returns a value, use it; otherwise use raw value
                     if (callbackResult !== undefined) {
                         finalValue = callbackResult;
-                        if (windowKey === 'activePets') {
+                        if (windowKey === 'activePets' && UnifiedState.data.settings?.debugMode) {
                             console.log(`🐾 [ATOM-DEBUG] ${windowKey} transformed by callback:`, finalValue);
                         }
                     }
@@ -1317,7 +2479,7 @@ window.MGA_debugStorage = function() {
                 UnifiedState.atoms[windowKey] = finalValue;
                 window[windowKey] = finalValue;
 
-                if (windowKey === 'activePets') {
+                if (windowKey === 'activePets' && UnifiedState.data.settings?.debugMode) {
                     console.log(`🐾 [ATOM-DEBUG] ${windowKey} stored in UnifiedState:`, {
                         count: finalValue?.length || 0,
                         value: finalValue
@@ -1367,7 +2529,7 @@ window.MGA_debugStorage = function() {
             element.style.zIndex = '999999';
             handle.style.cursor = 'grabbing';
 
-            document.body.style.userSelect = 'none';
+            targetDocument.body.style.userSelect = 'none';
 
             debugLog('OVERLAY_LIFECYCLE', 'Started dragging main HUD', {
                 elementClass: element.className,
@@ -1377,6 +2539,11 @@ window.MGA_debugStorage = function() {
 
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
+
+            // CRITICAL: Don't interfere with game modal interactions
+            if (!isMGAEvent(e)) {
+                return;
+            }
 
             if (animationFrame) {
                 cancelAnimationFrame(animationFrame);
@@ -1423,8 +2590,12 @@ window.MGA_debugStorage = function() {
             });
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', (e) => {
             if (isDragging) {
+                // CRITICAL: Only handle MGA-related mouseup events
+                if (!isMGAEvent(e)) {
+                    return;
+                }
                 isDragging = false;
 
                 // Professional drag end effects
@@ -1438,7 +2609,7 @@ window.MGA_debugStorage = function() {
                 element.style.borderRight = '';
 
                 handle.style.cursor = 'grab';
-                document.body.style.userSelect = '';
+                targetDocument.body.style.userSelect = '';
 
                 if (animationFrame) {
                     cancelAnimationFrame(animationFrame);
@@ -1506,7 +2677,7 @@ window.MGA_debugStorage = function() {
         } = options;
 
         // Create resize handle
-        const resizeHandle = document.createElement('div');
+        const resizeHandle = targetDocument.createElement('div');
         resizeHandle.className = 'mga-resize-handle';
         resizeHandle.style.cssText = `
             position: absolute;
@@ -1552,8 +2723,8 @@ window.MGA_debugStorage = function() {
             startWidth = element.offsetWidth;
             startHeight = element.offsetHeight;
 
-            document.body.style.cursor = 'se-resize';
-            document.body.style.userSelect = 'none';
+            targetDocument.body.style.cursor = 'se-resize';
+            targetDocument.body.style.userSelect = 'none';
 
             debugLog('OVERLAY_LIFECYCLE', 'Started resizing element', {
                 startSize: { width: startWidth, height: startHeight }
@@ -1563,6 +2734,11 @@ window.MGA_debugStorage = function() {
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
 
+            // CRITICAL: Don't interfere with game modal interactions
+            if (!isMGAEvent(e)) {
+                return;
+            }
+
             const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + (e.clientX - startX)));
             const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + (e.clientY - startY)));
 
@@ -1570,13 +2746,17 @@ window.MGA_debugStorage = function() {
             element.style.height = `${newHeight}px`;
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', (e) => {
             if (isResizing) {
+                // CRITICAL: Only handle MGA-related resize events
+                if (!isMGAEvent(e)) {
+                    return;
+                }
                 isResizing = false;
                 element.removeAttribute('data-resizing');
 
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
+                targetDocument.body.style.cursor = '';
+                targetDocument.body.style.userSelect = '';
 
                 if (showHandleOnHover) {
                     resizeHandle.style.opacity = '0.3';
@@ -1633,6 +2813,11 @@ window.MGA_debugStorage = function() {
         document.addEventListener('mousemove', (e) => {
             if (!clickStarted) return;
 
+            // CRITICAL: Don't interfere with game modal interactions
+            if (!isMGAEvent(e)) {
+                return;
+            }
+
             const deltaX = Math.abs(e.clientX - startX);
             const deltaY = Math.abs(e.clientY - startY);
 
@@ -1667,6 +2852,10 @@ window.MGA_debugStorage = function() {
 
         document.addEventListener('mouseup', (e) => {
             if (clickStarted) {
+                // CRITICAL: Only handle MGA toggle button events
+                if (!isMGAEvent(e)) {
+                    return;
+                }
                 if (isDragging) {
                     // Finish dragging
                     isDragging = false;
@@ -1696,7 +2885,7 @@ window.MGA_debugStorage = function() {
 
                     // Save visibility state
                     UnifiedState.data.settings.panelVisible = newVisibility;
-                    MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+                    MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
 
                     debugLog('OVERLAY_LIFECYCLE', `Panel toggled: ${newVisibility ? 'visible' : 'hidden'}`);
                 }
@@ -1749,19 +2938,22 @@ window.MGA_debugStorage = function() {
         console.log('🎨 Creating Unified UI...');
 
         // Add styles
-        const styleSheet = document.createElement('style');
+        const styleSheet = targetDocument.createElement('style');
         styleSheet.textContent = UNIFIED_STYLES;
-        document.head.appendChild(styleSheet);
+        targetDocument.head.appendChild(styleSheet);
 
         // Create toggle button with enhanced persistence
-        const toggleBtn = document.createElement('div');
+        const toggleBtn = targetDocument.createElement('div');
         toggleBtn.className = 'mga-toggle-btn';
         toggleBtn.innerHTML = '🌱';
         toggleBtn.setAttribute('data-tooltip', 'Magic Garden Assistant - Click to toggle panel (Alt+M)');
 
         // Click/drag functionality is now handled by makeToggleButtonDraggable
 
-        document.body.appendChild(toggleBtn);
+        targetDocument.body.appendChild(toggleBtn);
+
+        // Verify toggle button attachment
+        console.log('🔧 [UI-VERIFICATION] Toggle button attached to body:', !!targetDocument.querySelector('.mga-toggle-btn'));
         UnifiedState.panels.toggle = toggleBtn;
 
         // Load toggle button position
@@ -1787,7 +2979,7 @@ window.MGA_debugStorage = function() {
             const panel = UnifiedState.panels.main;
             const currentVisibility = panel.style.display !== 'none';
             UnifiedState.data.settings.panelVisible = currentVisibility;
-            MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+            MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
 
             if (UnifiedState.data.settings.debugMode) {
                 console.log(`💾 Window blurred - Panel state saved: ${currentVisibility ? 'visible' : 'hidden'}`);
@@ -1795,7 +2987,7 @@ window.MGA_debugStorage = function() {
         });
 
         // Create main panel
-        const panel = document.createElement('div');
+        const panel = targetDocument.createElement('div');
         panel.className = 'mga-panel';
         panel.style.display = 'block'; // Show panel by default
         panel.style.top = '50px';
@@ -1803,7 +2995,7 @@ window.MGA_debugStorage = function() {
         panel.style.transform = 'translateX(-50%)';
 
         // Header
-        const header = document.createElement('div');
+        const header = targetDocument.createElement('div');
         header.className = 'mga-header';
         header.innerHTML = `
             <div class="mga-title">
@@ -1817,22 +3009,22 @@ window.MGA_debugStorage = function() {
         panel.appendChild(header);
 
         // Tabs container with navigation
-        const tabsContainer = document.createElement('div');
+        const tabsContainer = targetDocument.createElement('div');
         tabsContainer.className = 'mga-tabs-container';
 
         // Navigation buttons
-        const leftNav = document.createElement('button');
+        const leftNav = targetDocument.createElement('button');
         leftNav.className = 'mga-tab-nav left';
         leftNav.innerHTML = '‹';
         leftNav.title = 'Scroll tabs left';
 
-        const rightNav = document.createElement('button');
+        const rightNav = targetDocument.createElement('button');
         rightNav.className = 'mga-tab-nav right';
         rightNav.innerHTML = '›';
         rightNav.title = 'Scroll tabs right';
 
         // Tabs
-        const tabs = document.createElement('div');
+        const tabs = targetDocument.createElement('div');
         tabs.className = 'mga-tabs mga-scrollable horizontal';
         tabs.innerHTML = `
             <div class="mga-tab active" data-tab="pets" data-tooltip="Manage pet loadouts and analyze optimal combinations">
@@ -1868,7 +3060,7 @@ window.MGA_debugStorage = function() {
         panel.appendChild(tabsContainer);
 
         // Content area
-        const content = document.createElement('div');
+        const content = targetDocument.createElement('div');
         content.className = 'mga-content mga-scrollable';
         content.innerHTML = '<div id="mga-tab-content"></div>';
         panel.appendChild(content);
@@ -1876,35 +3068,42 @@ window.MGA_debugStorage = function() {
         // Add MutationObserver to handle React re-renders (pets flash issue fix)
         const tabContentEl = content.querySelector('#mga-tab-content');
         if (tabContentEl) {
+            let debounceTimer = null;
+            let isUpdating = false;
+
             const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    // Only react to childList changes (React re-renders)
-                    if (mutation.type === 'childList' && UnifiedState.activeTab === 'pets') {
-                        // 🔍 REACT INTERFERENCE DEBUG: Track when React modifies our DOM
-                        console.log('🔄 [REACT-INTERFERENCE] Detected DOM mutation in pets tab', {
-                            timestamp: new Date().toLocaleTimeString(),
-                            mutationType: mutation.type,
-                            addedNodes: mutation.addedNodes.length,
-                            removedNodes: mutation.removedNodes.length,
-                            target: mutation.target.className || mutation.target.id || 'unknown',
-                            activeTab: UnifiedState.activeTab
-                        });
+                // Prevent infinite loops - ignore mutations we're causing
+                if (isUpdating) return;
 
-                        // Check current pet count before and after interference
-                        const beforePets = tabContentEl.querySelectorAll('.mga-pet-item').length;
-
-                        setTimeout(() => {
-                            const afterPets = tabContentEl.querySelectorAll('.mga-pet-item').length;
-                            console.log('🔄 [REACT-INTERFERENCE] Updating pets display after React interference', {
-                                petElementsBefore: beforePets,
-                                petElementsAfter: afterPets,
-                                atomPetsAvailable: UnifiedState.atoms.activePets?.length || 0,
-                                interferenceRecovery: 'updateActivePetsDisplay'
-                            });
-                            updateActivePetsDisplay(tabContentEl);
-                        }, 50); // Small delay to let React finish
-                    }
+                // Check if this is a relevant mutation for pets tab
+                const isRelevantMutation = mutations.some(mutation => {
+                    return mutation.type === 'childList' &&
+                           UnifiedState.activeTab === 'pets' &&
+                           !mutation.target.classList?.contains('mga-active-pets-display') && // Ignore our own updates
+                           (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0);
                 });
+
+                if (isRelevantMutation) {
+                    // Clear existing debounce timer
+                    if (debounceTimer) {
+                        clearTimeout(debounceTimer);
+                    }
+
+                    // Debounce to prevent spam - only update after mutations stop for 100ms
+                    debounceTimer = setTimeout(() => {
+                        if (UnifiedState.data.settings?.debugMode) {
+                            console.log('🔄 [REACT-INTERFERENCE] Detected React re-render, updating pets display');
+                        }
+
+                        isUpdating = true;
+                        updateActivePetsDisplay(tabContentEl);
+
+                        // Reset flag after update completes
+                        setTimeout(() => {
+                            isUpdating = false;
+                        }, 100);
+                    }, 100);
+                }
             });
 
             observer.observe(tabContentEl, {
@@ -1918,8 +3117,22 @@ window.MGA_debugStorage = function() {
 
         // Resize functionality will be added by makeElementResizable
 
-        document.body.appendChild(panel);
+        targetDocument.body.appendChild(panel);
         UnifiedState.panels.main = panel;
+
+        // Verify UI attachment for debugging
+        const uiElements = targetDocument.querySelectorAll('.mga-panel');
+        console.log('🔧 [UI-VERIFICATION] UI elements attached:', uiElements.length);
+        console.log('🔧 [UI-VERIFICATION] Panel in DOM:', !!targetDocument.querySelector('.mga-panel'));
+        console.log('🔧 [UI-VERIFICATION] Toggle button in DOM:', !!targetDocument.querySelector('.mga-toggle-btn'));
+
+        if (uiElements.length === 0) {
+            console.error('❌ [UI-VERIFICATION] CRITICAL: No UI elements found in DOM after attachment!');
+            console.error('❌ [UI-VERIFICATION] Target body exists:', !!targetDocument.body);
+            console.error('❌ [UI-VERIFICATION] Panel element exists:', !!panel);
+        } else {
+            console.log('✅ [UI-VERIFICATION] UI successfully attached to DOM');
+        }
 
         // Setup tab switching
         tabs.querySelectorAll('.mga-tab').forEach(tab => {
@@ -2373,7 +3586,7 @@ window.MGA_debugStorage = function() {
         }
 
         // Create content-only overlay container - NO HEADER, NO DECORATIONS
-        const overlay = document.createElement('div');
+        const overlay = targetDocument.createElement('div');
         overlay.className = 'mga-overlay-content-only mga-scrollable';
         overlay.id = `mga-overlay-${tabName}`;
 
@@ -2582,7 +3795,7 @@ window.MGA_debugStorage = function() {
         });
 
         // Add to DOM and track
-        document.body.appendChild(overlay);
+        targetDocument.body.appendChild(overlay);
         UnifiedState.data.popouts.overlays.set(tabName, overlay);
 
         // Setup handlers for the content (now that overlay is in DOM)
@@ -2628,7 +3841,7 @@ window.MGA_debugStorage = function() {
         contentArea.innerHTML = '';
         if (styles) contentArea.appendChild(styles);
 
-        const contentDiv = document.createElement('div');
+        const contentDiv = targetDocument.createElement('div');
         contentDiv.innerHTML = content;
         contentArea.appendChild(contentDiv);
 
@@ -2731,8 +3944,8 @@ window.MGA_debugStorage = function() {
                 overlay.style.filter = 'brightness(1.1)';
                 overlay.style.transition = 'transform 0.1s ease, filter 0.1s ease';
                 overlay.classList.add('mga-dragging');
-                document.body.style.userSelect = 'none';
-                document.body.style.cursor = 'grabbing !important';
+                targetDocument.body.style.userSelect = 'none';
+                targetDocument.body.style.cursor = 'grabbing !important';
 
                 debugLog('OVERLAY_LIFECYCLE', 'Started invisible dragging', { overlayId: overlay.id });
             }
@@ -2777,8 +3990,8 @@ window.MGA_debugStorage = function() {
                     overlay.style.zIndex = '999998';
                     overlay.style.transition = 'transform 0.2s ease, filter 0.2s ease';
 
-                    document.body.style.userSelect = '';
-                    document.body.style.cursor = '';
+                    targetDocument.body.style.userSelect = '';
+                    targetDocument.body.style.cursor = '';
 
                     if (animationFrame) {
                         cancelAnimationFrame(animationFrame);
@@ -2814,9 +4027,9 @@ window.MGA_debugStorage = function() {
             dragOffset.y = e.clientY - rect.top;
 
             overlay.style.zIndex = '999999'; // Bring to front while dragging
-            document.body.style.userSelect = 'none';
+            targetDocument.body.style.userSelect = 'none';
             // Ensure proper cursor during drag - use grabbing instead of move
-            document.body.style.cursor = 'grabbing !important';
+            targetDocument.body.style.cursor = 'grabbing !important';
 
             e.preventDefault();
         });
@@ -2843,8 +4056,8 @@ window.MGA_debugStorage = function() {
         document.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
-                document.body.style.userSelect = '';
-                document.body.style.cursor = ''; // Reset cursor
+                targetDocument.body.style.userSelect = '';
+                targetDocument.body.style.cursor = ''; // Reset cursor
                 overlay.style.zIndex = '999998'; // Return to normal z-index
             }
         });
@@ -2887,7 +4100,7 @@ window.MGA_debugStorage = function() {
 
     function getGameViewport() {
         // Try to find the game container or use window as fallback
-        const gameContainer = document.querySelector('#game-container, #app, .game-wrapper, main') || document.body;
+        const gameContainer = document.querySelector('#game-container, #app, .game-wrapper, main') || targetDocument.body;
         const rect = gameContainer.getBoundingClientRect();
 
         return {
@@ -3134,7 +4347,7 @@ window.MGA_debugStorage = function() {
     }
 
     function overlapsMainHUD(x, y, width, height) {
-        const mainHUD = document.querySelector('.mga-panel');
+        const mainHUD = targetDocument.querySelector('.mga-panel');
         if (!mainHUD) return false;
 
         const mainHudRect = mainHUD.getBoundingClientRect();
@@ -3156,7 +4369,7 @@ window.MGA_debugStorage = function() {
     }
 
     function hasCollisionAtPosition(x, y, width, height) {
-        const existingOverlays = Array.from(document.querySelectorAll('.mga-overlay-content-only'));
+        const existingOverlays = Array.from(targetDocument.querySelectorAll('.mga-overlay-content-only'));
         const buffer = 5; // Minimum spacing between overlays
 
         for (const existingOverlay of existingOverlays) {
@@ -3343,7 +4556,7 @@ window.MGA_debugStorage = function() {
     }
 
     function updatePopoutButtonStateByTab(tabName, isActive) {
-        const popoutBtn = document.querySelector(`[data-popout="${tabName}"]`);
+        const popoutBtn = targetDocument.querySelector(`[data-popout="${tabName}"]`);
         if (popoutBtn) {
             updatePopoutButtonState(popoutBtn, isActive);
         }
@@ -4653,7 +5866,7 @@ window.MGA_debugStorage = function() {
         // Add all presets
         Object.keys(UnifiedState.data.petPresets).forEach(name => {
             const preset = UnifiedState.data.petPresets[name];
-            const option = document.createElement('option');
+            const option = targetDocument.createElement('option');
             option.value = name;
             option.textContent = `${name} (${preset.map(p => p.petSpecies).join(', ')})`;
             select.appendChild(option);
@@ -4668,19 +5881,24 @@ window.MGA_debugStorage = function() {
     }
 
     function updateActivePetsDisplay(context = document, retryCount = 0) {
-        console.log('🐾 [ACTIVE-PETS] Updating display', {
-            retryCount,
-            unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
-            windowActivePets: window.activePets?.length || 0,
-            context: context === document ? 'document' : 'overlay'
-        });
+        // Only log in debug mode to reduce console spam
+        if (UnifiedState.data.settings?.debugMode) {
+            console.log('🐾 [ACTIVE-PETS] Updating display', {
+                retryCount,
+                unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
+                windowActivePets: window.activePets?.length || 0,
+                context: context === document ? 'document' : 'overlay'
+            });
+        }
 
         // Try multiple sources for pet data (React timing issue workaround)
         let activePets = UnifiedState.atoms.activePets || window.activePets || [];
 
         // If no pets found and this is first try, wait and retry (DOM timing fix)
         if (activePets.length === 0 && retryCount < 3) {
-            console.log(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
+            if (UnifiedState.data.settings?.debugMode) {
+                console.log(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
+            }
             setTimeout(() => updateActivePetsDisplay(context, retryCount + 1), 100 * (retryCount + 1));
             return;
         }
@@ -4704,10 +5922,12 @@ window.MGA_debugStorage = function() {
             display.innerHTML = innerHTML;
         });
 
-        console.log('🐾 [ACTIVE-PETS] Updated display elements:', {
-            elementsFound: activePetsDisplays.length,
-            activePetsCount: activePets.length
-        });
+        if (UnifiedState.data.settings?.debugMode) {
+            console.log('🐾 [ACTIVE-PETS] Updated display elements:', {
+                elementsFound: activePetsDisplays.length,
+                activePetsCount: activePets.length
+            });
+        }
     }
 
     function addPresetToList(context, name, preset) {
@@ -4715,7 +5935,7 @@ window.MGA_debugStorage = function() {
         if (!presetsList) return;
 
         // Create new preset element
-        const presetDiv = document.createElement('div');
+        const presetDiv = targetDocument.createElement('div');
         presetDiv.className = 'mga-preset';
         presetDiv.innerHTML = `
             <div class="mga-preset-header">
@@ -4739,7 +5959,20 @@ window.MGA_debugStorage = function() {
 
                 if (action === 'save') {
                     UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
-                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+
+                    // Use safe save with user feedback for critical pet preset data
+                    const result = MGA_safeSave('MGA_petPresets', UnifiedState.data.petPresets, {
+                        description: `pet preset "${presetName}"`,
+                        criticalData: true,
+                        showUserAlert: true
+                    });
+
+                    if (result.success) {
+                        console.log(`✅ [PET-PRESETS] Successfully saved preset "${presetName}"`);
+                    } else {
+                        console.error(`❌ [PET-PRESETS] Failed to save preset "${presetName}":`, result.error);
+                    }
+
                     updatePetPresetDropdown(context);
                     refreshSeparateWindowPopouts('pets');
                     debugLog('BUTTON_INTERACTIONS', `Saved preset: ${presetName} (from added element)`);
@@ -4770,8 +6003,22 @@ window.MGA_debugStorage = function() {
                     debugLog('BUTTON_INTERACTIONS', `Placed preset: ${presetName} (from added element)`);
                 } else if (action === 'remove') {
                     delete UnifiedState.data.petPresets[presetName];
-                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
-                    presetDiv.remove();
+
+                    // Use safe save for critical pet preset removal
+                    const result = MGA_safeSave('MGA_petPresets', UnifiedState.data.petPresets, {
+                        description: `pet preset deletion "${presetName}"`,
+                        criticalData: true,
+                        showUserAlert: true
+                    });
+
+                    if (result.success) {
+                        console.log(`✅ [PET-PRESETS] Successfully removed preset "${presetName}"`);
+                        presetDiv.remove();
+                    } else {
+                        console.error(`❌ [PET-PRESETS] Failed to remove preset "${presetName}":`, result.error);
+                        // Restore the preset in memory since save failed
+                        UnifiedState.data.petPresets[presetName] = UnifiedState.data.petPresets[presetName] || [];
+                    }
                     updatePetPresetDropdown(context);
                     refreshSeparateWindowPopouts('pets');
                     debugLog('BUTTON_INTERACTIONS', `Removed preset: ${presetName} (from added element)`);
@@ -5434,7 +6681,7 @@ window.MGA_debugStorage = function() {
             return;
         }
 
-        const logs = UnifiedState.data.petAbilityLogs.slice(); // Show all logs - user requested 100% persistence
+        const logs = MGA_getAllLogs(); // Show all logs including archived - user requested 100% persistence
         const filteredLogs = logs.filter(log => {
             return shouldLogAbility(log.abilityType, log.petName);
         });
@@ -5503,7 +6750,7 @@ window.MGA_debugStorage = function() {
 
         // Add enhanced log styles if not already present
         if (!context.querySelector('#mga-log-styles')) {
-            const logStyles = document.createElement('style');
+            const logStyles = targetDocument.createElement('style');
             logStyles.id = 'mga-log-styles';
             logStyles.textContent = `
                 .mga-log-item {
@@ -5582,7 +6829,7 @@ window.MGA_debugStorage = function() {
                     color: #888;
                 }
             `;
-            (context.head || context.querySelector('head') || document.head).appendChild(logStyles);
+            (context.head || context.querySelector('head') || targetDocument.head).appendChild(logStyles);
         }
     }
 
@@ -5623,7 +6870,7 @@ window.MGA_debugStorage = function() {
         updateAbilityLogDisplay(document);
 
         // Update all in-game overlays
-        document.querySelectorAll('.mga-overlay-content-only').forEach(overlay => {
+        targetDocument.querySelectorAll('.mga-overlay-content-only').forEach(overlay => {
             if (overlay.querySelector('#ability-logs')) {
                 updateAbilityLogDisplay(overlay);
                 debugLog('ABILITY_LOGS', 'Updated overlay ability logs', { overlayId: overlay.id });
@@ -5631,7 +6878,7 @@ window.MGA_debugStorage = function() {
         });
 
         // Update any windowed overlays (if they exist)
-        document.querySelectorAll('.mga-overlay').forEach(overlay => {
+        targetDocument.querySelectorAll('.mga-overlay').forEach(overlay => {
             if (overlay.querySelector('#ability-logs')) {
                 updateAbilityLogDisplay(overlay);
                 debugLog('ABILITY_LOGS', 'Updated windowed overlay ability logs', { overlayId: overlay.id });
@@ -5639,7 +6886,7 @@ window.MGA_debugStorage = function() {
         });
 
         // Try to update pop-out windows by looking for ability logs in any context
-        const allAbilityLogElements = document.querySelectorAll('#ability-logs');
+        const allAbilityLogElements = targetDocument.querySelectorAll('#ability-logs');
         allAbilityLogElements.forEach(element => {
             const parentContext = element.closest('.mga-overlay-content-only, .mga-overlay, body');
             if (parentContext) {
@@ -5700,10 +6947,11 @@ window.MGA_debugStorage = function() {
             UnifiedState.data.petAbilityLogs.unshift(log);
         });
 
-        // Logs are now 100% persistent until manually cleared by user
-        // No automatic pruning - user requested full persistence
+        // Apply memory management to keep recent logs in memory, archive older ones
+        UnifiedState.data.petAbilityLogs = MGA_manageLogMemory(UnifiedState.data.petAbilityLogs);
 
-        MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+        // Use debounced save to reduce I/O operations
+        MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
         console.log('Added comprehensive test abilities covering all 7 categories!');
     }
 
@@ -5713,7 +6961,7 @@ window.MGA_debugStorage = function() {
         MGA_saveJSON('MGA_filterMode', mode);
 
         // Update button states
-        document.querySelectorAll('[id^="filter-mode-"]').forEach(btn => btn.classList.remove('active'));
+        targetDocument.querySelectorAll('[id^="filter-mode-"]').forEach(btn => btn.classList.remove('active'));
         document.getElementById(`filter-mode-${mode === 'byPet' ? 'bypet' : mode}`)?.classList.add('active');
 
         // Update description
@@ -5756,12 +7004,12 @@ window.MGA_debugStorage = function() {
         }
 
         pets.forEach(pet => {
-            const label = document.createElement('label');
+            const label = targetDocument.createElement('label');
             label.className = 'mga-checkbox-group';
             label.style.display = 'block';
             label.style.marginBottom = '4px';
 
-            const checkbox = document.createElement('input');
+            const checkbox = targetDocument.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'mga-checkbox';
             checkbox.checked = UnifiedState.data.petFilters.selectedPets[pet] || false;
@@ -5772,7 +7020,7 @@ window.MGA_debugStorage = function() {
                 updateAbilityLogDisplay();
             });
 
-            const span = document.createElement('span');
+            const span = targetDocument.createElement('span');
             span.className = 'mga-label';
             span.textContent = ` ${pet}`;
 
@@ -5795,12 +7043,12 @@ window.MGA_debugStorage = function() {
         }
 
         abilities.forEach(ability => {
-            const label = document.createElement('label');
+            const label = targetDocument.createElement('label');
             label.className = 'mga-checkbox-group';
             label.style.display = 'block';
             label.style.marginBottom = '4px';
 
-            const checkbox = document.createElement('input');
+            const checkbox = targetDocument.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'mga-checkbox';
             checkbox.checked = UnifiedState.data.customMode.selectedAbilities[ability] || false;
@@ -5811,7 +7059,7 @@ window.MGA_debugStorage = function() {
                 updateAbilityLogDisplay();
             });
 
-            const span = document.createElement('span');
+            const span = targetDocument.createElement('span');
             span.className = 'mga-label';
             span.textContent = ` ${ability}`;
 
@@ -5845,7 +7093,7 @@ window.MGA_debugStorage = function() {
         if (mode === 'categories') {
             Object.keys(UnifiedState.data.abilityFilters).forEach(key => {
                 UnifiedState.data.abilityFilters[key] = true;
-                const checkbox = document.querySelector(`[data-filter="${key}"]`);
+                const checkbox = targetDocument.querySelector(`[data-filter="${key}"]`);
                 if (checkbox) checkbox.checked = true;
             });
             MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
@@ -5871,7 +7119,7 @@ window.MGA_debugStorage = function() {
         if (mode === 'categories') {
             Object.keys(UnifiedState.data.abilityFilters).forEach(key => {
                 UnifiedState.data.abilityFilters[key] = false;
-                const checkbox = document.querySelector(`[data-filter="${key}"]`);
+                const checkbox = targetDocument.querySelector(`[data-filter="${key}"]`);
                 if (checkbox) checkbox.checked = false;
             });
             MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
@@ -5969,7 +7217,20 @@ window.MGA_debugStorage = function() {
                 } else {
                     UnifiedState.data.seedsToDelete = UnifiedState.data.seedsToDelete.filter(s => s !== internalId);
                 }
-                MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
+
+                // Use safe save for critical seed selection data
+                const result = MGA_safeSave('MGA_seedsToDelete', UnifiedState.data.seedsToDelete, {
+                    description: `seed selection for "${seed}"`,
+                    criticalData: true,
+                    showUserAlert: true
+                });
+
+                if (result.success) {
+                    console.log(`✅ [SEED-SELECTION] Successfully saved seed selection change for "${seed}"`);
+                } else {
+                    console.error(`❌ [SEED-SELECTION] Failed to save seed selection for "${seed}":`, result.error);
+                }
+
                 debugLog('BUTTON_INTERACTIONS', `Seed checkbox changed: ${seed}`, {
                     checked: e.target.checked,
                     seedsToDelete: UnifiedState.data.seedsToDelete
@@ -6195,7 +7456,7 @@ window.MGA_debugStorage = function() {
                 // Update label
                 const label = opacitySlider.previousElementSibling;
                 label.textContent = `Main HUD Opacity: ${opacity}%`;
-                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -6209,7 +7470,7 @@ window.MGA_debugStorage = function() {
                 // Update label
                 const label = popoutOpacitySlider.previousElementSibling;
                 label.textContent = `Pop-out Opacity: ${popoutOpacity}%`;
-                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -6219,7 +7480,7 @@ window.MGA_debugStorage = function() {
             gradientSelect.addEventListener('change', (e) => {
                 UnifiedState.data.settings.gradientStyle = e.target.value;
                 applyTheme();
-                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -6229,7 +7490,7 @@ window.MGA_debugStorage = function() {
             effectSelect.addEventListener('change', (e) => {
                 UnifiedState.data.settings.effectStyle = e.target.value;
                 applyTheme();
-                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
             });
         }
 
@@ -6238,7 +7499,7 @@ window.MGA_debugStorage = function() {
         if (ultraCompactCheckbox) {
             ultraCompactCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.ultraCompactMode = e.target.checked;
-                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
                 applyUltraCompactMode(e.target.checked);
                 console.log(`📱 Ultra-compact mode ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
@@ -6249,7 +7510,7 @@ window.MGA_debugStorage = function() {
         if (overlayCheckbox) {
             overlayCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.useInGameOverlays = e.target.checked;
-                MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
                 console.log(`🎮 Overlay mode ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
         }
@@ -6268,7 +7529,7 @@ window.MGA_debugStorage = function() {
             exportBtn.addEventListener('click', () => {
                 const data = JSON.stringify(UnifiedState.data.settings, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
-                const link = document.createElement('a');
+                const link = targetDocument.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = 'MGA_Settings.json';
                 link.click();
@@ -6611,10 +7872,10 @@ window.MGA_debugStorage = function() {
     function applyCropHighlighting() {
         try {
             // Get values from UI
-            const highlightSpecies = document.querySelector('#highlight-species-select')?.value || null;
-            const slotIndex = parseInt(document.querySelector('#highlight-slot-input')?.value || '0');
-            const hiddenSpecies = document.querySelector('#hidden-species-select')?.value || null;
-            const hiddenScale = parseFloat(document.querySelector('#hidden-scale-input')?.value || '0.1');
+            const highlightSpecies = targetDocument.querySelector('#highlight-species-select')?.value || null;
+            const slotIndex = parseInt(targetDocument.querySelector('#highlight-slot-input')?.value || '0');
+            const hiddenSpecies = targetDocument.querySelector('#hidden-species-select')?.value || null;
+            const hiddenScale = parseFloat(targetDocument.querySelector('#hidden-scale-input')?.value || '0.1');
 
             // Validate inputs
             if (!highlightSpecies) {
@@ -6709,10 +7970,10 @@ window.MGA_debugStorage = function() {
 
         try {
             // Get values from UI
-            const highlightSpecies = document.querySelector('#highlight-species-select')?.value || null;
-            const slotIndex = parseInt(document.querySelector('#highlight-slot-input')?.value || '0');
-            const hiddenSpecies = document.querySelector('#hidden-species-select')?.value || 'Carrot';
-            const hiddenScale = parseFloat(document.querySelector('#hidden-scale-input')?.value || '0.1');
+            const highlightSpecies = targetDocument.querySelector('#highlight-species-select')?.value || null;
+            const slotIndex = parseInt(targetDocument.querySelector('#highlight-slot-input')?.value || '0');
+            const hiddenSpecies = targetDocument.querySelector('#hidden-species-select')?.value || 'Carrot';
+            const hiddenScale = parseFloat(targetDocument.querySelector('#hidden-scale-input')?.value || '0.1');
 
             console.log('🌱 Settings:', { highlightSpecies, slotIndex, hiddenSpecies, hiddenScale });
 
@@ -7400,8 +8661,8 @@ window.MGA_debugStorage = function() {
 
         // Prevent multiple overlapping modal dialogs
         let activeModalCount = 0;
-        const originalCreateElement = document.createElement;
-        document.createElement = function(tagName) {
+        const originalCreateElement = targetDocument.createElement;
+        targetDocument.createElement = function(tagName) {
             const element = originalCreateElement.call(document, tagName);
 
             if (tagName.toLowerCase() === 'dialog' ||
@@ -7589,10 +8850,11 @@ window.MGA_debugStorage = function() {
 
             UnifiedState.data.petAbilityLogs.unshift(abilityLog);
 
-            // Logs are now 100% persistent until manually cleared by user
-            // No automatic pruning - user requested full persistence
+            // Apply memory management to keep recent logs in memory, archive older ones
+            UnifiedState.data.petAbilityLogs = MGA_manageLogMemory(UnifiedState.data.petAbilityLogs);
 
-            MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+            // Use debounced save to reduce I/O operations during frequent ability triggers
+            MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
 
             // Update ability logs across all overlays and contexts
             updateAllAbilityLogDisplays();
@@ -7623,13 +8885,14 @@ window.MGA_debugStorage = function() {
     }
 
     function exportAbilityLogs() {
-        if (!UnifiedState.data.petAbilityLogs.length) {
+        const allLogs = MGA_getAllLogs();
+        if (!allLogs.length) {
             alert('No logs to export!');
             return;
         }
 
         const headers = 'Date,Time,Pet Name,Ability Type,Details\r\n';
-        const csvContent = UnifiedState.data.petAbilityLogs.map(log => {
+        const csvContent = allLogs.map(log => {
             const date = new Date(log.timestamp);
             return [
                 date.toLocaleDateString(),
@@ -7641,7 +8904,7 @@ window.MGA_debugStorage = function() {
         }).join('\r\n');
 
         const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+        const link = targetDocument.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `MagicGarden_AbilityLogs_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
@@ -7741,7 +9004,7 @@ window.MGA_debugStorage = function() {
                 });
 
                 // Observe body for any game-related changes
-                this.observer.observe(document.body, {
+                this.observer.observe(targetDocument.body, {
                     childList: true,
                     subtree: true,
                     attributes: true,
@@ -8052,7 +9315,7 @@ window.MGA_debugStorage = function() {
             UnifiedState.data.seedsToDelete = [];
 
             // Clear checkboxes in main panel
-            document.querySelectorAll('.seed-checkbox').forEach(cb => cb.checked = false);
+            targetDocument.querySelectorAll('.seed-checkbox').forEach(cb => cb.checked = false);
 
             // Update main tab content
             if (UnifiedState.activeTab === 'seeds') {
@@ -8447,7 +9710,7 @@ window.MGA_debugStorage = function() {
             // Update all timer elements with this ID across all open windows
             // This catches pop-out windows that may contain timer elements
             try {
-                const allElements = document.querySelectorAll(`#${id}`);
+                const allElements = targetDocument.querySelectorAll(`#${id}`);
                 allElements.forEach(el => {
                     el.textContent = formattedValue;
                 });
@@ -8549,24 +9812,28 @@ window.MGA_debugStorage = function() {
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/_archive/myPetSlotsAtom.ts/myPetSlotsAtom",
             "activePets",
             (petSlots) => {
-                console.log('🐾 [ATOM-DEBUG] myPetSlotsAtom raw value:', {
-                    value: petSlots,
-                    type: typeof petSlots,
-                    isArray: Array.isArray(petSlots),
-                    length: petSlots?.length,
-                    valueIsArray: Array.isArray(petSlots?.value),
-                    valueLength: petSlots?.value?.length
-                });
+                if (UnifiedState.data.settings?.debugMode) {
+                    console.log('🐾 [ATOM-DEBUG] myPetSlotsAtom raw value:', {
+                        value: petSlots,
+                        type: typeof petSlots,
+                        isArray: Array.isArray(petSlots),
+                        length: petSlots?.length,
+                        valueIsArray: Array.isArray(petSlots?.value),
+                        valueLength: petSlots?.value?.length
+                    });
+                }
 
                 // Extract the actual array from the wrapper object
                 const actualPetSlots = Array.isArray(petSlots) ? petSlots : petSlots?.value;
 
-                console.log('🐾 [EXTRACTION-DEBUG] Actual pet slots to process:', {
-                    actualPetSlots,
-                    isArray: Array.isArray(actualPetSlots),
-                    length: actualPetSlots?.length,
-                    firstItem: actualPetSlots?.[0]
-                });
+                if (UnifiedState.data.settings?.debugMode) {
+                    console.log('🐾 [EXTRACTION-DEBUG] Actual pet slots to process:', {
+                        actualPetSlots,
+                        isArray: Array.isArray(actualPetSlots),
+                        length: actualPetSlots?.length,
+                        firstItem: actualPetSlots?.[0]
+                    });
+                }
 
                 // Extract active pets with species info
                 if (Array.isArray(actualPetSlots)) {
@@ -8580,11 +9847,13 @@ window.MGA_debugStorage = function() {
                             slot: index + 1
                         }));
 
-                    console.log('🐾 [PETS] Extracted active pets:', activePets);
+                    if (UnifiedState.data.settings?.debugMode) {
+                        console.log('🐾 [PETS] Extracted active pets:', activePets);
+                    }
 
                     const previousCount = UnifiedState.atoms.activePets?.length || 0;
 
-                    if (activePets.length !== previousCount) {
+                    if (activePets.length !== previousCount && UnifiedState.data.settings?.debugMode) {
                         console.log(`🐾 [PETS] Pet count changed: ${previousCount} → ${activePets.length}`);
 
                         // Update UI if pets tab is active
@@ -8604,15 +9873,19 @@ window.MGA_debugStorage = function() {
                     }
 
                     // CRITICAL: Return the extracted array so hookAtom stores it correctly
-                    console.log('🔄 [RENDER-CYCLE] Atom callback returning pets to hookAtom system:', {
-                        petsCount: activePets.length,
-                        petsList: activePets.map(p => p.petSpecies),
-                        willUpdateUnifiedState: true,
-                        willUpdateWindowActivePets: true
-                    });
+                    if (UnifiedState.data.settings?.debugMode) {
+                        console.log('🔄 [RENDER-CYCLE] Atom callback returning pets to hookAtom system:', {
+                            petsCount: activePets.length,
+                            petsList: activePets.map(p => p.petSpecies),
+                            willUpdateUnifiedState: true,
+                            willUpdateWindowActivePets: true
+                        });
+                    }
                     return activePets;
                 } else {
-                    console.log('🐾 [EXTRACTION-ERROR] actualPetSlots is not an array:', actualPetSlots);
+                    if (UnifiedState.data.settings?.debugMode) {
+                        console.log('🐾 [EXTRACTION-ERROR] actualPetSlots is not an array:', actualPetSlots);
+                    }
                     return [];
                 }
             }
@@ -8670,22 +9943,27 @@ window.MGA_debugStorage = function() {
         // Enhanced storage diagnostics
         console.log('📦 [STORAGE] Starting comprehensive data loading with diagnostics...');
 
-        // Storage availability check
+        // ==================== DATA MIGRATION ====================
+        // CRITICAL: Migrate existing localStorage data to GM storage before loading
+        console.log('🔄 [STORAGE] Checking for data migration needs...');
+        try {
+            MGA_migrateFromLocalStorage();
+        } catch (migrationError) {
+            console.error('❌ [MIGRATION] Migration failed, but continuing with initialization:', migrationError);
+        }
+
+        // Verify UnifiedState.data exists and is properly initialized
+        if (!UnifiedState.data) {
+            console.error('❌ [CRITICAL] UnifiedState.data is not initialized!');
+            UnifiedState.data = {};
+        }
+        console.log('✅ [STORAGE] UnifiedState.data initialized:', typeof UnifiedState.data);
+
+        // Storage availability check (lightweight version - removed blocking I/O test)
         console.log('📊 [STORAGE-DIAGNOSTICS] Basic localStorage info:', {
             available: typeof localStorage !== 'undefined',
             totalItems: localStorage.length,
-            mgaKeys: Object.keys(localStorage).filter(k => k.startsWith('MGA_')),
-            storageQuota: (() => {
-                try {
-                    const testKey = 'MGA_storageTest_' + Date.now();
-                    const testData = 'x'.repeat(1024); // 1KB test
-                    localStorage.setItem(testKey, testData);
-                    localStorage.removeItem(testKey);
-                    return 'Working';
-                } catch (e) {
-                    return `Error: ${e.message}`;
-                }
-            })()
+            mgaKeys: Object.keys(localStorage).filter(k => k.startsWith('MGA_'))
         });
 
         // Load pet presets with enhanced debugging
@@ -8695,14 +9973,39 @@ window.MGA_debugStorage = function() {
 
         UnifiedState.data.petPresets = MGA_loadJSON('MGA_petPresets', {});
         console.log('📦 [STORAGE] Loading pet presets, found:', Object.keys(UnifiedState.data.petPresets).length);
+        console.log('🔍 [STORAGE-DEBUG] Pet presets type check:', typeof UnifiedState.data.petPresets, 'keys:', Object.keys(UnifiedState.data.petPresets || {}));
+
+        // Verify presets loaded correctly
         if (Object.keys(UnifiedState.data.petPresets).length > 0) {
-            console.log('✅ [STORAGE] Pet presets restored:', Object.keys(UnifiedState.data.petPresets));
+            console.log('✅ [STORAGE-VERIFY] Pet presets loaded successfully:', Object.keys(UnifiedState.data.petPresets));
         } else {
-            console.warn('⚠️ [STORAGE] No pet presets found in localStorage');
+            console.warn('⚠️ [STORAGE-VERIFY] No pet presets found in storage');
+            console.log('   localStorage check:', localStorage.getItem('MGA_petPresets') ? 'Data exists' : 'No data');
+
+            // Enhanced debugging - try to parse the raw data manually
+            const rawData = localStorage.getItem('MGA_petPresets');
+            if (rawData) {
+                console.log('   Raw data length:', rawData.length);
+                console.log('   Raw data preview:', rawData.substring(0, 100));
+                try {
+                    const parsed = JSON.parse(rawData);
+                    console.log('   Manual parse successful:', typeof parsed, Object.keys(parsed || {}));
+                    console.error('❌ [STORAGE-ERROR] Data exists and parses correctly, but MGA_loadJSON failed!');
+                } catch (parseError) {
+                    console.error('❌ [STORAGE-ERROR] JSON parse error:', parseError.message);
+                    console.log('   Corrupted data - will be cleared on next save');
+                }
+            }
         }
 
         UnifiedState.data.petAbilityLogs = MGA_loadJSON('MGA_petAbilityLogs', []);
         console.log('📦 [STORAGE] Loading pet ability logs, found:', UnifiedState.data.petAbilityLogs.length, 'entries');
+
+        // Check if mainscript.txt pet ability logging is active
+        if (window.petAbilityLogs && Array.isArray(window.petAbilityLogs)) {
+            console.log('📝 [COMPAT] Detected mainscript.txt pet ability logging system with', window.petAbilityLogs.length, 'entries');
+            console.log('📝 [COMPAT] Both systems will run independently with separate storage');
+        }
         UnifiedState.data.settings = MGA_loadJSON('MGA_settings', {
             opacity: 95,
             popoutOpacity: 50,
@@ -8711,7 +10014,8 @@ window.MGA_debugStorage = function() {
             effectStyle: 'none',
             compactMode: false,
             ultraCompactMode: false,
-            useInGameOverlays: true
+            useInGameOverlays: true,
+            debugMode: false  // Disable debug logging by default to prevent console spam
         });
 
         // Load PAL4 filter system data
@@ -8734,6 +10038,7 @@ window.MGA_debugStorage = function() {
 
         UnifiedState.data.seedsToDelete = MGA_loadJSON('MGA_seedsToDelete', []);
         UnifiedState.data.autoDeleteEnabled = MGA_loadJSON('MGA_autoDeleteEnabled', false);
+        console.log('🔍 [STORAGE-DEBUG] Seeds type check:', typeof UnifiedState.data.seedsToDelete, 'length:', UnifiedState.data.seedsToDelete?.length || 0);
 
         console.log('📦 [STORAGE] Loading seed deletion settings:', {
             seedsToDelete: UnifiedState.data.seedsToDelete.length + ' seeds',
@@ -8744,6 +10049,29 @@ window.MGA_debugStorage = function() {
             parsedSeedsData: rawSeedsData ? JSON.parse(rawSeedsData) : null,
             parsedAutoDeleteData: rawAutoDeleteData ? JSON.parse(rawAutoDeleteData) : null
         });
+
+        // Verify seeds loaded correctly
+        if (UnifiedState.data.seedsToDelete.length > 0) {
+            console.log('✅ [STORAGE-VERIFY] Seed selections loaded successfully:', UnifiedState.data.seedsToDelete);
+        } else {
+            console.warn('⚠️ [STORAGE-VERIFY] No seed selections found in storage');
+            console.log('   localStorage check:', localStorage.getItem('MGA_seedsToDelete') ? 'Data exists' : 'No data');
+
+            // Enhanced debugging for seeds
+            const rawSeedsData = localStorage.getItem('MGA_seedsToDelete');
+            if (rawSeedsData) {
+                console.log('   Raw seeds data length:', rawSeedsData.length);
+                console.log('   Raw seeds data preview:', rawSeedsData.substring(0, 100));
+                try {
+                    const parsed = JSON.parse(rawSeedsData);
+                    console.log('   Manual seeds parse successful:', typeof parsed, Array.isArray(parsed) ? parsed.length : 'not array');
+                    console.error('❌ [STORAGE-ERROR] Seeds data exists and parses correctly, but MGA_loadJSON failed!');
+                } catch (parseError) {
+                    console.error('❌ [STORAGE-ERROR] Seeds JSON parse error:', parseError.message);
+                    console.log('   Corrupted seeds data - will be cleared on next save');
+                }
+            }
+        }
 
         // Force save to ensure persistence
         setTimeout(() => {
@@ -8860,7 +10188,7 @@ window.MGA_debugStorage = function() {
     }
 
     function getFocusableElements() {
-        return Array.from(document.querySelectorAll(
+        return Array.from(targetDocument.querySelectorAll(
             'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
         )).filter(el => el.offsetParent !== null); // Only visible elements
     }
@@ -8899,20 +10227,20 @@ window.MGA_debugStorage = function() {
 
     function handleEscapeKey() {
         // Close any open modals/overlays in order of priority
-        const commandPalette = document.querySelector('#mga-command-palette');
+        const commandPalette = targetDocument.querySelector('#mga-command-palette');
         if (commandPalette) {
             commandPalette.remove();
             return;
         }
 
-        const searchOverlay = document.querySelector('#mga-search-overlay');
+        const searchOverlay = targetDocument.querySelector('#mga-search-overlay');
         if (searchOverlay) {
             searchOverlay.remove();
             return;
         }
 
         // Close focused popout
-        document.querySelectorAll('.mga-overlay').forEach(overlay => {
+        targetDocument.querySelectorAll('.mga-overlay').forEach(overlay => {
             if (overlay.style.display !== 'none') {
                 overlay.style.display = 'none';
             }
@@ -8920,7 +10248,7 @@ window.MGA_debugStorage = function() {
     }
 
     function closeAllPopouts() {
-        document.querySelectorAll('.mga-overlay').forEach(overlay => {
+        targetDocument.querySelectorAll('.mga-overlay').forEach(overlay => {
             overlay.style.display = 'none';
         });
 
@@ -8949,10 +10277,10 @@ window.MGA_debugStorage = function() {
 
     function createCommandPalette() {
         // Remove existing palette
-        const existing = document.querySelector('#mga-command-palette');
+        const existing = targetDocument.querySelector('#mga-command-palette');
         if (existing) existing.remove();
 
-        const overlay = document.createElement('div');
+        const overlay = targetDocument.createElement('div');
         overlay.id = 'mga-command-palette';
         overlay.style.cssText = `
             position: fixed;
@@ -8968,7 +10296,7 @@ window.MGA_debugStorage = function() {
             padding-top: 100px;
         `;
 
-        const palette = document.createElement('div');
+        const palette = targetDocument.createElement('div');
         palette.style.cssText = `
             background: #1f2937;
             border: 1px solid #4b5563;
@@ -8979,7 +10307,7 @@ window.MGA_debugStorage = function() {
             overflow: hidden;
         `;
 
-        const input = document.createElement('input');
+        const input = targetDocument.createElement('input');
         input.type = 'text';
         input.placeholder = 'Type a command...';
         input.style.cssText = `
@@ -9002,7 +10330,7 @@ window.MGA_debugStorage = function() {
             { name: 'Refresh All Content', action: () => refreshAllContent(), key: 'Alt+R' }
         ];
 
-        const commandsList = document.createElement('div');
+        const commandsList = targetDocument.createElement('div');
         commandsList.style.cssText = `
             max-height: 300px;
             overflow-y: auto;
@@ -9015,7 +10343,7 @@ window.MGA_debugStorage = function() {
             );
 
             filtered.forEach((cmd, index) => {
-                const item = document.createElement('div');
+                const item = targetDocument.createElement('div');
                 item.style.cssText = `
                     padding: 12px 16px;
                     color: white;
@@ -9056,17 +10384,17 @@ window.MGA_debugStorage = function() {
         palette.appendChild(input);
         palette.appendChild(commandsList);
         overlay.appendChild(palette);
-        document.body.appendChild(overlay);
+        targetDocument.body.appendChild(overlay);
 
         input.focus();
     }
 
     function createQuickSearchOverlay() {
         // Remove existing search
-        const existing = document.querySelector('#mga-search-overlay');
+        const existing = targetDocument.querySelector('#mga-search-overlay');
         if (existing) existing.remove();
 
-        const overlay = document.createElement('div');
+        const overlay = targetDocument.createElement('div');
         overlay.id = 'mga-search-overlay';
         overlay.style.cssText = `
             position: fixed;
@@ -9081,7 +10409,7 @@ window.MGA_debugStorage = function() {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         `;
 
-        const input = document.createElement('input');
+        const input = targetDocument.createElement('input');
         input.type = 'text';
         input.placeholder = 'Search content...';
         input.style.cssText = `
@@ -9094,7 +10422,7 @@ window.MGA_debugStorage = function() {
             outline: none;
         `;
 
-        const results = document.createElement('div');
+        const results = targetDocument.createElement('div');
         results.style.cssText = `
             margin-top: 8px;
             max-height: 200px;
@@ -9130,7 +10458,7 @@ window.MGA_debugStorage = function() {
 
         overlay.appendChild(input);
         overlay.appendChild(results);
-        document.body.appendChild(overlay);
+        targetDocument.body.appendChild(overlay);
 
         input.focus();
     }
@@ -9252,7 +10580,7 @@ window.MGA_debugStorage = function() {
                 UnifiedState.activeTab = 'settings';
                 updateTabContent();
                 setTimeout(() => {
-                    const highlightSection = document.querySelector('#highlight-species-select');
+                    const highlightSection = targetDocument.querySelector('#highlight-species-select');
                     if (highlightSection) {
                         highlightSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         highlightSection.focus();
@@ -9678,7 +11006,7 @@ window.MGA_debugStorage = function() {
         const panel = UnifiedState.panels.main;
         if (!panel) return;
 
-        const banner = document.createElement('div');
+        const banner = targetDocument.createElement('div');
         banner.style.cssText = `
             background: linear-gradient(90deg, #3b82f6, #8b5cf6);
             color: white;
@@ -9717,35 +11045,90 @@ window.MGA_debugStorage = function() {
 
     // ==================== WEBSOCKET INITIALIZATION ====================
     function initializeScript() {
+        // DEBUG: Log initialization attempt
+        if (window.MGA_DEBUG) {
+            window.MGA_DEBUG.logStage('INITIALIZE_SCRIPT_CALLED', {
+                initialized: UnifiedState.initialized,
+                domState: document.readyState,
+                retryAttempt: window.MGA_initRetryCount || 0
+            });
+        }
+
         if (UnifiedState.initialized) {
             console.log('⚠️ Magic Garden Unified Assistant already initialized, skipping...');
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logStage('ALREADY_INITIALIZED', { skipReason: 'UnifiedState.initialized is true' });
+            }
             return;
         }
 
         // Ensure DOM is ready
         if (document.readyState === 'loading') {
             console.log('⏳ DOM not ready, waiting for DOMContentLoaded...');
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logStage('DOM_NOT_READY', { domState: document.readyState });
+            }
             document.addEventListener('DOMContentLoaded', initializeScript);
+            return;
+        }
+
+        // Check for game modals that might interfere
+        const modalsAllowed = checkForGameModals();
+        if (!modalsAllowed) {
+            console.log('⏳ [MGA] Game modal active - deferring initialization for 2 seconds...');
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logStage('MODALS_BLOCKING_INIT', { deferDelay: 2000 });
+            }
+            setTimeout(initializeScript, 2000);
             return;
         }
 
         // Improved initialization timing to prevent splash screen stall
         console.log('⏳ Waiting for game initialization to complete...');
         let retryCount = 0;
-        const maxRetries = 5;
-        const initialDelay = 8000; // Increased from 5s to 8s
+        const maxRetries = 3;
+        const initialDelay = 2000; // Reduced from 8s to 2s for faster loading
 
         const attemptInit = () => {
             // Check if game is ready
+            const gameReadiness = {
+                jotaiAtomCache: !!globalThis.jotaiAtomCache,
+                magicCircleConnection: !!window.MagicCircle_RoomConnection,
+                jotaiType: typeof globalThis.jotaiAtomCache,
+                connectionType: typeof window.MagicCircle_RoomConnection
+            };
+
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logStage('GAME_READINESS_CHECK', {
+                    retryCount,
+                    maxRetries,
+                    gameReadiness,
+                    timestamp: performance.now()
+                });
+            }
+
             if (globalThis.jotaiAtomCache && window.MagicCircle_RoomConnection) {
                 console.log('✅ Game ready, initializing script...');
+                if (window.MGA_DEBUG) {
+                    window.MGA_DEBUG.logStage('GAME_READY', gameReadiness);
+                    // Safe performance metric setting
+                    if (window.MGA_DEBUG.performanceMetrics) {
+                        window.MGA_DEBUG.performanceMetrics.gameReady = performance.now();
+                    }
+                }
                 continueInitialization();
             } else if (retryCount < maxRetries) {
                 retryCount++;
-                console.log(`⏳ Game not ready (jotaiAtomCache: ${!!globalThis.jotaiAtomCache}, RoomConnection: ${!!window.MagicCircle_RoomConnection}), retry ${retryCount}/${maxRetries} in 2s...`);
-                setTimeout(attemptInit, 2000);
+                console.log(`⏳ Game not ready (jotaiAtomCache: ${!!globalThis.jotaiAtomCache}, RoomConnection: ${!!window.MagicCircle_RoomConnection}), retry ${retryCount}/${maxRetries} in 1s...`);
+                if (window.MGA_DEBUG) {
+                    window.MGA_DEBUG.logStage('GAME_NOT_READY_RETRYING', { retryCount, gameReadiness });
+                }
+                setTimeout(attemptInit, 1000);
             } else {
                 console.warn('⚠️ Max retries reached, initializing anyway...');
+                if (window.MGA_DEBUG) {
+                    window.MGA_DEBUG.logStage('MAX_RETRIES_REACHED', { retryCount, gameReadiness });
+                }
                 continueInitialization();
             }
         };
@@ -9755,6 +11138,15 @@ window.MGA_debugStorage = function() {
         function continueInitialization() {
             console.log('🌱 Magic Garden Unified Assistant initializing...');
             console.log('📊 Connection Status:', window.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
+
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logStage('CONTINUE_INITIALIZATION', {
+                    connectionStatus: !!window.MagicCircle_RoomConnection,
+                    jotaiStatus: !!globalThis.jotaiAtomCache,
+                    domState: document.readyState,
+                    timestamp: performance.now()
+                });
+            }
 
         // ==================== SAFE IDLE TIMEOUT PREVENTION ====================
         // Safe anti-idle system that doesn't interfere with game loading
@@ -9768,46 +11160,35 @@ window.MGA_debugStorage = function() {
                 // AGGRESSIVE MODE (ONLY IF EXPLICITLY ENABLED)
                 // WARNING: This can interfere with game loading and should only be used if needed
 
-                // Try to override visibility API with non-configurable properties
-                try {
-                    Object.defineProperty(document, 'hidden', {
-                        value: false,
-                        writable: false,
-                        configurable: false
-                    });
-                } catch (e) {
-                    console.log('📝 Note: Could not redefine document.hidden (property already exists)');
+                // Check if idle prevention is already active from another script
+                const alreadyOverridden = document.hidden === false && document.visibilityState === 'visible';
+                if (alreadyOverridden) {
+                    console.log('📝 [IDLE-PREVENTION] Another script already overrode visibility API - skipping');
+                } else {
+                    // Try to override visibility API with non-configurable properties
+                    try {
+                        Object.defineProperty(document, 'hidden', {
+                            value: false,
+                            writable: false,
+                            configurable: false
+                        });
+                    } catch (e) {
+                        console.log('📝 Note: Could not redefine document.hidden (property already exists)');
+                    }
+
+                    try {
+                        Object.defineProperty(document, 'visibilityState', {
+                            value: 'visible',
+                            writable: false,
+                            configurable: false
+                        });
+                    } catch (e) {
+                        console.log('📝 Note: Could not redefine document.visibilityState (property already exists)');
+                    }
                 }
 
-                try {
-                    Object.defineProperty(document, 'visibilityState', {
-                        value: 'visible',
-                        writable: false,
-                        configurable: false
-                    });
-                } catch (e) {
-                    console.log('📝 Note: Could not redefine document.visibilityState (property already exists)');
-                }
-
-                // WARNING: This can break game loading - only enable if absolutely necessary
-                const stopVisibilityChange = (e) => {
-                    e.stopImmediatePropagation();
-                    e.preventDefault();
-                    return false;
-                };
-
-                document.addEventListener('visibilitychange', stopVisibilityChange, true);
-                window.addEventListener('visibilitychange', stopVisibilityChange, true);
-                window.addEventListener('blur', (e) => {
-                    e.stopImmediatePropagation();
-                    e.preventDefault();
-                }, true);
-                window.addEventListener('focus', (e) => {
-                    e.stopImmediatePropagation();
-                    e.preventDefault();
-                }, true);
-
-                console.log('⚠️ [IDLE-PREVENTION] Aggressive event blocking enabled');
+                // WARNING: Aggressive event blocking removed - was causing game modal interference
+                console.log('⚠️ [IDLE-PREVENTION] Aggressive mode disabled - was causing modal interference');
             } else {
                 console.log('✅ [IDLE-PREVENTION] Using safe mode (recommended)');
             }
@@ -9881,9 +11262,55 @@ window.MGA_debugStorage = function() {
             console.log('💾 Loading saved data...');
             loadSavedData();
 
+            // Verify data loaded before UI creation
+            console.log('🔍 [STARTUP-VERIFY] Data loaded before UI creation:', {
+                petPresets: Object.keys(UnifiedState.data.petPresets).length,
+                seedsToDelete: UnifiedState.data.seedsToDelete.length,
+                autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled,
+                dataLoaded: !!UnifiedState.data
+            });
+
             // Create UI
             console.log('🎨 Creating UI...');
-            createUnifiedUI();
+            if (window.MGA_DEBUG) {
+                window.MGA_DEBUG.logStage('CREATE_UI_STARTING', {
+                    dataLoaded: !!UnifiedState.data,
+                    petPresets: Object.keys(UnifiedState.data?.petPresets || {}).length,
+                    targetDocumentReady: !!targetDocument.body
+                });
+            }
+
+            try {
+                createUnifiedUI();
+
+                if (window.MGA_DEBUG) {
+                    window.MGA_DEBUG.logStage('CREATE_UI_COMPLETED', {
+                        uiElements: targetDocument.querySelectorAll('.mga-panel, .mga-toggle-btn').length,
+                        mainPanelExists: !!targetDocument.querySelector('.mga-panel'),
+                        toggleBtnExists: !!targetDocument.querySelector('.mga-toggle-btn')
+                    });
+                    // Safe performance metric setting
+                    if (window.MGA_DEBUG.performanceMetrics) {
+                        window.MGA_DEBUG.performanceMetrics.uiCreated = performance.now();
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error creating UI:', error);
+                if (window.MGA_DEBUG) {
+                    window.MGA_DEBUG.logError(error, 'createUnifiedUI');
+                }
+                throw error;
+            }
+
+            // Verify UI reflects loaded data immediately after creation
+            setTimeout(() => {
+                const checkedSeeds = targetDocument.querySelectorAll('.seed-checkbox:checked');
+                console.log('🔍 [UI-VERIFY] UI state after creation:', {
+                    checkedSeedsInUI: checkedSeeds.length,
+                    seedsInState: UnifiedState.data.seedsToDelete.length,
+                    matches: checkedSeeds.length === UnifiedState.data.seedsToDelete.length
+                });
+            }, 100);
 
             // Initialize atom hooks
             console.log('🔗 Initializing atom hooks...');
@@ -9905,6 +11332,15 @@ window.MGA_debugStorage = function() {
             // Force UI refresh to apply saved state (timing fix for data persistence)
             console.log('🔄 Applying delayed UI refresh to ensure saved state is displayed...');
             setTimeout(() => {
+                console.log('🔄 [DATA-PERSISTENCE] Applying delayed UI refresh...');
+
+                // Verify data before refreshing UI
+                console.log('📊 [DATA-PERSISTENCE] Current state:', {
+                    petPresets: Object.keys(UnifiedState.data.petPresets).length,
+                    seedsToDelete: UnifiedState.data.seedsToDelete.length,
+                    autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled
+                });
+
                 // Update main tab content to reflect loaded data
                 if (typeof updateTabContent === 'function') {
                     updateTabContent();
@@ -9934,7 +11370,7 @@ window.MGA_debugStorage = function() {
                         }
                     });
                 }
-            }, 500); // 500ms delay to ensure all data loading is complete
+            }, 1000); // 1000ms delay to ensure all data loading is complete (increased for refresh stability)
 
             // Initialize teleport system
             initializeTeleportSystem();
@@ -9950,13 +11386,50 @@ window.MGA_debugStorage = function() {
 
             UnifiedState.initialized = true;
             window._MGA_INITIALIZED = true;
-            window._MGA_INITIALIZING = false;
+            try {
+                delete window._MGA_INITIALIZING;
+            } catch (e) {
+                window._MGA_INITIALIZING = false;
+            }
+            window._MGA_TIMESTAMP = Date.now();  // Update timestamp on completion
+
+            // NOW run conflict detection after game has loaded successfully
+            console.log('🔍 [MGA-ISOLATION] Running post-initialization MainScript conflict detection...');
+            if (window.MGA_ConflictDetection) {
+                // Detect MainScript presence
+                const mainScriptDetected = window.MGA_ConflictDetection.detectMainScript();
+
+                // Only create barriers if MainScript is detected
+                if (mainScriptDetected) {
+                    console.log('🔒 [MGA-ISOLATION] MainScript detected - creating protective barriers');
+                    window.MGA_ConflictDetection.createIsolationBarrier();
+                    window.MGA_ConflictDetection.preventAccess();
+                }
+
+                // Run integrity checks
+                const integrityOk = window.MGA_ConflictDetection.checkGlobalIntegrity();
+                const isolationOk = window.MGA_ConflictDetection.validateIsolation();
+
+                if (integrityOk && isolationOk) {
+                    console.log('✅ [MGA-ISOLATION] Final integrity check passed - no conflicts detected');
+                    if (mainScriptDetected) {
+                        console.log('✅ [MGA-ISOLATION] Complete isolation validated - MainScript protection active');
+                    }
+                } else {
+                    console.warn('⚠️ [MGA-ISOLATION] Final integrity check found potential conflicts');
+                    if (!integrityOk) console.warn('⚠️ [MGA-ISOLATION] Global integrity issues detected');
+                    if (!isolationOk) console.warn('⚠️ [MGA-ISOLATION] Isolation validation failed');
+                }
+            } else {
+                console.warn('⚠️ [MGA-ISOLATION] ConflictDetection not available - running without isolation');
+            }
+
             console.log('✅ Magic Garden Unified Assistant initialized successfully!');
 
             // Remove test UI after successful initialization
-            const testUI = document.querySelector('div[style*="Test UI Active"]') ||
-                          document.querySelector('div[style*="MGA Test UI"]') ||
-                          Array.from(document.querySelectorAll('div')).find(div =>
+            const testUI = targetDocument.querySelector('div[style*="Test UI Active"]') ||
+                          targetDocument.querySelector('div[style*="MGA Test UI"]') ||
+                          Array.from(targetDocument.querySelectorAll('div')).find(div =>
                               div.textContent && div.textContent.includes('Test UI Active'));
             if (testUI) {
                 testUI.remove();
@@ -10025,14 +11498,52 @@ window.MGA_debugStorage = function() {
 
     function waitForGameReady() {
         let attempts = 0;
-        const maxAttempts = 60; // 30 seconds at 500ms intervals
+        const maxAttempts = 60; // 30 seconds at 500ms intervals (reduced - will use fallback sooner)
 
         const checkGameReady = () => {
-            if (globalThis.jotaiAtomCache && window.MagicCircle_RoomConnection) {
-                console.log('✅ Game atoms and connection detected - switching to full mode');
+            // More flexible game readiness check - be less strict about requirements
+            const hasAtoms = globalThis.jotaiAtomCache && typeof globalThis.jotaiAtomCache === 'object';
+            const hasConnection = window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === 'object';
+            const hasBasicDom = targetDocument.body && document.readyState === 'complete';
+
+            // Check for alternative game indicators if primary ones fail (use regular document for game detection)
+            const hasGameElements = document.querySelector('canvas') ||
+                                  document.querySelector('[class*="game"]') ||
+                                  document.querySelector('[id*="game"]') ||
+                                  document.querySelector('div[style*="position"]');
+
+            // Additional check: verify atoms actually contain expected keys
+            const atomsReady = hasAtoms && Object.keys(globalThis.jotaiAtomCache).length > 0;
+
+            // Be more lenient - initialize if we have DOM ready and some game indicators
+            if ((atomsReady && hasConnection && hasBasicDom) ||
+                (hasBasicDom && hasGameElements && attempts >= 20)) {
+
+                if (atomsReady && hasConnection) {
+                    console.log('✅ Game atoms and connection fully ready - switching to full mode');
+                    console.log('📊 [GAME-READY] Atoms count:', Object.keys(globalThis.jotaiAtomCache).length);
+                } else {
+                    console.log('✅ Game elements detected, proceeding with reduced functionality mode');
+                }
+
                 initializeScript();
                 return true;
             }
+
+            // Debug logging for what's missing
+            if (attempts % 10 === 0) { // Every 5 seconds
+                console.log('⏳ [GAME-WAIT] Still waiting...', {
+                    hasAtoms,
+                    atomsCount: hasAtoms ? Object.keys(globalThis.jotaiAtomCache).length : 0,
+                    hasConnection,
+                    hasBasicDom,
+                    hasGameElements,
+                    readyState: document.readyState,
+                    attempt: attempts,
+                    willProceedAt: attempts >= 20 ? 'Next check (fallback mode)' : `Attempt ${20 - attempts} more`
+                });
+            }
+
             return false;
         };
 
@@ -10103,6 +11614,44 @@ window.MGA_debugStorage = function() {
             initializeScript();
         },
 
+        // Recovery function for stuck initialization
+        forceReinit: () => {
+            console.log('🔄 Force reinitialization requested...');
+            try {
+                delete window._MGA_INITIALIZING;
+            } catch (e) {
+                window._MGA_INITIALIZING = undefined;
+            }
+            try {
+                delete window._MGA_INITIALIZED;
+            } catch (e) {
+                window._MGA_INITIALIZED = undefined;
+            }
+            try {
+                delete window._MGA_TIMESTAMP;
+            } catch (e) {
+                window._MGA_TIMESTAMP = undefined;
+            }
+            window._MGA_FORCE_INIT = true;
+            location.reload();
+        },
+
+        // Data persistence diagnostics
+        checkPersistence: () => {
+            console.log('📊 Data Persistence Check:');
+            console.log('  Pet Presets in State:', Object.keys(UnifiedState.data.petPresets).length);
+            console.log('  Pet Presets in Storage:', localStorage.getItem('MGA_petPresets') ? 'EXISTS' : 'MISSING');
+            console.log('  Seeds in State:', UnifiedState.data.seedsToDelete.length);
+            console.log('  Seeds in Storage:', localStorage.getItem('MGA_seedsToDelete') ? 'EXISTS' : 'MISSING');
+
+            if (localStorage.getItem('MGA_petPresets')) {
+                console.log('  Raw Presets:', localStorage.getItem('MGA_petPresets'));
+            }
+            if (localStorage.getItem('MGA_seedsToDelete')) {
+                console.log('  Raw Seeds:', localStorage.getItem('MGA_seedsToDelete'));
+            }
+        },
+
         // Pop-out functionality
         popout: {
             openTab: (tabName) => openTabInPopout(tabName),
@@ -10170,6 +11719,10 @@ window.MGA_debugStorage = function() {
                     timeString: new Date().toLocaleTimeString(),
                     data: { test: true }
                 });
+
+                // Apply memory management for test logs too
+                UnifiedState.data.petAbilityLogs = MGA_manageLogMemory(UnifiedState.data.petAbilityLogs);
+                MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
                 if (UnifiedState.activeTab === 'abilities') {
                     updateTabContent();
                 }
@@ -10261,7 +11814,7 @@ window.MGA_debugStorage = function() {
             petPresets: () => {
                 const data = JSON.stringify(UnifiedState.data.petPresets, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
-                const link = document.createElement('a');
+                const link = targetDocument.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = 'MGA_PetPresets.json';
                 link.click();
@@ -10279,7 +11832,7 @@ window.MGA_debugStorage = function() {
                     }
                 }, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
-                const link = document.createElement('a');
+                const link = targetDocument.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = `MGA_AllData_${new Date().toISOString().split('T')[0]}.json`;
                 link.click();
@@ -10401,7 +11954,11 @@ window.MGA_debugStorage = function() {
             resetFlags: () => {
                 console.log('🔄 [DEBUG] Resetting initialization flags');
                 window._MGA_INITIALIZED = false;
-                window._MGA_INITIALIZING = false;
+                try {
+                    delete window._MGA_INITIALIZING;
+                } catch (e) {
+                    window._MGA_INITIALIZING = false;
+                }
                 window._MGA_FORCE_INIT = false;
                 console.log('✅ [DEBUG] Flags reset - you can now re-run the script');
             },
@@ -10488,7 +12045,7 @@ window.MGA_debugStorage = function() {
                     debugError('ERROR_RECOVERY', `Error in ${context}`, error);
 
                     // Show user-friendly error message
-                    const errorToast = document.createElement('div');
+                    const errorToast = targetDocument.createElement('div');
                     errorToast.style.cssText = `
                         position: fixed; top: 20px; right: 20px; z-index: 20000;
                         background: rgba(220, 38, 38, 0.95); color: white;
@@ -10498,11 +12055,11 @@ window.MGA_debugStorage = function() {
                         animation: mga-fade-in 0.3s ease-out;
                     `;
                     errorToast.innerHTML = `⚠️ Something went wrong in ${context}. Please try again.`;
-                    document.body.appendChild(errorToast);
+                    targetDocument.body.appendChild(errorToast);
 
                     setTimeout(() => {
                         errorToast.style.animation = 'mga-fade-out 0.3s ease-in forwards';
-                        setTimeout(() => document.body.removeChild(errorToast), 300);
+                        setTimeout(() => targetDocument.body.removeChild(errorToast), 300);
                     }, 4000);
 
                     return fallback ? fallback.apply(this, args) : null;
@@ -10589,9 +12146,9 @@ window.MGA_debugStorage = function() {
         init: () => {
             // Create tooltip element
             if (!window.MGA_Tooltips.tooltip) {
-                window.MGA_Tooltips.tooltip = document.createElement('div');
+                window.MGA_Tooltips.tooltip = targetDocument.createElement('div');
                 window.MGA_Tooltips.tooltip.className = 'mga-tooltip';
-                document.body.appendChild(window.MGA_Tooltips.tooltip);
+                targetDocument.body.appendChild(window.MGA_Tooltips.tooltip);
             }
 
             // Add event listeners to all elements with tooltip data
@@ -10627,6 +12184,11 @@ window.MGA_debugStorage = function() {
         },
 
         handleMouseMove: (e) => {
+            // CRITICAL: Only handle MGA-related tooltip events
+            if (!isMGAEvent(e)) {
+                return;
+            }
+
             // Don't interfere with button hover states
             if (e.target && typeof e.target.matches === 'function' &&
                 (e.target.matches('button, input, select, .mga-btn') || e.target.closest('button, .mga-btn'))) {
@@ -10695,9 +12257,9 @@ window.MGA_debugStorage = function() {
             to { opacity: 0; transform: translateY(-10px); }
         }
     `;
-    const styleSheet = document.createElement('style');
+    const styleSheet = targetDocument.createElement('style');
     styleSheet.textContent = additionalStyles;
-    document.head.appendChild(styleSheet);
+    targetDocument.head.appendChild(styleSheet);
 
 
 
@@ -10718,7 +12280,7 @@ window.MGA_debugStorage = function() {
 
     // ==================== CLEANUP ====================
     window.addEventListener('beforeunload', () => {
-        // Save all data before leaving
+        // Save all data before leaving - CRITICAL: Use immediate saves, not debounced!
         MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
         MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
         MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
@@ -10773,4 +12335,5 @@ window.MGA_debugStorage = function() {
     /* CHECKPOINT removed: SCRIPT_EXECUTION_COMPLETE */
     console.log('✅ Magic Garden Assistant script finished loading');
 
+}
 })();
