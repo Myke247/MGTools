@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.8.2
+// @version      1.8.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -3086,6 +3086,10 @@ window.MGA_debugStorage = function() {
                 <span data-icon="⏰">⏰ Timers</span>
                 <span class="mga-tab-popout" data-popout="timers" data-tooltip="Open timers in separate window">↗️</span>
             </div>
+            <div class="mga-tab" data-tab="tools" data-tooltip="Calculators and utility tools">
+                <span data-icon="🧮">🧮 Tools</span>
+                <span class="mga-tab-popout" data-popout="tools" data-tooltip="Open tools in separate window">↗️</span>
+            </div>
             <div class="mga-tab" data-tab="settings" data-tooltip="Customize appearance and behavior">
                 <span data-icon="⚙️">⚙️ Settings</span>
                 <span class="mga-tab-popout" data-popout="settings" data-tooltip="Open settings in separate window">↗️</span>
@@ -3337,6 +3341,9 @@ window.MGA_debugStorage = function() {
             case 'timers':
                 content = getTimersTabContent();
                 break;
+            case 'tools':
+                content = getToolsTabContent();
+                break;
             case 'settings':
                 content = getSettingsTabContent();
                 break;
@@ -3445,6 +3452,9 @@ window.MGA_debugStorage = function() {
                 case 'timers':
                     freshContent = mainWindow.MGA_Internal?.getTimersTabContent ? mainWindow.MGA_Internal?.getTimersTabContent() : 'Content unavailable';
                     break;
+                case 'tools':
+                    freshContent = mainWindow.MGA_Internal?.getToolsTabContent ? mainWindow.MGA_Internal?.getToolsTabContent() : 'Content unavailable';
+                    break;
                 case 'settings':
                     freshContent = mainWindow.MGA_Internal?.getSettingsTabContent ? mainWindow.MGA_Internal?.getSettingsTabContent() : 'Content unavailable';
                     break;
@@ -3526,6 +3536,9 @@ window.MGA_debugStorage = function() {
                     case 'settings':
                         setupSettingsTabHandlers(popoutWindow.document);
                         break;
+                    case 'tools':
+                        setupToolsTabHandlers(popoutWindow.document);
+                        break;
                 }
             } catch (error) {
                 console.warn('Could not set up pop-out handlers:', error);
@@ -3544,12 +3557,14 @@ window.MGA_debugStorage = function() {
     window.MGA_Internal.getSeedsTabContent = getSeedsTabContent;
     window.MGA_Internal.getValuesTabContent = getValuesTabContent;
     window.MGA_Internal.getTimersTabContent = getTimersTabContent;
+    window.MGA_Internal.getToolsTabContent = getToolsTabContent;
     window.MGA_Internal.getSettingsTabContent = getSettingsTabContent;
     window.MGA_Internal.setupAbilitiesTabHandlers = setupAbilitiesTabHandlers;
     window.MGA_Internal.updateAbilityLogDisplay = updateAbilityLogDisplay;
     window.MGA_Internal.setupPetsTabHandlers = setupPetsTabHandlers;
     window.MGA_Internal.setupSeedsTabHandlers = setupSeedsTabHandlers;
     window.MGA_Internal.setupSettingsTabHandlers = setupSettingsTabHandlers;
+    window.MGA_Internal.setupToolsTabHandlers = setupToolsTabHandlers;
 
     // Export storage functions
     window.MGA_Internal.MGA_loadJSON = MGA_loadJSON;
@@ -3569,6 +3584,8 @@ window.MGA_debugStorage = function() {
                 return getValuesTabContent();
             case 'timers':
                 return getTimersTabContent();
+            case 'tools':
+                return getToolsTabContent();
             case 'settings':
                 return getSettingsTabContent();
             default:
@@ -3600,6 +3617,9 @@ window.MGA_debugStorage = function() {
                     break;
                 case 'settings':
                     setupSettingsTabHandlers();
+                    break;
+                case 'tools':
+                    setupToolsTabHandlers(overlay);
                     break;
             }
         } catch (error) {
@@ -3867,6 +3887,9 @@ window.MGA_debugStorage = function() {
                 break;
             case 'timers':
                 content = getTimersTabContent();
+                break;
+            case 'tools':
+                content = getToolsTabContent();
                 break;
             case 'settings':
                 content = getSettingsTabContent();
@@ -4777,6 +4800,9 @@ window.MGA_debugStorage = function() {
                     case 'settings':
                         setupSettingsTabHandlers(overlay);
                         break;
+                    case 'tools':
+                        setupToolsTabHandlers(overlay);
+                        break;
                     default:
                         break;
                 }
@@ -4849,6 +4875,9 @@ window.MGA_debugStorage = function() {
                 break;
             case 'timers':
                 content = getTimersTabContent();
+                break;
+            case 'tools':
+                content = getToolsTabContent();
                 break;
             case 'settings':
                 content = getSettingsTabContent();
@@ -4955,6 +4984,9 @@ window.MGA_debugStorage = function() {
                 case 'timers':
                     freshContent = mainWindow.MGA_Internal?.getTimersTabContent ? mainWindow.MGA_Internal?.getTimersTabContent() : 'Content unavailable';
                     break;
+                case 'tools':
+                    freshContent = mainWindow.MGA_Internal?.getToolsTabContent ? mainWindow.MGA_Internal?.getToolsTabContent() : 'Content unavailable';
+                    break;
                 case 'settings':
                     freshContent = mainWindow.MGA_Internal?.getSettingsTabContent ? mainWindow.MGA_Internal?.getSettingsTabContent() : 'Content unavailable';
                     break;
@@ -5019,6 +5051,9 @@ window.MGA_debugStorage = function() {
                         break;
                     case 'settings':
                         setupSettingsTabHandlers(popoutWindow.document);
+                        break;
+                    case 'tools':
+                        setupToolsTabHandlers(popoutWindow.document);
                         break;
                     case 'abilities':
                         // Abilities handlers are complex due to cross-window limitations
@@ -5171,6 +5206,10 @@ window.MGA_debugStorage = function() {
                 break;
             case 'timers':
                 contentEl.innerHTML = getTimersTabContent();
+                break;
+            case 'tools':
+                contentEl.innerHTML = getToolsTabContent();
+                setupToolsTabHandlers(contentEl);
                 break;
             case 'settings':
                 contentEl.innerHTML = getSettingsTabContent();
@@ -5637,6 +5676,81 @@ window.MGA_debugStorage = function() {
                     <div class="mga-timer-value" id="timer-lunar" style="color: #9333ea;">--:--</div>
                 </div>
             </div>
+        `;
+    }
+
+    function getToolsTabContent() {
+        return `
+            <div class="mga-section">
+                <div class="mga-section-title">Magic Garden Calculators</div>
+                <div class="mga-tools-grid">
+                    <div class="mga-tool-card" data-calculator="sell-price">
+                        <div class="mga-tool-icon">💰</div>
+                        <div class="mga-tool-name">Sell Price Calculator</div>
+                        <div class="mga-tool-desc">Calculate optimal selling prices for items</div>
+                    </div>
+                    <div class="mga-tool-card" data-calculator="weight-probability">
+                        <div class="mga-tool-icon">⚖️</div>
+                        <div class="mga-tool-name">Weight Probability Calculator</div>
+                        <div class="mga-tool-desc">Calculate weight-based probability outcomes</div>
+                    </div>
+                    <div class="mga-tool-card" data-calculator="pet-appearance-probability">
+                        <div class="mga-tool-icon">🎲</div>
+                        <div class="mga-tool-name">Pet Appearance Probability Calculator</div>
+                        <div class="mga-tool-desc">Calculate probabilities for pet appearances</div>
+                    </div>
+                    <div class="mga-tool-card" data-calculator="ability-trigger-time">
+                        <div class="mga-tool-icon">⏱️</div>
+                        <div class="mga-tool-name">Ability Trigger Time Calculator</div>
+                        <div class="mga-tool-desc">Calculate optimal timing for pet ability triggers</div>
+                    </div>
+                </div>
+                <div class="mga-section-note" style="margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+                    <strong>Note:</strong> Calculators will open in new popup windows. Make sure popup blockers are disabled for this site.
+                </div>
+            </div>
+            <style>
+                .mga-tools-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                    gap: 15px;
+                    margin-top: 15px;
+                }
+
+                .mga-tool-card {
+                    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 8px;
+                    padding: 15px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    text-align: center;
+                }
+
+                .mga-tool-card:hover {
+                    background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+                    border-color: rgba(255,255,255,0.2);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                }
+
+                .mga-tool-icon {
+                    font-size: 2em;
+                    margin-bottom: 8px;
+                }
+
+                .mga-tool-name {
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                    color: rgba(255,255,255,0.9);
+                }
+
+                .mga-tool-desc {
+                    font-size: 0.85em;
+                    color: rgba(255,255,255,0.6);
+                    line-height: 1.3;
+                }
+            </style>
         `;
     }
 
@@ -7683,6 +7797,90 @@ window.MGA_debugStorage = function() {
                 }
             }
         });
+    }
+
+    function setupToolsTabHandlers(context = document) {
+        // Calculator mapping
+        const calculatorUrls = {
+            'sell-price': 'https://daserix.github.io/magic-garden-calculator/#/sell-price-calculator',
+            'weight-probability': 'https://daserix.github.io/magic-garden-calculator/#/weight-probability-calculator',
+            'pet-appearance-probability': 'https://daserix.github.io/magic-garden-calculator/#/pet-appearance-probability-calculator',
+            'ability-trigger-time': 'https://daserix.github.io/magic-garden-calculator/#/ability-trigger-time-calculator'
+        };
+
+        // Add click handlers to all calculator cards
+        const toolCards = context.querySelectorAll('.mga-tool-card');
+        toolCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const calculatorType = card.dataset.calculator;
+                const url = calculatorUrls[calculatorType];
+                if (url) {
+                    openCalculatorPopup(url, calculatorType);
+                } else {
+                    console.warn(`Calculator URL not found for: ${calculatorType}`);
+                }
+            });
+
+            // Add hover effect class if not already present
+            if (!card.classList.contains('mga-tool-interactive')) {
+                card.classList.add('mga-tool-interactive');
+            }
+        });
+
+        if (UnifiedState.data.settings.debugMode) {
+            console.log(`🧮 Set up handlers for ${toolCards.length} calculator tools`);
+        }
+    }
+
+    function openCalculatorPopup(url, calculatorType) {
+        // Calculate window dimensions and position
+        const width = 1200;
+        const height = 800;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+
+        // Window features
+        const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`;
+
+        // Open the popup window
+        const popupWindow = window.open(url, `mga_calculator_${calculatorType}`, features);
+
+        // Check if popup was blocked
+        if (!popupWindow || popupWindow.closed || typeof popupWindow.closed === 'undefined') {
+            // Popup was blocked, show alternative message
+            const message = `
+                <div style="padding: 20px; background: rgba(255,50,50,0.1); border: 1px solid rgba(255,100,100,0.3); border-radius: 5px; margin: 20px;">
+                    <h3 style="color: #ff6b6b; margin-bottom: 10px;">⚠️ Popup Blocked</h3>
+                    <p style="margin-bottom: 15px;">The calculator popup was blocked by your browser. Please allow popups for this site or open the calculator manually:</p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 3px; word-break: break-all;">
+                        <a href="${url}" target="_blank" style="color: #4fc3f7;">${url}</a>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: rgba(255,255,255,0.6);">
+                        Click the link above to open the calculator in a new tab.
+                    </p>
+                </div>
+            `;
+
+            // Show message in the Tools tab content area
+            const contentEl = document.getElementById('mga-tab-content');
+            if (contentEl && UnifiedState.activeTab === 'tools') {
+                const existingContent = contentEl.innerHTML;
+                contentEl.innerHTML = message + existingContent;
+
+                // Remove the message after 10 seconds
+                setTimeout(() => {
+                    if (contentEl.innerHTML.includes(message)) {
+                        contentEl.innerHTML = existingContent;
+                    }
+                }, 10000);
+            }
+
+            console.warn(`Popup blocked for calculator: ${calculatorType}. URL: ${url}`);
+        } else {
+            // Popup opened successfully
+            popupWindow.focus();
+            console.log(`✅ Opened calculator popup: ${calculatorType}`);
+        }
     }
 
     // ==================== CROP HIGHLIGHTING UTILITIES ====================
