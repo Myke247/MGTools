@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.8.1
+// @version      1.8.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1105,46 +1105,34 @@
     /* CHECKPOINT removed: DEBUG_SYSTEM_COMPLETE */
 
     // ==================== RESPONSIVE TEXT SCALING ====================
-    // Global responsive text scaling function for overlays
-    function applyResponsiveTextScaling(overlay, width, height) {
-        try {
-            // Calculate scale factor based on overlay dimensions
-            const baseWidth = 400; // Reference width for 100% scale
-            const baseHeight = 300; // Reference height for 100% scale
+// Efficient, smooth text scaling using transform instead of recalculating fonts
+function applyResponsiveTextScaling(overlay, width, height) {
+    try {
+        const baseWidth = 400;
+        const baseHeight = 300;
 
-            const widthScale = width / baseWidth;
-            const heightScale = height / baseHeight;
-            const scale = Math.min(widthScale, heightScale); // Use smaller scale to maintain readability
+        const widthScale = width / baseWidth;
+        const heightScale = height / baseHeight;
+        const scale = Math.min(widthScale, heightScale);
 
-            // Clamp scale between reasonable bounds
-            const clampedScale = Math.max(0.7, Math.min(1.3, scale));
+        // Clamp to reasonable values
+        const clampedScale = Math.max(0.7, Math.min(1.3, scale));
 
-            // Apply scaling to text elements
-            const textElements = overlay.querySelectorAll('*');
-            textElements.forEach(element => {
-                const computedStyle = window.getComputedStyle(element);
-                const currentFontSize = parseFloat(computedStyle.fontSize);
-
-                if (currentFontSize && currentFontSize > 0) {
-                    const newFontSize = Math.max(10, currentFontSize * clampedScale);
-                    element.style.fontSize = `${newFontSize}px`;
-                }
-            });
-
-            debugLog('OVERLAY_LIFECYCLE', 'Applied responsive text scaling', {
-                overlayId: overlay.id,
-                width,
-                height,
-                scale: clampedScale
-            });
-        } catch (error) {
-            debugError('OVERLAY_LIFECYCLE', 'Failed to apply responsive text scaling', error, {
-                overlayId: overlay.id,
-                width,
-                height
-            });
+        // Apply smooth GPU scaling to the overlay’s inner content
+        let content = overlay.querySelector('.mga-content');
+        if (content) {
+            content.style.transformOrigin = "top left";
+            content.style.transform = `scale(${clampedScale})`;
         }
+    } catch (error) {
+        debugError('OVERLAY_LIFECYCLE', 'Failed to apply transform-based scaling', error, {
+            overlayId: overlay.id,
+            width,
+            height
+        });
     }
+}
+
 
     // ==================== UNIFIED STATE ====================
     // Global initialization mutex to prevent double initialization
@@ -2737,114 +2725,95 @@ window.MGA_debugStorage = function() {
 
     // ==================== UNIFIED RESIZE SYSTEM ====================
     function makeElementResizable(element, options = {}) {
-        const {
-            minWidth = 300,
-            minHeight = 250,
-            maxWidth = window.innerWidth * 0.9,
-            maxHeight = window.innerHeight * 0.9,
-            handleSize = 12,
-            showHandleOnHover = true
-        } = options;
+    const {
+        minWidth = 300,
+        minHeight = 250,
+        maxWidth = window.innerWidth * 0.9,
+        maxHeight = window.innerHeight * 0.9,
+        handleSize = 12,
+        showHandleOnHover = true
+    } = options;
 
-        // Create resize handle
-        const resizeHandle = targetDocument.createElement('div');
-        resizeHandle.className = 'mga-resize-handle';
-        resizeHandle.style.cssText = `
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: ${handleSize}px;
-            height: ${handleSize}px;
-            cursor: se-resize;
-            background: linear-gradient(-45deg, transparent 40%, rgba(74, 158, 255, 0.6) 50%, transparent 60%);
-            border-radius: 0 0 4px 0;
-            opacity: ${showHandleOnHover ? '0.3' : '0.6'};
-            transition: opacity 0.2s ease;
-            z-index: 10;
-        `;
+    // Create resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'mga-resize-handle';
+    resizeHandle.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: ${handleSize}px;
+        height: ${handleSize}px;
+        cursor: se-resize;
+        background: linear-gradient(-45deg, transparent 40%, rgba(74, 158, 255, 0.6) 50%, transparent 60%);
+        border-radius: 0 0 4px 0;
+        opacity: ${showHandleOnHover ? '0.3' : '0.6'};
+        transition: opacity 0.2s ease;
+        z-index: 10;
+    `;
+    element.appendChild(resizeHandle);
 
-        // Show/hide handle on hover
-        if (showHandleOnHover) {
-            element.addEventListener('mouseenter', () => {
-                resizeHandle.style.opacity = '0.8';
-            });
-            element.addEventListener('mouseleave', () => {
-                if (!element.hasAttribute('data-resizing')) {
-                    resizeHandle.style.opacity = '0.3';
-                }
-            });
-        }
-
-        element.appendChild(resizeHandle);
-
-        // Resize functionality
-        let isResizing = false;
-        let startX, startY, startWidth, startHeight;
-
-        resizeHandle.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-
-            isResizing = true;
-            element.setAttribute('data-resizing', 'true');
-
-            startX = e.clientX;
-            startY = e.clientY;
-            startWidth = element.offsetWidth;
-            startHeight = element.offsetHeight;
-
-            targetDocument.body.style.cursor = 'se-resize';
-            targetDocument.body.style.userSelect = 'none';
-
-            debugLog('OVERLAY_LIFECYCLE', 'Started resizing element', {
-                startSize: { width: startWidth, height: startHeight }
-            });
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-
-            // CRITICAL: Don't interfere with game modal interactions
-            if (!isMGAEvent(e)) {
-                return;
+    if (showHandleOnHover) {
+        element.addEventListener('mouseenter', () => { resizeHandle.style.opacity = '0.8'; });
+        element.addEventListener('mouseleave', () => {
+            if (!element.hasAttribute('data-resizing')) {
+                resizeHandle.style.opacity = '0.3';
             }
+        });
+    }
 
+    let isResizing = false;
+    let startX, startY, startWidth, startHeight;
+    let rafId = null;
+
+    const onMouseMove = (e) => {
+        if (!isResizing) return;
+
+        // Throttle with rAF for smoothness
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
             const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + (e.clientX - startX)));
             const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + (e.clientY - startY)));
-
             element.style.width = `${newWidth}px`;
             element.style.height = `${newHeight}px`;
         });
+    };
 
-        document.addEventListener('mouseup', (e) => {
-            if (isResizing) {
-                // CRITICAL: Only handle MGA-related resize events
-                if (!isMGAEvent(e)) {
-                    return;
-                }
-                isResizing = false;
-                element.removeAttribute('data-resizing');
+    const stopResizing = () => {
+        if (!isResizing) return;
+        isResizing = false;
+        element.removeAttribute('data-resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        resizeHandle.style.opacity = '0.3';
 
-                targetDocument.body.style.cursor = '';
-                targetDocument.body.style.userSelect = '';
+        // Unbind listeners safely
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', stopResizing);
+    };
 
-                if (showHandleOnHover) {
-                    resizeHandle.style.opacity = '0.3';
-                }
+    resizeHandle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-                debugLog('OVERLAY_LIFECYCLE', 'Finished resizing element', {
-                    finalSize: { width: element.offsetWidth, height: element.offsetHeight }
-                });
+        isResizing = true;
+        element.setAttribute('data-resizing', 'true');
 
-                // Trigger any responsive updates if needed
-                if (typeof updateTabResponsiveness === 'function') {
-                    updateTabResponsiveness(element);
-                }
-            }
-        });
+        startX = e.clientX;
+        startY = e.clientY;
+        startWidth = element.offsetWidth;
+        startHeight = element.offsetHeight;
 
-        return resizeHandle;
-    }
+        document.body.style.cursor = 'se-resize';
+        document.body.style.userSelect = 'none';
+
+        // Bind move/up only for duration of resize
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', stopResizing);
+    });
+
+    return resizeHandle;
+}
+
 
     // Legacy function for backward compatibility
     function makeResizable(element, handle) {
