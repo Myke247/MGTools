@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.8.2
+// @version      1.8.5
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -375,6 +375,47 @@
         }
     }, 100);
 
+    // ==================== IMMEDIATE IDLE PREVENTION ====================
+    // CRITICAL: Apply idle prevention immediately before any game code runs
+    (function() {
+        console.log('🚫 [IDLE-PREVENTION] Applying immediate anti-idle protection...');
+
+        // Override document properties to prevent idle detection
+        try {
+            Object.defineProperty(document, "hidden", {
+                value: false,
+                writable: false,
+                configurable: false
+            });
+            Object.defineProperty(document, "visibilityState", {
+                value: "visible",
+                writable: false,
+                configurable: false
+            });
+            console.log('✅ [IDLE-PREVENTION] Document properties overridden');
+        } catch (e) {
+            console.warn('⚠️ [IDLE-PREVENTION] Could not override document properties:', e);
+        }
+
+        // Block idle detection events with capture phase (highest priority)
+        document.addEventListener("visibilitychange", (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+        }, true);
+
+        window.addEventListener("blur", (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+        }, true);
+
+        window.addEventListener("focus", (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+        }, true);
+
+        console.log('✅ [IDLE-PREVENTION] Event listeners added with capture phase');
+    })();
+
     // ==================== INITIALIZATION ====================
     /* CHECKPOINT removed: INITIALIZATION_START */
 
@@ -402,6 +443,11 @@
             --panel-scale: 1;
             --base-font-size: 13px;
             font-size: calc(var(--base-font-size) * var(--panel-scale));
+            /* Performance optimizations for smooth dragging */
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
         }
 
         .mga-header {
@@ -774,8 +820,12 @@
             cursor: grab;
             z-index: 999998;
             box-shadow: 0 4px 20px rgba(74, 158, 255, 0.4);
-            transition: all 0.3s ease;
+            transition: box-shadow 0.3s ease, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             user-select: none;
+            /* Performance optimizations for smooth dragging */
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            will-change: transform;
         }
 
         .mga-toggle-btn:hover {
@@ -1225,7 +1275,17 @@ function applyResponsiveTextScaling(overlay, width, height) {
                 effectStyle: 'none',
                 compactMode: false,
                 ultraCompactMode: false,
-                useInGameOverlays: true
+                useInGameOverlays: true,
+                notifications: {
+                    enabled: true,
+                    volume: 0.3,
+                    notificationType: 'epic',  // Options: 'simple', 'triple', 'alarm', 'epic', 'continuous'
+                    requiresAcknowledgment: false,
+                    continuousEnabled: false,  // Controls whether continuous option is available
+                    watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
+                    watchedEggs: ["CommonEgg", "MythicalEgg"],
+                    lastSeenTimestamps: {}
+                }
             },
             popouts: {
                 overlays: new Map(), // Track in-game overlays
@@ -2563,6 +2623,8 @@ window.MGA_debugStorage = function() {
         let startLeft = 0;
         let startTop = 0;
         let animationFrame = null;
+        let currentX = 0;
+        let currentY = 0;
 
         handle.style.cursor = 'grab';
 
@@ -2575,12 +2637,15 @@ window.MGA_debugStorage = function() {
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
+            currentX = startX;
+            currentY = startY;
 
             const rect = element.getBoundingClientRect();
             startLeft = rect.left;
             startTop = rect.top;
 
-            // Professional drag start effects
+            // Professional drag start effects with will-change for performance
+            element.style.willChange = 'transform';
             element.style.transition = 'none';
             element.style.transform = 'scale(1.01)';
             element.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
@@ -2598,65 +2663,55 @@ window.MGA_debugStorage = function() {
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
 
-            // CRITICAL: Don't interfere with game modal interactions
-            if (!isMGAEvent(e)) {
-                return;
+            // Once dragging, don't check for MGA events - keep tracking
+            // This prevents losing the drag when mouse moves fast
+
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+
+            // Enhanced boundary constraints with snap zones
+            const snapZone = 15;
+            let newLeft = startLeft + deltaX;
+            let newTop = startTop + deltaY;
+
+            // Viewport constraints
+            newLeft = Math.max(0, Math.min(window.innerWidth - element.offsetWidth, newLeft));
+            newTop = Math.max(0, Math.min(window.innerHeight - element.offsetHeight, newTop));
+
+            // Snap to edges with visual feedback
+            if (newLeft < snapZone) {
+                newLeft = 0;
+                element.style.borderLeft = '2px solid rgba(74, 158, 255, 0.5)';
+            } else if (newLeft > window.innerWidth - element.offsetWidth - snapZone) {
+                newLeft = window.innerWidth - element.offsetWidth;
+                element.style.borderRight = '2px solid rgba(74, 158, 255, 0.5)';
+            } else {
+                element.style.borderLeft = '';
+                element.style.borderRight = '';
             }
 
-            if (animationFrame) {
-                cancelAnimationFrame(animationFrame);
+            if (newTop < snapZone) {
+                newTop = 0;
+                element.style.borderTop = '2px solid rgba(74, 158, 255, 0.5)';
+            } else if (newTop > window.innerHeight - element.offsetHeight - snapZone) {
+                newTop = window.innerHeight - element.offsetHeight;
+                element.style.borderBottom = '2px solid rgba(74, 158, 255, 0.5)';
+            } else {
+                element.style.borderTop = '';
+                element.style.borderBottom = '';
             }
 
-            animationFrame = requestAnimationFrame(() => {
-                const deltaX = e.clientX - startX;
-                const deltaY = e.clientY - startY;
-
-                // Enhanced boundary constraints with snap zones
-                const snapZone = 15;
-                let newLeft = startLeft + deltaX;
-                let newTop = startTop + deltaY;
-
-                // Viewport constraints
-                newLeft = Math.max(0, Math.min(window.innerWidth - element.offsetWidth, newLeft));
-                newTop = Math.max(0, Math.min(window.innerHeight - element.offsetHeight, newTop));
-
-                // Snap to edges
-                if (newLeft < snapZone) {
-                    newLeft = 0;
-                    element.style.borderLeft = '2px solid rgba(255, 255, 255, 0.3)';
-                } else if (newLeft > window.innerWidth - element.offsetWidth - snapZone) {
-                    newLeft = window.innerWidth - element.offsetWidth;
-                    element.style.borderRight = '2px solid rgba(255, 255, 255, 0.3)';
-                } else {
-                    element.style.borderLeft = '';
-                    element.style.borderRight = '';
-                }
-
-                if (newTop < snapZone) {
-                    newTop = 0;
-                    element.style.borderTop = '2px solid rgba(255, 255, 255, 0.3)';
-                } else if (newTop > window.innerHeight - element.offsetHeight - snapZone) {
-                    newTop = window.innerHeight - element.offsetHeight;
-                    element.style.borderBottom = '2px solid rgba(255, 255, 255, 0.3)';
-                } else {
-                    element.style.borderTop = '';
-                    element.style.borderBottom = '';
-                }
-
-                element.style.left = `${newLeft}px`;
-                element.style.top = `${newTop}px`;
-            });
+            // Use direct positioning for more reliable movement
+            element.style.left = `${newLeft}px`;
+            element.style.top = `${newTop}px`;
         });
 
         document.addEventListener('mouseup', (e) => {
             if (isDragging) {
-                // CRITICAL: Only handle MGA-related mouseup events
-                if (!isMGAEvent(e)) {
-                    return;
-                }
+                // Once dragging, don't need to check MGA event
                 isDragging = false;
 
-                // Professional drag end effects
+                // Clean up styles
                 element.style.transition = 'all 0.2s ease';
                 element.style.transform = 'scale(1)';
                 element.style.boxShadow = 'var(--panel-shadow, 0 4px 12px rgba(0, 0, 0, 0.15))';
@@ -2665,14 +2720,10 @@ window.MGA_debugStorage = function() {
                 element.style.borderBottom = '';
                 element.style.borderLeft = '';
                 element.style.borderRight = '';
+                element.style.willChange = 'auto';
 
                 handle.style.cursor = 'grab';
                 targetDocument.body.style.userSelect = '';
-
-                if (animationFrame) {
-                    cancelAnimationFrame(animationFrame);
-                    animationFrame = null;
-                }
 
                 // Save position
                 const finalPosition = {
@@ -2832,8 +2883,11 @@ window.MGA_debugStorage = function() {
         let startLeft = 0;
         let startTop = 0;
         let clickStarted = false;
+        let animationFrame = null;
+        let currentX = 0;
+        let currentY = 0;
 
-        toggleBtn.addEventListener('mousedown', (e) => {
+        toggleBtn.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             e.stopPropagation();
 
@@ -2841,37 +2895,49 @@ window.MGA_debugStorage = function() {
             isDragging = false; // Don't start dragging immediately
             startX = e.clientX;
             startY = e.clientY;
+            currentX = startX;
+            currentY = startY;
 
             const rect = toggleBtn.getBoundingClientRect();
             startLeft = rect.left;
             startTop = rect.top;
 
+            // Add will-change for better performance
+            toggleBtn.style.willChange = 'transform';
             toggleBtn.style.cursor = 'grabbing';
         });
 
-        document.addEventListener('mousemove', (e) => {
+        document.addEventListener('pointermove', (e) => {
             if (!clickStarted) return;
 
-            // CRITICAL: Don't interfere with game modal interactions
-            if (!isMGAEvent(e)) {
-                return;
+            // Once dragging starts, don't check for MGA events to prevent dropping
+            if (!isDragging) {
+                // Only check isMGAEvent before drag starts
+                if (!isMGAEvent(e)) {
+                    return;
+                }
             }
 
-            const deltaX = Math.abs(e.clientX - startX);
-            const deltaY = Math.abs(e.clientY - startY);
+            currentX = e.clientX;
+            currentY = e.clientY;
 
-            // Only start dragging if mouse moved more than 5px (prevents accidental drags on click)
-            if (!isDragging && (deltaX > 5 || deltaY > 5)) {
+            const deltaX = Math.abs(currentX - startX);
+            const deltaY = Math.abs(currentY - startY);
+
+            // Only start dragging if mouse moved more than 3px (more responsive)
+            if (!isDragging && (deltaX > 3 || deltaY > 3)) {
                 isDragging = true;
                 toggleBtn.style.transition = 'none';
-                toggleBtn.style.transform = 'scale(1.05)';
                 toggleBtn.style.boxShadow = '0 8px 32px rgba(74, 158, 255, 0.6)';
                 toggleBtn.style.zIndex = '999999';
+                // Capture pointer for reliable tracking
+                toggleBtn.setPointerCapture(e.pointerId);
             }
 
             if (isDragging) {
-                const moveX = e.clientX - startX;
-                const moveY = e.clientY - startY;
+                // Direct position update without transform
+                const moveX = currentX - startX;
+                const moveY = currentY - startY;
 
                 let newLeft = startLeft + moveX;
                 let newTop = startTop + moveY;
@@ -2881,7 +2947,7 @@ window.MGA_debugStorage = function() {
                 newLeft = Math.max(padding, Math.min(window.innerWidth - toggleBtn.offsetWidth - padding, newLeft));
                 newTop = Math.max(padding, Math.min(window.innerHeight - toggleBtn.offsetHeight - padding, newTop));
 
-                // Remove any right/bottom positioning and use left/top
+                // Use direct positioning instead of transform for more reliable movement
                 toggleBtn.style.right = '';
                 toggleBtn.style.bottom = '';
                 toggleBtn.style.left = `${newLeft}px`;
@@ -2889,22 +2955,26 @@ window.MGA_debugStorage = function() {
             }
         });
 
-        document.addEventListener('mouseup', (e) => {
+        document.addEventListener('pointerup', (e) => {
             if (clickStarted) {
-                // CRITICAL: Only handle MGA toggle button events
-                if (!isMGAEvent(e)) {
+                // Once drag is active, don't check MGA event
+                if (!isDragging && !isMGAEvent(e)) {
                     return;
                 }
+
                 if (isDragging) {
+                    // Release pointer capture
+                    toggleBtn.releasePointerCapture(e.pointerId);
+
                     // Finish dragging
                     isDragging = false;
-                    toggleBtn.style.transition = 'all 0.3s ease';
-                    toggleBtn.style.transform = 'scale(1)';
+                    toggleBtn.style.transition = 'all 0.2s ease';
                     toggleBtn.style.boxShadow = '0 4px 20px rgba(74, 158, 255, 0.4)';
                     toggleBtn.style.zIndex = '999998';
                     toggleBtn.style.cursor = 'grab';
+                    toggleBtn.style.willChange = 'auto';
 
-                    // Save position
+                    // Save position (already applied directly)
                     const finalPosition = {
                         left: toggleBtn.style.left,
                         top: toggleBtn.style.top,
@@ -2916,6 +2986,9 @@ window.MGA_debugStorage = function() {
                     debugLog('OVERLAY_LIFECYCLE', 'Toggle button dragged to new position', finalPosition);
                 } else {
                     // This was a click, not a drag - trigger the toggle functionality
+                    toggleBtn.style.willChange = 'auto';
+                    toggleBtn.style.cursor = 'grab';
+
                     const panel = UnifiedState.panels.main;
                     const isCurrentlyVisible = panel.style.display !== 'none';
                     const newVisibility = !isCurrentlyVisible;
@@ -2930,7 +3003,6 @@ window.MGA_debugStorage = function() {
                 }
 
                 clickStarted = false;
-                toggleBtn.style.cursor = 'grab';
             }
         });
     }
@@ -3385,16 +3457,23 @@ window.MGA_debugStorage = function() {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .popout-title {
             font-size: 18px;
             font-weight: 600;
             color: #4a9eff;
+            flex-shrink: 0;
+            min-width: 150px;
         }
         .popout-sync-notice {
             font-size: 12px;
             color: #888;
             font-style: italic;
+            flex: 1 1 auto;
+            text-align: center;
+            min-width: 200px;
         }
         .refresh-btn {
             padding: 6px 12px;
@@ -3404,6 +3483,7 @@ window.MGA_debugStorage = function() {
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
+            flex-shrink: 0;
         }
         .refresh-btn:hover {
             background: #3a8eef;
@@ -3413,12 +3493,8 @@ window.MGA_debugStorage = function() {
 <body>
     <div class="popout-header">
         <div class="popout-title">${title}</div>
-        <div>
-            <button class="refresh-btn" onclick="refreshPopoutContent('\${tabName}')">🔄 Refresh</button>
-        </div>
-    </div>
-    <div class="popout-sync-notice">
-        Note: This is a static snapshot. Click refresh to update with latest data.
+        <div class="popout-sync-notice">Note: This is a static snapshot. Click refresh to update.</div>
+        <button class="refresh-btn" onclick="refreshPopoutContent('\${tabName}')">🔄 Refresh</button>
     </div>
     <div id="popout-content" class="mga-scrollable mga-popout-content" style="max-height: calc(100vh - 120px); overflow-y: auto;">
         ${content}
@@ -3829,7 +3905,18 @@ window.MGA_debugStorage = function() {
             contentHTMLPreview: contentHTML?.substring(0, 100)
         });
 
-        overlay.innerHTML = contentHtml + contentHTML;
+        // For ability logs, add a subtle drag indicator
+        if (tabName === 'abilities') {
+            const dragIndicator = `
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 11px; color: #4a9eff; font-weight: 600;">ABILITY LOGS</div>
+                    <div style="font-size: 9px; color: rgba(255,255,255,0.4); cursor: grab;" title="Click and drag to move">⣿⣿ drag</div>
+                </div>
+            `;
+            overlay.innerHTML = contentHtml + dragIndicator + contentHTML;
+        } else {
+            overlay.innerHTML = contentHtml + contentHTML;
+        }
 
         console.log('🌱 [OVERLAY DEBUG] Content inserted:', {
             tabName,
@@ -4767,6 +4854,14 @@ window.MGA_debugStorage = function() {
             // Setup handlers for the overlay
             setupPureOverlayHandlers(overlay, tabName);
 
+            // Re-add resize handle after content update (since innerHTML replaces everything)
+            setTimeout(() => {
+                if (!overlay.querySelector('.mga-resize-handle')) {
+                    addResizeHandleToOverlay(overlay);
+                    console.log(`🔧 [RESIZE] Re-added missing resize handle to ${tabName} pure overlay`);
+                }
+            }, 50);
+
         } catch (error) {
             debugError('OVERLAY_LIFECYCLE', 'Failed to update pure overlay content', error, {
                 tabName,
@@ -4920,16 +5015,23 @@ window.MGA_debugStorage = function() {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .popout-title {
             font-size: 18px;
             font-weight: 600;
             color: #4a9eff;
+            flex-shrink: 0;
+            min-width: 150px;
         }
         .popout-sync-notice {
             font-size: 12px;
             color: #888;
             font-style: italic;
+            flex: 1 1 auto;
+            text-align: center;
+            min-width: 200px;
         }
         .refresh-btn {
             padding: 6px 12px;
@@ -4939,6 +5041,7 @@ window.MGA_debugStorage = function() {
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
+            flex-shrink: 0;
         }
         .refresh-btn:hover {
             background: #3a8eef;
@@ -5754,6 +5857,518 @@ window.MGA_debugStorage = function() {
         `;
     }
 
+    // ==================== AUDIO NOTIFICATION SYSTEM ====================
+
+    // Play notification sound using Web Audio API
+    function playNotificationSound(frequency = 800, duration = 200, volume = 0.3) {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration/1000);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration/1000);
+
+            console.log(`🔊 [NOTIFICATIONS] Sound played for rare item!`);
+        } catch (error) {
+            console.error('❌ [NOTIFICATIONS] Failed to play notification sound:', error);
+        }
+    }
+
+    // Play triple beep notification for rare items
+    function playTripleBeepNotification(volume = 0.3) {
+        playNotificationSound(1000, 250, volume);
+        setTimeout(() => playNotificationSound(1000, 200, volume * 0.8), 300);
+        setTimeout(() => playNotificationSound(1200, 150, volume * 0.6), 600);
+    }
+
+    // Play alarm siren notification (very loud and noticeable)
+    function playAlarmNotification(volume = 0.5) {
+        let count = 0;
+        const interval = setInterval(() => {
+            // Alternating high-low siren sound
+            playNotificationSound(count % 2 === 0 ? 1500 : 800, 400, volume);
+            count++;
+            if (count >= 6) clearInterval(interval); // Play 6 times total
+        }, 450);
+    }
+
+    // Play continuous warning sound (repeats until acknowledged)
+    let continuousAlarmInterval = null;
+    function startContinuousAlarm(volume = 0.4) {
+        if (continuousAlarmInterval) return; // Already playing
+
+        let tone = 800;
+        continuousAlarmInterval = setInterval(() => {
+            // Warbling effect
+            tone = tone === 800 ? 1200 : 800;
+            playNotificationSound(tone, 300, volume);
+        }, 350);
+
+        console.log('🚨 [NOTIFICATIONS] Continuous alarm started - requires acknowledgment!');
+    }
+
+    function stopContinuousAlarm() {
+        if (continuousAlarmInterval) {
+            clearInterval(continuousAlarmInterval);
+            continuousAlarmInterval = null;
+            console.log('✅ [NOTIFICATIONS] Continuous alarm stopped');
+        }
+    }
+
+    // Play epic notification (multiple tones in sequence)
+    function playEpicNotification(volume = 0.4) {
+        const sequence = [
+            [400, 100], [500, 100], [600, 100], [800, 150],
+            [1000, 200], [1200, 150], [1000, 150], [1200, 200],
+            [1500, 300], [1200, 100], [1500, 400]
+        ];
+
+        let delay = 0;
+        sequence.forEach(([freq, dur]) => {
+            setTimeout(() => playNotificationSound(freq, dur, volume), delay);
+            delay += dur + 50;
+        });
+    }
+
+    // Play selected notification type
+    function playSelectedNotification() {
+        const notifications = UnifiedState.data.settings.notifications;
+        const volume = notifications.volume || 0.3;
+        const type = notifications.notificationType || 'triple';
+
+        console.log(`🔊 [NOTIFICATIONS] Playing ${type} notification at ${Math.round(volume * 100)}% volume`);
+
+        switch (type) {
+            case 'simple':
+                playNotificationSound(1000, 300, volume);
+                break;
+            case 'triple':
+                playTripleBeepNotification(volume);
+                break;
+            case 'alarm':
+                playAlarmNotification(volume);
+                break;
+            case 'epic':
+                playEpicNotification(volume);
+                break;
+            case 'continuous':
+                startContinuousAlarm(volume);
+                break;
+            default:
+                playTripleBeepNotification(volume);
+        }
+    }
+
+    // Check if an item is on the watch list
+    function isWatchedItem(itemId, type = 'seed') {
+        const notifications = UnifiedState.data.settings.notifications;
+        if (type === 'seed') {
+            return notifications.watchedSeeds.includes(itemId);
+        } else if (type === 'egg') {
+            return notifications.watchedEggs.includes(itemId);
+        }
+        return false;
+    }
+
+    // Update last seen timestamp for an item
+    function updateLastSeen(itemId) {
+        const notifications = UnifiedState.data.settings.notifications;
+        notifications.lastSeenTimestamps[itemId] = Date.now();
+        MGA_saveJSON('MGA_data', UnifiedState.data);
+        console.log(`📅 [NOTIFICATIONS] Updated last seen for ${itemId}`);
+    }
+
+    // Get time since last seen (in human readable format)
+    function getTimeSinceLastSeen(itemId) {
+        const notifications = UnifiedState.data.settings.notifications;
+        const timestamp = notifications.lastSeenTimestamps[itemId];
+        if (!timestamp) return "Never seen";
+
+        const diff = Date.now() - timestamp;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+        if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+
+        const minutes = Math.floor(diff / (1000 * 60));
+        return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    }
+
+    // Show visual notification in game
+    function showVisualNotification(message, requiresAcknowledgment = false) {
+        const notification = targetDocument.createElement('div');
+
+        if (requiresAcknowledgment) {
+            // Create persistent modal that requires acknowledgment
+            notification.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255,0,0,0.2);
+                z-index: 9999999;
+                font-weight: bold;
+                font-size: 20px;
+                animation: pulse 0.5s ease-in-out infinite alternate;
+                border: 3px solid #ffffff;
+                text-align: center;
+                min-width: 400px;
+            `;
+
+            // Create message div
+            const messageDiv = targetDocument.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.style.marginBottom = '20px';
+            notification.appendChild(messageDiv);
+
+            // Create acknowledge button
+            const ackButton = targetDocument.createElement('button');
+            ackButton.textContent = 'ACKNOWLEDGE (Stop Alarm)';
+            ackButton.style.cssText = `
+                background: white;
+                color: #ff0000;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+                font-size: 16px;
+                cursor: pointer;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                transition: all 0.2s;
+            `;
+            ackButton.onmouseover = () => {
+                ackButton.style.transform = 'scale(1.05)';
+                ackButton.style.boxShadow = '0 6px 15px rgba(0,0,0,0.4)';
+            };
+            ackButton.onmouseout = () => {
+                ackButton.style.transform = 'scale(1)';
+                ackButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+            };
+            ackButton.onclick = () => {
+                stopContinuousAlarm();
+                notification.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            };
+            notification.appendChild(ackButton);
+
+            // Add backdrop
+            const backdrop = targetDocument.createElement('div');
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 9999998;
+                animation: fadeIn 0.3s ease-in;
+            `;
+            backdrop.onclick = () => {
+                backdrop.style.animation = 'flash 0.3s ease-in-out';
+            };
+            targetDocument.body.appendChild(backdrop);
+
+            // Link backdrop removal to button click
+            ackButton.onclick = () => {
+                stopContinuousAlarm();
+                notification.style.animation = 'fadeOut 0.3s ease-out';
+                backdrop.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => {
+                    notification.remove();
+                    backdrop.remove();
+                }, 300);
+            };
+
+        } else {
+            // Regular auto-dismiss notification
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                z-index: 999999;
+                font-weight: bold;
+                font-size: 16px;
+                animation: slideInRight 0.5s ease-out;
+                border: 2px solid rgba(255,255,255,0.3);
+            `;
+            notification.textContent = message;
+
+            // Remove after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.5s ease-out';
+                setTimeout(() => notification.remove(), 500);
+            }, 5000);
+        }
+
+        // Add animation styles if not exists
+        if (!targetDocument.getElementById('mga-notification-animations')) {
+            const style = targetDocument.createElement('style');
+            style.id = 'mga-notification-animations';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+                @keyframes pulse {
+                    from { transform: translate(-50%, -50%) scale(1); }
+                    to { transform: translate(-50%, -50%) scale(1.05); }
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
+                @keyframes flash {
+                    0%, 100% { background: rgba(0, 0, 0, 0.7); }
+                    50% { background: rgba(255, 0, 0, 0.3); }
+                }
+            `;
+            targetDocument.head.appendChild(style);
+        }
+
+        targetDocument.body.appendChild(notification);
+    }
+
+    // Track current shop inventory and restock state
+    let previousSeedInventory = [];
+    let previousEggInventory = [];
+    let previousSeedQuantities = {};
+    let previousEggQuantities = {};
+    let lastRestockCheck = 0;
+    let lastNotificationTime = 0;
+    let lastSeedTimer = 999;
+    let lastEggTimer = 999;
+    let lastSeedRestock = 0;
+    let lastEggRestock = 0;
+    const CHECK_INTERVAL = 5000; // Check every 5 seconds
+    const NOTIFICATION_COOLDOWN = 60000; // 1 minute between notifications for same item (reduced for testing)
+
+    // Check for new watched items in shop
+    function checkForWatchedItems() {
+        const notifications = UnifiedState.data.settings.notifications;
+        if (!notifications) {
+            console.warn(`⚠️ [NOTIFICATIONS] No notifications settings found`);
+            return;
+        }
+        if (!notifications.enabled) {
+            console.warn(`⚠️ [NOTIFICATIONS] Notifications are disabled in settings`);
+            return;
+        }
+        console.log(`✅ [NOTIFICATIONS] System active - checking for watched items...`);
+
+        try {
+            const now = Date.now();
+
+            // Check every 5 seconds to catch items quickly
+            if (now - lastRestockCheck < CHECK_INTERVAL) return;
+            lastRestockCheck = now;
+
+            console.log(`🔍 [NOTIFICATIONS] Checking shops... (every ${CHECK_INTERVAL/1000}s)`);
+
+            // Get timer data
+            const quinoaData = UnifiedState.atoms.quinoaData;
+            if (!quinoaData || !quinoaData.shops) return;
+
+            const seedTimer = quinoaData.shops.seed?.secondsUntilRestock || 999;
+            const eggTimer = quinoaData.shops.egg?.secondsUntilRestock || 999;
+
+            // Detect restock cycles (proper restock moment detection)
+            // Fixed: Detect actual restock when timer goes from high (>10) to low (<10)
+            const seedRestocked = seedTimer < 10 && lastSeedTimer > 10;
+            const eggRestocked = eggTimer < 10 && lastEggTimer > 10;
+
+            console.log(`⏱️ [NOTIFICATIONS] Timers - Seed: ${lastSeedTimer}→${seedTimer}, Egg: ${lastEggTimer}→${eggTimer}`);
+
+            if (seedRestocked) {
+                console.log(`🔄 [NOTIFICATIONS] SEED SHOP RESTOCKED! Timer: ${lastSeedTimer}→${seedTimer}`);
+                previousSeedInventory = []; // Clear for new cycle
+                previousSeedQuantities = {}; // Clear quantity tracking
+                lastSeedRestock = now;
+            }
+
+            if (eggRestocked) {
+                console.log(`🔄 [NOTIFICATIONS] EGG SHOP RESTOCKED! Timer: ${lastEggTimer}→${eggTimer}`);
+                previousEggInventory = []; // Clear for new cycle
+                previousEggQuantities = {}; // Clear quantity tracking
+                lastEggRestock = now;
+            }
+
+            // Update last timer values
+            lastSeedTimer = seedTimer;
+            lastEggTimer = eggTimer;
+
+            // Check seed shop
+            const currentSeeds = targetWindow?.globalShop?.shops?.seed?.inventory || [];
+            const inStockSeeds = currentSeeds.filter(item => item.initialStock > 0);
+            const currentSeedIds = inStockSeeds.map(item => item.species);
+
+            // Debug shop data access
+            if (!targetWindow?.globalShop) {
+                console.warn(`⚠️ [NOTIFICATIONS] No globalShop data found on targetWindow`);
+                return;
+            }
+            if (!targetWindow.globalShop.shops) {
+                console.warn(`⚠️ [NOTIFICATIONS] No shops data in globalShop`);
+                return;
+            }
+
+            // Log current shop state
+            if (currentSeedIds.length > 0) {
+                const hasNewSeeds = currentSeedIds.some(id => !previousSeedInventory.includes(id));
+                if (hasNewSeeds) {
+                    console.log(`🛒 [NOTIFICATIONS] Seeds in shop:`, currentSeedIds,
+                        `| Timer: ${seedTimer}s | Previous:`, previousSeedInventory);
+                }
+            }
+
+            // Track seed quantities (FIXED APPROACH)
+            const currentSeedQuantities = {};
+            inStockSeeds.forEach(item => {
+                currentSeedQuantities[item.species] = item.initialStock;
+            });
+
+            console.log(`🛒 [NOTIFICATIONS] Current seed quantities:`, currentSeedQuantities, `| Previous:`, previousSeedQuantities);
+
+            // Find seeds with increased quantities or new items (after restock)
+            Object.keys(currentSeedQuantities).forEach(seedId => {
+                const oldQuantity = previousSeedQuantities[seedId] || 0;
+                const newQuantity = currentSeedQuantities[seedId];
+
+                // Trigger notification if: 1) New item appeared, 2) Quantity increased, or 3) Restock just happened
+                if (newQuantity > oldQuantity || seedRestocked) {
+                    console.log(`🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked}`);
+
+                    // Update last seen for ANY seed that appears or increases
+                    updateLastSeen(seedId);
+
+                    // Check if it's a watched seed with detailed logging
+                    const isWatched = isWatchedItem(seedId, 'seed');
+                    console.log(`🔍 [NOTIFICATIONS] Is ${seedId} watched? ${isWatched} | Watched list: [${notifications.watchedSeeds.join(', ')}]`);
+
+                    if (isWatched) {
+                        // Check cooldown (1 minute per item, but allow Carrot for testing)
+                        const itemKey = `seed_${seedId}`;
+                        const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
+                        const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN || seedId === 'Carrot';
+
+                        if (canNotify) {
+                            console.log(`🎉 [NOTIFICATIONS] RARE SEED DETECTED: ${seedId} (${newQuantity} in stock)`);
+                            notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+                            MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                            playSelectedNotification();
+                            const requireAck = notifications.requiresAcknowledgment || notifications.notificationType === 'continuous';
+                            showVisualNotification(`🌱 Rare seed in shop: ${seedId}! (${newQuantity} available)`, requireAck);
+                        } else {
+                            console.log(`⏰ [NOTIFICATIONS] ${seedId} on cooldown, not notifying`);
+                        }
+                    }
+                }
+            });
+
+            // Check egg shop
+            const currentEggs = targetWindow?.globalShop?.shops?.egg?.inventory || [];
+            const inStockEggs = currentEggs.filter(item => item.initialStock > 0);
+            const currentEggIds = inStockEggs.map(item => item.eggId);
+
+            // Always log current egg state for debugging (like seeds)
+            console.log(`🥚 [NOTIFICATIONS] Current eggs in shop: [${currentEggIds.join(', ')}] | Previous: [${previousEggInventory.join(', ')}]`);
+            console.log(`🥚 [NOTIFICATIONS] Raw egg inventory:`, currentEggs.map(e => `${e.eggId}(stock:${e.initialStock})`));
+
+            // Debug egg shop structure
+            if (currentEggs.length === 0) {
+                console.log(`🥚 [NOTIFICATIONS] No eggs found. Shop structure:`, {
+                    hasGlobalShop: !!targetWindow?.globalShop,
+                    hasShops: !!targetWindow?.globalShop?.shops,
+                    hasEggShop: !!targetWindow?.globalShop?.shops?.egg,
+                    hasEggInventory: !!targetWindow?.globalShop?.shops?.egg?.inventory,
+                    eggInventoryLength: targetWindow?.globalShop?.shops?.egg?.inventory?.length || 0
+                });
+            }
+
+            // Track egg quantities (FIXED APPROACH)
+            const currentEggQuantities = {};
+            inStockEggs.forEach(item => {
+                currentEggQuantities[item.eggId] = item.initialStock;
+            });
+
+            console.log(`🥚 [NOTIFICATIONS] Current egg quantities:`, currentEggQuantities, `| Previous:`, previousEggQuantities);
+
+            // Find eggs with increased quantities or new items (after restock)
+            Object.keys(currentEggQuantities).forEach(eggId => {
+                const oldQuantity = previousEggQuantities[eggId] || 0;
+                const newQuantity = currentEggQuantities[eggId];
+
+                // Trigger notification if: 1) New item appeared, 2) Quantity increased, or 3) Restock just happened
+                if (newQuantity > oldQuantity || eggRestocked) {
+                    console.log(`🆕 [NOTIFICATIONS] Egg stock change: ${eggId} (${oldQuantity}→${newQuantity}) | Restock: ${eggRestocked}`);
+
+                    // Update last seen for ANY egg that appears or increases
+                    updateLastSeen(eggId);
+
+                    // Check if it's a watched egg with detailed logging
+                    const isWatched = isWatchedItem(eggId, 'egg');
+                    console.log(`🔍 [NOTIFICATIONS] Is ${eggId} watched? ${isWatched} | Watched list: [${notifications.watchedEggs.join(', ')}]`);
+
+                    if (isWatched) {
+                        // Check cooldown (1 minute per item, allow MythicalEgg/CommonEgg for testing)
+                        const itemKey = `egg_${eggId}`;
+                        const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
+                        const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN || eggId === 'MythicalEgg' || eggId === 'CommonEgg';
+
+                        if (canNotify) {
+                            console.log(`🎉 [NOTIFICATIONS] RARE EGG DETECTED: ${eggId} (${newQuantity} in stock)`);
+                            notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+                            MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                            playSelectedNotification();
+                            const requireAck = notifications.requiresAcknowledgment || notifications.notificationType === 'continuous';
+                            showVisualNotification(`🥚 Rare egg in shop: ${eggId}! (${newQuantity} available)`, requireAck);
+                        } else {
+                            console.log(`⏰ [NOTIFICATIONS] ${eggId} on cooldown, not notifying`);
+                        }
+                    }
+                }
+            });
+
+            // Update previous inventory and quantities
+            previousSeedInventory = currentSeedIds;
+            previousEggInventory = currentEggIds;
+            previousSeedQuantities = currentSeedQuantities;
+            previousEggQuantities = currentEggQuantities;
+
+        } catch (error) {
+            console.error('❌ [NOTIFICATIONS] Error checking for watched items:', error);
+        }
+    }
+
     function getSettingsTabContent() {
         const settings = UnifiedState.data.settings;
 
@@ -5987,6 +6602,146 @@ window.MGA_debugStorage = function() {
                 <p style="font-size: 11px; color: #aaa; margin-top: 4px;">
                     Reset button will clear all saved pet loadouts while preserving other settings.
                 </p>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🔔 Notifications</div>
+                <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                    Get audio and visual alerts when rare seeds or eggs appear in the shop.
+                </p>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="notifications-enabled-checkbox" class="mga-checkbox"
+                               ${settings.notifications.enabled ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>🔊 Enable Notifications</span>
+                    </label>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <button id="notification-quick-toggle" class="mga-button" style="padding: 8px 16px; background: ${settings.notifications.enabled ? '#4a9eff' : '#666'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        ${settings.notifications.enabled ? '🔊 Turn OFF Notifications' : '🔇 Turn ON Notifications'}
+                    </button>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Volume: ${Math.round(settings.notifications.volume * 100)}%
+                    </label>
+                    <input type="range" class="mga-slider" id="notification-volume-slider"
+                           min="0" max="100" value="${settings.notifications.volume * 100}"
+                           style="width: 100%; accent-color: #4a9eff;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="notification-continuous-checkbox" class="mga-checkbox"
+                               ${settings.notifications.continuousEnabled ? 'checked' : ''}
+                               style="accent-color: #ff9900;">
+                        <span>⚠️ Enable Continuous Mode</span>
+                    </label>
+                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                        Allows selection of continuous notification type that plays until acknowledged.
+                    </p>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Notification Sound Type
+                    </label>
+                    <select class="mga-select" id="notification-type-select">
+                        <option value="simple" ${settings.notifications.notificationType === 'simple' ? 'selected' : ''}>🔊 Simple Beep</option>
+                        <option value="triple" ${settings.notifications.notificationType === 'triple' ? 'selected' : ''}>🔔 Triple Beep</option>
+                        <option value="alarm" ${settings.notifications.notificationType === 'alarm' ? 'selected' : ''}>🚨 Alarm Siren</option>
+                        <option value="epic" ${settings.notifications.notificationType === 'epic' ? 'selected' : ''}>🎵 Epic Fanfare</option>
+                        <option value="continuous" ${settings.notifications.notificationType === 'continuous' ? 'selected' : ''} ${!settings.notifications.continuousEnabled ? 'disabled' : ''}>⚠️ Continuous (Until Acknowledged)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="notification-acknowledgment-checkbox" class="mga-checkbox"
+                               ${settings.notifications.requiresAcknowledgment ? 'checked' : ''}
+                               style="accent-color: #ff4444;">
+                        <span>🚨 Require acknowledgment (persistent alert)</span>
+                    </label>
+                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                        When enabled, notifications will show a modal that must be clicked to dismiss.
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <button class="mga-btn mga-btn-sm" id="test-notification-btn" style="background: #4a5568;">
+                        🔔 Test Notification
+                    </button>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                        Watched Seeds
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-carrot" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Carrot') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥕 Carrot</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-sunflower" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Sunflower') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌻 Sunflower</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-moonbinder" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Moonbinder') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌙 Moonbinder</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-dawnbinder" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Dawnbinder') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌅 Dawnbinder</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-starweaver" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Starweaver') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>⭐ Starweaver</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                        Watched Eggs
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-common-egg" class="mga-checkbox"
+                                   ${settings.notifications.watchedEggs.includes('CommonEgg') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥚 Common Egg</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-mythical-egg" class="mga-checkbox"
+                                   ${settings.notifications.watchedEggs.includes('MythicalEgg') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥚✨ Mythical Egg</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px; font-size: 12px;">
+                        Last Seen
+                    </label>
+                    <div id="last-seen-display" style="font-size: 11px; color: #888; line-height: 1.3;">
+                        Loading...
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -6839,6 +7594,16 @@ window.MGA_debugStorage = function() {
             debugLog('ABILITY_LOGS', 'No ability logs element found in context', {
                 isDocument: context === document,
                 className: context.className || 'unknown'
+            });
+            return;
+        }
+
+        // Preserve drag state if this is a content-only overlay being updated
+        const isOverlay = context.classList?.contains('mga-overlay-content-only');
+        const isDragInProgress = context.getAttribute?.('data-dragging') === 'true';
+        if (isOverlay && isDragInProgress) {
+            debugLog('ABILITY_LOGS', 'Skipping content update during drag operation', {
+                overlayId: context.id
             });
             return;
         }
@@ -7729,6 +8494,209 @@ window.MGA_debugStorage = function() {
                 }
             });
         }
+
+        // ==================== NOTIFICATION HANDLERS ====================
+
+        // Notification enabled checkbox
+        const notificationEnabledCheckbox = context.querySelector('#notifications-enabled-checkbox');
+        if (notificationEnabledCheckbox) {
+            notificationEnabledCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.notifications.enabled = e.target.checked;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                console.log(`🔔 [NOTIFICATIONS] ${e.target.checked ? 'Enabled' : 'Disabled'} notifications`);
+
+                // Update quick toggle button if it exists
+                const quickToggle = context.querySelector('#notification-quick-toggle');
+                if (quickToggle) {
+                    updateQuickToggleButton(quickToggle, e.target.checked);
+                }
+            });
+        }
+
+        // Quick notification toggle button
+        const quickToggleButton = context.querySelector('#notification-quick-toggle');
+        if (quickToggleButton) {
+            quickToggleButton.addEventListener('click', () => {
+                const newState = !UnifiedState.data.settings.notifications.enabled;
+                UnifiedState.data.settings.notifications.enabled = newState;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                console.log(`🔔 [NOTIFICATIONS] Quick toggle: ${newState ? 'Enabled' : 'Disabled'} notifications`);
+
+                // Update button appearance
+                updateQuickToggleButton(quickToggleButton, newState);
+
+                // Update checkbox if it exists
+                if (notificationEnabledCheckbox) {
+                    notificationEnabledCheckbox.checked = newState;
+                }
+            });
+        }
+
+        // Helper function to update quick toggle button
+        function updateQuickToggleButton(button, enabled) {
+            button.style.background = enabled ? '#4a9eff' : '#666';
+            button.textContent = enabled ? '🔊 Turn OFF Notifications' : '🔇 Turn ON Notifications';
+        }
+
+        // Volume slider
+        const volumeSlider = context.querySelector('#notification-volume-slider');
+        if (volumeSlider) {
+            volumeSlider.addEventListener('input', (e) => {
+                const volume = parseInt(e.target.value) / 100;
+                UnifiedState.data.settings.notifications.volume = volume;
+                // Update label
+                const label = volumeSlider.previousElementSibling;
+                label.textContent = `Volume: ${Math.round(volume * 100)}%`;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+            });
+        }
+
+        // Enable Continuous Mode checkbox
+        const continuousCheckbox = context.querySelector('#notification-continuous-checkbox');
+        if (continuousCheckbox) {
+            continuousCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.notifications.continuousEnabled = e.target.checked;
+
+                // Update dropdown state
+                const notificationTypeSelect = context.querySelector('#notification-type-select');
+                if (notificationTypeSelect) {
+                    const continuousOption = notificationTypeSelect.querySelector('option[value="continuous"]');
+                    if (continuousOption) {
+                        continuousOption.disabled = !e.target.checked;
+
+                        // If unchecking and continuous is selected, change to epic
+                        if (!e.target.checked && notificationTypeSelect.value === 'continuous') {
+                            notificationTypeSelect.value = 'epic';
+                            UnifiedState.data.settings.notifications.notificationType = 'epic';
+                            console.log(`🔊 [NOTIFICATIONS] Continuous mode disabled, reverted to epic`);
+                        }
+                    }
+                }
+
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                console.log(`⚠️ [NOTIFICATIONS] Continuous mode enabled: ${e.target.checked}`);
+            });
+        }
+
+        // Notification type selector
+        const notificationTypeSelect = context.querySelector('#notification-type-select');
+        if (notificationTypeSelect) {
+            notificationTypeSelect.addEventListener('change', (e) => {
+                // Prevent selecting continuous if not enabled
+                if (e.target.value === 'continuous' && !UnifiedState.data.settings.notifications.continuousEnabled) {
+                    e.target.value = UnifiedState.data.settings.notifications.notificationType || 'epic';
+                    console.warn(`⚠️ [NOTIFICATIONS] Cannot select continuous mode - please enable it first`);
+                    showVisualNotification('⚠️ Please enable Continuous Mode checkbox first', false);
+                    return;
+                }
+
+                UnifiedState.data.settings.notifications.notificationType = e.target.value;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                console.log(`🔊 [NOTIFICATIONS] Sound type changed to: ${e.target.value}`);
+            });
+        }
+
+        // Acknowledgment required checkbox
+        const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+        if (acknowledgmentCheckbox) {
+            acknowledgmentCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.notifications.requiresAcknowledgment = e.target.checked;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                console.log(`🚨 [NOTIFICATIONS] Require acknowledgment: ${e.target.checked}`);
+            });
+        }
+
+        // Test notification button
+        const testNotificationBtn = context.querySelector('#test-notification-btn');
+        if (testNotificationBtn) {
+            testNotificationBtn.addEventListener('click', () => {
+                const notifications = UnifiedState.data.settings.notifications;
+                playSelectedNotification();
+                showVisualNotification('🔔 Test notification - This is how alerts will look!', notifications.requiresAcknowledgment);
+                console.log(`🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`);
+            });
+        }
+
+        // Seed watch checkboxes
+        const seedWatchMap = {
+            'watch-carrot': 'Carrot',
+            'watch-sunflower': 'Sunflower',
+            'watch-moonbinder': 'Moonbinder',
+            'watch-dawnbinder': 'Dawnbinder',
+            'watch-starweaver': 'Starweaver'
+        };
+
+        Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
+            const checkbox = context.querySelector(`#${checkboxId}`);
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    const notifications = UnifiedState.data.settings.notifications;
+                    if (e.target.checked) {
+                        if (!notifications.watchedSeeds.includes(seedId)) {
+                            notifications.watchedSeeds.push(seedId);
+                        }
+                    } else {
+                        notifications.watchedSeeds = notifications.watchedSeeds.filter(id => id !== seedId);
+                    }
+                    MGA_saveJSON('MGA_data', UnifiedState.data);
+                    console.log(`🌱 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${seedId} to/from watch list`);
+                    updateLastSeenDisplay();
+                });
+            }
+        });
+
+        // Egg watch checkboxes
+        const eggWatchMap = {
+            'watch-common-egg': 'CommonEgg',
+            'watch-mythical-egg': 'MythicalEgg'
+        };
+
+        Object.entries(eggWatchMap).forEach(([checkboxId, eggId]) => {
+            const checkbox = context.querySelector(`#${checkboxId}`);
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    const notifications = UnifiedState.data.settings.notifications;
+                    if (e.target.checked) {
+                        if (!notifications.watchedEggs.includes(eggId)) {
+                            notifications.watchedEggs.push(eggId);
+                        }
+                    } else {
+                        notifications.watchedEggs = notifications.watchedEggs.filter(id => id !== eggId);
+                    }
+                    MGA_saveJSON('MGA_data', UnifiedState.data);
+                    console.log(`🥚 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${eggId} to/from watch list`);
+                    updateLastSeenDisplay();
+                });
+            }
+        });
+
+        // Update last seen display function
+        function updateLastSeenDisplay() {
+            const lastSeenDisplay = context.querySelector('#last-seen-display');
+            if (!lastSeenDisplay) return;
+
+            const notifications = UnifiedState.data.settings.notifications;
+            const allWatched = [...notifications.watchedSeeds, ...notifications.watchedEggs];
+
+            if (allWatched.length === 0) {
+                lastSeenDisplay.innerHTML = 'No items being watched';
+                return;
+            }
+
+            let html = '';
+            allWatched.forEach(itemId => {
+                const timeSince = getTimeSinceLastSeen(itemId);
+                html += `<div>${itemId}: ${timeSince}</div>`;
+            });
+
+            lastSeenDisplay.innerHTML = html;
+        }
+
+        // Initial last seen update
+        updateLastSeenDisplay();
+
+        // Update last seen display every 30 seconds
+        setInterval(updateLastSeenDisplay, 30000);
 
         // Apply input isolation to number inputs to prevent game hotkey interference
         const createInputIsolation = (inputElement) => {
@@ -9112,6 +10080,13 @@ window.MGA_debugStorage = function() {
                             overlayContent.innerHTML = getAbilitiesTabContent();
                             // Update ability log display within this overlay context
                             setTimeout(() => updateAbilityLogDisplay(overlay), 10);
+                            // Re-add resize handle after content update
+                            setTimeout(() => {
+                                if (!overlay.querySelector('.mga-resize-handle')) {
+                                    addResizeHandleToOverlay(overlay);
+                                    console.log('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                }
+                            }, 50);
                         }
                     }
                 }
@@ -9850,6 +10825,9 @@ window.MGA_debugStorage = function() {
         const lunarResult = getSecondsToNextLunarEvent();
         UnifiedState.data.timers.lunar = lunarResult.secondsLeft;
 
+        // Check for new watched items in shop (notifications)
+        checkForWatchedItems();
+
         // Always update timer display (needed for pop-out windows to work independently)
         updateTimerDisplay();
     }
@@ -10177,11 +11155,18 @@ window.MGA_debugStorage = function() {
             () => updateValues()
         );
 
-        // Hook quinoa data for timers
+        // Hook quinoa data for timers and globalShop
         hookAtom(
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/_archive/quinoaDataAtom.ts/quinoaDataAtom",
             "quinoaData",
-            () => updateTimers()
+            (value) => {
+                // Store quinoa data for timers
+                UnifiedState.atoms.quinoaData = value;
+                // Also make globalShop available for notifications (same as MainScript)
+                targetWindow.globalShop = value;
+                // Update timers
+                updateTimers();
+            }
         );
 
         console.log('✅ [SIMPLE-ATOMS] Simple atom initialization complete');
@@ -10281,8 +11266,46 @@ window.MGA_debugStorage = function() {
             compactMode: false,
             ultraCompactMode: false,
             useInGameOverlays: true,
-            debugMode: false  // Disable debug logging by default to prevent console spam
+            debugMode: false,  // Disable debug logging by default to prevent console spam
+            aggressiveIdlePrevention: true,  // Enable anti-idle from bug.txt
+            notifications: {
+                enabled: true,
+                volume: 0.3,
+                notificationType: 'epic',  // Options: 'simple', 'triple', 'alarm', 'epic', 'continuous'
+                requiresAcknowledgment: false,
+                continuousEnabled: false,  // Controls whether continuous option is available
+                watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
+                watchedEggs: ["CommonEgg", "MythicalEgg"],
+                lastSeenTimestamps: {}
+            }
         });
+
+        // Ensure notifications object exists for existing users
+        if (!UnifiedState.data.settings.notifications) {
+            UnifiedState.data.settings.notifications = {
+                enabled: true,
+                volume: 0.3,
+                notificationType: 'epic',  // Options: 'simple', 'triple', 'alarm', 'epic', 'continuous'
+                requiresAcknowledgment: false,
+                watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
+                watchedEggs: ["CommonEgg", "MythicalEgg"],
+                lastSeenTimestamps: {}
+            };
+            MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+            console.log('🔔 [NOTIFICATIONS] Initialized notifications settings for existing user');
+        } else {
+            // Add new fields for existing notification settings
+            if (UnifiedState.data.settings.notifications.notificationType === undefined) {
+                UnifiedState.data.settings.notifications.notificationType = 'epic';
+            }
+            if (UnifiedState.data.settings.notifications.requiresAcknowledgment === undefined) {
+                UnifiedState.data.settings.notifications.requiresAcknowledgment = false;
+            }
+            if (UnifiedState.data.settings.notifications.continuousEnabled === undefined) {
+                UnifiedState.data.settings.notifications.continuousEnabled = false;
+            }
+            MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+        }
 
         // Load PAL4 filter system data
         UnifiedState.data.filterMode = MGA_loadJSON('MGA_filterMode', 'categories');
@@ -11407,91 +12430,10 @@ window.MGA_debugStorage = function() {
                 });
             }
 
-        // ==================== SAFE IDLE TIMEOUT PREVENTION ====================
-        // Safe anti-idle system that doesn't interfere with game loading
-        const preventIdle = () => {
-            // Check if aggressive idle prevention is enabled (disabled by default for game stability)
-            const enableAggressiveIdlePrevention = UnifiedState.data.settings?.aggressiveIdlePrevention || false;
-
-            if (enableAggressiveIdlePrevention) {
-                console.log('⚠️ [IDLE-PREVENTION] Aggressive mode enabled - may cause game loading issues');
-
-                // AGGRESSIVE MODE (ONLY IF EXPLICITLY ENABLED)
-                // WARNING: This can interfere with game loading and should only be used if needed
-
-                // Check if idle prevention is already active from another script
-                const alreadyOverridden = document.hidden === false && document.visibilityState === 'visible';
-                if (alreadyOverridden) {
-                    console.log('📝 [IDLE-PREVENTION] Another script already overrode visibility API - skipping');
-                } else {
-                    // Try to override visibility API with non-configurable properties
-                    try {
-                        Object.defineProperty(document, 'hidden', {
-                            value: false,
-                            writable: false,
-                            configurable: false
-                        });
-                    } catch (e) {
-                        console.log('📝 Note: Could not redefine document.hidden (property already exists)');
-                    }
-
-                    try {
-                        Object.defineProperty(document, 'visibilityState', {
-                            value: 'visible',
-                            writable: false,
-                            configurable: false
-                        });
-                    } catch (e) {
-                        console.log('📝 Note: Could not redefine document.visibilityState (property already exists)');
-                    }
-                }
-
-                // WARNING: Aggressive event blocking removed - was causing game modal interference
-                console.log('⚠️ [IDLE-PREVENTION] Aggressive mode disabled - was causing modal interference');
-            } else {
-                console.log('✅ [IDLE-PREVENTION] Using safe mode (recommended)');
-            }
-
-            // SAFE MODE: Activity simulation only (always enabled)
-            const simulateActivity = () => {
-                try {
-                    // Safe activity simulation that doesn't interfere with game
-
-                    // Update page focus timestamp if it exists
-                    if (window.performance && window.performance.now) {
-                        window.lastActivity = window.performance.now();
-                    }
-
-                    // Light activity simulation - just update activity markers
-                    // Removed aggressive mouse/keyboard event dispatching that could interfere
-
-                    debugLog('IDLE_PREVENTION', 'Simulated safe activity', {
-                        timestamp: Date.now(),
-                        mode: enableAggressiveIdlePrevention ? 'aggressive' : 'safe'
-                    });
-                } catch (error) {
-                    debugError('IDLE_PREVENTION', 'Failed to simulate activity', error);
-                }
-            };
-
-            // Start activity simulation using managed interval
-            setManagedInterval('activitySimulator', simulateActivity, 30000); // Every 30 seconds
-
-            // REMOVED: Timer interception - can cause recursion and interfere with game
-            // Idle prevention should use activity simulation only, not timer interception
-
-            // Start immediate activity simulation
-            simulateActivity();
-
-            debugLog('IDLE_PREVENTION', 'Safe idle prevention initialized', {
-                aggressiveMode: enableAggressiveIdlePrevention,
-                visibilityState: document.visibilityState,
-                hidden: document.hidden
-            });
-        };
-
-        // Initialize safe idle prevention (aggressive mode disabled by default)
-        preventIdle();
+        // ==================== IDLE PREVENTION MOVED ====================
+        // NOTE: Idle prevention code has been moved to line ~380 to execute immediately
+        // This ensures the game doesn't kick users out while the script loads
+        console.log('📝 [IDLE-PREVENTION] Idle prevention already applied at script start');
 
         try {
             // Load saved data
@@ -11977,6 +12919,13 @@ window.MGA_debugStorage = function() {
                                 overlayContent.innerHTML = getAbilitiesTabContent();
                                 // Update ability log display within this overlay context
                                 setTimeout(() => updateAbilityLogDisplay(overlay), 10);
+                                // Re-add resize handle after content update
+                                setTimeout(() => {
+                                    if (!overlay.querySelector('.mga-resize-handle')) {
+                                        addResizeHandleToOverlay(overlay);
+                                        console.log('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                    }
+                                }, 50);
                             }
                         }
                     }
@@ -12160,6 +13109,13 @@ window.MGA_debugStorage = function() {
                                 if (overlayContent) {
                                     overlayContent.innerHTML = getAbilitiesTabContent();
                                     setTimeout(() => updateAbilityLogDisplay(overlay), 10);
+                                    // Re-add resize handle after content update
+                                    setTimeout(() => {
+                                        if (!overlay.querySelector('.mga-resize-handle')) {
+                                            addResizeHandleToOverlay(overlay);
+                                            console.log('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                        }
+                                    }, 50);
                                 }
                             }
                         }
