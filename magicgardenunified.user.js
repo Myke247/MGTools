@@ -6159,7 +6159,17 @@ window.MGA_debugStorage = function() {
             return;
         }
 
-        // Create batched modal
+        // If multiple notifications but NONE require acknowledgment, show them as simple toasts
+        if (!hasAcknowledgmentRequired) {
+            // Show each notification as a simple non-blocking toast
+            notificationQueue.forEach(notif => {
+                showVisualNotification(notif.message, false);
+            });
+            notificationQueue = [];
+            return;
+        }
+
+        // Create batched modal (only if acknowledgment is required)
         const notification = targetDocument.createElement('div');
         notification.className = 'mga-batched-notification';
 
