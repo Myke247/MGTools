@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.9.2
+// @version      1.9.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -3686,6 +3686,12 @@ window.MGA_debugStorage = function() {
                     case 'tools':
                         setupToolsTabHandlers(popoutWindow.document);
                         break;
+                    case 'hotkeys':
+                        setupHotkeysTabHandlers(popoutWindow.document);
+                        break;
+                    case 'notifications':
+                        setupNotificationsTabHandlers(popoutWindow.document);
+                        break;
                     case 'help':
                         // Help tab doesn't need special handlers
                         break;
@@ -3738,6 +3744,10 @@ window.MGA_debugStorage = function() {
                 return getToolsTabContent();
             case 'settings':
                 return getSettingsTabContent();
+            case 'hotkeys':
+                return getHotkeysTabContent();
+            case 'notifications':
+                return getNotificationsTabContent();
             default:
                 return '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
         }
@@ -3770,6 +3780,12 @@ window.MGA_debugStorage = function() {
                     break;
                 case 'tools':
                     setupToolsTabHandlers(overlay);
+                    break;
+                case 'hotkeys':
+                    setupHotkeysTabHandlers(overlay);
+                    break;
+                case 'notifications':
+                    setupNotificationsTabHandlers(overlay);
                     break;
             }
         } catch (error) {
@@ -5237,6 +5253,12 @@ window.MGA_debugStorage = function() {
                         break;
                     case 'tools':
                         setupToolsTabHandlers(popoutWindow.document);
+                        break;
+                    case 'hotkeys':
+                        setupHotkeysTabHandlers(popoutWindow.document);
+                        break;
+                    case 'notifications':
+                        setupNotificationsTabHandlers(popoutWindow.document);
                         break;
                     case 'abilities':
                         // Abilities handlers are complex due to cross-window limitations
@@ -9088,6 +9110,14 @@ window.MGA_debugStorage = function() {
 
     // Enhanced shouldLogAbility function matching PAL4 logic
     function shouldLogAbility(abilityType, petName = null) {
+        // Filter out ProduceMutationBoost abilities - user doesn't want these logged
+        if (abilityType && (
+            abilityType.includes('ProduceMutationBoost') ||
+            abilityType.includes('PetMutationBoost')
+        )) {
+            return false;
+        }
+
         const mode = UnifiedState.data.filterMode || 'categories';
 
         if (mode === 'custom') {
