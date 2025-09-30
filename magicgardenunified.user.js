@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.8.5
+// @version      1.8.9
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -897,10 +897,10 @@
         }
 
         .mga-value-updated {
-            animation: pulse 0.5s ease-in-out;
+            animation: mga-value-pulse 0.5s ease-in-out;
         }
 
-        @keyframes pulse {
+        @keyframes mga-value-pulse {
             0% { opacity: 1; }
             50% { opacity: 0.6; transform: scale(1.05); }
             100% { opacity: 1; transform: scale(1); }
@@ -1122,6 +1122,15 @@
 
     // ==================== DEBUG SYSTEM ====================
 
+    // Production flag to minimize script size by removing debug logs
+    // NOTE: To enable production mode and remove ~500 console.log statements:
+    // 1. Change PRODUCTION to true below
+    // 2. Replace all 'console.log(' with 'productionLog(' in the script
+    // 3. Replace all 'console.warn(' with 'productionWarn(' in the script
+    // 4. Replace all 'console.error(' with 'productionError(' in the script
+    // This can save ~100-150KB in script size for better performance
+    const PRODUCTION = false; // Set to true to remove console.log statements
+
     const DEBUG_FLAGS = {
         OVERLAY_LIFECYCLE: false,  // Disabled to reduce console spam
         HANDLER_SETUP: false,      // Disabled to reduce console spam
@@ -1134,17 +1143,36 @@
         PERFORMANCE: false
     };
 
+    // Production-aware console logging
+    function productionLog(...args) {
+        if (!PRODUCTION) {
+            console.log(...args);
+        }
+    }
+
+    function productionWarn(...args) {
+        if (!PRODUCTION) {
+            console.warn(...args);
+        }
+    }
+
+    function productionError(...args) {
+        if (!PRODUCTION) {
+            console.error(...args);
+        }
+    }
+
     function debugLog(category, message, data = null) {
         if (DEBUG_FLAGS[category]) {
             const timestamp = new Date().toLocaleTimeString();
-            console.log(`[MGA-DEBUG-${category}] ${timestamp} ${message}`, data || '');
+            productionLog(`[MGA-DEBUG-${category}] ${timestamp} ${message}`, data || '');
         }
     }
 
     function debugError(category, message, error, context = {}) {
         if (DEBUG_FLAGS[category] || DEBUG_FLAGS.ERROR_TRACKING) {
             const timestamp = new Date().toLocaleTimeString();
-            console.error(`[MGA-ERROR-${category}] ${timestamp} ${message}`, {
+            productionError(`[MGA-ERROR-${category}] ${timestamp} ${message}`, {
                 error: error,
                 context: context,
                 stack: error?.stack
@@ -1254,6 +1282,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
         popoutWindows: new Set(), // Track all popout windows
         data: {
             petPresets: {},
+            petPresetsOrder: [],  // Array to maintain preset display order
             petAbilityLogs: [],
             seedsToDelete: [],
             autoDeleteEnabled: false,
@@ -1285,7 +1314,8 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
                     watchedEggs: ["CommonEgg", "MythicalEgg"],
                     lastSeenTimestamps: {}
-                }
+                },
+                detailedTimestamps: false  // Show HH:MM:SS format instead of H:MM AM/PM
             },
             popouts: {
                 overlays: new Map(), // Track in-game overlays
@@ -2995,6 +3025,11 @@ window.MGA_debugStorage = function() {
 
                     panel.style.display = newVisibility ? 'block' : 'none';
 
+                    // Hide any stuck tooltips when panel is toggled
+                    if (window.MGA_Tooltips && window.MGA_Tooltips.hide) {
+                        window.MGA_Tooltips.hide();
+                    }
+
                     // Save visibility state
                     UnifiedState.data.settings.panelVisible = newVisibility;
                     MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
@@ -3114,7 +3149,7 @@ window.MGA_debugStorage = function() {
                 Magic Garden Assistant
             </div>
             <div class="mga-controls">
-                <button class="mga-btn mga-btn-icon" onclick="this.closest('.mga-panel').style.display='none'">✕</button>
+                <button class="mga-btn mga-btn-icon" onclick="this.closest('.mga-panel').style.display='none'; if(window.MGA_Tooltips && window.MGA_Tooltips.hide) window.MGA_Tooltips.hide();">✕</button>
             </div>
         `;
         panel.appendChild(header);
@@ -3165,6 +3200,10 @@ window.MGA_debugStorage = function() {
             <div class="mga-tab" data-tab="settings" data-tooltip="Customize appearance and behavior">
                 <span data-icon="⚙️">⚙️ Settings</span>
                 <span class="mga-tab-popout" data-popout="settings" data-tooltip="Open settings in separate window">↗️</span>
+            </div>
+            <div class="mga-tab" data-tab="help" data-tooltip="Keyboard shortcuts and user guide">
+                <span data-icon="❓">❓ Help</span>
+                <span class="mga-tab-popout" data-popout="help" data-tooltip="Open help in separate window">↗️</span>
             </div>
         `;
 
@@ -3419,6 +3458,9 @@ window.MGA_debugStorage = function() {
             case 'settings':
                 content = getSettingsTabContent();
                 break;
+            case 'help':
+                content = getHelpTabContent();
+                break;
             default:
                 content = '<p>Tab content not available</p>';
         }
@@ -3614,6 +3656,9 @@ window.MGA_debugStorage = function() {
                         break;
                     case 'tools':
                         setupToolsTabHandlers(popoutWindow.document);
+                        break;
+                    case 'help':
+                        // Help tab doesn't need special handlers
                         break;
                 }
             } catch (error) {
@@ -3980,6 +4025,9 @@ window.MGA_debugStorage = function() {
                 break;
             case 'settings':
                 content = getSettingsTabContent();
+                break;
+            case 'help':
+                content = getHelpTabContent();
                 break;
             default:
                 content = '<p>Tab content not available</p>';
@@ -4977,6 +5025,9 @@ window.MGA_debugStorage = function() {
             case 'settings':
                 content = getSettingsTabContent();
                 break;
+            case 'help':
+                content = getHelpTabContent();
+                break;
             default:
                 content = '<p>Tab content not available</p>';
         }
@@ -5319,6 +5370,9 @@ window.MGA_debugStorage = function() {
                 contentEl.setAttribute('data-tab', 'settings'); // Enable settings-specific scrolling
                 setupSettingsTabHandlers();
                 break;
+            case 'help':
+                contentEl.innerHTML = getHelpTabContent();
+                break;
         }
     }
 
@@ -5389,18 +5443,22 @@ window.MGA_debugStorage = function() {
                 <div class="mga-section-title">Load Pet Preset</div>
         `;
 
-        // Create clickable preset cards (consistent with main HUD structure)
-        for (const [name, pets] of Object.entries(petPresets)) {
-            const petList = pets.map(p => p.petSpecies).join(', ');
-            html += `
-                <div class="mga-preset mga-preset-clickable" data-preset="${name}">
-                    <div class="mga-preset-header">
-                        <span class="mga-preset-name">${name}</span>
+        // Create clickable preset cards (consistent with main HUD structure) in order
+        ensurePresetOrder();
+        UnifiedState.data.petPresetsOrder.forEach(name => {
+            if (petPresets[name]) {
+                const pets = petPresets[name];
+                const petList = pets.map(p => p.petSpecies).join(', ');
+                html += `
+                    <div class="mga-preset mga-preset-clickable" data-preset="${name}">
+                        <div class="mga-preset-header">
+                            <span class="mga-preset-name">${name}</span>
+                        </div>
+                        <div class="mga-preset-pets">${petList}</div>
                     </div>
-                    <div class="mga-preset-pets">${petList}</div>
-                </div>
-            `;
-        }
+                `;
+            }
+        });
 
         html += `</div>`;
         console.log('🔍 [PETS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
@@ -5520,21 +5578,32 @@ window.MGA_debugStorage = function() {
                 <div id="presets-list" class="mga-scrollable mga-presets-container">
         `;
 
-        for (const [name, pets] of Object.entries(petPresets)) {
-            html += `
-                <div class="mga-preset">
-                    <div class="mga-preset-header">
-                        <span class="mga-preset-name">${name}</span>
+        // Display presets in order
+        ensurePresetOrder();
+        UnifiedState.data.petPresetsOrder.forEach(name => {
+            if (petPresets[name]) {
+                const pets = petPresets[name];
+                html += `
+                    <div class="mga-preset">
+                        <div class="mga-preset-header">
+                            <span class="mga-preset-name">${name}</span>
+                        </div>
+                        <div class="mga-preset-pets">${pets.map(p => p.petSpecies).join(', ')}</div>
+                        <div class="mga-preset-actions">
+                            <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+                                <button class="mga-btn mga-btn-sm" data-action="move-up" data-preset="${name}" style="background: #6b7280; padding: 4px 8px;">↑</button>
+                                <button class="mga-btn mga-btn-sm" data-action="move-down" data-preset="${name}" style="background: #6b7280; padding: 4px 8px;">↓</button>
+                                <button class="mga-btn mga-btn-sm" data-action="save" data-preset="${name}">Save Current</button>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button class="mga-btn mga-btn-sm" data-action="place" data-preset="${name}">Place</button>
+                                <button class="mga-btn mga-btn-sm" data-action="remove" data-preset="${name}">Remove</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mga-preset-pets">${pets.map(p => p.petSpecies).join(', ')}</div>
-                    <div class="mga-preset-actions">
-                        <button class="mga-btn mga-btn-sm" data-action="save" data-preset="${name}">Save Current</button>
-                        <button class="mga-btn mga-btn-sm" data-action="place" data-preset="${name}">Place</button>
-                        <button class="mga-btn mga-btn-sm" data-action="remove" data-preset="${name}">Remove</button>
-                    </div>
-                </div>
-            `;
-        }
+                `;
+            }
+        });
 
         html += '</div></div>';
 
@@ -5618,6 +5687,17 @@ window.MGA_debugStorage = function() {
 
             <div class="mga-section">
                 <div class="mga-section-title">Recent Ability Triggers</div>
+                <div style="margin-bottom: 8px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="detailed-timestamps-checkbox" class="mga-checkbox"
+                               ${UnifiedState.data.settings.detailedTimestamps ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>🕐 Show detailed timestamps (HH:MM:SS)</span>
+                    </label>
+                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                        When enabled, shows detailed 24-hour format timestamps instead of 12-hour format.
+                    </p>
+                </div>
                 <div id="ability-logs" class="mga-scrollable" style="max-height: 400px; overflow-y: auto;">
                     ${logs.length === 0 ? '<div style="color: #888; text-align: center; padding: 20px;">No ability logs yet. Ability logs will appear here when your pets trigger abilities in-game.</div>' : ''}
                 </div>
@@ -6005,8 +6085,214 @@ window.MGA_debugStorage = function() {
         return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
     }
 
-    // Show visual notification in game
+    // Notification queue system for batching multiple notifications
+    let notificationQueue = [];
+    let currentNotificationModal = null;
+    let notificationQueueTimer = null;
+    const NOTIFICATION_BATCH_DELAY = 2000; // 2 seconds to batch notifications
+
+    // Add notification to queue and show batched modal
+    function queueNotification(message, requiresAcknowledgment = false) {
+        notificationQueue.push({ message, requiresAcknowledgment, timestamp: Date.now() });
+
+        // Clear existing timer and start new one
+        if (notificationQueueTimer) {
+            clearTimeout(notificationQueueTimer);
+        }
+
+        // If there's already a modal open, update it immediately
+        if (currentNotificationModal) {
+            updateNotificationModal();
+            return;
+        }
+
+        // Otherwise, batch notifications for a short period
+        notificationQueueTimer = setTimeout(() => {
+            showBatchedNotificationModal();
+        }, NOTIFICATION_BATCH_DELAY);
+    }
+
+    // Update existing notification modal with new notifications
+    function updateNotificationModal() {
+        if (!currentNotificationModal) return;
+
+        const messageContainer = currentNotificationModal.querySelector('.notification-messages');
+        if (messageContainer) {
+            messageContainer.innerHTML = generateNotificationListHTML();
+        }
+
+        const countDisplay = currentNotificationModal.querySelector('.notification-count');
+        if (countDisplay) {
+            countDisplay.textContent = `${notificationQueue.length} Notification${notificationQueue.length > 1 ? 's' : ''}`;
+        }
+    }
+
+    // Generate HTML for notification list
+    function generateNotificationListHTML() {
+        return notificationQueue.map((notif, index) => `
+            <div style="margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; border-left: 3px solid #fff;">
+                <div style="font-size: 14px; margin-bottom: 5px;">${notif.message}</div>
+                <div style="font-size: 10px; opacity: 0.8;">${new Date(notif.timestamp).toLocaleTimeString()}</div>
+            </div>
+        `).join('');
+    }
+
+    // Show batched notification modal
+    function showBatchedNotificationModal() {
+        if (notificationQueue.length === 0) return;
+
+        // Ensure only one modal exists at a time - cleanup any existing modal
+        if (currentNotificationModal) {
+            dismissAllNotifications();
+            // Wait a bit for the dismiss animation to complete
+            setTimeout(() => showBatchedNotificationModal(), 350);
+            return;
+        }
+
+        const hasAcknowledgmentRequired = notificationQueue.some(n => n.requiresAcknowledgment);
+
+        // If only one notification and no acknowledgment required, use regular notification
+        if (notificationQueue.length === 1 && !hasAcknowledgmentRequired) {
+            const notif = notificationQueue[0];
+            showVisualNotification(notif.message, notif.requiresAcknowledgment);
+            notificationQueue = [];
+            return;
+        }
+
+        // Create batched modal
+        const notification = targetDocument.createElement('div');
+        notification.className = 'mga-batched-notification';
+
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255,0,0,0.2);
+            z-index: 9999999;
+            font-weight: bold;
+            animation: mga-modal-entrance 0.5s ease-out;
+            border: 3px solid #ffffff;
+            text-align: center;
+            max-width: 500px;
+            max-height: 400px;
+            overflow-y: auto;
+        `;
+
+        notification.innerHTML = `
+            <div class="notification-count" style="font-size: 20px; margin-bottom: 15px;">
+                ${notificationQueue.length} Notification${notificationQueue.length > 1 ? 's' : ''}
+            </div>
+            <div class="notification-messages" style="text-align: left; margin-bottom: 20px; max-height: 200px; overflow-y: auto;">
+                ${generateNotificationListHTML()}
+            </div>
+            <button class="acknowledge-all-btn" style="
+                background: white;
+                color: #ff0000;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 5px;
+                font-weight: bold;
+                font-size: 16px;
+                cursor: pointer;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                transition: all 0.2s;
+            ">
+                ACKNOWLEDGE ALL (${notificationQueue.length})
+            </button>
+        `;
+
+        // Add button interactivity
+        const ackButton = notification.querySelector('.acknowledge-all-btn');
+        ackButton.onmouseover = () => {
+            ackButton.style.transform = 'scale(1.05)';
+            ackButton.style.boxShadow = '0 6px 15px rgba(0,0,0,0.4)';
+        };
+        ackButton.onmouseout = () => {
+            ackButton.style.transform = 'scale(1)';
+            ackButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+        };
+        ackButton.onclick = () => {
+            dismissAllNotifications();
+        };
+
+        // Add backdrop
+        const backdrop = targetDocument.createElement('div');
+        backdrop.className = 'mga-notification-backdrop';
+        backdrop.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999998;
+            animation: fadeIn 0.3s ease-in;
+        `;
+        backdrop.onclick = () => {
+            backdrop.style.animation = 'flash 0.3s ease-in-out';
+        };
+
+        targetDocument.body.appendChild(backdrop);
+        targetDocument.body.appendChild(notification);
+
+        currentNotificationModal = notification;
+
+        // Stop continuous alarm if playing
+        stopContinuousAlarm();
+    }
+
+    // Dismiss all notifications
+    function dismissAllNotifications() {
+        stopContinuousAlarm();
+
+        if (currentNotificationModal) {
+            const backdrop = targetDocument.querySelector('.mga-notification-backdrop');
+
+            currentNotificationModal.style.animation = 'fadeOut 0.3s ease-out';
+            if (backdrop) backdrop.style.animation = 'fadeOut 0.3s ease-out';
+
+            setTimeout(() => {
+                if (currentNotificationModal) currentNotificationModal.remove();
+                if (backdrop) backdrop.remove();
+                currentNotificationModal = null;
+            }, 300);
+        }
+
+        notificationQueue = [];
+
+        if (notificationQueueTimer) {
+            clearTimeout(notificationQueueTimer);
+            notificationQueueTimer = null;
+        }
+    }
+
+    // Format timestamp based on user preference
+    function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        if (UnifiedState.data.settings.detailedTimestamps) {
+            // Return HH:MM:SS format
+            return date.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } else {
+            // Return default H:MM AM/PM format
+            return date.toLocaleTimeString();
+        }
+    }
+
+    // Show visual notification in game (legacy function, now routes through queue)
     function showVisualNotification(message, requiresAcknowledgment = false) {
+        // Ensure only one modal exists at a time for acknowledgment-required notifications
+        if (requiresAcknowledgment && currentNotificationModal) {
+            dismissAllNotifications();
+            // Wait a bit for the dismiss animation to complete
+            setTimeout(() => showVisualNotification(message, requiresAcknowledgment), 350);
+            return;
+        }
+
         const notification = targetDocument.createElement('div');
 
         if (requiresAcknowledgment) {
@@ -6024,7 +6310,7 @@ window.MGA_debugStorage = function() {
                 z-index: 9999999;
                 font-weight: bold;
                 font-size: 20px;
-                animation: pulse 0.5s ease-in-out infinite alternate;
+                animation: mga-modal-entrance 0.5s ease-out;
                 border: 3px solid #ffffff;
                 text-align: center;
                 min-width: 400px;
@@ -6083,6 +6369,12 @@ window.MGA_debugStorage = function() {
             };
             targetDocument.body.appendChild(backdrop);
 
+            // Append notification to body
+            targetDocument.body.appendChild(notification);
+
+            // Set as current modal for tracking
+            currentNotificationModal = notification;
+
             // Link backdrop removal to button click
             ackButton.onclick = () => {
                 stopContinuousAlarm();
@@ -6091,6 +6383,7 @@ window.MGA_debugStorage = function() {
                 setTimeout(() => {
                     notification.remove();
                     backdrop.remove();
+                    currentNotificationModal = null;
                 }, 300);
             };
 
@@ -6133,9 +6426,19 @@ window.MGA_debugStorage = function() {
                     from { transform: translateX(0); opacity: 1; }
                     to { transform: translateX(100%); opacity: 0; }
                 }
-                @keyframes pulse {
+                @keyframes mga-notification-pulse {
                     from { transform: translate(-50%, -50%) scale(1); }
                     to { transform: translate(-50%, -50%) scale(1.05); }
+                }
+                @keyframes mga-modal-entrance {
+                    from {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) scale(0.8);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translate(-50%, -50%) scale(1);
+                    }
                 }
                 @keyframes fadeIn {
                     from { opacity: 0; }
@@ -6167,14 +6470,30 @@ window.MGA_debugStorage = function() {
     let lastEggTimer = 999;
     let lastSeedRestock = 0;
     let lastEggRestock = 0;
-    const CHECK_INTERVAL = 5000; // Check every 5 seconds
-    const NOTIFICATION_COOLDOWN = 60000; // 1 minute between notifications for same item (reduced for testing)
+    let seedRestockNotifiedItems = new Set(); // Track items notified during current restock
+    let eggRestockNotifiedItems = new Set(); // Track items notified during current restock
+    const CHECK_INTERVAL = 2000; // Check every 2 seconds for better timing
+    const NOTIFICATION_COOLDOWN = 60000; // 60 seconds between notifications for same item to prevent duplicates
+    const RESTOCK_COOLDOWN = 30000; // 30 seconds cooldown after restock to catch all new items
 
     // Check for new watched items in shop
     function checkForWatchedItems() {
+        console.log(`🚨 [CRITICAL] checkForWatchedItems CALLED - ${new Date().toLocaleTimeString()}`);
+        console.log(`🚨 [CRITICAL] Function reached, notifications object:`, UnifiedState.data.settings?.notifications);
+        console.log(`🔔 [NOTIFICATIONS] checkForWatchedItems() called at ${new Date().toLocaleTimeString()}`);
+
+        // Add debugging to show globalShop structure
+        console.log(`🔍 [NOTIFICATIONS] globalShop structure:`, {
+            hasGlobalShop: !!targetWindow?.globalShop,
+            shopKeys: targetWindow?.globalShop ? Object.keys(targetWindow.globalShop) : 'no globalShop',
+            hasShops: !!targetWindow?.globalShop?.shops,
+            shopsKeys: targetWindow?.globalShop?.shops ? Object.keys(targetWindow.globalShop.shops) : 'no shops'
+        });
+
         const notifications = UnifiedState.data.settings.notifications;
         if (!notifications) {
             console.warn(`⚠️ [NOTIFICATIONS] No notifications settings found`);
+            console.log(`🔍 [NOTIFICATIONS] UnifiedState.data.settings structure:`, Object.keys(UnifiedState.data.settings || {}));
             return;
         }
         if (!notifications.enabled) {
@@ -6182,6 +6501,8 @@ window.MGA_debugStorage = function() {
             return;
         }
         console.log(`✅ [NOTIFICATIONS] System active - checking for watched items...`);
+        console.log(`🎯 [NOTIFICATIONS] Watched seeds: [${notifications.watchedSeeds.join(', ')}]`);
+        console.log(`🎯 [NOTIFICATIONS] Watched eggs: [${notifications.watchedEggs.join(', ')}]`);
 
         try {
             const now = Date.now();
@@ -6192,12 +6513,18 @@ window.MGA_debugStorage = function() {
 
             console.log(`🔍 [NOTIFICATIONS] Checking shops... (every ${CHECK_INTERVAL/1000}s)`);
 
-            // Get timer data
-            const quinoaData = UnifiedState.atoms.quinoaData;
-            if (!quinoaData || !quinoaData.shops) return;
+            // Get timer data - use both sources for reliability
+            const quinoaData = UnifiedState.atoms.quinoaData || targetWindow?.globalShop;
+            // Don't return early - just warn and continue
+            if (!quinoaData && !targetWindow?.globalShop) {
+                console.warn(`⚠️ [NOTIFICATIONS] No shop data available yet, will retry next tick`);
+                // Don't return - let it continue and check again next time
+            }
 
-            const seedTimer = quinoaData.shops.seed?.secondsUntilRestock || 999;
-            const eggTimer = quinoaData.shops.egg?.secondsUntilRestock || 999;
+            // Use targetWindow.globalShop as primary source, quinoaData as fallback
+            const shopData = targetWindow?.globalShop || UnifiedState.atoms.quinoaData || quinoaData;
+            const seedTimer = shopData?.shops?.seed?.secondsUntilRestock || 999;
+            const eggTimer = shopData?.shops?.egg?.secondsUntilRestock || 999;
 
             // Detect restock cycles (proper restock moment detection)
             // Fixed: Detect actual restock when timer goes from high (>10) to low (<10)
@@ -6210,6 +6537,7 @@ window.MGA_debugStorage = function() {
                 console.log(`🔄 [NOTIFICATIONS] SEED SHOP RESTOCKED! Timer: ${lastSeedTimer}→${seedTimer}`);
                 previousSeedInventory = []; // Clear for new cycle
                 previousSeedQuantities = {}; // Clear quantity tracking
+                seedRestockNotifiedItems.clear(); // Clear restock notification tracking
                 lastSeedRestock = now;
             }
 
@@ -6217,6 +6545,7 @@ window.MGA_debugStorage = function() {
                 console.log(`🔄 [NOTIFICATIONS] EGG SHOP RESTOCKED! Timer: ${lastEggTimer}→${eggTimer}`);
                 previousEggInventory = []; // Clear for new cycle
                 previousEggQuantities = {}; // Clear quantity tracking
+                eggRestockNotifiedItems.clear(); // Clear restock notification tracking
                 lastEggRestock = now;
             }
 
@@ -6229,15 +6558,32 @@ window.MGA_debugStorage = function() {
             const inStockSeeds = currentSeeds.filter(item => item.initialStock > 0);
             const currentSeedIds = inStockSeeds.map(item => item.species);
 
-            // Debug shop data access
+            // Debug shop data access - don't return early
             if (!targetWindow?.globalShop) {
                 console.warn(`⚠️ [NOTIFICATIONS] No globalShop data found on targetWindow`);
-                return;
+                console.log(`🔍 [NOTIFICATIONS] targetWindow structure:`, {
+                    hasTargetWindow: !!targetWindow,
+                    targetWindowKeys: targetWindow ? Object.keys(targetWindow) : []
+                });
+                // Don't return - continue to check if data becomes available
             }
-            if (!targetWindow.globalShop.shops) {
+            if (targetWindow?.globalShop && !targetWindow.globalShop.shops) {
                 console.warn(`⚠️ [NOTIFICATIONS] No shops data in globalShop`);
-                return;
+                console.log(`🔍 [NOTIFICATIONS] globalShop structure:`, {
+                    hasGlobalShop: !!targetWindow.globalShop,
+                    globalShopKeys: targetWindow.globalShop ? Object.keys(targetWindow.globalShop) : []
+                });
+                // Don't return - continue to check if data becomes available
             }
+
+            // Log detailed shop state every time for debugging
+            console.log(`🛒 [NOTIFICATIONS] Shop data:`, {
+                seedShopExists: !!targetWindow.globalShop.shops.seed,
+                seedInventoryLength: currentSeeds.length,
+                inStockSeedsCount: inStockSeeds.length,
+                currentSeedIds: currentSeedIds,
+                rawSeedData: currentSeeds.map(s => ({ species: s.species, stock: s.initialStock }))
+            });
 
             // Log current shop state
             if (currentSeedIds.length > 0) {
@@ -6254,6 +6600,14 @@ window.MGA_debugStorage = function() {
                 currentSeedQuantities[item.species] = item.initialStock;
             });
 
+            // Initialize previous quantities if empty (first run)
+            if (Object.keys(previousSeedQuantities).length === 0 && !seedRestocked) {
+                console.log(`🔧 [NOTIFICATIONS] Initializing previous seed quantities...`);
+                Object.keys(currentSeedQuantities).forEach(seedId => {
+                    previousSeedQuantities[seedId] = currentSeedQuantities[seedId];
+                });
+            }
+
             console.log(`🛒 [NOTIFICATIONS] Current seed quantities:`, currentSeedQuantities, `| Previous:`, previousSeedQuantities);
 
             // Find seeds with increased quantities or new items (after restock)
@@ -6261,9 +6615,26 @@ window.MGA_debugStorage = function() {
                 const oldQuantity = previousSeedQuantities[seedId] || 0;
                 const newQuantity = currentSeedQuantities[seedId];
 
-                // Trigger notification if: 1) New item appeared, 2) Quantity increased, or 3) Restock just happened
-                if (newQuantity > oldQuantity || seedRestocked) {
-                    console.log(`🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked}`);
+                // Always log each seed being processed for debugging
+                console.log(`🔍 [NOTIFICATIONS] Processing seed: ${seedId} (${oldQuantity}→${newQuantity})`);
+
+                // Determine if we should check for notification
+                const quantityIncreased = newQuantity > oldQuantity;
+                const isRestockWindow = seedRestocked && (now - lastSeedRestock) < RESTOCK_COOLDOWN;
+                const alreadyNotifiedInRestock = seedRestockNotifiedItems.has(seedId);
+
+                console.log(`🔍 [NOTIFICATIONS] ${seedId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+
+                // Only trigger notification if:
+                // 1) Quantity increased AND not in restock window, OR
+                // 2) In restock window AND item hasn't been notified in this restock cycle, OR
+                // 3) New item appears (oldQuantity was 0)
+                const shouldCheck = (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+
+                console.log(`🔍 [NOTIFICATIONS] ${seedId} shouldCheck: ${shouldCheck}`);
+
+                if (shouldCheck) {
+                    console.log(`🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked} | RestockWindow: ${isRestockWindow}`);
 
                     // Update last seen for ANY seed that appears or increases
                     updateLastSeen(seedId);
@@ -6276,27 +6647,47 @@ window.MGA_debugStorage = function() {
                         // Check cooldown (1 minute per item, but allow Carrot for testing)
                         const itemKey = `seed_${seedId}`;
                         const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
-                        const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN || seedId === 'Carrot';
+                        const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
+
+                        console.log(`🔍 [NOTIFICATIONS] ${seedId} cooldown check: lastNotified=${lastNotified}, now=${now}, diff=${now-lastNotified}, canNotify=${canNotify}`);
 
                         if (canNotify) {
                             console.log(`🎉 [NOTIFICATIONS] RARE SEED DETECTED: ${seedId} (${newQuantity} in stock)`);
                             notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+
+                            // Track that we notified this item during restock
+                            if (isRestockWindow) {
+                                seedRestockNotifiedItems.add(seedId);
+                            }
+
                             MGA_saveJSON('MGA_data', UnifiedState.data);
 
                             playSelectedNotification();
                             const requireAck = notifications.requiresAcknowledgment || notifications.notificationType === 'continuous';
-                            showVisualNotification(`🌱 Rare seed in shop: ${seedId}! (${newQuantity} available)`, requireAck);
+                            queueNotification(`🌱 Rare seed in shop: ${seedId}! (${newQuantity} available)`, requireAck);
                         } else {
                             console.log(`⏰ [NOTIFICATIONS] ${seedId} on cooldown, not notifying`);
                         }
+                    } else {
+                        console.log(`❌ [NOTIFICATIONS] ${seedId} is not watched, skipping notification`);
                     }
+                } else {
+                    console.log(`⏭️ [NOTIFICATIONS] ${seedId} shouldCheck=false, skipping`);
                 }
             });
 
+            console.log(`✅ [NOTIFICATIONS] Finished checking seeds, moving to eggs...`);
+
             // Check egg shop
-            const currentEggs = targetWindow?.globalShop?.shops?.egg?.inventory || [];
-            const inStockEggs = currentEggs.filter(item => item.initialStock > 0);
-            const currentEggIds = inStockEggs.map(item => item.eggId);
+            // Declare variables OUTSIDE try block to fix scope issue
+            let currentEggIds = [];
+            let currentEggQuantities = {};
+
+            try {
+                console.log(`🥚 [NOTIFICATIONS] === CHECKING EGG SHOP ===`);
+                const currentEggs = targetWindow?.globalShop?.shops?.egg?.inventory || [];
+                const inStockEggs = currentEggs.filter(item => item.initialStock > 0);
+                currentEggIds = inStockEggs.map(item => item.eggId);
 
             // Always log current egg state for debugging (like seeds)
             console.log(`🥚 [NOTIFICATIONS] Current eggs in shop: [${currentEggIds.join(', ')}] | Previous: [${previousEggInventory.join(', ')}]`);
@@ -6314,10 +6705,18 @@ window.MGA_debugStorage = function() {
             }
 
             // Track egg quantities (FIXED APPROACH)
-            const currentEggQuantities = {};
+            // Use the variable declared outside try block
             inStockEggs.forEach(item => {
                 currentEggQuantities[item.eggId] = item.initialStock;
             });
+
+            // Initialize previous quantities if empty (first run)
+            if (Object.keys(previousEggQuantities).length === 0 && !eggRestocked) {
+                console.log(`🔧 [NOTIFICATIONS] Initializing previous egg quantities...`);
+                Object.keys(currentEggQuantities).forEach(eggId => {
+                    previousEggQuantities[eggId] = currentEggQuantities[eggId];
+                });
+            }
 
             console.log(`🥚 [NOTIFICATIONS] Current egg quantities:`, currentEggQuantities, `| Previous:`, previousEggQuantities);
 
@@ -6326,9 +6725,26 @@ window.MGA_debugStorage = function() {
                 const oldQuantity = previousEggQuantities[eggId] || 0;
                 const newQuantity = currentEggQuantities[eggId];
 
-                // Trigger notification if: 1) New item appeared, 2) Quantity increased, or 3) Restock just happened
-                if (newQuantity > oldQuantity || eggRestocked) {
-                    console.log(`🆕 [NOTIFICATIONS] Egg stock change: ${eggId} (${oldQuantity}→${newQuantity}) | Restock: ${eggRestocked}`);
+                // Always log each egg being processed for debugging (like seeds)
+                console.log(`🔍 [NOTIFICATIONS] Processing egg: ${eggId} (${oldQuantity}→${newQuantity})`);
+
+                // Determine if we should check for notification
+                const quantityIncreased = newQuantity > oldQuantity;
+                const isRestockWindow = eggRestocked && (now - lastEggRestock) < RESTOCK_COOLDOWN;
+                const alreadyNotifiedInRestock = eggRestockNotifiedItems.has(eggId);
+
+                console.log(`🔍 [NOTIFICATIONS] ${eggId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+
+                // Only trigger notification if:
+                // 1) Quantity increased AND not in restock window, OR
+                // 2) In restock window AND item hasn't been notified in this restock cycle, OR
+                // 3) New item appears (oldQuantity was 0)
+                const shouldCheck = (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+
+                console.log(`🔍 [NOTIFICATIONS] ${eggId} shouldCheck: ${shouldCheck}`);
+
+                if (shouldCheck) {
+                    console.log(`🆕 [NOTIFICATIONS] Egg stock change: ${eggId} (${oldQuantity}→${newQuantity}) | Restock: ${eggRestocked} | RestockWindow: ${isRestockWindow}`);
 
                     // Update last seen for ANY egg that appears or increases
                     updateLastSeen(eggId);
@@ -6341,32 +6757,149 @@ window.MGA_debugStorage = function() {
                         // Check cooldown (1 minute per item, allow MythicalEgg/CommonEgg for testing)
                         const itemKey = `egg_${eggId}`;
                         const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
-                        const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN || eggId === 'MythicalEgg' || eggId === 'CommonEgg';
+                        const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
 
                         if (canNotify) {
                             console.log(`🎉 [NOTIFICATIONS] RARE EGG DETECTED: ${eggId} (${newQuantity} in stock)`);
                             notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+
+                            // Track that we notified this item during restock
+                            if (isRestockWindow) {
+                                eggRestockNotifiedItems.add(eggId);
+                            }
+
                             MGA_saveJSON('MGA_data', UnifiedState.data);
 
                             playSelectedNotification();
                             const requireAck = notifications.requiresAcknowledgment || notifications.notificationType === 'continuous';
-                            showVisualNotification(`🥚 Rare egg in shop: ${eggId}! (${newQuantity} available)`, requireAck);
+                            queueNotification(`🥚 Rare egg in shop: ${eggId}! (${newQuantity} available)`, requireAck);
                         } else {
                             console.log(`⏰ [NOTIFICATIONS] ${eggId} on cooldown, not notifying`);
                         }
+                    } else {
+                        console.log(`❌ [NOTIFICATIONS] ${eggId} is not watched, skipping notification`);
                     }
+                } else {
+                    console.log(`⏭️ [NOTIFICATIONS] ${eggId} shouldCheck=false, skipping`);
                 }
             });
 
-            // Update previous inventory and quantities
-            previousSeedInventory = currentSeedIds;
-            previousEggInventory = currentEggIds;
-            previousSeedQuantities = currentSeedQuantities;
-            previousEggQuantities = currentEggQuantities;
+            console.log(`✅ [NOTIFICATIONS] Finished checking all eggs`);
+
+                // Update egg inventory and quantities INSIDE try block
+                // CRITICAL FIX: Create copies instead of reference assignment
+                previousEggInventory = [...currentEggIds];
+                previousEggQuantities = {...currentEggQuantities};
+
+            } catch (eggError) {
+                console.error(`❌ [NOTIFICATIONS] Error checking eggs:`, eggError);
+            }
+
+            // Update previous seed inventory and quantities (seeds already succeeded if we got here)
+            // CRITICAL FIX: Create copies instead of reference assignment
+            previousSeedInventory = [...currentSeedIds];
+            previousSeedQuantities = {...currentSeedQuantities};
 
         } catch (error) {
             console.error('❌ [NOTIFICATIONS] Error checking for watched items:', error);
+            console.error('Stack trace:', error.stack);
+            // Don't let errors stop the notification system - it will try again next interval
         }
+    }
+
+    function getHelpTabContent() {
+        return `
+            <div class="mga-section">
+                <div class="mga-section-title">🚀 Getting Started</div>
+                <div style="margin-bottom: 16px;">
+                    <p style="margin-bottom: 8px;"><strong>Magic Garden Assistant</strong> is a comprehensive tool to help you manage your pets, track abilities, automate seed management, and monitor resources.</p>
+                    <p style="margin-bottom: 8px;">Each tab provides different functionality - explore them using the navigation above or keyboard shortcuts below.</p>
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">⌨️ Keyboard Shortcuts</div>
+                <div class="mga-help-grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-bottom: 16px;">
+                    <div style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <strong>Panel Control:</strong>
+                    </div>
+                    <div style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <code>Ctrl+M</code> - Toggle panel open/close<br>
+                        <span style="opacity: 0.8;">💡 Tip: The blue icon is draggable</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🐾 Pet Management</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Save Presets:</strong> Store your current pet setup with a custom name</li>
+                    <li style="margin-bottom: 4px;"><strong>Load Presets:</strong> Quickly deploy saved pet configurations</li>
+                    <li style="margin-bottom: 4px;"><strong>Reorder Presets:</strong> Use ↑↓ arrows or drag-and-drop to organize your preset list</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">⚡ Ability Tracking</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Automatic Logging:</strong> All pet abilities are tracked automatically</li>
+                    <li style="margin-bottom: 4px;"><strong>Filter by Category:</strong> View specific types of abilities (XP, Selling, etc.)</li>
+                    <li style="margin-bottom: 4px;"><strong>Filter by Pet:</strong> See abilities from specific pet species</li>
+                    <li style="margin-bottom: 4px;"><strong>Detailed Timestamps:</strong> Enable to show HH:MM:SS format timestamps</li>
+                    <li style="margin-bottom: 4px;"><strong>Export Data:</strong> Download ability logs as CSV for analysis</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🌱 Seeds & Automation</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Mass Deletion:</strong> Select multiple seed types for bulk deletion</li>
+                    <li style="margin-bottom: 4px;"><strong>Auto-Delete:</strong> Automatically remove unwanted seeds as they appear</li>
+                    <li style="margin-bottom: 4px;"><strong>Value Calculation:</strong> See total value of selected seeds before deletion</li>
+                    <li style="margin-bottom: 4px;"><strong>Quick Selection:</strong> Use preset buttons for common seed types</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🔔 Notifications</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Shop Monitoring:</strong> Get alerts when rare seeds/eggs appear</li>
+                    <li style="margin-bottom: 4px;"><strong>Multiple Notifications:</strong> Single click dismisses all pending alerts</li>
+                    <li style="margin-bottom: 4px;"><strong>Continuous Mode:</strong> Must be enabled via checkbox for persistent alerts</li>
+                    <li style="margin-bottom: 4px;"><strong>Sound Types:</strong> Choose from beep, alarm, fanfare, or continuous alerts</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🎨 Customization</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Themes:</strong> Switch between normal, dark, and other visual themes</li>
+                    <li style="margin-bottom: 4px;"><strong>Compact Modes:</strong> Use compact or ultra-compact layouts to save space</li>
+                    <li style="margin-bottom: 4px;"><strong>Overlays:</strong> Pop out tabs into separate in-game overlays</li>
+                    <li style="margin-bottom: 4px;"><strong>Crop Highlighting:</strong> Visually highlight specific crops in your garden</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">❓ Troubleshooting</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Crop Highlighting Not Working:</strong> Ensure the game is fully loaded before using highlighting</li>
+                    <li style="margin-bottom: 4px;"><strong>Notifications Not Playing:</strong> Check volume settings and browser audio permissions</li>
+                    <li style="margin-bottom: 4px;"><strong>Pet Presets Not Saving:</strong> Wait for success confirmation before switching tabs</li>
+                    <li style="margin-bottom: 4px;"><strong>Performance Issues:</strong> Try compact mode or disable debug logging in settings</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">💡 Tips & Best Practices</div>
+                <ul style="margin-left: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Regular Backups:</strong> Export ability logs periodically for data safety</li>
+                    <li style="margin-bottom: 4px;"><strong>Preset Organization:</strong> Use descriptive names and reorder presets by frequency of use</li>
+                    <li style="margin-bottom: 4px;"><strong>Notification Management:</strong> Enable continuous mode only for critical alerts</li>
+                    <li style="margin-bottom: 4px;"><strong>Resource Monitoring:</strong> Use the Values tab to track inventory and garden worth</li>
+                </ul>
+            </div>
+        `;
     }
 
     function getSettingsTabContent() {
@@ -6711,6 +7244,36 @@ window.MGA_debugStorage = function() {
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
                             <span>⭐ Starweaver</span>
                         </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-pepper" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Pepper') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌶️ Pepper</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-lemon" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Lemon') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍋 Lemon</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-passionfruit" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('PassionFruit') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🧡 PassionFruit</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-dragonfruit" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('DragonFruit') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🐉 DragonFruit</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-lychee" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Lychee') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍇 Lychee</span>
+                        </label>
                     </div>
                 </div>
 
@@ -6840,6 +7403,97 @@ window.MGA_debugStorage = function() {
         }
     }
 
+    // Initialize preset order array if not exists
+    function ensurePresetOrder() {
+        if (!UnifiedState.data.petPresetsOrder || !Array.isArray(UnifiedState.data.petPresetsOrder)) {
+            UnifiedState.data.petPresetsOrder = Object.keys(UnifiedState.data.petPresets);
+        } else {
+            // Ensure all existing presets are in the order array
+            Object.keys(UnifiedState.data.petPresets).forEach(name => {
+                if (!UnifiedState.data.petPresetsOrder.includes(name)) {
+                    UnifiedState.data.petPresetsOrder.push(name);
+                }
+            });
+            // Remove any presets from order array that no longer exist
+            UnifiedState.data.petPresetsOrder = UnifiedState.data.petPresetsOrder.filter(name =>
+                UnifiedState.data.petPresets.hasOwnProperty(name)
+            );
+        }
+    }
+
+    // Move preset up or down in the order
+    function movePreset(presetName, direction, context) {
+        console.log(`🚨 [CRITICAL] movePreset called: ${presetName} ${direction}`);
+        console.log(`🚨 [CRITICAL] Current order:`, UnifiedState.data.petPresetsOrder);
+        ensurePresetOrder();
+        const currentIndex = UnifiedState.data.petPresetsOrder.indexOf(presetName);
+
+        if (currentIndex === -1) return;
+
+        let newIndex;
+        if (direction === 'up' && currentIndex > 0) {
+            newIndex = currentIndex - 1;
+        } else if (direction === 'down' && currentIndex < UnifiedState.data.petPresetsOrder.length - 1) {
+            newIndex = currentIndex + 1;
+        } else {
+            return; // Can't move
+        }
+
+        // Swap elements
+        const temp = UnifiedState.data.petPresetsOrder[currentIndex];
+        UnifiedState.data.petPresetsOrder[currentIndex] = UnifiedState.data.petPresetsOrder[newIndex];
+        UnifiedState.data.petPresetsOrder[newIndex] = temp;
+
+        // Save the new order
+        MGA_saveJSON('MGA_petPresetsOrder', UnifiedState.data.petPresetsOrder);
+
+        // Force UI refresh after reorder
+        console.log(`🚨 [CRITICAL] Order after swap:`, UnifiedState.data.petPresetsOrder);
+
+        // Refresh the preset list display
+        refreshPresetsList(context);
+
+        // Also update main tab content if needed
+        if (UnifiedState.activeTab === 'pets') {
+            updateTabContent();
+        }
+
+        console.log(`📋 [PET-PRESETS] Moved preset "${presetName}" ${direction}`);
+    }
+
+    // Refresh the presets list with new order
+    // Helper function for drag and drop positioning
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.mga-preset:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function refreshPresetsList(context) {
+        const presetsList = context.querySelector('#presets-list');
+        if (!presetsList) return;
+
+        // Clear current list
+        presetsList.innerHTML = '';
+
+        // Re-add presets in order
+        ensurePresetOrder();
+        UnifiedState.data.petPresetsOrder.forEach(name => {
+            if (UnifiedState.data.petPresets[name]) {
+                addPresetToList(context, name, UnifiedState.data.petPresets[name]);
+            }
+        });
+    }
+
     function addPresetToList(context, name, preset) {
         const presetsList = context.querySelector('#presets-list');
         if (!presetsList) return;
@@ -6847,17 +7501,59 @@ window.MGA_debugStorage = function() {
         // Create new preset element
         const presetDiv = targetDocument.createElement('div');
         presetDiv.className = 'mga-preset';
+        presetDiv.draggable = true;
+        presetDiv.dataset.presetName = name;
         presetDiv.innerHTML = `
-            <div class="mga-preset-header">
-                <span class="mga-preset-name">${name}</span>
+            <div class="mga-preset-header" style="cursor: move;">
+                <span class="mga-preset-name">⋮⋮ ${name}</span>
             </div>
             <div class="mga-preset-pets">${preset.map(p => p.petSpecies).join(', ')}</div>
             <div class="mga-preset-actions">
-                <button class="mga-btn mga-btn-sm" data-action="save" data-preset="${name}">Save Current</button>
-                <button class="mga-btn mga-btn-sm" data-action="place" data-preset="${name}">Place</button>
-                <button class="mga-btn mga-btn-sm" data-action="remove" data-preset="${name}">Remove</button>
+                <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+                    <button class="mga-btn mga-btn-sm" data-action="move-up" data-preset="${name}" style="background: #6b7280; padding: 4px 8px;">↑</button>
+                    <button class="mga-btn mga-btn-sm" data-action="move-down" data-preset="${name}" style="background: #6b7280; padding: 4px 8px;">↓</button>
+                    <button class="mga-btn mga-btn-sm" data-action="save" data-preset="${name}">Save Current</button>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                    <button class="mga-btn mga-btn-sm" data-action="place" data-preset="${name}">Place</button>
+                    <button class="mga-btn mga-btn-sm" data-action="remove" data-preset="${name}">Remove</button>
+                </div>
             </div>
         `;
+
+        // Add drag-and-drop handlers
+        presetDiv.addEventListener('dragstart', (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', name);
+            presetDiv.style.opacity = '0.5';
+        });
+
+        presetDiv.addEventListener('dragend', (e) => {
+            presetDiv.style.opacity = '';
+        });
+
+        presetDiv.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const afterElement = getDragAfterElement(presetsList, e.clientY);
+            if (afterElement == null) {
+                presetsList.appendChild(presetDiv);
+            } else {
+                presetsList.insertBefore(presetDiv, afterElement);
+            }
+        });
+
+        presetDiv.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const draggedPresetName = e.dataTransfer.getData('text/plain');
+            if (draggedPresetName && draggedPresetName !== name) {
+                // Update order array based on current DOM order
+                const newOrder = Array.from(presetsList.children).map(el => el.dataset.presetName).filter(Boolean);
+                UnifiedState.data.petPresetsOrder = newOrder;
+                MGA_saveJSON('MGA_petPresetsOrder', UnifiedState.data.petPresetsOrder);
+                refreshPresetsList(context);
+            }
+        });
 
         // Add event handlers to new buttons
         presetDiv.querySelectorAll('[data-action]').forEach(btn => {
@@ -6921,6 +7617,14 @@ window.MGA_debugStorage = function() {
                 } else if (action === 'remove') {
                     delete UnifiedState.data.petPresets[presetName];
 
+                    // Remove from order array
+                    ensurePresetOrder();
+                    const orderIndex = UnifiedState.data.petPresetsOrder.indexOf(presetName);
+                    if (orderIndex !== -1) {
+                        UnifiedState.data.petPresetsOrder.splice(orderIndex, 1);
+                        MGA_saveJSON('MGA_petPresetsOrder', UnifiedState.data.petPresetsOrder);
+                    }
+
                     // Use safe save for critical pet preset removal
                     const result = MGA_safeSave('MGA_petPresets', UnifiedState.data.petPresets, {
                         description: `pet preset deletion "${presetName}"`,
@@ -6935,10 +7639,20 @@ window.MGA_debugStorage = function() {
                         console.error(`❌ [PET-PRESETS] Failed to remove preset "${presetName}":`, result.error);
                         // Restore the preset in memory since save failed
                         UnifiedState.data.petPresets[presetName] = UnifiedState.data.petPresets[presetName] || [];
+                        // Also restore to order array
+                        if (orderIndex !== -1 && !UnifiedState.data.petPresetsOrder.includes(presetName)) {
+                            UnifiedState.data.petPresetsOrder.splice(orderIndex, 0, presetName);
+                        }
                     }
                     updatePetPresetDropdown(context);
                     refreshSeparateWindowPopouts('pets');
                     debugLog('BUTTON_INTERACTIONS', `Removed preset: ${presetName} (from added element)`);
+                } else if (action === 'move-up') {
+                    console.log(`🚨 [CRITICAL] Move up button clicked for ${presetName}`);
+                    movePreset(presetName, 'up', context);
+                } else if (action === 'move-down') {
+                    console.log(`🚨 [CRITICAL] Move down button clicked for ${presetName}`);
+                    movePreset(presetName, 'down', context);
                 }
             });
         });
@@ -6949,6 +7663,60 @@ window.MGA_debugStorage = function() {
 
     // ==================== EVENT HANDLERS ====================
     function setupPetsTabHandlers(context = document) {
+        console.log('🚨 [CRITICAL] Setting up pet preset handlers');
+
+        // Use event delegation on the parent container for all preset buttons
+        const presetsContainer = context.querySelector('#presets-list');
+        if (presetsContainer) {
+            console.log('🚨 [CRITICAL] Found presets container, adding delegation');
+
+            // Remove old listener if it exists
+            if (presetsContainer._mgaClickHandler) {
+                presetsContainer.removeEventListener('click', presetsContainer._mgaClickHandler);
+            }
+
+            // Create new handler
+            presetsContainer._mgaClickHandler = (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const action = btn.dataset.action;
+                const presetName = btn.dataset.preset;
+
+                console.log(`🚨 [CRITICAL] Delegated click: action=${action}, preset=${presetName}`);
+
+                if (action === 'move-up') {
+                    console.log(`🚨 [CRITICAL] Moving ${presetName} UP`);
+                    movePreset(presetName, 'up', context);
+                } else if (action === 'move-down') {
+                    console.log(`🚨 [CRITICAL] Moving ${presetName} DOWN`);
+                    movePreset(presetName, 'down', context);
+                } else if (action === 'save') {
+                    console.log(`🚨 [CRITICAL] Saving preset ${presetName}`);
+                    UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    refreshPresetsList(context);
+                } else if (action === 'place') {
+                    console.log(`🚨 [CRITICAL] Placing preset ${presetName}`);
+                    placePetPreset(presetName);
+                } else if (action === 'remove') {
+                    console.log(`🚨 [CRITICAL] Removing preset ${presetName}`);
+                    delete UnifiedState.data.petPresets[presetName];
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    refreshPresetsList(context);
+                }
+            };
+
+            // Add the handler
+            presetsContainer.addEventListener('click', presetsContainer._mgaClickHandler);
+            console.log('🚨 [CRITICAL] Event delegation handler attached successfully');
+        } else {
+            console.log('🚨 [CRITICAL] ERROR: presets container not found!')
+        }
+
         const input = context.querySelector('#preset-name-input');
         if (input) {
             // Comprehensive input isolation to prevent game key interference and modal detection
@@ -7105,8 +7873,15 @@ window.MGA_debugStorage = function() {
                     MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                     input.value = ''; // Clear input after successful add
 
-                    // Add new preset to list without full refresh
-                    addPresetToList(context, name, UnifiedState.data.petPresets[name]);
+                    // Add preset name to order array
+                    ensurePresetOrder();
+                    if (!UnifiedState.data.petPresetsOrder.includes(name)) {
+                        UnifiedState.data.petPresetsOrder.push(name);
+                        MGA_saveJSON('MGA_petPresetsOrder', UnifiedState.data.petPresetsOrder);
+                    }
+
+                    // Refresh preset list to show in correct order
+                    refreshPresetsList(context);
 
                     // Update dropdown
                     updatePetPresetDropdown(context);
@@ -7408,7 +8183,7 @@ window.MGA_debugStorage = function() {
         } else {
             abilityLogs.innerHTML = logs.map(log =>
                 `<div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                    <div style="font-size: 11px; color: #4a9eff;">${new Date(log.timestamp).toLocaleTimeString()}</div>
+                    <div style="font-size: 11px; color: #4a9eff;">${formatTimestamp(log.timestamp)}</div>
                     <div style="color: #e5e7eb;">${log.ability} - ${log.petName}</div>
                 </div>`
             ).join('');
@@ -7528,6 +8303,20 @@ window.MGA_debugStorage = function() {
             exportLogsBtn.setAttribute('data-handler-setup', 'true');
             exportLogsBtn.addEventListener('click', () => {
                 exportAbilityLogs();
+            });
+        }
+
+        // Detailed timestamps checkbox
+        const detailedTimestampsCheckbox = context.querySelector('#detailed-timestamps-checkbox');
+        if (detailedTimestampsCheckbox && !detailedTimestampsCheckbox.hasAttribute('data-handler-setup')) {
+            detailedTimestampsCheckbox.setAttribute('data-handler-setup', 'true');
+            detailedTimestampsCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.detailedTimestamps = e.target.checked;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                // Update all ability log displays to use new timestamp format
+                updateAllAbilityLogDisplays();
+                console.log(`🕐 [ABILITIES] Detailed timestamps: ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
         }
 
@@ -8612,7 +9401,7 @@ window.MGA_debugStorage = function() {
             testNotificationBtn.addEventListener('click', () => {
                 const notifications = UnifiedState.data.settings.notifications;
                 playSelectedNotification();
-                showVisualNotification('🔔 Test notification - This is how alerts will look!', notifications.requiresAcknowledgment);
+                queueNotification('🔔 Test notification - This is how alerts will look!', notifications.requiresAcknowledgment);
                 console.log(`🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`);
             });
         }
@@ -8623,7 +9412,12 @@ window.MGA_debugStorage = function() {
             'watch-sunflower': 'Sunflower',
             'watch-moonbinder': 'Moonbinder',
             'watch-dawnbinder': 'Dawnbinder',
-            'watch-starweaver': 'Starweaver'
+            'watch-starweaver': 'Starweaver',
+            'watch-pepper': 'Pepper',
+            'watch-lemon': 'Lemon',
+            'watch-passionfruit': 'PassionFruit',
+            'watch-dragonfruit': 'DragonFruit',
+            'watch-lychee': 'Lychee'
         };
 
         Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
@@ -9132,11 +9926,15 @@ window.MGA_debugStorage = function() {
         try {
             if (typeof window.removeAllTileOverrides === 'function') {
                 window.removeAllTileOverrides();
-                console.log('🌱 Cleared all crop highlighting');
+                productionLog('🌱 Cleared all crop highlighting');
+                queueNotification('🧹 Cleared all crop highlighting', false);
                 debugLog('CROP_HIGHLIGHTING', 'Cleared all tile overrides');
+                return true;
             } else {
-                console.warn('🌱 removeAllTileOverrides function not available');
+                productionWarn('🌱 removeAllTileOverrides function not available');
+                queueNotification('⚠️ Cannot clear highlighting - game not fully loaded', false);
                 debugLog('CROP_HIGHLIGHTING', 'removeAllTileOverrides function not found in window object');
+                return false;
             }
         } catch (error) {
             debugError('CROP_HIGHLIGHTING', 'Failed to clear crop highlighting', error);
@@ -9177,9 +9975,9 @@ window.MGA_debugStorage = function() {
         console.log('    setTileSpecies:', typeof window.setTileSpecies);
     }
 
-    // Improved manual highlighting with better debugging
+    // Improved manual highlighting with better debugging and error handling
     function applyCropHighlightingWithDebug() {
-        console.log('🌱 Starting crop highlighting...');
+        productionLog('🌱 Starting crop highlighting...');
         debugCropHighlighting();
 
         try {
@@ -9189,18 +9987,34 @@ window.MGA_debugStorage = function() {
             const hiddenSpecies = targetDocument.querySelector('#hidden-species-select')?.value || 'Carrot';
             const hiddenScale = parseFloat(targetDocument.querySelector('#hidden-scale-input')?.value || '0.1');
 
-            console.log('🌱 Settings:', { highlightSpecies, slotIndex, hiddenSpecies, hiddenScale });
+            productionLog('🌱 Settings:', { highlightSpecies, slotIndex, hiddenSpecies, hiddenScale });
 
             // Validate inputs
             if (!highlightSpecies) {
-                console.warn('🌱 No species selected for highlighting');
-                return;
+                productionWarn('🌱 No species selected for highlighting');
+                queueNotification('⚠️ Please select a species to highlight first', false);
+                return false;
+            }
+
+            // Check if required game functions are available
+            const hasRemoveOverrides = typeof window.removeAllTileOverrides === 'function';
+            const hasHighlightFunction = typeof window.highlightTilesByMutation === 'function';
+
+            productionLog('🌱 Function availability:', {
+                removeAllTileOverrides: hasRemoveOverrides,
+                highlightTilesByMutation: hasHighlightFunction
+            });
+
+            if (!hasHighlightFunction) {
+                productionWarn('🌱 Crop highlighting function not available - game may not be loaded yet');
+                queueNotification('⚠️ Crop highlighting not available - try again when fully loaded', false);
+                return false;
             }
 
             // Always clear previous highlights first
-            if (typeof window.removeAllTileOverrides === 'function') {
+            if (hasRemoveOverrides) {
                 window.removeAllTileOverrides();
-                console.log('🌱 Cleared previous highlights');
+                productionLog('🌱 Cleared previous highlights');
             }
 
             // Apply new highlighting with array format
@@ -9213,27 +10027,34 @@ window.MGA_debugStorage = function() {
                 hiddenScale: hiddenScale
             };
 
-            console.log('🌱 Applying config:', config);
+            productionLog('🌱 Applying config:', config);
 
-            if (typeof window.highlightTilesByMutation === 'function') {
+            try {
                 window.highlightTilesByMutation(config);
-                console.log(`✅ Applied crop highlighting for ${highlightSpecies} (slot ${slotIndex})`);
+                productionLog(`✅ Applied crop highlighting for ${highlightSpecies} (slot ${slotIndex})`);
+                queueNotification(`🌱 Highlighted all ${highlightSpecies} crops (slot ${slotIndex})`, false);
 
                 // Force a re-render by triggering a small change
                 setTimeout(() => {
-                    console.log('🔄 Forcing render update...');
+                    productionLog('🔄 Forcing render update...');
                     try {
                         globalThis.dispatchEvent?.(new Event("visibilitychange"));
                     } catch (e) {
-                        console.log('Could not dispatch visibility change');
+                        productionLog('Could not dispatch visibility change:', e);
                     }
                 }, 100);
 
-            } else {
-                console.error('❌ highlightTilesByMutation function not available');
+                return true;
+            } catch (highlightError) {
+                productionError('🌱 Error during highlighting:', highlightError);
+                queueNotification(`❌ Crop highlighting failed: ${highlightError.message}`, false);
+                return false;
             }
+
         } catch (error) {
-            console.error('❌ Failed to apply crop highlighting:', error);
+            productionError('❌ Failed to apply crop highlighting:', error);
+            queueNotification(`❌ Crop highlighting system error: ${error.message}`, false);
+            return false;
         }
     }
 
@@ -10043,11 +10864,14 @@ window.MGA_debugStorage = function() {
 
             UnifiedState.data.lastAbilityTimestamps[pet.id] = currentTimestamp;
 
+            // Save ability timestamps to prevent duplicate logging after refresh
+            MGA_debouncedSave('MGA_lastAbilityTimestamps', UnifiedState.data.lastAbilityTimestamps);
+
             const abilityLog = {
                 petName: pet.petSpecies || `Pet ${index + 1}`,
                 abilityType: trigger.abilityId || 'Unknown Ability',
                 timestamp: currentTimestamp,
-                timeString: new Date(currentTimestamp).toLocaleTimeString(),
+                timeString: formatTimestamp(currentTimestamp),
                 data: trigger.data || null
             };
 
@@ -10825,8 +11649,7 @@ window.MGA_debugStorage = function() {
         const lunarResult = getSecondsToNextLunarEvent();
         UnifiedState.data.timers.lunar = lunarResult.secondsLeft;
 
-        // Check for new watched items in shop (notifications)
-        checkForWatchedItems();
+        // Note: checkForWatchedItems() now runs on its own 5-second interval
 
         // Always update timer display (needed for pop-out windows to work independently)
         updateTimerDisplay();
@@ -11117,11 +11940,11 @@ window.MGA_debugStorage = function() {
             }
         );
 
-        // Hook #2: Pet ABILITY data (keep existing for ability logs)
+        // Hook #2: Pet ABILITY data (for ability logs - monitoring handled by timer only)
         hookAtom(
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myPetSlotInfosAtom",
             "petAbility",
-            () => monitorPetAbilities()
+            null // Removed duplicate monitorPetAbilities() call to prevent double logging
         );
 
         // Hook inventory
@@ -11226,6 +12049,11 @@ window.MGA_debugStorage = function() {
         console.log('📦 [STORAGE] Loading pet presets, found:', Object.keys(UnifiedState.data.petPresets).length);
         console.log('🔍 [STORAGE-DEBUG] Pet presets type check:', typeof UnifiedState.data.petPresets, 'keys:', Object.keys(UnifiedState.data.petPresets || {}));
 
+        // Load pet presets order (for reordering feature)
+        UnifiedState.data.petPresetsOrder = MGA_loadJSON('MGA_petPresetsOrder', []);
+        ensurePresetOrder(); // Initialize order if needed
+        console.log('📦 [STORAGE] Pet presets order initialized:', UnifiedState.data.petPresetsOrder.length, 'items');
+
         // Verify presets loaded correctly
         if (Object.keys(UnifiedState.data.petPresets).length > 0) {
             console.log('✅ [STORAGE-VERIFY] Pet presets loaded successfully:', Object.keys(UnifiedState.data.petPresets));
@@ -11277,7 +12105,8 @@ window.MGA_debugStorage = function() {
                 watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
                 watchedEggs: ["CommonEgg", "MythicalEgg"],
                 lastSeenTimestamps: {}
-            }
+            },
+            detailedTimestamps: false  // Show HH:MM:SS format instead of H:MM AM/PM
         });
 
         // Ensure notifications object exists for existing users
@@ -11303,6 +12132,9 @@ window.MGA_debugStorage = function() {
             }
             if (UnifiedState.data.settings.notifications.continuousEnabled === undefined) {
                 UnifiedState.data.settings.notifications.continuousEnabled = false;
+            }
+            if (UnifiedState.data.settings.detailedTimestamps === undefined) {
+                UnifiedState.data.settings.detailedTimestamps = false;
             }
             MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
         }
@@ -11371,8 +12203,16 @@ window.MGA_debugStorage = function() {
             }
         }, 1000);
 
-        // Reset ability tracking on each initialization to fix reconnection issues
-        UnifiedState.data.lastAbilityTimestamps = {};
+        // Load persisted ability timestamps to prevent duplicate logging after refresh
+        UnifiedState.data.lastAbilityTimestamps = MGA_loadJSON('MGA_lastAbilityTimestamps', {});
+
+        // Clean up old ability timestamps (keep only last 24 hours to prevent memory bloat)
+        const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        Object.keys(UnifiedState.data.lastAbilityTimestamps).forEach(petId => {
+            if (UnifiedState.data.lastAbilityTimestamps[petId] < dayAgo) {
+                delete UnifiedState.data.lastAbilityTimestamps[petId];
+            }
+        });
 
         // ==================== STORAGE LOADING SUMMARY ====================
         console.log('📊 [STORAGE-SUMMARY] Data loading complete:', {
@@ -11432,17 +12272,31 @@ window.MGA_debugStorage = function() {
     }
 
     function startIntervals() {
+        console.log('🚨🚨🚨 [CRITICAL] startIntervals() CALLED 🚨🚨🚨');
+
         // Initialize the enhanced TimerManager
         const timerManager = initializeTimerManager();
 
-        // Monitor abilities every 500ms using TimerManager
-        timerManager.startTimer('abilities', () => monitorPetAbilities(), 500);
+        // Monitor abilities every 500ms using simple setInterval (not TimerManager)
+        console.log('🚨 [CRITICAL] Setting up ability monitoring timer...');
+        setInterval(() => {
+            monitorPetAbilities();
+        }, 500);
+        console.log('🚨 [CRITICAL] Ability monitoring started with simple setInterval (500ms)');
 
         // Update timers every second using TimerManager
         timerManager.startTimer('timers', () => updateTimers(), 1000);
 
         // Update values every 2 seconds using TimerManager
         timerManager.startTimer('values', () => updateValues(), 2000);
+
+        // Simple notification timer - no complex TimerManager
+        console.log('🚨 [CRITICAL] Setting up simple notification timer...');
+        setInterval(() => {
+            console.log('🚨 [CRITICAL] Notification interval tick');
+            checkForWatchedItems();
+        }, 2000); // Check every 2 seconds for better restock detection
+        console.log('🚨 [CRITICAL] Notification timer started with simple setInterval');
 
         debugLog('INTERVALS', 'All intervals started with TimerManager', {
             timerCount: timerManager.activeTimers.size,
@@ -11823,6 +12677,12 @@ window.MGA_debugStorage = function() {
                 if (panel) {
                     const isVisible = panel.style.display !== 'none';
                     panel.style.display = isVisible ? 'none' : 'block';
+
+                    // Hide any stuck tooltips when panel is toggled via keyboard
+                    if (window.MGA_Tooltips && window.MGA_Tooltips.hide) {
+                        window.MGA_Tooltips.hide();
+                    }
+
                     UnifiedState.data.settings.panelVisible = !isVisible;
                     console.log(`🎮 MGA Keyboard shortcut: Panel ${isVisible ? 'hidden' : 'shown'}`);
                 }
