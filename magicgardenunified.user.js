@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.8.9
+// @version      1.9.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -6663,8 +6663,7 @@ window.MGA_debugStorage = function() {
                             MGA_saveJSON('MGA_data', UnifiedState.data);
 
                             playSelectedNotification();
-                            const requireAck = notifications.requiresAcknowledgment || notifications.notificationType === 'continuous';
-                            queueNotification(`🌱 Rare seed in shop: ${seedId}! (${newQuantity} available)`, requireAck);
+                            queueNotification(`🌱 Rare seed in shop: ${seedId}! (${newQuantity} available)`, notifications.requiresAcknowledgment);
                         } else {
                             console.log(`⏰ [NOTIFICATIONS] ${seedId} on cooldown, not notifying`);
                         }
@@ -6771,8 +6770,7 @@ window.MGA_debugStorage = function() {
                             MGA_saveJSON('MGA_data', UnifiedState.data);
 
                             playSelectedNotification();
-                            const requireAck = notifications.requiresAcknowledgment || notifications.notificationType === 'continuous';
-                            queueNotification(`🥚 Rare egg in shop: ${eggId}! (${newQuantity} available)`, requireAck);
+                            queueNotification(`🥚 Rare egg in shop: ${eggId}! (${newQuantity} available)`, notifications.requiresAcknowledgment);
                         } else {
                             console.log(`⏰ [NOTIFICATIONS] ${eggId} on cooldown, not notifying`);
                         }
