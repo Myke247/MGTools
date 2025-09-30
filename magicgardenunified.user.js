@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.9.8
+// @version      1.10.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -431,9 +431,9 @@
             color: #ffffff;
             z-index: 10000;
             min-width: 350px;
-            min-height: 250px;
+            min-height: 80px;
             max-width: 90vw;
-            max-height: 80vh;
+            max-height: none;
             width: 380px;
             height: 450px;
             display: flex;
@@ -1445,7 +1445,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
         return UnifiedState.data.roomStatus.reporterId;
     }
 
-    // Load Firebase SDK and initialize
+    // Load Firebase SDK and initialize with authentication
     async function initializeFirebase() {
         try {
             console.log('📡 Loading Firebase SDK...');
@@ -1453,13 +1453,57 @@ function applyResponsiveTextScaling(overlay, width, height) {
             // Import Firebase modules
             const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js');
             const { getDatabase, ref, set, onValue, onDisconnect } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js');
+            const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
             // Initialize Firebase app
             UnifiedState.firebase.app = initializeApp(FIREBASE_CONFIG);
             UnifiedState.firebase.database = getDatabase(UnifiedState.firebase.app);
+            const auth = getAuth(UnifiedState.firebase.app);
 
-            console.log('✅ Firebase initialized (no auth required with open rules)');
-            return { ref, set, onValue, onDisconnect };
+            console.log('✅ Firebase app initialized');
+
+            // Return a promise that resolves when authenticated
+            return new Promise((resolve) => {
+                // Try to sign in anonymously
+                signInAnonymously(auth)
+                    .then(() => {
+                        console.log('🔐 Signing in anonymously...');
+                    })
+                    .catch((error) => {
+                        console.error('❌ Anonymous sign-in failed:', error.code, error.message);
+                        // If sign-in fails, still try to return functions (will fail on write if rules require auth)
+                        console.warn('⚠️ Continuing without authentication - writes may fail');
+                        resolve({ ref, set, onValue, onDisconnect });
+                    });
+
+                // Listen for auth state changes
+                let authResolved = false;
+                onAuthStateChanged(auth, (user) => {
+                    if (!authResolved) {
+                        authResolved = true;
+                        if (user) {
+                            const uid = user.uid;
+                            console.log('✅ Authenticated with uid:', uid);
+                            UnifiedState.data.roomStatus.reporterId = uid;
+                        } else {
+                            console.warn('⚠️ No user authenticated');
+                            // Generate fallback ID
+                            UnifiedState.data.roomStatus.reporterId = getReporterId();
+                        }
+                        resolve({ ref, set, onValue, onDisconnect });
+                    }
+                });
+
+                // Timeout fallback - if auth doesn't resolve in 5 seconds, proceed anyway
+                setTimeout(() => {
+                    if (!authResolved) {
+                        console.warn('⚠️ Auth timeout - proceeding without authentication');
+                        authResolved = true;
+                        UnifiedState.data.roomStatus.reporterId = getReporterId();
+                        resolve({ ref, set, onValue, onDisconnect });
+                    }
+                }, 5000);
+            });
         } catch (err) {
             console.error('❌ Firebase initialization failed:', err);
             return null;
@@ -1521,6 +1565,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
             UnifiedState.firebase.unsubscribe = onValue(allRoomsRef, (snapshot) => {
                 const roomData = snapshot.val() || {};
+                console.log('[Room Status] Received update from Firebase:', roomData);
 
                 // Update room counts
                 const counts = {};
@@ -1529,12 +1574,14 @@ function applyResponsiveTextScaling(overlay, width, height) {
                         const age = Date.now() - (roomData[roomCode].lastUpdate || 0);
                         // Only show fresh data (less than 30 seconds old)
                         counts[roomCode] = age < 30000 ? (roomData[roomCode].count || 0) : 0;
+                        console.log(`[Room Status] ${roomCode}: ${counts[roomCode]} players (age: ${Math.round(age/1000)}s)`);
                     } else {
                         counts[roomCode] = 0;
                     }
                 });
 
                 UnifiedState.data.roomStatus.counts = counts;
+                console.log('[Room Status] Updated counts:', counts);
 
                 // Update display if rooms tab is active
                 updateRoomStatusDisplay();
