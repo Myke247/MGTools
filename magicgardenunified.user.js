@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.9.1
+// @version      1.9.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -6059,8 +6059,16 @@ window.MGA_debugStorage = function() {
     function isWatchedItem(itemId, type = 'seed') {
         const notifications = UnifiedState.data.settings.notifications;
         if (type === 'seed') {
+            // Handle name variations for celestial seeds
+            // Shop uses "DawnCelestial" and "MoonCelestial" but UI uses "Dawnbinder" and "Moonbinder"
+            const nameMap = {
+                'DawnCelestial': 'Dawnbinder',
+                'MoonCelestial': 'Moonbinder'
+            };
+            const checkId = nameMap[itemId] || itemId;
+
             // Case-insensitive matching for seeds
-            const normalizedItemId = normalizeSpeciesName(itemId);
+            const normalizedItemId = normalizeSpeciesName(checkId);
             return notifications.watchedSeeds.some(watched =>
                 normalizeSpeciesName(watched) === normalizedItemId
             );
