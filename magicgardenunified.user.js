@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.9.1
+// @version      1.9.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1316,6 +1316,27 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     lastSeenTimestamps: {}
                 },
                 detailedTimestamps: false  // Show HH:MM:SS format instead of H:MM AM/PM
+            },
+            hotkeys: {
+                enabled: true,
+                gameKeys: {
+                    inventory: { name: 'Open Inventory', original: 'e', custom: null },
+                    harvest: { name: 'Harvest/Select', original: ' ', custom: null },
+                    selectLeft: { name: 'Select Left Crop', original: 'x', custom: null },
+                    selectRight: { name: 'Select Right Crop', original: 'c', custom: null },
+                    hotbar1: { name: 'Hotbar Slot 1', original: '1', custom: null },
+                    hotbar2: { name: 'Hotbar Slot 2', original: '2', custom: null },
+                    hotbar3: { name: 'Hotbar Slot 3', original: '3', custom: null },
+                    hotbar4: { name: 'Hotbar Slot 4', original: '4', custom: null },
+                    hotbar5: { name: 'Hotbar Slot 5', original: '5', custom: null },
+                    hotbar6: { name: 'Hotbar Slot 6', original: '6', custom: null },
+                    hotbar7: { name: 'Hotbar Slot 7', original: '7', custom: null },
+                    hotbar8: { name: 'Hotbar Slot 8', original: '8', custom: null },
+                    hotbar9: { name: 'Hotbar Slot 9', original: '9', custom: null },
+                    teleportShop: { name: 'Teleport to Shop', original: 'shift+1', custom: null },
+                    teleportGarden: { name: 'Teleport to Garden', original: 'shift+2', custom: null },
+                    teleportSell: { name: 'Teleport to Sell', original: 'shift+3', custom: null }
+                }
             },
             popouts: {
                 overlays: new Map(), // Track in-game overlays
@@ -3193,11 +3214,19 @@ window.MGA_debugStorage = function() {
                 <span data-icon="⏰">⏰ Timers</span>
                 <span class="mga-tab-popout" data-popout="timers" data-tooltip="Open timers in separate window">↗️</span>
             </div>
-            <div class="mga-tab" data-tab="tools" data-tooltip="Calculators and utility tools">
-                <span data-icon="🧮">🧮 Tools</span>
+            <div class="mga-tab" data-tab="hotkeys" data-tooltip="Customize keyboard shortcuts">
+                <span data-icon="🎮">🎮 Hotkeys</span>
+                <span class="mga-tab-popout" data-popout="hotkeys" data-tooltip="Open hotkeys in separate window">↗️</span>
+            </div>
+            <div class="mga-tab" data-tab="notifications" data-tooltip="Configure alerts and sounds">
+                <span data-icon="🔔">🔔 Alerts</span>
+                <span class="mga-tab-popout" data-popout="notifications" data-tooltip="Open notifications in separate window">↗️</span>
+            </div>
+            <div class="mga-tab" data-tab="tools" data-tooltip="Crop highlighting and utilities">
+                <span data-icon="🔧">🔧 Tools</span>
                 <span class="mga-tab-popout" data-popout="tools" data-tooltip="Open tools in separate window">↗️</span>
             </div>
-            <div class="mga-tab" data-tab="settings" data-tooltip="Customize appearance and behavior">
+            <div class="mga-tab" data-tab="settings" data-tooltip="Appearance and general settings">
                 <span data-icon="⚙️">⚙️ Settings</span>
                 <span class="mga-tab-popout" data-popout="settings" data-tooltip="Open settings in separate window">↗️</span>
             </div>
@@ -5365,6 +5394,14 @@ window.MGA_debugStorage = function() {
                 contentEl.innerHTML = getToolsTabContent();
                 setupToolsTabHandlers(contentEl);
                 break;
+            case 'hotkeys':
+                contentEl.innerHTML = getHotkeysTabContent();
+                setupHotkeysTabHandlers(contentEl);
+                break;
+            case 'notifications':
+                contentEl.innerHTML = getNotificationsTabContent();
+                setupNotificationsTabHandlers(contentEl);
+                break;
             case 'settings':
                 contentEl.innerHTML = getSettingsTabContent();
                 contentEl.setAttribute('data-tab', 'settings'); // Enable settings-specific scrolling
@@ -5890,6 +5927,114 @@ window.MGA_debugStorage = function() {
                 </div>
                 <div class="mga-section-note" style="margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
                     <strong>Note:</strong> Calculators will open in new popup windows. Make sure popup blockers are disabled for this site.
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🌱 Crop Highlighting</div>
+                <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                    Visual highlighting system for crops. Use Ctrl+H to clear highlights, Ctrl+Shift+H to toggle this panel.
+                </p>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Highlight Species:
+                    </label>
+                    <select class="mga-select" id="highlight-species-select">
+                        <option value="">Select species to highlight...</option>
+                        <option value="Carrot">🥕 Carrot</option>
+                        <option value="Strawberry">🍓 Strawberry</option>
+                        <option value="Aloe">🌿 Aloe</option>
+                        <option value="Apple">🍎 Apple</option>
+                        <option value="Tulip">🌷 Tulip</option>
+                        <option value="Tomato">🍅 Tomato</option>
+                        <option value="Blueberry">🫐 Blueberry</option>
+                        <option value="Daffodil">🌻 Daffodil</option>
+                        <option value="Corn">🌽 Corn</option>
+                        <option value="Watermelon">🍉 Watermelon</option>
+                        <option value="Pumpkin">🎃 Pumpkin</option>
+                        <option value="Echeveria">🌵 Echeveria</option>
+                        <option value="Coconut">🥥 Coconut</option>
+                        <option value="Banana">🍌 Banana</option>
+                        <option value="Lily">🌺 Lily</option>
+                        <option value="BurrosTail">🌿 BurrosTail</option>
+                        <option value="Mushroom">🍄 Mushroom</option>
+                        <option value="Cactus">🌵 Cactus</option>
+                        <option value="Bamboo">🎋 Bamboo</option>
+                        <option value="Grape">🍇 Grape</option>
+                        <option value="Sunflower">🌻 Sunflower</option>
+                        <option value="Pepper">🌶️ Pepper</option>
+                        <option value="Lemon">🍋 Lemon</option>
+                        <option value="PassionFruit">🥭 PassionFruit</option>
+                        <option value="DragonFruit">🐉 DragonFruit</option>
+                        <option value="Lychee">🍒 Lychee</option>
+                        <option value="Starweaver">⭐ Starweaver</option>
+                        <option value="Moonbinder">🌙 Moonbinder</option>
+                        <option value="Dawnbinder">🌅 Dawnbinder</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Slot Index (0-2):
+                    </label>
+                    <input type="number" class="mga-input" id="highlight-slot-input"
+                           min="0" max="2" value="0" style="width: 80px;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Hidden Species:
+                    </label>
+                    <select class="mga-select" id="hidden-species-select">
+                        <option value="">None</option>
+                        <option value="Carrot">🥕 Carrot</option>
+                        <option value="Strawberry">🍓 Strawberry</option>
+                        <option value="Aloe">🌿 Aloe</option>
+                        <option value="Apple">🍎 Apple</option>
+                        <option value="Tulip">🌷 Tulip</option>
+                        <option value="Tomato">🍅 Tomato</option>
+                        <option value="Blueberry">🫐 Blueberry</option>
+                        <option value="Daffodil">🌻 Daffodil</option>
+                        <option value="Corn">🌽 Corn</option>
+                        <option value="Watermelon">🍉 Watermelon</option>
+                        <option value="Pumpkin">🎃 Pumpkin</option>
+                        <option value="Echeveria">🌵 Echeveria</option>
+                        <option value="Coconut">🥥 Coconut</option>
+                        <option value="Banana">🍌 Banana</option>
+                        <option value="Lily">🌺 Lily</option>
+                        <option value="BurrosTail">🌿 BurrosTail</option>
+                        <option value="Mushroom">🍄 Mushroom</option>
+                        <option value="Cactus">🌵 Cactus</option>
+                        <option value="Bamboo">🎋 Bamboo</option>
+                        <option value="Grape">🍇 Grape</option>
+                        <option value="Sunflower">🌻 Sunflower</option>
+                        <option value="Pepper">🌶️ Pepper</option>
+                        <option value="Lemon">🍋 Lemon</option>
+                        <option value="PassionFruit">🥭 PassionFruit</option>
+                        <option value="DragonFruit">🐉 DragonFruit</option>
+                        <option value="Lychee">🍒 Lychee</option>
+                        <option value="Starweaver">⭐ Starweaver</option>
+                        <option value="Moonbinder">🌙 Moonbinder</option>
+                        <option value="Dawnbinder">🌅 Dawnbinder</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Hidden Scale (0.0 - 1.0):
+                    </label>
+                    <input type="number" class="mga-input" id="hidden-scale-input"
+                           min="0" max="1" step="0.1" value="0.1" style="width: 80px;">
+                </div>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="mga-btn" id="apply-highlighting-btn" style="background: #059669;">
+                        ✨ Apply Highlighting
+                    </button>
+                    <button class="mga-btn mga-btn-sm" id="clear-highlighting-btn" style="background: #dc2626;">
+                        🗑️ Clear All
+                    </button>
                 </div>
             </div>
             <style>
@@ -6988,243 +7133,76 @@ window.MGA_debugStorage = function() {
         `;
     }
 
-    function getSettingsTabContent() {
-        const settings = UnifiedState.data.settings;
+    function getHotkeysTabContent() {
+        const hotkeys = UnifiedState.data.hotkeys;
+        let currentlyRecording = null;
 
         return `
             <div class="mga-section">
-                <div class="mga-section-title">Appearance</div>
-
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                        Main HUD Opacity: ${settings.opacity}%
-                    </label>
-                    <input type="range" class="mga-slider" id="opacity-slider"
-                           min="0" max="100" value="${settings.opacity}"
-                           style="width: 100%; accent-color: #4a9eff;">
-                </div>
-
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                        Pop-out Opacity: ${settings.popoutOpacity}%
-                    </label>
-                    <input type="range" class="mga-slider" id="popout-opacity-slider"
-                           min="0" max="100" value="${settings.popoutOpacity}"
-                           style="width: 100%; accent-color: #4a9eff;">
-                </div>
-
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                        Gradient Style
-                    </label>
-                    <select class="mga-select" id="gradient-select" style="margin-bottom: 8px;">
-                        <option value="blue-purple" ${settings.gradientStyle === 'blue-purple' ? 'selected' : ''}>🌌 Blue-Purple</option>
-                        <option value="green-blue" ${settings.gradientStyle === 'green-blue' ? 'selected' : ''}>🌊 Green-Blue</option>
-                        <option value="red-orange" ${settings.gradientStyle === 'red-orange' ? 'selected' : ''}>🔥 Red-Orange</option>
-                        <option value="purple-pink" ${settings.gradientStyle === 'purple-pink' ? 'selected' : ''}>💜 Purple-Pink</option>
-                        <option value="gold-yellow" ${settings.gradientStyle === 'gold-yellow' ? 'selected' : ''}>👑 Gold-Yellow</option>
-                        <option value="electric-neon" ${settings.gradientStyle === 'electric-neon' ? 'selected' : ''}>⚡ Electric Neon</option>
-                        <option value="sunset-fire" ${settings.gradientStyle === 'sunset-fire' ? 'selected' : ''}>🌅 Sunset Fire</option>
-                        <option value="emerald-cyan" ${settings.gradientStyle === 'emerald-cyan' ? 'selected' : ''}>💎 Emerald Cyan</option>
-                        <option value="royal-gold" ${settings.gradientStyle === 'royal-gold' ? 'selected' : ''}>🏆 Royal Gold</option>
-                        <option value="crimson-blaze" ${settings.gradientStyle === 'crimson-blaze' ? 'selected' : ''}>🔥 Crimson Blaze</option>
-                        <option value="ocean-deep" ${settings.gradientStyle === 'ocean-deep' ? 'selected' : ''}>🌊 Ocean Deep</option>
-                        <option value="forest-mystique" ${settings.gradientStyle === 'forest-mystique' ? 'selected' : ''}>🌲 Forest Mystique</option>
-                        <option value="cosmic-purple" ${settings.gradientStyle === 'cosmic-purple' ? 'selected' : ''}>🌌 Cosmic Purple</option>
-                        <option value="rainbow-burst" ${settings.gradientStyle === 'rainbow-burst' ? 'selected' : ''}>🌈 Rainbow Burst</option>
-                        <option value="steel-blue" ${settings.gradientStyle === 'steel-blue' ? 'selected' : ''}>🛡️ Steel Blue</option>
-                        <option value="chrome-silver" ${settings.gradientStyle === 'chrome-silver' ? 'selected' : ''}>⚪ Chrome Silver</option>
-                        <option value="titanium-gray" ${settings.gradientStyle === 'titanium-gray' ? 'selected' : ''}>🌫️ Titanium Gray</option>
-                        <option value="platinum-white" ${settings.gradientStyle === 'platinum-white' ? 'selected' : ''}>💍 Platinum White</option>
-                    </select>
-                </div>
-
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                        Effect Style
-                    </label>
-                    <select class="mga-select" id="effect-select">
-                        <option value="none" ${settings.effectStyle === 'none' ? 'selected' : ''}>✨ None</option>
-                        <option value="metallic" ${settings.effectStyle === 'metallic' ? 'selected' : ''}>⚡ Metallic</option>
-                        <option value="glass" ${settings.effectStyle === 'glass' ? 'selected' : ''}>💎 Glass</option>
-                        <option value="neon" ${settings.effectStyle === 'neon' ? 'selected' : ''}>🌟 Neon Glow</option>
-                        <option value="plasma" ${settings.effectStyle === 'plasma' ? 'selected' : ''}>🔥 Plasma</option>
-                        <option value="aurora" ${settings.effectStyle === 'aurora' ? 'selected' : ''}>🌌 Aurora</option>
-                        <option value="crystal" ${settings.effectStyle === 'crystal' ? 'selected' : ''}>💠 Crystal</option>
-                        <option value="steel" ${settings.effectStyle === 'steel' ? 'selected' : ''}>🛡️ Steel</option>
-                        <option value="chrome" ${settings.effectStyle === 'chrome' ? 'selected' : ''}>⚪ Chrome</option>
-                        <option value="titanium" ${settings.effectStyle === 'titanium' ? 'selected' : ''}>🌫️ Titanium</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="mga-section">
-                <div class="mga-section-title">Quick Presets</div>
-                <div class="mga-grid">
-                    <button class="mga-btn mga-btn-sm" data-preset="gaming">🎮 Gaming</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="minimal">⚪ Minimal</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="vibrant">🌈 Vibrant</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="dark">⚫ Dark</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="luxury">✨ Luxury</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="steel">🛡️ Steel</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="chrome">⚪ Chrome</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="titanium">🌫️ Titanium</button>
-                    <button class="mga-btn mga-btn-sm" data-preset="reset">🔄 Reset</button>
-                </div>
-            </div>
-
-            <div class="mga-section">
-                <div class="mga-section-title">UI Mode</div>
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="ultra-compact-checkbox" class="mga-checkbox"
-                               ${settings.ultraCompactMode ? 'checked' : ''}
-                               style="accent-color: #4a9eff;">
-                        <span>📱 Ultra-compact mode</span>
-                    </label>
-                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                        Maximum space efficiency with condensed layouts and smaller text.
-                    </p>
-                </div>
-            </div>
-
-            <div class="mga-section">
-                <div class="mga-section-title">Pop-out Behavior</div>
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="use-overlays-checkbox" class="mga-checkbox"
-                               ${settings.useInGameOverlays ? 'checked' : ''}
-                               style="accent-color: #4a9eff;">
-                        <span>🎮 Use in-game overlays instead of separate windows</span>
-                    </label>
-                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                        When enabled, tabs will open as draggable overlays within the game window instead of separate browser windows.
-                    </p>
-                </div>
-            </div>
-
-            <div class="mga-section">
-                <div class="mga-section-title">🌱 Crop Highlighting</div>
+                <div class="mga-section-title">🎮 Custom Hotkeys</div>
                 <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                    Visual highlighting system for crops. Use Ctrl+H to clear highlights, Ctrl+Shift+H to toggle this panel.
+                    Click any key button to set a custom keybind. Press ESC to cancel.
                 </p>
 
                 <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                        Highlight Species:
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="hotkeys-enabled" class="mga-checkbox"
+                               ${hotkeys.enabled ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>Enable custom hotkeys</span>
                     </label>
-                    <select class="mga-select" id="highlight-species-select">
-                        <option value="">Select species to highlight...</option>
-                        <option value="Carrot">🥕 Carrot</option>
-                        <option value="Strawberry">🍓 Strawberry</option>
-                        <option value="Aloe">🌿 Aloe</option>
-                        <option value="Apple">🍎 Apple</option>
-                        <option value="Tulip">🌷 Tulip</option>
-                        <option value="Tomato">🍅 Tomato</option>
-                        <option value="Blueberry">🫐 Blueberry</option>
-                        <option value="Daffodil">🌻 Daffodil</option>
-                        <option value="Corn">🌽 Corn</option>
-                        <option value="Watermelon">🍉 Watermelon</option>
-                        <option value="Pumpkin">🎃 Pumpkin</option>
-                        <option value="Echeveria">🌵 Echeveria</option>
-                        <option value="Coconut">🥥 Coconut</option>
-                        <option value="Banana">🍌 Banana</option>
-                        <option value="Lily">🌺 Lily</option>
-                        <option value="BurrosTail">🌿 BurrosTail</option>
-                        <option value="Mushroom">🍄 Mushroom</option>
-                        <option value="Cactus">🌵 Cactus</option>
-                        <option value="Bamboo">🎋 Bamboo</option>
-                        <option value="Grape">🍇 Grape</option>
-                        <option value="Sunflower">🌻 Sunflower</option>
-                        <option value="Pepper">🌶️ Pepper</option>
-                        <option value="Lemon">🍋 Lemon</option>
-                        <option value="PassionFruit">🥭 PassionFruit</option>
-                        <option value="DragonFruit">🐉 DragonFruit</option>
-                        <option value="Lychee">🍒 Lychee</option>
-                        <option value="Starweaver">⭐ Starweaver</option>
-                        <option value="Moonbinder">🌙 Moonbinder</option>
-                        <option value="Dawnbinder">🌅 Dawnbinder</option>
-                    </select>
                 </div>
 
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                        Slot Index (0-2):
-                    </label>
-                    <input type="number" class="mga-input" id="highlight-slot-input"
-                           min="0" max="2" value="0" style="width: 80px;">
+                <div class="mga-section">
+                    <div class="mga-section-title" style="font-size: 13px;">Game Controls</div>
+                    ${Object.entries(hotkeys.gameKeys).map(([key, config]) => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+                            <span style="font-size: 12px; flex: 1;">${config.name}</span>
+                            <button class="hotkey-button" data-key="${key}" style="
+                                padding: 4px 8px;
+                                background: ${config.custom ? 'rgba(100, 255, 100, 0.2)' : 'rgba(74, 158, 255, 0.2)'};
+                                border: 1px solid ${config.custom ? '#64ff64' : '#4a9eff'};
+                                border-radius: 4px;
+                                color: white;
+                                font-size: 11px;
+                                min-width: 60px;
+                                cursor: pointer;
+                            ">
+                                ${(config.custom || config.original).toUpperCase()}
+                            </button>
+                            ${config.custom ? `
+                                <button class="hotkey-reset" data-key="${key}" style="
+                                    margin-left: 5px;
+                                    padding: 2px 6px;
+                                    background: rgba(255, 100, 100, 0.2);
+                                    border: 1px solid #ff6464;
+                                    border-radius: 3px;
+                                    color: white;
+                                    font-size: 10px;
+                                    cursor: pointer;
+                                ">↺</button>
+                            ` : ''}
+                        </div>
+                    `).join('')}
                 </div>
 
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                        Hidden Species:
-                    </label>
-                    <select class="mga-select" id="hidden-species-select">
-                        <option value="">None</option>
-                        <option value="Carrot">🥕 Carrot</option>
-                        <option value="Strawberry">🍓 Strawberry</option>
-                        <option value="Aloe">🌿 Aloe</option>
-                        <option value="Apple">🍎 Apple</option>
-                        <option value="Tulip">🌷 Tulip</option>
-                        <option value="Tomato">🍅 Tomato</option>
-                        <option value="Blueberry">🫐 Blueberry</option>
-                        <option value="Daffodil">🌻 Daffodil</option>
-                        <option value="Corn">🌽 Corn</option>
-                        <option value="Watermelon">🍉 Watermelon</option>
-                        <option value="Pumpkin">🎃 Pumpkin</option>
-                        <option value="Echeveria">🌵 Echeveria</option>
-                        <option value="Coconut">🥥 Coconut</option>
-                        <option value="Banana">🍌 Banana</option>
-                        <option value="Lily">🌺 Lily</option>
-                        <option value="BurrosTail">🌿 BurrosTail</option>
-                        <option value="Mushroom">🍄 Mushroom</option>
-                        <option value="Cactus">🌵 Cactus</option>
-                        <option value="Bamboo">🎋 Bamboo</option>
-                        <option value="Grape">🍇 Grape</option>
-                        <option value="Sunflower">🌻 Sunflower</option>
-                        <option value="Pepper">🌶️ Pepper</option>
-                        <option value="Lemon">🍋 Lemon</option>
-                        <option value="PassionFruit">🥭 PassionFruit</option>
-                        <option value="DragonFruit">🐉 DragonFruit</option>
-                        <option value="Lychee">🍒 Lychee</option>
-                        <option value="Starweaver">⭐ Starweaver</option>
-                        <option value="Moonbinder">🌙 Moonbinder</option>
-                        <option value="Dawnbinder">🌅 Dawnbinder</option>
-                    </select>
-                </div>
-
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                        Hidden Scale (0.0 - 1.0):
-                    </label>
-                    <input type="number" class="mga-input" id="hidden-scale-input"
-                           min="0" max="1" step="0.1" value="0.1" style="width: 80px;">
-                </div>
-
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="mga-btn" id="apply-highlighting-btn" style="background: #059669;">
-                        ✨ Apply Highlighting
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="hotkeys-reset-all" class="mga-button" style="flex: 1;">
+                        Reset All
                     </button>
-                    <button class="mga-btn mga-btn-sm" id="clear-highlighting-btn" style="background: #dc2626;">
-                        🗑️ Clear All
+                    <button id="hotkeys-export" class="mga-button" style="flex: 1;">
+                        Export Config
                     </button>
                 </div>
             </div>
+        `;
+    }
 
+    function getNotificationsTabContent() {
+        const settings = UnifiedState.data.settings;
+        return `
             <div class="mga-section">
-                <div class="mga-section-title">Data Management</div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="mga-btn mga-btn-sm" id="export-settings-btn">Export Settings</button>
-                    <button class="mga-btn mga-btn-sm" id="import-settings-btn">Import Settings</button>
-                    <button class="mga-btn mga-btn-sm" id="reset-loadouts-btn" style="background: #dc2626;">🔄 Reset Pet Loadouts</button>
-                </div>
-                <p style="font-size: 11px; color: #aaa; margin-top: 4px;">
-                    Reset button will clear all saved pet loadouts while preserving other settings.
-                </p>
-            </div>
-
-            <div class="mga-section">
-                <div class="mga-section-title">🔔 Notifications</div>
+                <div class="mga-section-title">🔔 Shop Alert Notifications</div>
                 <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
                     Get audio and visual alerts when rare seeds or eggs appear in the shop.
                 </p>
@@ -7437,9 +7415,138 @@ window.MGA_debugStorage = function() {
         `;
     }
 
+    function getSettingsTabContent() {
+        const settings = UnifiedState.data.settings;
+
+        return `
+            <div class="mga-section">
+                <div class="mga-section-title">Appearance</div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Main HUD Opacity: ${settings.opacity}%
+                    </label>
+                    <input type="range" class="mga-slider" id="opacity-slider"
+                           min="0" max="100" value="${settings.opacity}"
+                           style="width: 100%; accent-color: #4a9eff;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Pop-out Opacity: ${settings.popoutOpacity}%
+                    </label>
+                    <input type="range" class="mga-slider" id="popout-opacity-slider"
+                           min="0" max="100" value="${settings.popoutOpacity}"
+                           style="width: 100%; accent-color: #4a9eff;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                        Gradient Style
+                    </label>
+                    <select class="mga-select" id="gradient-select" style="margin-bottom: 8px;">
+                        <option value="blue-purple" ${settings.gradientStyle === 'blue-purple' ? 'selected' : ''}>🌌 Blue-Purple</option>
+                        <option value="green-blue" ${settings.gradientStyle === 'green-blue' ? 'selected' : ''}>🌊 Green-Blue</option>
+                        <option value="red-orange" ${settings.gradientStyle === 'red-orange' ? 'selected' : ''}>🔥 Red-Orange</option>
+                        <option value="purple-pink" ${settings.gradientStyle === 'purple-pink' ? 'selected' : ''}>💜 Purple-Pink</option>
+                        <option value="gold-yellow" ${settings.gradientStyle === 'gold-yellow' ? 'selected' : ''}>👑 Gold-Yellow</option>
+                        <option value="electric-neon" ${settings.gradientStyle === 'electric-neon' ? 'selected' : ''}>⚡ Electric Neon</option>
+                        <option value="sunset-fire" ${settings.gradientStyle === 'sunset-fire' ? 'selected' : ''}>🌅 Sunset Fire</option>
+                        <option value="emerald-cyan" ${settings.gradientStyle === 'emerald-cyan' ? 'selected' : ''}>💎 Emerald Cyan</option>
+                        <option value="royal-gold" ${settings.gradientStyle === 'royal-gold' ? 'selected' : ''}>🏆 Royal Gold</option>
+                        <option value="crimson-blaze" ${settings.gradientStyle === 'crimson-blaze' ? 'selected' : ''}>🔥 Crimson Blaze</option>
+                        <option value="ocean-deep" ${settings.gradientStyle === 'ocean-deep' ? 'selected' : ''}>🌊 Ocean Deep</option>
+                        <option value="forest-mystique" ${settings.gradientStyle === 'forest-mystique' ? 'selected' : ''}>🌲 Forest Mystique</option>
+                        <option value="cosmic-purple" ${settings.gradientStyle === 'cosmic-purple' ? 'selected' : ''}>🌌 Cosmic Purple</option>
+                        <option value="rainbow-burst" ${settings.gradientStyle === 'rainbow-burst' ? 'selected' : ''}>🌈 Rainbow Burst</option>
+                        <option value="steel-blue" ${settings.gradientStyle === 'steel-blue' ? 'selected' : ''}>🛡️ Steel Blue</option>
+                        <option value="chrome-silver" ${settings.gradientStyle === 'chrome-silver' ? 'selected' : ''}>⚪ Chrome Silver</option>
+                        <option value="titanium-gray" ${settings.gradientStyle === 'titanium-gray' ? 'selected' : ''}>🌫️ Titanium Gray</option>
+                        <option value="platinum-white" ${settings.gradientStyle === 'platinum-white' ? 'selected' : ''}>💍 Platinum White</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                        Effect Style
+                    </label>
+                    <select class="mga-select" id="effect-select">
+                        <option value="none" ${settings.effectStyle === 'none' ? 'selected' : ''}>✨ None</option>
+                        <option value="metallic" ${settings.effectStyle === 'metallic' ? 'selected' : ''}>⚡ Metallic</option>
+                        <option value="glass" ${settings.effectStyle === 'glass' ? 'selected' : ''}>💎 Glass</option>
+                        <option value="neon" ${settings.effectStyle === 'neon' ? 'selected' : ''}>🌟 Neon Glow</option>
+                        <option value="plasma" ${settings.effectStyle === 'plasma' ? 'selected' : ''}>🔥 Plasma</option>
+                        <option value="aurora" ${settings.effectStyle === 'aurora' ? 'selected' : ''}>🌌 Aurora</option>
+                        <option value="crystal" ${settings.effectStyle === 'crystal' ? 'selected' : ''}>💠 Crystal</option>
+                        <option value="steel" ${settings.effectStyle === 'steel' ? 'selected' : ''}>🛡️ Steel</option>
+                        <option value="chrome" ${settings.effectStyle === 'chrome' ? 'selected' : ''}>⚪ Chrome</option>
+                        <option value="titanium" ${settings.effectStyle === 'titanium' ? 'selected' : ''}>🌫️ Titanium</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">Quick Presets</div>
+                <div class="mga-grid">
+                    <button class="mga-btn mga-btn-sm" data-preset="gaming">🎮 Gaming</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="minimal">⚪ Minimal</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="vibrant">🌈 Vibrant</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="dark">⚫ Dark</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="luxury">✨ Luxury</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="steel">🛡️ Steel</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="chrome">⚪ Chrome</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="titanium">🌫️ Titanium</button>
+                    <button class="mga-btn mga-btn-sm" data-preset="reset">🔄 Reset</button>
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">UI Mode</div>
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="ultra-compact-checkbox" class="mga-checkbox"
+                               ${settings.ultraCompactMode ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>📱 Ultra-compact mode</span>
+                    </label>
+                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                        Maximum space efficiency with condensed layouts and smaller text.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">Pop-out Behavior</div>
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="use-overlays-checkbox" class="mga-checkbox"
+                               ${settings.useInGameOverlays ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>🎮 Use in-game overlays instead of separate windows</span>
+                    </label>
+                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                        When enabled, tabs will open as draggable overlays within the game window instead of separate browser windows.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">Data Management</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="mga-btn mga-btn-sm" id="export-settings-btn">Export Settings</button>
+                    <button class="mga-btn mga-btn-sm" id="import-settings-btn">Import Settings</button>
+                    <button class="mga-btn mga-btn-sm" id="reset-loadouts-btn" style="background: #dc2626;">🔄 Reset Pet Loadouts</button>
+                </div>
+                <p style="font-size: 11px; color: #aaa; margin-top: 4px;">
+                    Reset button will clear all saved pet loadouts while preserving other settings.
+                </p>
+            </div>
+        `;
+    }
+
     // Helper function to refresh separate window popouts
     function refreshSeparateWindowPopouts(tabName) {
-        try {
+        try{
             UnifiedState.data.popouts.windows.forEach((windowRef, popoutTabName) => {
                 if (windowRef && !windowRef.closed && popoutTabName === tabName) {
                     // Trigger refresh in the separate window
@@ -9289,131 +9396,239 @@ window.MGA_debugStorage = function() {
         });
     }
 
-    function setupSettingsTabHandlers(context = document) {
-        // Opacity slider
-        const opacitySlider = context.querySelector('#opacity-slider');
-        if (opacitySlider) {
-            opacitySlider.addEventListener('input', (e) => {
-                const opacity = parseInt(e.target.value);
-                UnifiedState.data.settings.opacity = opacity;
-                applyTheme();
-                // Update label
-                const label = opacitySlider.previousElementSibling;
-                label.textContent = `Main HUD Opacity: ${opacity}%`;
-                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
+    // Track current hotkey recording state
+    let currentlyRecordingHotkey = null;
+
+    function startRecordingHotkey(key, buttonElement) {
+        if (currentlyRecordingHotkey) return; // Already recording
+
+        currentlyRecordingHotkey = key;
+        const originalText = buttonElement.textContent;
+        buttonElement.textContent = 'Press any key...';
+        buttonElement.style.background = '#ff9900';
+
+        // Add one-time key listener
+        const recordHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Skip modifier-only keys
+            if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+            // Allow ESC to cancel
+            if (e.key === 'Escape') {
+                stopRecordingHotkey(buttonElement, originalText);
+                document.removeEventListener('keydown', recordHandler, true);
+                return;
+            }
+
+            // Build key combination string
+            let keyCombo = '';
+            if (e.ctrlKey) keyCombo += 'ctrl+';
+            if (e.altKey) keyCombo += 'alt+';
+            if (e.shiftKey) keyCombo += 'shift+';
+
+            // Handle special keys
+            const keyName = e.key === ' ' ? 'space' : e.key.toLowerCase();
+            keyCombo += keyName;
+
+            // Check for conflicts
+            const conflicts = [];
+            Object.entries(UnifiedState.data.hotkeys.gameKeys).forEach(([k, config]) => {
+                if (k !== key && (config.custom || config.original) === keyCombo) {
+                    conflicts.push(config.name);
+                }
+            });
+
+            if (conflicts.length > 0) {
+                alert(`Key "${keyCombo}" is already assigned to: ${conflicts.join(', ')}`);
+                stopRecordingHotkey(buttonElement, originalText);
+                document.removeEventListener('keydown', recordHandler, true);
+                return;
+            }
+
+            // Save the new key
+            UnifiedState.data.hotkeys.gameKeys[key].custom = keyCombo;
+            MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+
+            stopRecordingHotkey(buttonElement, null);
+            updateTabContent(); // Refresh display to show new key and reset button
+            document.removeEventListener('keydown', recordHandler, true);
+
+            console.log(`🎮 [HOTKEYS] Remapped ${key}: ${UnifiedState.data.hotkeys.gameKeys[key].original} → ${keyCombo}`);
+        };
+
+        document.addEventListener('keydown', recordHandler, true);
+    }
+
+    function stopRecordingHotkey(buttonElement, originalText) {
+        if (!currentlyRecordingHotkey) return;
+
+        if (originalText) {
+            buttonElement.textContent = originalText;
+        }
+        buttonElement.style.background = '';
+        currentlyRecordingHotkey = null;
+    }
+
+    // ==================== HOTKEY INTERCEPTION & SIMULATION ====================
+
+    function isTypingInInput() {
+        const active = document.activeElement;
+        return active && (
+            active.tagName === 'INPUT' ||
+            active.tagName === 'TEXTAREA' ||
+            active.isContentEditable
+        );
+    }
+
+    function parseKeyCombo(combo) {
+        const parts = combo.toLowerCase().split('+');
+        return {
+            ctrl: parts.includes('ctrl'),
+            alt: parts.includes('alt'),
+            shift: parts.includes('shift'),
+            key: parts[parts.length - 1] === 'space' ? ' ' : parts[parts.length - 1]
+        };
+    }
+
+    function matchesKeyCombo(event, combo) {
+        const parsed = parseKeyCombo(combo);
+        const eventKey = event.key.toLowerCase();
+
+        return (
+            event.ctrlKey === parsed.ctrl &&
+            event.altKey === parsed.alt &&
+            event.shiftKey === parsed.shift &&
+            (eventKey === parsed.key || (parsed.key === ' ' && eventKey === ' '))
+        );
+    }
+
+    function simulateKey(keyCombo) {
+        const parsed = parseKeyCombo(keyCombo);
+
+        // Create keydown event
+        const downEvent = new KeyboardEvent('keydown', {
+            key: parsed.key,
+            code: parsed.key === ' ' ? 'Space' : 'Key' + parsed.key.toUpperCase(),
+            ctrlKey: parsed.ctrl,
+            altKey: parsed.alt,
+            shiftKey: parsed.shift,
+            bubbles: true,
+            cancelable: true
+        });
+
+        // Dispatch to document (where game listens)
+        document.dispatchEvent(downEvent);
+
+        // Also dispatch keyup after a short delay
+        setTimeout(() => {
+            const upEvent = new KeyboardEvent('keyup', {
+                key: parsed.key,
+                code: parsed.key === ' ' ? 'Space' : 'Key' + parsed.key.toUpperCase(),
+                ctrlKey: parsed.ctrl,
+                altKey: parsed.alt,
+                shiftKey: parsed.shift,
+                bubbles: true,
+                cancelable: true
+            });
+            document.dispatchEvent(upEvent);
+        }, 50);
+    }
+
+    function handleHotkeyPress(e) {
+        // Skip if disabled, typing in input, or recording a hotkey
+        if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey) return;
+
+        // Check each remapped key
+        for (const [action, config] of Object.entries(UnifiedState.data.hotkeys.gameKeys)) {
+            if (config.custom) {
+                // Check if pressed key matches custom mapping
+                if (matchesKeyCombo(e, config.custom)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Simulate the original key
+                    simulateKey(config.original);
+
+                    if (UnifiedState.data.settings.debugMode) {
+                        console.log(`🎮 [HOTKEYS] Remapped ${config.custom} → ${config.original} (${config.name})`);
+                    }
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Install hotkey interceptor at highest priority
+    function initializeHotkeySystem() {
+        document.addEventListener('keydown', handleHotkeyPress, true);
+        console.log('🎮 [HOTKEYS] Key interception system installed');
+    }
+
+    function setupHotkeysTabHandlers(context = document) {
+        // Enable/disable checkbox
+        const enableCheckbox = context.querySelector('#hotkeys-enabled');
+        if (enableCheckbox) {
+            enableCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.hotkeys.enabled = e.target.checked;
+                MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+                console.log(`🎮 [HOTKEYS] ${e.target.checked ? 'Enabled' : 'Disabled'}`);
             });
         }
 
-        // Pop-out opacity slider
-        const popoutOpacitySlider = context.querySelector('#popout-opacity-slider');
-        if (popoutOpacitySlider) {
-            popoutOpacitySlider.addEventListener('input', (e) => {
-                const popoutOpacity = parseInt(e.target.value);
-                UnifiedState.data.settings.popoutOpacity = popoutOpacity;
-                syncThemeToAllWindows(); // Apply theme to pop-out windows only
-                // Update label
-                const label = popoutOpacitySlider.previousElementSibling;
-                label.textContent = `Pop-out Opacity: ${popoutOpacity}%`;
-                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
-            });
-        }
-
-        // Gradient select
-        const gradientSelect = context.querySelector('#gradient-select');
-        if (gradientSelect) {
-            gradientSelect.addEventListener('change', (e) => {
-                UnifiedState.data.settings.gradientStyle = e.target.value;
-                applyTheme();
-                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
-            });
-        }
-
-        // Effect select
-        const effectSelect = context.querySelector('#effect-select');
-        if (effectSelect) {
-            effectSelect.addEventListener('change', (e) => {
-                UnifiedState.data.settings.effectStyle = e.target.value;
-                applyTheme();
-                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
-            });
-        }
-
-        // Ultra-compact mode checkbox
-        const ultraCompactCheckbox = context.querySelector('#ultra-compact-checkbox');
-        if (ultraCompactCheckbox) {
-            ultraCompactCheckbox.addEventListener('change', (e) => {
-                UnifiedState.data.settings.ultraCompactMode = e.target.checked;
-                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
-                applyUltraCompactMode(e.target.checked);
-                console.log(`📱 Ultra-compact mode ${e.target.checked ? 'enabled' : 'disabled'}`);
-            });
-        }
-
-        // Overlay mode checkbox
-        const overlayCheckbox = context.querySelector('#use-overlays-checkbox');
-        if (overlayCheckbox) {
-            overlayCheckbox.addEventListener('change', (e) => {
-                UnifiedState.data.settings.useInGameOverlays = e.target.checked;
-                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
-                console.log(`🎮 Overlay mode ${e.target.checked ? 'enabled' : 'disabled'}`);
-            });
-        }
-
-        // Preset buttons
-        context.querySelectorAll('[data-preset]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const preset = e.target.dataset.preset;
-                applyPreset(preset);
+        // Hotkey buttons
+        context.querySelectorAll('.hotkey-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const key = this.dataset.key;
+                startRecordingHotkey(key, this);
             });
         });
 
-        // Export/Import
-        const exportBtn = context.querySelector('#export-settings-btn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                const data = JSON.stringify(UnifiedState.data.settings, null, 2);
-                const blob = new Blob([data], { type: 'application/json' });
-                const link = targetDocument.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'MGA_Settings.json';
-                link.click();
+        // Reset buttons
+        context.querySelectorAll('.hotkey-reset').forEach(button => {
+            button.addEventListener('click', function() {
+                const key = this.dataset.key;
+                UnifiedState.data.hotkeys.gameKeys[key].custom = null;
+                MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+                updateTabContent(); // Refresh display
+                console.log(`🎮 [HOTKEYS] Reset ${key} to default`);
             });
-        }
+        });
 
-        // Crop highlighting handlers
-        const applyHighlightingBtn = context.querySelector('#apply-highlighting-btn');
-        if (applyHighlightingBtn) {
-            applyHighlightingBtn.addEventListener('click', () => {
-                applyCropHighlighting();
-            });
-        }
-
-        const clearHighlightingBtn = context.querySelector('#clear-highlighting-btn');
-        if (clearHighlightingBtn) {
-            clearHighlightingBtn.addEventListener('click', () => {
-                clearCropHighlighting();
-            });
-        }
-
-        // Reset pet loadouts handler
-        const resetLoadoutsBtn = context.querySelector('#reset-loadouts-btn');
-        if (resetLoadoutsBtn) {
-            resetLoadoutsBtn.addEventListener('click', () => {
-                if (confirm('⚠️ Are you sure you want to reset all pet loadouts? This cannot be undone.')) {
-                    UnifiedState.data.petPresets = {};
-                    MGA_saveJSON('MGA_data', UnifiedState.data);
-                    console.log('🔄 Pet loadouts have been reset');
-                    // Update the UI if we're in the pets tab
-                    if (UnifiedState.activeTab === 'pets') {
-                        updateTabContent();
-                    }
-                    console.log('✅ Pet loadouts have been reset successfully!');
+        // Reset all button
+        const resetAllBtn = context.querySelector('#hotkeys-reset-all');
+        if (resetAllBtn) {
+            resetAllBtn.addEventListener('click', () => {
+                if (confirm('Reset all hotkeys to defaults?')) {
+                    Object.keys(UnifiedState.data.hotkeys.gameKeys).forEach(key => {
+                        UnifiedState.data.hotkeys.gameKeys[key].custom = null;
+                    });
+                    MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+                    updateTabContent();
+                    console.log('🎮 [HOTKEYS] Reset all hotkeys to defaults');
                 }
             });
         }
 
-        // ==================== NOTIFICATION HANDLERS ====================
+        // Export button
+        const exportBtn = context.querySelector('#hotkeys-export');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                const exportData = {};
+                Object.entries(UnifiedState.data.hotkeys.gameKeys).forEach(([key, config]) => {
+                    if (config.custom) {
+                        exportData[key] = config.custom;
+                    }
+                });
+                const json = JSON.stringify(exportData, null, 2);
+                navigator.clipboard.writeText(json);
+                alert('Hotkey configuration copied to clipboard!');
+            });
+        }
+    }
 
+    function setupNotificationsTabHandlers(context = document) {
         // Notification enabled checkbox
         const notificationEnabledCheckbox = context.querySelector('#notifications-enabled-checkbox');
         if (notificationEnabledCheckbox) {
@@ -9626,74 +9841,115 @@ window.MGA_debugStorage = function() {
 
         // Update last seen display every 30 seconds
         setInterval(updateLastSeenDisplay, 30000);
+    }
 
-        // Apply input isolation to number inputs to prevent game hotkey interference
-        const createInputIsolation = (inputElement) => {
-            if (!inputElement) return;
-
-            // Prevent ALL game key interference when input is focused
-            const isolateKeyEvent = (e) => {
-                if (document.activeElement === inputElement) {
-                    // Stop all propagation to prevent game from receiving keys
-                    e.stopImmediatePropagation();
-                    e.stopPropagation();
-
-                    // Handle special keys
-                    if (e.key === 'Escape') {
-                        e.preventDefault();
-                        inputElement.blur(); // Allow user to return to game
-                        return;
-                    }
-
-                    // Allow Enter to submit
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        inputElement.blur();
-                        return;
-                    }
-
-                    // Allow normal input operations
-                    if (UnifiedState.data.settings.debugMode) {
-                        console.log(`🔒 Isolated key: ${e.key} for input: ${inputElement.id}`);
-                    }
-                }
-            };
-
-            // Attach event listeners with capture priority
-            ['keydown', 'keyup', 'keypress'].forEach(eventType => {
-                document.addEventListener(eventType, isolateKeyEvent, true);
+    function setupSettingsTabHandlers(context = document) {
+        // Opacity slider
+        const opacitySlider = context.querySelector('#opacity-slider');
+        if (opacitySlider) {
+            opacitySlider.addEventListener('input', (e) => {
+                const opacity = parseInt(e.target.value);
+                UnifiedState.data.settings.opacity = opacity;
+                applyTheme();
+                // Update label
+                const label = opacitySlider.previousElementSibling;
+                label.textContent = `Main HUD Opacity: ${opacity}%`;
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
             });
+        }
 
-            // Also isolate focus/blur events
-            inputElement.addEventListener('focus', (e) => {
-                if (UnifiedState.data.settings.debugMode) {
-                    console.log(`🔒 Number input focused - Game keys isolated: ${inputElement.id}`);
-                }
-                e.stopPropagation();
+        // Pop-out opacity slider
+        const popoutOpacitySlider = context.querySelector('#popout-opacity-slider');
+        if (popoutOpacitySlider) {
+            popoutOpacitySlider.addEventListener('input', (e) => {
+                const popoutOpacity = parseInt(e.target.value);
+                UnifiedState.data.settings.popoutOpacity = popoutOpacity;
+                syncThemeToAllWindows(); // Apply theme to pop-out windows only
+                // Update label
+                const label = popoutOpacitySlider.previousElementSibling;
+                label.textContent = `Pop-out Opacity: ${popoutOpacity}%`;
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
             });
+        }
 
-            inputElement.addEventListener('blur', (e) => {
-                if (UnifiedState.data.settings.debugMode) {
-                    console.log(`🔓 Number input blurred - Game keys restored: ${inputElement.id}`);
-                }
-                e.stopPropagation();
+        // Gradient select
+        const gradientSelect = context.querySelector('#gradient-select');
+        if (gradientSelect) {
+            gradientSelect.addEventListener('change', (e) => {
+                UnifiedState.data.settings.gradientStyle = e.target.value;
+                applyTheme();
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
             });
-        };
+        }
 
-        // Apply input isolation to all number inputs in settings
-        const numberInputs = [
-            context.querySelector('#highlight-slot-input'),
-            context.querySelector('#hidden-scale-input')
-        ];
+        // Effect select
+        const effectSelect = context.querySelector('#effect-select');
+        if (effectSelect) {
+            effectSelect.addEventListener('change', (e) => {
+                UnifiedState.data.settings.effectStyle = e.target.value;
+                applyTheme();
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
+            });
+        }
 
-        numberInputs.forEach(input => {
-            if (input) {
-                createInputIsolation(input);
-                if (UnifiedState.data.settings.debugMode) {
-                    console.log(`🛡️ Applied input isolation to: ${input.id}`);
-                }
-            }
+        // Ultra-compact mode checkbox
+        const ultraCompactCheckbox = context.querySelector('#ultra-compact-checkbox');
+        if (ultraCompactCheckbox) {
+            ultraCompactCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.ultraCompactMode = e.target.checked;
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
+                applyUltraCompactMode(e.target.checked);
+                console.log(`📱 Ultra-compact mode ${e.target.checked ? 'enabled' : 'disabled'}`);
+            });
+        }
+
+        // Overlay mode checkbox
+        const overlayCheckbox = context.querySelector('#use-overlays-checkbox');
+        if (overlayCheckbox) {
+            overlayCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.useInGameOverlays = e.target.checked;
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
+                console.log(`🎮 Overlay mode ${e.target.checked ? 'enabled' : 'disabled'}`);
+            });
+        }
+
+        // Preset buttons
+        context.querySelectorAll('[data-preset]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const preset = e.target.dataset.preset;
+                applyPreset(preset);
+            });
         });
+
+        // Export/Import
+        const exportBtn = context.querySelector('#export-settings-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                const data = JSON.stringify(UnifiedState.data.settings, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const link = targetDocument.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'MGA_Settings.json';
+                link.click();
+            });
+        }
+
+        // Reset pet loadouts handler
+        const resetLoadoutsBtn = context.querySelector('#reset-loadouts-btn');
+        if (resetLoadoutsBtn) {
+            resetLoadoutsBtn.addEventListener('click', () => {
+                if (confirm('⚠️ Are you sure you want to reset all pet loadouts? This cannot be undone.')) {
+                    UnifiedState.data.petPresets = {};
+                    MGA_saveJSON('MGA_data', UnifiedState.data);
+                    console.log('🔄 Pet loadouts have been reset');
+                    // Update the UI if we're in the pets tab
+                    if (UnifiedState.activeTab === 'pets') {
+                        updateTabContent();
+                    }
+                    console.log('✅ Pet loadouts have been reset successfully!');
+                }
+            });
+        }
     }
 
     function setupToolsTabHandlers(context = document) {
@@ -9723,6 +9979,21 @@ window.MGA_debugStorage = function() {
                 card.classList.add('mga-tool-interactive');
             }
         });
+
+        // Crop highlighting handlers
+        const applyHighlightingBtn = context.querySelector('#apply-highlighting-btn');
+        if (applyHighlightingBtn) {
+            applyHighlightingBtn.addEventListener('click', () => {
+                applyCropHighlighting();
+            });
+        }
+
+        const clearHighlightingBtn = context.querySelector('#clear-highlighting-btn');
+        if (clearHighlightingBtn) {
+            clearHighlightingBtn.addEventListener('click', () => {
+                clearCropHighlighting();
+            });
+        }
 
         if (UnifiedState.data.settings.debugMode) {
             console.log(`🧮 Set up handlers for ${toolCards.length} calculator tools`);
@@ -12281,6 +12552,23 @@ window.MGA_debugStorage = function() {
             MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
         }
 
+        // Load hotkeys data
+        const savedHotkeys = MGA_loadJSON('MGA_hotkeys', null);
+        if (savedHotkeys) {
+            // Merge saved hotkeys with defaults to handle new keys
+            UnifiedState.data.hotkeys = {
+                ...UnifiedState.data.hotkeys,
+                ...savedHotkeys,
+                gameKeys: {
+                    ...UnifiedState.data.hotkeys.gameKeys,
+                    ...savedHotkeys.gameKeys
+                }
+            };
+            console.log('🎮 [HOTKEYS] Loaded saved hotkey configuration');
+        } else {
+            console.log('🎮 [HOTKEYS] Using default hotkey configuration');
+        }
+
         // Load PAL4 filter system data
         UnifiedState.data.filterMode = MGA_loadJSON('MGA_filterMode', 'categories');
         UnifiedState.data.abilityFilters = MGA_loadJSON('MGA_abilityFilters', {
@@ -13557,6 +13845,9 @@ window.MGA_debugStorage = function() {
 
             // Initialize crop highlighting system
             setupCropHighlightingSystem();
+
+            // Initialize hotkey system
+            initializeHotkeySystem();
 
             // Initialize tooltip system
             if (window.MGA_Tooltips) {
