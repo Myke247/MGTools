@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.9.0
+// @version      1.9.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -7391,6 +7391,24 @@ window.MGA_debugStorage = function() {
                             <span>🥚 Common Egg</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-uncommon-egg" class="mga-checkbox"
+                                   ${settings.notifications.watchedEggs.includes('UncommonEgg') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥚 Uncommon Egg</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-rare-egg" class="mga-checkbox"
+                                   ${settings.notifications.watchedEggs.includes('RareEgg') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥚 Rare Egg</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-legendary-egg" class="mga-checkbox"
+                                   ${settings.notifications.watchedEggs.includes('LegendaryEgg') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥚 Legendary Egg</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
                             <input type="checkbox" id="watch-mythical-egg" class="mga-checkbox"
                                    ${settings.notifications.watchedEggs.includes('MythicalEgg') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
@@ -9548,6 +9566,9 @@ window.MGA_debugStorage = function() {
         // Egg watch checkboxes
         const eggWatchMap = {
             'watch-common-egg': 'CommonEgg',
+            'watch-uncommon-egg': 'UncommonEgg',
+            'watch-rare-egg': 'RareEgg',
+            'watch-legendary-egg': 'LegendaryEgg',
             'watch-mythical-egg': 'MythicalEgg'
         };
 
