@@ -6492,8 +6492,9 @@ window.MGA_debugStorage = function() {
     let lastEggRestock = 0;
     let seedRestockNotifiedItems = new Set(); // Track items notified during current restock
     let eggRestockNotifiedItems = new Set(); // Track items notified during current restock
+    let isFirstRun = true; // Track if this is the first check to notify for watched items already in stock
     const CHECK_INTERVAL = 2000; // Check every 2 seconds for better timing
-    const NOTIFICATION_COOLDOWN = 60000; // 60 seconds between notifications for same item to prevent duplicates
+    const NOTIFICATION_COOLDOWN = 30000; // 30 seconds between notifications for same item to prevent duplicates
     const RESTOCK_COOLDOWN = 30000; // 30 seconds cooldown after restock to catch all new items
 
     // Check for new watched items in shop
@@ -6646,10 +6647,11 @@ window.MGA_debugStorage = function() {
                 console.log(`🔍 [NOTIFICATIONS] ${seedId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
 
                 // Only trigger notification if:
-                // 1) Quantity increased AND not in restock window, OR
-                // 2) In restock window AND item hasn't been notified in this restock cycle, OR
-                // 3) New item appears (oldQuantity was 0)
-                const shouldCheck = (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+                // 1) First run and item is in stock, OR
+                // 2) Quantity increased AND not in restock window, OR
+                // 3) In restock window AND item hasn't been notified in this restock cycle, OR
+                // 4) New item appears (oldQuantity was 0)
+                const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
 
                 console.log(`🔍 [NOTIFICATIONS] ${seedId} shouldCheck: ${shouldCheck}`);
 
@@ -6762,10 +6764,11 @@ window.MGA_debugStorage = function() {
                 console.log(`🔍 [NOTIFICATIONS] ${eggId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
 
                 // Only trigger notification if:
-                // 1) Quantity increased AND not in restock window, OR
-                // 2) In restock window AND item hasn't been notified in this restock cycle, OR
-                // 3) New item appears (oldQuantity was 0)
-                const shouldCheck = (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+                // 1) First run and item is in stock, OR
+                // 2) Quantity increased AND not in restock window, OR
+                // 3) In restock window AND item hasn't been notified in this restock cycle, OR
+                // 4) New item appears (oldQuantity was 0)
+                const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
 
                 console.log(`🔍 [NOTIFICATIONS] ${eggId} shouldCheck: ${shouldCheck}`);
 
@@ -6831,6 +6834,12 @@ window.MGA_debugStorage = function() {
             // CRITICAL FIX: Create copies instead of reference assignment
             previousSeedInventory = [...currentSeedIds];
             previousSeedQuantities = {...currentSeedQuantities};
+
+            // Clear first run flag after first check completes
+            if (isFirstRun) {
+                console.log(`✅ [NOTIFICATIONS] First run complete - will now only notify on changes`);
+                isFirstRun = false;
+            }
 
         } catch (error) {
             console.error('❌ [NOTIFICATIONS] Error checking for watched items:', error);
@@ -7305,6 +7314,30 @@ window.MGA_debugStorage = function() {
                                    ${settings.notifications.watchedSeeds.includes('Lychee') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
                             <span>🍇 Lychee</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-mushroom" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Mushroom') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍄 Mushroom</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-cactus" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Cactus') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌵 Cactus</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-bamboo" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Bamboo') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🎋 Bamboo</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-grape" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Grape') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍇 Grape</span>
                         </label>
                     </div>
                 </div>
@@ -9449,7 +9482,11 @@ window.MGA_debugStorage = function() {
             'watch-lemon': 'Lemon',
             'watch-passionfruit': 'PassionFruit',
             'watch-dragonfruit': 'DragonFruit',
-            'watch-lychee': 'Lychee'
+            'watch-lychee': 'Lychee',
+            'watch-mushroom': 'Mushroom',
+            'watch-cactus': 'Cactus',
+            'watch-bamboo': 'Bamboo',
+            'watch-grape': 'Grape'
         };
 
         Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
