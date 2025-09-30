@@ -6528,6 +6528,9 @@ window.MGA_debugStorage = function() {
         try {
             const now = Date.now();
 
+            // Collect all detected items in this check cycle for batch notification
+            const detectedItems = [];
+
             // Check every 5 seconds to catch items quickly
             if (now - lastRestockCheck < CHECK_INTERVAL) return;
             lastRestockCheck = now;
@@ -6691,8 +6694,13 @@ window.MGA_debugStorage = function() {
 
                             MGA_saveJSON('MGA_data', UnifiedState.data);
 
-                            playSelectedNotification();
-                            queueNotification(`🌱 Rare seed in shop: ${seedId}! (${newQuantity} available)`, notifications.requiresAcknowledgment);
+                            // Collect item for batch notification instead of notifying immediately
+                            detectedItems.push({
+                                type: 'seed',
+                                id: seedId,
+                                quantity: newQuantity,
+                                icon: '🌱'
+                            });
                         } else {
                             console.log(`⏰ [NOTIFICATIONS] ${seedId} on cooldown, not notifying`);
                         }
@@ -6806,8 +6814,13 @@ window.MGA_debugStorage = function() {
 
                             MGA_saveJSON('MGA_data', UnifiedState.data);
 
-                            playSelectedNotification();
-                            queueNotification(`🥚 Rare egg in shop: ${eggId}! (${newQuantity} available)`, notifications.requiresAcknowledgment);
+                            // Collect item for batch notification instead of notifying immediately
+                            detectedItems.push({
+                                type: 'egg',
+                                id: eggId,
+                                quantity: newQuantity,
+                                icon: '🥚'
+                            });
                         } else {
                             console.log(`⏰ [NOTIFICATIONS] ${eggId} on cooldown, not notifying`);
                         }
@@ -6828,6 +6841,30 @@ window.MGA_debugStorage = function() {
 
             } catch (eggError) {
                 console.error(`❌ [NOTIFICATIONS] Error checking eggs:`, eggError);
+            }
+
+            // Process batch notifications if any items were detected
+            if (detectedItems.length > 0) {
+                console.log(`🎉 [NOTIFICATIONS] Batch detected: ${detectedItems.length} items`);
+
+                // Play notification sound once for all items
+                playSelectedNotification();
+
+                // Create notification message based on number of items
+                let notificationMessage;
+                if (detectedItems.length === 1) {
+                    const item = detectedItems[0];
+                    notificationMessage = `${item.icon} Rare ${item.type} in shop: ${item.id}! (${item.quantity} available)`;
+                } else {
+                    notificationMessage = `🎉 Multiple items in stock:\n`;
+                    detectedItems.forEach(item => {
+                        notificationMessage += `${item.icon} ${item.id} (${item.quantity} available)\n`;
+                    });
+                }
+
+                // Queue the batch notification
+                queueNotification(notificationMessage.trim(), notifications.requiresAcknowledgment);
+                console.log(`📢 [NOTIFICATIONS] Batched notification sent for ${detectedItems.length} items`);
             }
 
             // Update previous seed inventory and quantities (seeds already succeeded if we got here)
