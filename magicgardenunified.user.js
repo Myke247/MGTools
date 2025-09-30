@@ -6049,11 +6049,21 @@ window.MGA_debugStorage = function() {
         }
     }
 
-    // Check if an item is on the watch list
+    // Normalize species names for case-insensitive matching
+    function normalizeSpeciesName(name) {
+        if (!name || typeof name !== 'string') return '';
+        return name.trim().toLowerCase();
+    }
+
+    // Check if an item is on the watch list (case-insensitive for seeds)
     function isWatchedItem(itemId, type = 'seed') {
         const notifications = UnifiedState.data.settings.notifications;
         if (type === 'seed') {
-            return notifications.watchedSeeds.includes(itemId);
+            // Case-insensitive matching for seeds
+            const normalizedItemId = normalizeSpeciesName(itemId);
+            return notifications.watchedSeeds.some(watched =>
+                normalizeSpeciesName(watched) === normalizedItemId
+            );
         } else if (type === 'egg') {
             return notifications.watchedEggs.includes(itemId);
         }
@@ -6651,7 +6661,14 @@ window.MGA_debugStorage = function() {
 
                     // Check if it's a watched seed with detailed logging
                     const isWatched = isWatchedItem(seedId, 'seed');
-                    console.log(`🔍 [NOTIFICATIONS] Is ${seedId} watched? ${isWatched} | Watched list: [${notifications.watchedSeeds.join(', ')}]`);
+                    console.log(`🔍 [NOTIFICATIONS] Is ${seedId} watched? ${isWatched}`);
+                    console.log(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedSeeds.join(', ')}]`);
+                    console.log(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedSeeds.map(w => ({
+                        watched: w,
+                        current: seedId,
+                        exactMatch: w === seedId,
+                        lowerMatch: w.toLowerCase() === seedId.toLowerCase()
+                    })));
 
                     if (isWatched) {
                         // Check cooldown (1 minute per item, but allow Carrot for testing)
@@ -6760,7 +6777,14 @@ window.MGA_debugStorage = function() {
 
                     // Check if it's a watched egg with detailed logging
                     const isWatched = isWatchedItem(eggId, 'egg');
-                    console.log(`🔍 [NOTIFICATIONS] Is ${eggId} watched? ${isWatched} | Watched list: [${notifications.watchedEggs.join(', ')}]`);
+                    console.log(`🔍 [NOTIFICATIONS] Is ${eggId} watched? ${isWatched}`);
+                    console.log(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedEggs.join(', ')}]`);
+                    console.log(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedEggs.map(w => ({
+                        watched: w,
+                        current: eggId,
+                        exactMatch: w === eggId,
+                        lowerMatch: w.toLowerCase() === eggId.toLowerCase()
+                    })));
 
                     if (isWatched) {
                         // Check cooldown (1 minute per item, allow MythicalEgg/CommonEgg for testing)
@@ -10304,11 +10328,18 @@ window.MGA_debugStorage = function() {
     window.MGA_removeAllTileOverrides = window.MGA_Internal.removeAllTileOverrides;
     window.MGA_highlightTilesByMutation = window.highlightTilesByMutation;
     window.MGA_setTileSpecies = window.MGA_Internal.setTileSpecies;
+    window.MGA_setTileSlotTargetScale = window.MGA_Internal.setTileSlotTargetScale;
 
     // For scripts that might still depend on the global names, check if they exist
     // If not (meaning no conflict), provide them. If they do exist, skip to avoid conflicts.
     if (typeof window.removeAllTileOverrides !== 'function') {
         window.removeAllTileOverrides = window.MGA_Internal.removeAllTileOverrides;
+    }
+    if (typeof window.setTileSpecies !== 'function') {
+        window.setTileSpecies = window.MGA_Internal.setTileSpecies;
+    }
+    if (typeof window.setTileSlotTargetScale !== 'function') {
+        window.setTileSlotTargetScale = window.MGA_Internal.setTileSlotTargetScale;
     }
 
     console.log('🌱 Crop highlighting debugging tools installed:');
