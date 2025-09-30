@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.9.3
+// @version      1.9.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1280,6 +1280,12 @@ function applyResponsiveTextScaling(overlay, width, height) {
             autoSave: null
         },
         popoutWindows: new Set(), // Track all popout windows
+        firebase: {
+            app: null,
+            database: null,
+            reportInterval: null,
+            unsubscribe: null
+        },
         data: {
             petPresets: {},
             petPresetsOrder: [],  // Array to maintain preset display order
@@ -1290,6 +1296,11 @@ function applyResponsiveTextScaling(overlay, width, height) {
             gardenValue: 0,
             tileValue: 0,
             lastAbilityTimestamps: {},
+            roomStatus: {
+                counts: {}, // Store room counts {MG1: 3, MG2: 2, ...}
+                currentRoom: null,
+                reporterId: null
+            },
             timers: {
                 seed: null,
                 egg: null,
@@ -1372,6 +1383,218 @@ function applyResponsiveTextScaling(overlay, width, height) {
     };
 
     /* CHECKPOINT removed: UNIFIED_STATE_COMPLETE */
+
+    // ==================== ROOM STATUS & FIREBASE ====================
+
+    const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBfFW74PLBfLIpYj5dakmKar2wRpLu1ZOA",
+        authDomain: "mg-rooms.firebaseapp.com",
+        databaseURL: "https://mg-rooms-default-rtdb.firebaseio.com",
+        projectId: "mg-rooms",
+        storageBucket: "mg-rooms.firebasestorage.app",
+        messagingSenderId: "175773159635",
+        appId: "1:175773159635:web:6676c5a625c3fe1da74426"
+    };
+
+    const REPORT_INTERVAL = 5000; // Report room count every 5 seconds
+    const TRACKED_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10'];
+
+    // Get current room code from URL
+    function getCurrentRoomCode() {
+        try {
+            const match = window.location.pathname.match(/\/r\/([^\/]+)/);
+            return match ? match[1].toUpperCase() : null;
+        } catch (err) {
+            console.error('Failed to get room code:', err);
+            return null;
+        }
+    }
+
+    // Get actual player count from game's room state
+    function getActualPlayerCount() {
+        try {
+            const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
+            if (!roomState?.child?.data?.userSlots) {
+                console.log('[Room Status] No userSlots data available', {
+                    hasRoomConnection: !!targetWindow.MagicCircle_RoomConnection,
+                    hasRoomState: !!roomState,
+                    hasChild: !!roomState?.child,
+                    hasData: !!roomState?.child?.data
+                });
+                return null;
+            }
+            const userSlots = roomState.child.data.userSlots;
+            const count = userSlots.filter(slot => slot !== null && slot !== undefined).length;
+            console.log('[Room Status] Player count:', count, 'userSlots:', userSlots);
+            return count;
+        } catch (err) {
+            console.error('[Room Status] Failed to get player count:', err);
+            return null;
+        }
+    }
+
+    // Generate unique reporter ID
+    function getReporterId() {
+        if (!UnifiedState.data.roomStatus.reporterId) {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                UnifiedState.data.roomStatus.reporterId = crypto.randomUUID();
+            } else {
+                UnifiedState.data.roomStatus.reporterId = 'reporter_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+        }
+        return UnifiedState.data.roomStatus.reporterId;
+    }
+
+    // Load Firebase SDK and initialize
+    async function initializeFirebase() {
+        try {
+            console.log('📡 Loading Firebase SDK...');
+
+            // Import Firebase modules
+            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js');
+            const { getDatabase, ref, set, onValue, onDisconnect } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js');
+
+            // Initialize Firebase app
+            UnifiedState.firebase.app = initializeApp(FIREBASE_CONFIG);
+            UnifiedState.firebase.database = getDatabase(UnifiedState.firebase.app);
+
+            console.log('✅ Firebase initialized (no auth required with open rules)');
+            return { ref, set, onValue, onDisconnect };
+        } catch (err) {
+            console.error('❌ Firebase initialization failed:', err);
+            return null;
+        }
+    }
+
+    // Start reporting current room's player count
+    async function startRoomReporting(firebase) {
+        if (!firebase) return;
+
+        const roomCode = getCurrentRoomCode();
+        if (!roomCode) return;
+
+        UnifiedState.data.roomStatus.currentRoom = roomCode;
+
+        try {
+            const { ref, set, onDisconnect } = firebase;
+            const currentRoomRef = ref(UnifiedState.firebase.database, `roomCounts/${roomCode}`);
+
+            // Report immediately
+            const count = getActualPlayerCount() || 0;
+            await set(currentRoomRef, {
+                count: count,
+                lastUpdate: Date.now(),
+                reporter: getReporterId()
+            });
+
+            console.log(`📊 Reported ${count} players in ${roomCode}`);
+
+            // Set up onDisconnect cleanup
+            await onDisconnect(currentRoomRef).remove();
+
+            // Start interval reporting
+            UnifiedState.firebase.reportInterval = setInterval(async () => {
+                try {
+                    const currentCount = getActualPlayerCount() || 0;
+                    await set(currentRoomRef, {
+                        count: currentCount,
+                        lastUpdate: Date.now(),
+                        reporter: getReporterId()
+                    });
+                } catch (err) {
+                    console.error('Failed to report room count:', err);
+                }
+            }, REPORT_INTERVAL);
+
+        } catch (err) {
+            console.error('Failed to start room reporting:', err);
+        }
+    }
+
+    // Listen to all room counts
+    function startRoomListener(firebase) {
+        if (!firebase) return;
+
+        try {
+            const { ref, onValue } = firebase;
+            const allRoomsRef = ref(UnifiedState.firebase.database, 'roomCounts');
+
+            UnifiedState.firebase.unsubscribe = onValue(allRoomsRef, (snapshot) => {
+                const roomData = snapshot.val() || {};
+
+                // Update room counts
+                const counts = {};
+                TRACKED_ROOMS.forEach(roomCode => {
+                    if (roomData[roomCode]) {
+                        const age = Date.now() - (roomData[roomCode].lastUpdate || 0);
+                        // Only show fresh data (less than 30 seconds old)
+                        counts[roomCode] = age < 30000 ? (roomData[roomCode].count || 0) : 0;
+                    } else {
+                        counts[roomCode] = 0;
+                    }
+                });
+
+                UnifiedState.data.roomStatus.counts = counts;
+
+                // Update display if rooms tab is active
+                updateRoomStatusDisplay();
+            });
+
+            console.log('✅ Listening to all room counts');
+        } catch (err) {
+            console.error('Failed to start room listener:', err);
+        }
+    }
+
+    // Update room status display
+    function updateRoomStatusDisplay() {
+        const roomList = document.getElementById('room-status-list');
+        if (!roomList) return;
+
+        const currentRoom = getCurrentRoomCode();
+        const roomCounts = UnifiedState.data.roomStatus.counts;
+
+        roomList.innerHTML = TRACKED_ROOMS.map(roomCode => {
+            const count = roomCounts[roomCode] || 0;
+            const displayCount = Math.min(count, 6);
+            const isCurrentRoom = roomCode === currentRoom;
+
+            let statusColor = '#94a3b8';
+            if (count > 0) statusColor = '#4ade80';
+            if (count >= 4) statusColor = '#fbbf24';
+            if (count >= 6) statusColor = '#ef4444';
+
+            const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)';
+            const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)';
+
+            return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        <span style="font-weight: bold; color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'}; font-size: 14px; min-width: 45px;">${roomCode}</span>
+                        <span style="font-weight: bold; color: ${statusColor}; font-size: 13px; min-width: 50px;">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
+                    </div>
+                    <button class="mga-button room-join-btn" data-room="${roomCode}" style="padding: 6px 14px; font-size: 12px; background: ${isCurrentRoom ? '#666' : '#4a9eff'}; color: white; border: none; border-radius: 4px; cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'}; opacity: ${isCurrentRoom ? '0.5' : '1'};" ${isCurrentRoom ? 'disabled' : ''}>
+                        ${isCurrentRoom ? 'Current' : 'Join'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        // Re-attach event listeners
+        setupRoomJoinButtons();
+    }
+
+    // Setup join button handlers
+    function setupRoomJoinButtons() {
+        document.querySelectorAll('.room-join-btn:not([data-handler-attached])').forEach(btn => {
+            btn.setAttribute('data-handler-attached', 'true');
+            btn.addEventListener('click', () => {
+                const roomCode = btn.getAttribute('data-room');
+                const host = window.location.host;
+                window.location.href = `https://${host}/r/${roomCode}`;
+            });
+        });
+    }
 
     // ==================== SIMPLE PET DETECTION ====================
     function getActivePetsFromRoomState() {
@@ -3214,8 +3437,12 @@ window.MGA_debugStorage = function() {
                 <span data-icon="⏰">⏰ Timers</span>
                 <span class="mga-tab-popout" data-popout="timers" data-tooltip="Open timers in separate window">↗️</span>
             </div>
+            <div class="mga-tab" data-tab="rooms" data-tooltip="Live room player counts and quick join">
+                <span data-icon="🎮">🎮 Rooms</span>
+                <span class="mga-tab-popout" data-popout="rooms" data-tooltip="Open rooms in separate window">↗️</span>
+            </div>
             <div class="mga-tab" data-tab="hotkeys" data-tooltip="Customize keyboard shortcuts">
-                <span data-icon="🎮">🎮 Hotkeys</span>
+                <span data-icon="⌨️">⌨️ Hotkeys</span>
                 <span class="mga-tab-popout" data-popout="hotkeys" data-tooltip="Open hotkeys in separate window">↗️</span>
             </div>
             <div class="mga-tab" data-tab="notifications" data-tooltip="Configure alerts and sounds">
@@ -3686,6 +3913,9 @@ window.MGA_debugStorage = function() {
                     case 'tools':
                         setupToolsTabHandlers(popoutWindow.document);
                         break;
+                    case 'rooms':
+                        setupRoomJoinButtons();
+                        break;
                     case 'hotkeys':
                         setupHotkeysTabHandlers(popoutWindow.document);
                         break;
@@ -3740,6 +3970,8 @@ window.MGA_debugStorage = function() {
                 return getValuesTabContent();
             case 'timers':
                 return getTimersTabContent();
+            case 'rooms':
+                return getRoomStatusTabContent();
             case 'tools':
                 return getToolsTabContent();
             case 'settings':
@@ -3780,6 +4012,9 @@ window.MGA_debugStorage = function() {
                     break;
                 case 'tools':
                     setupToolsTabHandlers(overlay);
+                    break;
+                case 'rooms':
+                    setupRoomJoinButtons();
                     break;
                 case 'hotkeys':
                     setupHotkeysTabHandlers(overlay);
@@ -5254,6 +5489,9 @@ window.MGA_debugStorage = function() {
                     case 'tools':
                         setupToolsTabHandlers(popoutWindow.document);
                         break;
+                    case 'rooms':
+                        setupRoomJoinButtons();
+                        break;
                     case 'hotkeys':
                         setupHotkeysTabHandlers(popoutWindow.document);
                         break;
@@ -5411,6 +5649,10 @@ window.MGA_debugStorage = function() {
                 break;
             case 'timers':
                 contentEl.innerHTML = getTimersTabContent();
+                break;
+            case 'rooms':
+                contentEl.innerHTML = getRoomStatusTabContent();
+                setupRoomJoinButtons();
                 break;
             case 'tools':
                 contentEl.innerHTML = getToolsTabContent();
@@ -5916,6 +6158,88 @@ window.MGA_debugStorage = function() {
                 <div class="mga-timer" style="background: rgba(147, 51, 234, 0.1); border-color: rgba(147, 51, 234, 0.3);">
                     <div class="mga-timer-label">Lunar Event</div>
                     <div class="mga-timer-value" id="timer-lunar" style="color: #9333ea;">--:--</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function getRoomStatusTabContent() {
+        const currentRoom = getCurrentRoomCode();
+        const roomCounts = UnifiedState.data.roomStatus?.counts || {};
+
+        return `
+            <div class="mga-section">
+                <div class="mga-section-title">🎮 Live Room Status</div>
+                <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                    Real-time player counts for all Magic Garden rooms. Shows how many players are currently in each room. Click "Join" to navigate to that room instantly.
+                </p>
+
+                <div id="room-status-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    ${['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10'].map(roomCode => {
+                        const count = roomCounts[roomCode] || 0;
+                        const displayCount = Math.min(count, 6);
+                        const isCurrentRoom = roomCode === currentRoom;
+
+                        // Color based on player count
+                        let statusColor = '#94a3b8'; // Gray for empty
+                        if (count > 0) statusColor = '#4ade80'; // Green for active
+                        if (count >= 4) statusColor = '#fbbf24'; // Yellow for busy
+                        if (count >= 6) statusColor = '#ef4444'; // Red for full
+
+                        const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)';
+                        const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)';
+
+                        return `
+                            <div style="
+                                display: flex;
+                                align-items: center;
+                                justify-content: space-between;
+                                padding: 12px;
+                                background: ${bgColor};
+                                border: 1px solid ${borderColor};
+                                border-radius: 6px;
+                                transition: all 0.2s;
+                            ">
+                                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                    <span style="
+                                        font-weight: bold;
+                                        color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'};
+                                        font-size: 14px;
+                                        min-width: 45px;
+                                    ">${roomCode}</span>
+                                    <span style="
+                                        font-weight: bold;
+                                        color: ${statusColor};
+                                        font-size: 13px;
+                                        min-width: 50px;
+                                    ">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
+                                </div>
+                                <button class="mga-button room-join-btn" data-room="${roomCode}" style="
+                                    padding: 6px 14px;
+                                    font-size: 12px;
+                                    background: ${isCurrentRoom ? '#666' : '#4a9eff'};
+                                    color: white;
+                                    border: none;
+                                    border-radius: 4px;
+                                    cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'};
+                                    opacity: ${isCurrentRoom ? '0.5' : '1'};
+                                " ${isCurrentRoom ? 'disabled' : ''}>
+                                    ${isCurrentRoom ? 'Current' : 'Join'}
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                <div style="margin-top: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                    <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                        <strong style="color: #60a5fa;">How it works:</strong><br>
+                        • Player counts update automatically every 5 seconds<br>
+                        • Shows actual players in each room (not just script users)<br>
+                        • 🟢 Green (1-3) = Active  •  🟡 Yellow (4-5) = Busy  •  🔴 Red (6+) = Full<br>
+                        • Your current room is highlighted in blue<br>
+                        • Click "Join" to navigate to any room instantly
+                    </div>
                 </div>
             </div>
         `;
@@ -13759,6 +14083,18 @@ window.MGA_debugStorage = function() {
             // Load saved data
             console.log('💾 Loading saved data...');
             loadSavedData();
+
+            // Initialize Firebase for room status tracking
+            console.log('📡 Initializing Firebase for room tracking...');
+            initializeFirebase().then(firebase => {
+                if (firebase) {
+                    startRoomReporting(firebase);
+                    startRoomListener(firebase);
+                    console.log('✅ Room tracking active');
+                }
+            }).catch(err => {
+                console.error('Firebase initialization error:', err);
+            });
 
             // Verify data loaded before UI creation
             // console.log('🔍 [STARTUP-VERIFY] Data loaded before UI creation:', {
