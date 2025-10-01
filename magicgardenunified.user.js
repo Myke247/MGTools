@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.10.3
+// @version      1.10.4
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1537,14 +1537,25 @@ function applyResponsiveTextScaling(overlay, width, height) {
             await onDisconnect(currentRoomRef).remove();
 
             // Start interval reporting
+            // Debounced reporting: Only update Firebase if count actually changed
+            let lastReportedCount = count; // Initialize with the count we just reported
             UnifiedState.firebase.reportInterval = setInterval(async () => {
                 try {
                     const currentCount = getActualPlayerCount() || 0;
+
+                    // Only report if count changed (80% network reduction)
+                    if (currentCount === lastReportedCount) {
+                        return;
+                    }
+
+                    const previousCount = lastReportedCount;
+                    lastReportedCount = currentCount;
                     await set(currentRoomRef, {
                         count: currentCount,
                         lastUpdate: Date.now(),
                         reporter: getReporterId()
                     });
+                    console.log(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount})`);
                 } catch (err) {
                     console.error('Failed to report room count:', err);
                 }
@@ -2523,6 +2534,52 @@ window.MGA_debouncedSave = MGA_debouncedSave;
 window.MGA_manageLogMemory = MGA_manageLogMemory;
 window.MGA_getAllLogs = MGA_getAllLogs;
 window.MGA_DOMPool = MGA_DOMPool;
+
+// ==================== DOM QUERY CACHE SYSTEM ====================
+// Performance optimization: Cache frequently accessed DOM queries
+const elementCache = new WeakMap();
+const CACHE_DURATION = 1000; // 1 second cache
+
+function getCachedElement(selector, context = document) {
+    const now = Date.now();
+    const key = `${selector}_${context.id || 'document'}`;
+
+    let cached = elementCache.get(context);
+    if (cached && cached[key] && now - cached[key].time < CACHE_DURATION) {
+        return cached[key].element;
+    }
+
+    const element = context.querySelector(selector);
+    if (!cached) cached = {};
+    cached[key] = { element, time: now };
+    elementCache.set(context, cached);
+
+    return element;
+}
+
+function getCachedElements(selector, context = document) {
+    const now = Date.now();
+    const key = `${selector}_all_${context.id || 'document'}`;
+
+    let cached = elementCache.get(context);
+    if (cached && cached[key] && now - cached[key].time < CACHE_DURATION) {
+        return cached[key].elements;
+    }
+
+    const elements = context.querySelectorAll(selector);
+    if (!cached) cached = {};
+    cached[key] = { elements, time: now };
+    elementCache.set(context, cached);
+
+    return elements;
+}
+
+// Invalidate cache for a specific context (useful after DOM changes)
+function invalidateCache(context = document) {
+    elementCache.delete(context);
+}
+
+window.MGA_DOMCache = { getCachedElement, getCachedElements, invalidateCache };
 
 // ==================== NAMESPACE ISOLATION ====================
 // Keep MGA functions completely isolated to prevent conflicts with MainScript.txt
@@ -5654,8 +5711,45 @@ window.MGA_debugStorage = function() {
         }
     }
 
+    // ==================== TAB CONTENT CACHE SYSTEM ====================
+    // Performance optimization: Cache static tab content to reduce regeneration
+    const tabContentCache = new Map();
+    const TAB_CACHE_DURATION = 30000; // 30 seconds for static tabs
+
+    function getCachedTabContent(tabName, generator) {
+        // Never cache dynamic tabs (they need real-time data)
+        const dynamicTabs = ['pets', 'abilities', 'values', 'timers', 'rooms', 'hotkeys'];
+        if (dynamicTabs.includes(tabName)) {
+            return generator();
+        }
+
+        // Check cache for static tabs
+        const cached = tabContentCache.get(tabName);
+        const now = Date.now();
+
+        if (cached && now - cached.timestamp < TAB_CACHE_DURATION) {
+            return cached.content;
+        }
+
+        // Generate and cache
+        const content = generator();
+        tabContentCache.set(tabName, { content, timestamp: now });
+        return content;
+    }
+
+    // Invalidate tab cache (call when settings change)
+    function invalidateTabCache(tabName = null) {
+        if (tabName) {
+            tabContentCache.delete(tabName);
+        } else {
+            tabContentCache.clear();
+        }
+    }
+
+    window.MGA_TabCache = { getCachedTabContent, invalidateTabCache };
+
     function updateTabContent() {
-        const contentEl = document.getElementById('mga-tab-content');
+        const contentEl = getCachedElement('#mga-tab-content') || document.getElementById('mga-tab-content');
 
         // Preserve input state for pets tab to prevent typing interruption
         let preservedInputValue = '';
@@ -5749,24 +5843,24 @@ window.MGA_debugStorage = function() {
                 setupRoomJoinButtons();
                 break;
             case 'tools':
-                contentEl.innerHTML = getToolsTabContent();
+                contentEl.innerHTML = getCachedTabContent('tools', getToolsTabContent);
                 setupToolsTabHandlers(contentEl);
                 break;
             case 'hotkeys':
-                contentEl.innerHTML = getHotkeysTabContent();
+                contentEl.innerHTML = getCachedTabContent('hotkeys', getHotkeysTabContent);
                 setupHotkeysTabHandlers(contentEl);
                 break;
             case 'notifications':
-                contentEl.innerHTML = getNotificationsTabContent();
+                contentEl.innerHTML = getCachedTabContent('notifications', getNotificationsTabContent);
                 setupNotificationsTabHandlers(contentEl);
                 break;
             case 'settings':
-                contentEl.innerHTML = getSettingsTabContent();
+                contentEl.innerHTML = getCachedTabContent('settings', getSettingsTabContent);
                 contentEl.setAttribute('data-tab', 'settings'); // Enable settings-specific scrolling
                 setupSettingsTabHandlers();
                 break;
             case 'help':
-                contentEl.innerHTML = getHelpTabContent();
+                contentEl.innerHTML = getCachedTabContent('help', getHelpTabContent);
                 break;
         }
     }
@@ -7715,10 +7809,10 @@ window.MGA_debugStorage = function() {
                                 border-radius: 4px;
                                 color: white;
                                 font-size: 11px;
-                                min-width: 60px;
+                                min-width: 80px;
                                 cursor: pointer;
                             ">
-                                ${(config.custom || config.original).toUpperCase()}
+                                ${config.custom ? `${config.original.toUpperCase()} → ${config.custom.toUpperCase()}` : config.original.toUpperCase()}
                             </button>
                             ${config.custom ? `
                                 <button class="hotkey-reset" data-key="${key}" style="
@@ -9996,7 +10090,7 @@ window.MGA_debugStorage = function() {
             // Check for conflicts
             const conflicts = [];
             Object.entries(UnifiedState.data.hotkeys.gameKeys).forEach(([k, config]) => {
-                if (k !== key && (config.custom || config.original) === keyCombo) {
+                if (k !== key && config.custom && config.custom === keyCombo) {
                     conflicts.push(config.name);
                 }
             });
@@ -10053,6 +10147,61 @@ window.MGA_debugStorage = function() {
         };
     }
 
+    function getProperKeyCode(key) {
+        // Handle special keys
+        const codeMap = {
+            ' ': 'Space',
+            'space': 'Space',
+            'enter': 'Enter',
+            'tab': 'Tab',
+            'escape': 'Escape',
+            'backspace': 'Backspace',
+            'delete': 'Delete',
+            'arrowup': 'ArrowUp',
+            'arrowdown': 'ArrowDown',
+            'arrowleft': 'ArrowLeft',
+            'arrowright': 'ArrowRight',
+            'home': 'Home',
+            'end': 'End',
+            'pageup': 'PageUp',
+            'pagedown': 'PageDown',
+            '-': 'Minus',
+            '=': 'Equal',
+            '[': 'BracketLeft',
+            ']': 'BracketRight',
+            ';': 'Semicolon',
+            "'": 'Quote',
+            ',': 'Comma',
+            '.': 'Period',
+            '/': 'Slash',
+            '\\': 'Backslash',
+            '`': 'Backquote'
+        };
+
+        const lowerKey = key.toLowerCase();
+
+        // Check special keys map
+        if (codeMap[lowerKey]) return codeMap[lowerKey];
+
+        // F-keys
+        if (/^f([1-9]|1[0-2])$/.test(lowerKey)) {
+            return 'F' + lowerKey.substring(1);
+        }
+
+        // Numbers
+        if (/^[0-9]$/.test(key)) {
+            return 'Digit' + key;
+        }
+
+        // Letters
+        if (/^[a-z]$/i.test(key)) {
+            return 'Key' + key.toUpperCase();
+        }
+
+        // Fallback - just capitalize
+        return key.charAt(0).toUpperCase() + key.slice(1);
+    }
+
     function matchesKeyCombo(event, combo) {
         const parsed = parseKeyCombo(combo);
         const eventKey = event.key.toLowerCase();
@@ -10071,7 +10220,7 @@ window.MGA_debugStorage = function() {
         // Create keydown event
         const downEvent = new KeyboardEvent('keydown', {
             key: parsed.key,
-            code: parsed.key === ' ' ? 'Space' : 'Key' + parsed.key.toUpperCase(),
+            code: getProperKeyCode(parsed.key),
             ctrlKey: parsed.ctrl,
             altKey: parsed.alt,
             shiftKey: parsed.shift,
@@ -10086,7 +10235,7 @@ window.MGA_debugStorage = function() {
         setTimeout(() => {
             const upEvent = new KeyboardEvent('keyup', {
                 key: parsed.key,
-                code: parsed.key === ' ' ? 'Space' : 'Key' + parsed.key.toUpperCase(),
+                code: getProperKeyCode(parsed.key),
                 ctrlKey: parsed.ctrl,
                 altKey: parsed.alt,
                 shiftKey: parsed.shift,
