@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.10.1
+// @version      1.10.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1326,7 +1326,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     watchedEggs: ["CommonEgg", "MythicalEgg"],
                     lastSeenTimestamps: {}
                 },
-                detailedTimestamps: false  // Show HH:MM:SS format instead of H:MM AM/PM
+                detailedTimestamps: true  // Show HH:MM:SS 24-hour format instead of 12-hour AM/PM
             },
             hotkeys: {
                 enabled: true,
@@ -1567,14 +1567,23 @@ function applyResponsiveTextScaling(overlay, width, height) {
                 const roomData = snapshot.val() || {};
                 console.log('[Room Status] Received update from Firebase:', roomData);
 
-                // Update room counts
+                // Update room counts - use the highest count from fresh data to prevent flickering
                 const counts = {};
                 TRACKED_ROOMS.forEach(roomCode => {
                     if (roomData[roomCode]) {
                         const age = Date.now() - (roomData[roomCode].lastUpdate || 0);
-                        // Only show fresh data (less than 30 seconds old)
-                        counts[roomCode] = age < 30000 ? (roomData[roomCode].count || 0) : 0;
-                        console.log(`[Room Status] ${roomCode}: ${counts[roomCode]} players (age: ${Math.round(age/1000)}s)`);
+                        const newCount = age < 30000 ? (roomData[roomCode].count || 0) : 0;
+
+                        // Use the higher of the new count or existing count (prevents flickering from 6->0->6)
+                        // Only decrease if the new count is 0 (room emptied) or very fresh data (< 3s old)
+                        const existingCount = UnifiedState.data.roomStatus.counts[roomCode] || 0;
+                        if (newCount >= existingCount || newCount === 0 || age < 3000) {
+                            counts[roomCode] = newCount;
+                        } else {
+                            counts[roomCode] = existingCount;
+                        }
+
+                        console.log(`[Room Status] ${roomCode}: ${counts[roomCode]} players (new: ${newCount}, existing: ${existingCount}, age: ${Math.round(age/1000)}s)`);
                     } else {
                         counts[roomCode] = 0;
                     }
@@ -3109,6 +3118,12 @@ window.MGA_debugStorage = function() {
         showHandleOnHover = true
     } = options;
 
+    // Check if element already has a resize handle - remove it to prevent duplicates
+    const existingHandle = element.querySelector('.mga-resize-handle');
+    if (existingHandle) {
+        existingHandle.remove();
+    }
+
     // Create resize handle
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'mga-resize-handle';
@@ -3124,6 +3139,7 @@ window.MGA_debugStorage = function() {
         opacity: ${showHandleOnHover ? '0.3' : '0.6'};
         transition: opacity 0.2s ease;
         z-index: 10;
+        pointer-events: auto;
     `;
     element.appendChild(resizeHandle);
 
@@ -4656,6 +4672,14 @@ window.MGA_debugStorage = function() {
     function addResizeHandleToOverlay(overlay) {
         console.log('🔧 [RESIZE DEBUG] Adding resize handle to overlay:', overlay.id);
         debugLog('RESIZE', 'Adding resize handle to overlay', { overlayId: overlay.id });
+
+        // Remove any existing resize handles first to prevent duplicates
+        const existingHandle = overlay.querySelector('.mga-resize-handle');
+        if (existingHandle) {
+            existingHandle.remove();
+            console.log('🔧 [RESIZE DEBUG] Removed existing handle before adding new one');
+        }
+
         // Use the unified resize system with overlay-specific options
         makeElementResizable(overlay, {
             minWidth: 180,
@@ -5891,6 +5915,48 @@ window.MGA_debugStorage = function() {
                 console.log(`✅ [MGA-PETS] Loaded preset: ${presetName}`);
             });
         });
+
+        // Add event delegation for preset action buttons (move-up, move-down, save, place, remove)
+        const presetsContainer = context.querySelector('#presets-list');
+        if (presetsContainer) {
+            // Remove old listener if it exists
+            if (presetsContainer._mgaClickHandler) {
+                presetsContainer.removeEventListener('click', presetsContainer._mgaClickHandler);
+            }
+
+            // Create new handler
+            presetsContainer._mgaClickHandler = (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const action = btn.dataset.action;
+                const presetName = btn.dataset.preset;
+
+                if (action === 'move-up') {
+                    movePreset(presetName, 'up', context);
+                } else if (action === 'move-down') {
+                    movePreset(presetName, 'down', context);
+                } else if (action === 'save') {
+                    UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    refreshPresetsList(context);
+                    refreshSeparateWindowPopouts('pets');
+                } else if (action === 'place') {
+                    placePetPreset(presetName);
+                } else if (action === 'remove') {
+                    delete UnifiedState.data.petPresets[presetName];
+                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    refreshPresetsList(context);
+                    refreshSeparateWindowPopouts('pets');
+                }
+            };
+
+            // Add the handler
+            presetsContainer.addEventListener('click', presetsContainer._mgaClickHandler);
+        }
     }
 
     function getPetsTabContent() {
@@ -8104,6 +8170,9 @@ window.MGA_debugStorage = function() {
         // Refresh the preset list display
         refreshPresetsList(context);
 
+        // Refresh popout windows
+        refreshSeparateWindowPopouts('pets');
+
         // Also update main tab content if needed
         if (UnifiedState.activeTab === 'pets') {
             updateTabContent();
@@ -9073,7 +9142,7 @@ window.MGA_debugStorage = function() {
             };
 
             const catData = categoryData[category] || categoryData.other;
-            const relativeTime = formatRelativeTime(log.timestamp);
+            const formattedTime = formatTimestamp(log.timestamp);
             const isRecent = (Date.now() - log.timestamp) < 10000; // Less than 10 seconds ago
 
             html += `
@@ -9082,7 +9151,7 @@ window.MGA_debugStorage = function() {
                         <span class="mga-log-icon">${catData.icon}</span>
                         <span class="mga-log-meta">
                             <span class="mga-log-pet" style="color: ${catData.color}; font-weight: 600;">${log.petName}</span>
-                            <span class="mga-log-time">${relativeTime}</span>
+                            <span class="mga-log-time">${formattedTime}</span>
                         </span>
                     </div>
                     <div class="mga-log-ability">${log.abilityType}</div>
