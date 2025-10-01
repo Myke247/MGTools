@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.10.2
+// @version      1.10.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -3402,7 +3402,7 @@ window.MGA_debugStorage = function() {
         const toggleBtn = targetDocument.createElement('div');
         toggleBtn.className = 'mga-toggle-btn';
         toggleBtn.innerHTML = '🌱';
-        toggleBtn.setAttribute('data-tooltip', 'Magic Garden Assistant - Click to toggle panel (Alt+M)');
+        toggleBtn.setAttribute('data-tooltip', 'MGTools - Click to toggle panel (Alt+M)');
 
         // Click/drag functionality is now handled by makeToggleButtonDraggable
 
@@ -3456,7 +3456,7 @@ window.MGA_debugStorage = function() {
         header.innerHTML = `
             <div class="mga-title">
                 <span>🌱</span>
-                Magic Garden Assistant
+                MGTools
             </div>
             <div class="mga-controls">
                 <button class="mga-btn mga-btn-icon" onclick="this.closest('.mga-panel').style.display='none'; if(window.MGA_Tooltips && window.MGA_Tooltips.hide) window.MGA_Tooltips.hide();">✕</button>
@@ -3742,7 +3742,7 @@ window.MGA_debugStorage = function() {
             settings: '⚙️ Settings'
         };
 
-        const title = `Magic Garden Assistant - ${tabTitles[tabName] || tabName}`;
+        const title = `MGTools - ${tabTitles[tabName] || tabName}`;
 
         // Calculate window size based on tab content
         const windowFeatures = 'width=450,height=550,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
@@ -5357,7 +5357,7 @@ window.MGA_debugStorage = function() {
             settings: '⚙️ Settings'
         };
 
-        const title = `Magic Garden Assistant - ${tabTitles[tabName] || tabName}`;
+        const title = `MGTools - ${tabTitles[tabName] || tabName}`;
         const windowFeatures = 'width=450,height=550,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         const popoutWindow = window.open('', `mga_popout_${tabName}`, windowFeatures);
 
@@ -6413,6 +6413,39 @@ window.MGA_debugStorage = function() {
             </div>
 
             <div class="mga-section">
+                <div class="mga-section-title">📚 Wiki Resources</div>
+                <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                    Quick access to Magic Garden wiki pages. Click any card to open in a popup window.
+                </p>
+                <div class="mga-wiki-grid">
+                    <div class="mga-wiki-card" data-wiki="crops">
+                        <div class="mga-wiki-icon">🌾</div>
+                        <div class="mga-wiki-name">Crops</div>
+                    </div>
+                    <div class="mga-wiki-card" data-wiki="pets">
+                        <div class="mga-wiki-icon">🐾</div>
+                        <div class="mga-wiki-name">Pets</div>
+                    </div>
+                    <div class="mga-wiki-card" data-wiki="abilities">
+                        <div class="mga-wiki-icon">⚡</div>
+                        <div class="mga-wiki-name">Abilities</div>
+                    </div>
+                    <div class="mga-wiki-card" data-wiki="weather">
+                        <div class="mga-wiki-icon">🌤️</div>
+                        <div class="mga-wiki-name">Weather Events</div>
+                    </div>
+                    <div class="mga-wiki-card" data-wiki="multipliers">
+                        <div class="mga-wiki-icon">📈</div>
+                        <div class="mga-wiki-name">Multipliers</div>
+                    </div>
+                    <div class="mga-wiki-card" data-wiki="shops">
+                        <div class="mga-wiki-icon">🏪</div>
+                        <div class="mga-wiki-name">Shops</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mga-section">
                 <div class="mga-section-title">🌱 Crop Highlighting</div>
                 <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
                     Visual highlighting system for crops. Use Ctrl+H to clear highlights, Ctrl+Shift+H to toggle this panel.
@@ -6559,6 +6592,41 @@ window.MGA_debugStorage = function() {
                     font-size: 0.85em;
                     color: rgba(255,255,255,0.6);
                     line-height: 1.3;
+                }
+
+                .mga-wiki-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 10px;
+                    margin-top: 12px;
+                }
+
+                .mga-wiki-card {
+                    background: linear-gradient(135deg, rgba(74, 158, 255, 0.08), rgba(74, 158, 255, 0.03));
+                    border: 1px solid rgba(74, 158, 255, 0.2);
+                    border-radius: 6px;
+                    padding: 12px 8px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    text-align: center;
+                }
+
+                .mga-wiki-card:hover {
+                    background: linear-gradient(135deg, rgba(74, 158, 255, 0.15), rgba(74, 158, 255, 0.08));
+                    border-color: rgba(74, 158, 255, 0.4);
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                }
+
+                .mga-wiki-icon {
+                    font-size: 1.5em;
+                    margin-bottom: 4px;
+                }
+
+                .mga-wiki-name {
+                    font-size: 0.85em;
+                    font-weight: 600;
+                    color: rgba(255,255,255,0.9);
                 }
             </style>
         `;
@@ -10454,6 +10522,16 @@ window.MGA_debugStorage = function() {
             'ability-trigger-time': 'https://daserix.github.io/magic-garden-calculator/#/ability-trigger-time-calculator'
         };
 
+        // Wiki mapping
+        const wikiUrls = {
+            'crops': 'https://magicgarden.fandom.com/wiki/Crops',
+            'pets': 'https://magicgarden.fandom.com/wiki/Pets',
+            'abilities': 'https://magicgarden.fandom.com/wiki/Abilities',
+            'weather': 'https://magicgarden.fandom.com/wiki/Weather_Events',
+            'multipliers': 'https://magicgarden.fandom.com/wiki/Multipliers',
+            'shops': 'https://magicgarden.fandom.com/wiki/Shops'
+        };
+
         // Add click handlers to all calculator cards
         const toolCards = context.querySelectorAll('.mga-tool-card');
         toolCards.forEach(card => {
@@ -10473,6 +10551,25 @@ window.MGA_debugStorage = function() {
             }
         });
 
+        // Add click handlers to all wiki cards
+        const wikiCards = context.querySelectorAll('.mga-wiki-card');
+        wikiCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const wikiType = card.dataset.wiki;
+                const url = wikiUrls[wikiType];
+                if (url) {
+                    openWikiPopup(url, wikiType);
+                } else {
+                    console.warn(`Wiki URL not found for: ${wikiType}`);
+                }
+            });
+
+            // Add hover effect class if not already present
+            if (!card.classList.contains('mga-wiki-interactive')) {
+                card.classList.add('mga-wiki-interactive');
+            }
+        });
+
         // Crop highlighting handlers
         const applyHighlightingBtn = context.querySelector('#apply-highlighting-btn');
         if (applyHighlightingBtn) {
@@ -10489,7 +10586,7 @@ window.MGA_debugStorage = function() {
         }
 
         if (UnifiedState.data.settings.debugMode) {
-            console.log(`🧮 Set up handlers for ${toolCards.length} calculator tools`);
+            console.log(`🧮 Set up handlers for ${toolCards.length} calculator tools and ${wikiCards.length} wiki resources`);
         }
     }
 
@@ -10541,6 +10638,57 @@ window.MGA_debugStorage = function() {
             // Popup opened successfully
             popupWindow.focus();
             console.log(`✅ Opened calculator popup: ${calculatorType}`);
+        }
+    }
+
+    function openWikiPopup(url, wikiType) {
+        // Calculate window dimensions and position
+        const width = 1000;
+        const height = 900;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+
+        // Window features
+        const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`;
+
+        // Open the popup window
+        const popupWindow = window.open(url, `mga_wiki_${wikiType}`, features);
+
+        // Check if popup was blocked
+        if (!popupWindow || popupWindow.closed || typeof popupWindow.closed === 'undefined') {
+            // Popup was blocked, show alternative message
+            const message = `
+                <div style="padding: 20px; background: rgba(255,50,50,0.1); border: 1px solid rgba(255,100,100,0.3); border-radius: 5px; margin: 20px;">
+                    <h3 style="color: #ff6b6b; margin-bottom: 10px;">⚠️ Popup Blocked</h3>
+                    <p style="margin-bottom: 15px;">The wiki popup was blocked by your browser. Please allow popups for this site or open the wiki manually:</p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 3px; word-break: break-all;">
+                        <a href="${url}" target="_blank" style="color: #4fc3f7;">${url}</a>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: rgba(255,255,255,0.6);">
+                        Click the link above to open the wiki page in a new tab.
+                    </p>
+                </div>
+            `;
+
+            // Show message in the Tools tab content area
+            const contentEl = document.getElementById('mga-tab-content');
+            if (contentEl && UnifiedState.activeTab === 'tools') {
+                const existingContent = contentEl.innerHTML;
+                contentEl.innerHTML = message + existingContent;
+
+                // Remove the message after 10 seconds
+                setTimeout(() => {
+                    if (contentEl.innerHTML.includes(message)) {
+                        contentEl.innerHTML = existingContent;
+                    }
+                }, 10000);
+            }
+
+            console.warn(`Popup blocked for wiki: ${wikiType}. URL: ${url}`);
+        } else {
+            // Popup opened successfully
+            popupWindow.focus();
+            console.log(`✅ Opened wiki popup: ${wikiType}`);
         }
     }
 
