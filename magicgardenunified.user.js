@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.10.0
+// @version      1.10.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1629,6 +1629,9 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
         // Re-attach event listeners
         setupRoomJoinButtons();
+
+        // Update popout window if it exists
+        refreshSeparateWindowPopouts('rooms');
     }
 
     // Setup join button handlers
@@ -3719,6 +3722,7 @@ window.MGA_debugStorage = function() {
             seeds: '🌱 Seeds',
             values: '💰 Values',
             timers: '⏰ Timers',
+            rooms: '🎮 Rooms',
             settings: '⚙️ Settings'
         };
 
@@ -3757,6 +3761,9 @@ window.MGA_debugStorage = function() {
                 break;
             case 'tools':
                 content = getToolsTabContent();
+                break;
+            case 'rooms':
+                content = getRoomStatusTabContent();
                 break;
             case 'settings':
                 content = getSettingsTabContent();
@@ -3876,6 +3883,9 @@ window.MGA_debugStorage = function() {
                 case 'tools':
                     freshContent = mainWindow.MGA_Internal?.getToolsTabContent ? mainWindow.MGA_Internal?.getToolsTabContent() : 'Content unavailable';
                     break;
+                case 'rooms':
+                    freshContent = mainWindow.MGA_Internal?.getRoomStatusTabContent ? mainWindow.MGA_Internal?.getRoomStatusTabContent() : 'Content unavailable';
+                    break;
                 case 'settings':
                     freshContent = mainWindow.MGA_Internal?.getSettingsTabContent ? mainWindow.MGA_Internal?.getSettingsTabContent() : 'Content unavailable';
                     break;
@@ -3900,6 +3910,8 @@ window.MGA_debugStorage = function() {
                 mainWindow.resourceDashboard.setupDashboardHandlers(document);
             } else if (tabName === 'settings' && mainWindow.setupSettingsTabHandlers) {
                 mainWindow.setupSettingsTabHandlers.call(mainWindow, document);
+            } else if (tabName === 'rooms' && mainWindow.setupRoomJoinButtons) {
+                mainWindow.setupRoomJoinButtons.call(mainWindow);
             }
 
             console.log('Pop-out content refreshed for:', tabName);
@@ -3909,7 +3921,7 @@ window.MGA_debugStorage = function() {
         const currentTabName = '\${tabName}';
 
         // Auto-refresh every 5 seconds for dynamic tabs
-        if (['values', 'timers'].includes(currentTabName)) {
+        if (['values', 'timers', 'rooms'].includes(currentTabName)) {
             // Use managed interval to prevent memory leaks
             if (window.opener && window.opener.setManagedInterval) {
                 window.opener.setManagedInterval(
@@ -3991,6 +4003,7 @@ window.MGA_debugStorage = function() {
     window.MGA_Internal.getValuesTabContent = getValuesTabContent;
     window.MGA_Internal.getTimersTabContent = getTimersTabContent;
     window.MGA_Internal.getToolsTabContent = getToolsTabContent;
+    window.MGA_Internal.getRoomStatusTabContent = getRoomStatusTabContent;
     window.MGA_Internal.getSettingsTabContent = getSettingsTabContent;
     window.MGA_Internal.setupAbilitiesTabHandlers = setupAbilitiesTabHandlers;
     window.MGA_Internal.updateAbilityLogDisplay = updateAbilityLogDisplay;
@@ -3998,6 +4011,7 @@ window.MGA_debugStorage = function() {
     window.MGA_Internal.setupSeedsTabHandlers = setupSeedsTabHandlers;
     window.MGA_Internal.setupSettingsTabHandlers = setupSettingsTabHandlers;
     window.MGA_Internal.setupToolsTabHandlers = setupToolsTabHandlers;
+    window.MGA_Internal.setupRoomJoinButtons = setupRoomJoinButtons;
 
     // Export storage functions
     window.MGA_Internal.MGA_loadJSON = MGA_loadJSON;
@@ -4349,6 +4363,9 @@ window.MGA_debugStorage = function() {
                 break;
             case 'tools':
                 content = getToolsTabContent();
+                break;
+            case 'rooms':
+                content = getRoomStatusTabContent();
                 break;
             case 'settings':
                 content = getSettingsTabContent();
@@ -5349,6 +5366,9 @@ window.MGA_debugStorage = function() {
             case 'tools':
                 content = getToolsTabContent();
                 break;
+            case 'rooms':
+                content = getRoomStatusTabContent();
+                break;
             case 'settings':
                 content = getSettingsTabContent();
                 break;
@@ -5467,6 +5487,9 @@ window.MGA_debugStorage = function() {
                     break;
                 case 'tools':
                     freshContent = mainWindow.MGA_Internal?.getToolsTabContent ? mainWindow.MGA_Internal?.getToolsTabContent() : 'Content unavailable';
+                    break;
+                case 'rooms':
+                    freshContent = mainWindow.MGA_Internal?.getRoomStatusTabContent ? mainWindow.MGA_Internal?.getRoomStatusTabContent() : 'Content unavailable';
                     break;
                 case 'settings':
                     freshContent = mainWindow.MGA_Internal?.getSettingsTabContent ? mainWindow.MGA_Internal?.getSettingsTabContent() : 'Content unavailable';
