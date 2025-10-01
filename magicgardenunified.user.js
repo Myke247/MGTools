@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.10.4
+// @version      1.10.5
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1397,7 +1397,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
     };
 
     const REPORT_INTERVAL = 5000; // Report room count every 5 seconds
-    const TRACKED_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10'];
+    const TRACKED_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'SLAY'];
 
     // Get current room code from URL
     function getCurrentRoomCode() {
@@ -1523,25 +1523,42 @@ function applyResponsiveTextScaling(overlay, width, height) {
             const { ref, set, onDisconnect } = firebase;
             const currentRoomRef = ref(UnifiedState.firebase.database, `roomCounts/${roomCode}`);
 
-            // Report immediately
-            const count = getActualPlayerCount() || 0;
-            await set(currentRoomRef, {
-                count: count,
-                lastUpdate: Date.now(),
-                reporter: getReporterId()
-            });
+            // Report immediately - but only if we have actual data
+            const count = getActualPlayerCount();
+            if (count === null) {
+                console.warn(`[Room Status] No player data available yet for ${roomCode}, will retry on next interval`);
+                // Don't report or update local state with invalid data
+            } else {
+                await set(currentRoomRef, {
+                    count: count,
+                    lastUpdate: Date.now(),
+                    reporter: getReporterId()
+                });
 
-            console.log(`📊 Reported ${count} players in ${roomCode}`);
+                // Update local state immediately so user sees their own room count
+                if (!UnifiedState.data.roomStatus.counts) {
+                    UnifiedState.data.roomStatus.counts = {};
+                }
+                UnifiedState.data.roomStatus.counts[roomCode] = count;
+
+                console.log(`📊 Reported ${count} players in ${roomCode}`);
+            }
 
             // Set up onDisconnect cleanup
             await onDisconnect(currentRoomRef).remove();
 
             // Start interval reporting
             // Debounced reporting: Only update Firebase if count actually changed
-            let lastReportedCount = count; // Initialize with the count we just reported
+            let lastReportedCount = count !== null ? count : -1; // Initialize with actual count or -1 if no data yet
             UnifiedState.firebase.reportInterval = setInterval(async () => {
                 try {
-                    const currentCount = getActualPlayerCount() || 0;
+                    const currentCount = getActualPlayerCount();
+
+                    // Skip if we don't have valid data yet
+                    if (currentCount === null) {
+                        console.log('[Room Status] Skipping report - no player data available yet');
+                        return;
+                    }
 
                     // Only report if count changed (80% network reduction)
                     if (currentCount === lastReportedCount) {
@@ -1555,6 +1572,10 @@ function applyResponsiveTextScaling(overlay, width, height) {
                         lastUpdate: Date.now(),
                         reporter: getReporterId()
                     });
+
+                    // Update local state immediately
+                    UnifiedState.data.roomStatus.counts[roomCode] = currentCount;
+
                     console.log(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount})`);
                 } catch (err) {
                     console.error('Failed to report room count:', err);
@@ -1586,9 +1607,9 @@ function applyResponsiveTextScaling(overlay, width, height) {
                         const newCount = age < 30000 ? (roomData[roomCode].count || 0) : 0;
 
                         // Use the higher of the new count or existing count (prevents flickering from 6->0->6)
-                        // Only decrease if the new count is 0 (room emptied) or very fresh data (< 3s old)
+                        // Only accept decreases if the data is very fresh (< 3s old) - prevents stale 0 reports from overwriting real data
                         const existingCount = UnifiedState.data.roomStatus.counts[roomCode] || 0;
-                        if (newCount >= existingCount || newCount === 0 || age < 3000) {
+                        if (newCount >= existingCount || age < 3000) {
                             counts[roomCode] = newCount;
                         } else {
                             counts[roomCode] = existingCount;
@@ -1664,6 +1685,50 @@ function applyResponsiveTextScaling(overlay, width, height) {
                 window.location.href = `https://${host}/r/${roomCode}`;
             });
         });
+
+        // Setup room search input handler
+        const searchInput = document.getElementById('room-search-input');
+        if (searchInput && !searchInput.hasAttribute('data-handler-attached')) {
+            searchInput.setAttribute('data-handler-attached', 'true');
+
+            // FIX: Stop hotkey system from intercepting keypresses in search input
+            searchInput.addEventListener('keydown', (e) => {
+                e.stopPropagation(); // Prevent hotkey system from seeing these events
+            }, true); // Use capture phase to intercept before hotkey system
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim().toUpperCase();
+                const roomList = document.getElementById('room-status-list');
+
+                if (query && !TRACKED_ROOMS.includes(query)) {
+                    // Show searched room
+                    const currentRoom = getCurrentRoomCode();
+                    const roomCounts = UnifiedState.data.roomStatus?.counts || {};
+                    const count = roomCounts[query] || 0;
+
+                    roomList.innerHTML = `
+                        <div style="padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-weight: bold; color: #e5e7eb; font-size: 14px;">${query}</span>
+                                    <span style="color: ${count > 0 ? '#4ade80' : '#94a3b8'}; font-size: 13px;">${count > 0 ? `${count} online` : 'No data'}</span>
+                                </div>
+                                <button class="mga-button" onclick="window.location.href='https://${window.location.host}/r/${query}'"
+                                    style="padding: 6px 14px; font-size: 12px; background: #4a9eff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Join
+                                </button>
+                            </div>
+                            <div style="font-size: 10px; color: #888; margin-top: 4px;">
+                                ${count > 0 ? 'At least one MGTools user is in this room' : 'Room may be empty or no MGTools users reporting'}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Show default tracked rooms
+                    updateTabContent();
+                }
+            });
+        }
     }
 
     // ==================== SIMPLE PET DETECTION ====================
@@ -5346,6 +5411,7 @@ window.MGA_debugStorage = function() {
     function setupPureOverlayHandlers(overlay, tabName) {
         setTimeout(() => {
             try {
+                console.log(`🔧 [HANDLER-SETUP] Setting up handlers for ${tabName} overlay`);
                 debugLog('HANDLER_SETUP', `Setting up pure overlay handlers for ${tabName}`, {
                     overlayId: overlay.id
                 });
@@ -5380,7 +5446,7 @@ window.MGA_debugStorage = function() {
                     overlayId: overlay.id
                 });
             }
-        }, 100);
+        }, 200);  // Increased from 100ms to 200ms to ensure DOM is fully updated
     }
 
     function refreshOverlayContent(tabName) {
@@ -5956,14 +6022,20 @@ window.MGA_debugStorage = function() {
 
     // Setup handlers specifically for pet popout preset buttons
     function setupPetPopoutHandlers(context = document) {
-        // Set up preset card handlers (updated for div structure)
-        context.querySelectorAll('.mga-preset-clickable[data-preset]').forEach(presetCard => {
-            if (presetCard.hasAttribute('data-handler-setup')) {
-                return; // Already set up
-            }
-            presetCard.setAttribute('data-handler-setup', 'true');
+        // Find all preset cards
+        const cards = context.querySelectorAll('.mga-preset-clickable[data-preset]');
 
-            presetCard.addEventListener('click', (e) => {
+        console.log(`🔧 [PETS-HANDLERS] Setting up handlers for ${cards.length} preset cards`);
+
+        // Set up preset card handlers - use cloneNode to ensure clean slate
+        cards.forEach((presetCard, index) => {
+            // Clone the node to remove ALL event listeners
+            const newCard = presetCard.cloneNode(true);
+            presetCard.parentNode.replaceChild(newCard, presetCard);
+
+            // Attach fresh handler to the cloned card
+            newCard.addEventListener('click', (e) => {
+                console.log(`🎯 [PETS-CLICK] Clicked preset #${index}: ${e.currentTarget.dataset.preset}`);
                 const presetName = e.currentTarget.dataset.preset;
 
                 if (!presetName || !UnifiedState.data.petPresets[presetName]) {
@@ -5996,17 +6068,68 @@ window.MGA_debugStorage = function() {
                     }, i * 50); // 50ms delay between each pet placement
                 });
 
+                // Update displays after all pets are placed (single refresh with retry)
+                const refreshPetDisplays = () => {
+                    console.log('🔄 [PETS-REFRESH] Starting refresh...');
+                    // Force update from room state
+                    updateActivePetsFromRoomState();
+
+                    // Get the actual window context, whether we're in main window or popout
+                    const contextDoc = context.ownerDocument || context;
+                    const contextWindow = contextDoc.defaultView || window;
+
+                    // Check if this is a separate window popout
+                    const isSeparateWindow = contextWindow !== window && contextWindow.refreshPopoutContent;
+
+                    if (isSeparateWindow) {
+                        // Refresh separate window popout
+                        contextWindow.refreshPopoutContent('pets');
+                    } else {
+                        // It's an in-game overlay or main window - update all popouts
+                        refreshSeparateWindowPopouts('pets');
+
+                        // Update all overlays
+                        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                            if (overlay && document.contains(overlay) && tabName === 'pets') {
+                                if (overlay.className.includes('mga-overlay-content-only')) {
+                                    updatePureOverlayContent(overlay, tabName);
+                                }
+                            }
+                        });
+
+                        // Update main tab if active
+                        if (UnifiedState.activeTab === 'pets') {
+                            updateTabContent();
+                        }
+                    }
+                };
+
+                // Single refresh after 2 seconds (gives game time to update)
+                setTimeout(() => {
+                    refreshPetDisplays();
+                    console.log('✅ [PETS-REFRESH] First refresh complete');
+
+                    // Retry handler reattachment after a short delay to ensure reliability
+                    setTimeout(() => {
+                        const overlay = UnifiedState.data.popouts.overlays.get('pets');
+                        if (overlay && document.contains(overlay)) {
+                            console.log('🔄 [PETS-HANDLERS] Reattaching handlers to ensure reliability');
+                            setupPetPopoutHandlers(overlay);
+                        }
+                    }, 500);
+                }, preset.length * 50 + 2000);
+
                 // Visual feedback - gentle highlight, no transform (prevents stutter)
                 // Temporarily disable pointer events to prevent hover conflicts
-                presetCard.style.pointerEvents = 'none';
-                const originalBackground = presetCard.style.background;
-                presetCard.style.background = 'rgba(16, 185, 129, 0.3)';
+                e.currentTarget.style.pointerEvents = 'none';
+                const originalBackground = e.currentTarget.style.background;
+                e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)';
                 setTimeout(() => {
-                    presetCard.style.background = originalBackground;
-                    presetCard.style.pointerEvents = '';
+                    e.currentTarget.style.background = originalBackground;
+                    e.currentTarget.style.pointerEvents = '';
                 }, 200);
 
-                console.log(`✅ [MGA-PETS] Loaded preset: ${presetName}`);
+                console.log(`✅ [PETS-SWAP] Loaded preset: ${presetName}`);
             });
         });
 
@@ -6404,8 +6527,14 @@ window.MGA_debugStorage = function() {
                     Real-time player counts for all Magic Garden rooms. Shows how many players are currently in each room. Click "Join" to navigate to that room instantly.
                 </p>
 
+                <div style="margin-bottom: 12px;">
+                    <input type="text" id="room-search-input" placeholder="Search room (e.g., SLAY)..."
+                        style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 4px; color: white; font-size: 12px;">
+                </div>
+
                 <div id="room-status-list" style="display: flex; flex-direction: column; gap: 8px;">
-                    ${['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10'].map(roomCode => {
+                    ${TRACKED_ROOMS.map(roomCode => {
                         const count = roomCounts[roomCode] || 0;
                         const displayCount = Math.min(count, 6);
                         const isCurrentRoom = roomCode === currentRoom;
@@ -8193,15 +8322,92 @@ window.MGA_debugStorage = function() {
         try{
             UnifiedState.data.popouts.windows.forEach((windowRef, popoutTabName) => {
                 if (windowRef && !windowRef.closed && popoutTabName === tabName) {
+                    // Force update pets data first for pets tab
+                    if (tabName === 'pets') {
+                        updateActivePetsFromRoomState();
+                    }
+
                     // Trigger refresh in the separate window
                     if (windowRef.refreshPopoutContent) {
                         windowRef.refreshPopoutContent(tabName);
+                        console.log(`🔄 [POPOUT] Refreshed ${tabName} window popout`);
+                    } else if (windowRef.location) {
+                        // Fallback: force reload if refresh function not available
+                        console.warn(`⚠️ [POPOUT] No refresh function for ${tabName}, reloading window`);
+                        windowRef.location.reload();
                     }
                 }
             });
         } catch (error) {
             debugError('OVERLAY_LIFECYCLE', 'Failed to refresh separate window popouts', error, { tabName });
         }
+    }
+
+    // Place a pet preset - used by both main tab and popout Place buttons
+    function placePetPreset(presetName) {
+        const preset = UnifiedState.data.petPresets[presetName];
+        if (!preset) {
+            console.warn(`[PETS] Preset "${presetName}" not found`);
+            return;
+        }
+
+        // Store current pets
+        (UnifiedState.atoms.activePets || []).forEach(p => {
+            safeSendMessage({
+                scopePath: ["Room", "Quinoa"],
+                type: "StorePet",
+                itemId: p.id
+            });
+        });
+
+        // Place preset pets with delays
+        preset.forEach((p, i) => {
+            setTimeout(() => {
+                safeSendMessage({
+                    scopePath: ["Room", "Quinoa"],
+                    type: "PlacePet",
+                    itemId: p.id,
+                    position: { x: 17 + i * 2, y: 13 },
+                    localTileIndex: 64,
+                    tileType: "Boardwalk"
+                });
+            }, i * 50);
+        });
+
+        // Update all displays after pets are placed (with backup refresh)
+        const refreshAllPetDisplays = () => {
+            // Force update from room state
+            updateActivePetsFromRoomState();
+
+            // Update main tab if active
+            if (UnifiedState.activeTab === 'pets') {
+                updateTabContent();
+            }
+
+            // Update overlays
+            UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                if (overlay && document.contains(overlay) && tabName === 'pets') {
+                    if (overlay.className.includes('mga-overlay-content-only')) {
+                        updatePureOverlayContent(overlay, tabName);
+                    }
+                }
+            });
+
+            // Update separate window popouts
+            refreshSeparateWindowPopouts('pets');
+        };
+
+        // First refresh after 1.5 seconds
+        setTimeout(() => {
+            refreshAllPetDisplays();
+            console.log(`✅ [PETS] Placed preset "${presetName}" and updated displays (first refresh)`);
+        }, preset.length * 50 + 1500);
+
+        // Backup refresh after 2.5 seconds to catch slow updates
+        setTimeout(() => {
+            refreshAllPetDisplays();
+            console.log(`✅ [PETS] Backup refresh for preset "${presetName}"`);
+        }, preset.length * 50 + 2500);
     }
 
     // ==================== PETS UI HELPER FUNCTIONS ====================
@@ -8495,6 +8701,30 @@ window.MGA_debugStorage = function() {
                         }, i * 50); // 50ms delay between each pet placement
                     });
 
+                    // Update pets display after all pets placed
+                    setTimeout(() => {
+                        // Force update pets from room state first
+                        updateActivePetsFromRoomState();
+
+                        // Then refresh the tab if it's active
+                        if (UnifiedState.activeTab === 'pets') {
+                            updateTabContent();
+                        }
+
+                        // Update all pet overlays after placing
+                        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                            if (overlay && document.contains(overlay) && tabName === 'pets') {
+                                if (overlay.className.includes('mga-overlay-content-only')) {
+                                    updatePureOverlayContent(overlay, tabName);
+                                    debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
+                                }
+                            }
+                        });
+
+                        // Update separate window popouts
+                        refreshSeparateWindowPopouts('pets');
+                    }, preset.length * 50 + 1000); // Wait for all pets + extra time for game to update
+
                     debugLog('BUTTON_INTERACTIONS', `Placed preset: ${presetName} (from added element)`);
                 } else if (action === 'remove') {
                     delete UnifiedState.data.petPresets[presetName];
@@ -8722,8 +8952,9 @@ window.MGA_debugStorage = function() {
 
                     // Don't auto-reset dropdown - let user keep their selection
 
-                    // Update popouts after a short delay (without main tab refresh)
+                    // Update popouts after game updates (changed from 100ms to 1000ms)
                     setTimeout(() => {
+                        updateActivePetsFromRoomState();
                         refreshSeparateWindowPopouts('pets');
                         UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
                             if (overlay && document.contains(overlay) && tabName === 'pets') {
@@ -8732,7 +8963,7 @@ window.MGA_debugStorage = function() {
                                 }
                             }
                         });
-                    }, 100);
+                    }, 1000);
 
                     debugLog('BUTTON_INTERACTIONS', `Quick loaded preset: ${presetName}`);
                 }
@@ -8848,8 +9079,17 @@ window.MGA_debugStorage = function() {
                         });
                     });
 
-                    // Update all pet overlays after placing
+                    // Update pets display after placement (with delay for game to update)
                     setTimeout(() => {
+                        // Force update pets from room state first
+                        updateActivePetsFromRoomState();
+
+                        // Update main tab if pets tab is active
+                        if (UnifiedState.activeTab === 'pets') {
+                            updateTabContent();
+                        }
+
+                        // Update all pet overlays after placing
                         UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
                             if (overlay && document.contains(overlay) && tabName === 'pets') {
                                 if (overlay.className.includes('mga-overlay-content-only')) {
@@ -8861,7 +9101,7 @@ window.MGA_debugStorage = function() {
 
                         // Update separate window popouts
                         refreshSeparateWindowPopouts('pets');
-                    }, 100);
+                    }, 1000); // Increased from 100ms to 1000ms to give game time to update
                 } else if (action === 'remove') {
                     delete UnifiedState.data.petPresets[presetName];
                     MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
@@ -8931,8 +9171,9 @@ window.MGA_debugStorage = function() {
                     });
                 });
 
-                // Update popouts after loading (without main tab refresh to preserve scroll)
+                // Update popouts after loading (changed from 100ms to 1000ms for game to update)
                 setTimeout(() => {
+                    updateActivePetsFromRoomState();
                     refreshSeparateWindowPopouts('pets');
                     UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
                         if (overlay && document.contains(overlay) && tabName === 'pets') {
@@ -8941,7 +9182,7 @@ window.MGA_debugStorage = function() {
                             }
                         }
                     });
-                }, 100);
+                }, 1000);
             });
         });
 
@@ -10247,8 +10488,9 @@ window.MGA_debugStorage = function() {
     }
 
     function handleHotkeyPress(e) {
-        // Skip if disabled, typing in input, or recording a hotkey
-        if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey) return;
+        // Skip if disabled, typing in input, recording a hotkey, or in room search
+        const isRoomSearch = e.target && e.target.id === 'room-search-input';
+        if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey || isRoomSearch) return;
 
         // Check each remapped key
         for (const [action, config] of Object.entries(UnifiedState.data.hotkeys.gameKeys)) {
@@ -15606,7 +15848,7 @@ window.MGA_debugStorage = function() {
         "║  • window.MGA - Full API              ║\n" +
         "║  • MGA.showPanel() - Show UI          ║\n" +
         "║  • MGA.init() - Manual start          ║\n" +
-        "║  • Alt+M - Toggle panel               ║\n" +
+        "║  • Alt+M - Toggle apanel               ║\n" +
         "║                                        ║\n" +
         "║  Debugging (if issues occur):         ║\n" +
         "║  • MGA.debug.debugStorage() - Storage ║\n" +
