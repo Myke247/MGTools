@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.10.5
+// @version      1.10.6
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -10490,9 +10490,14 @@ window.MGA_debugStorage = function() {
     function handleHotkeyPress(e) {
         // Skip if disabled, typing in input, recording a hotkey, or in room search
         const isRoomSearch = e.target && e.target.id === 'room-search-input';
+
+        // CRITICAL: Skip simulated events to prevent infinite loops
+        // Simulated events have isTrusted: false, real user keypresses have isTrusted: true
+        if (!e.isTrusted) return;
+
         if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey || isRoomSearch) return;
 
-        // Check each remapped key
+        // STEP 1: Check each remapped key (custom → original)
         for (const [action, config] of Object.entries(UnifiedState.data.hotkeys.gameKeys)) {
             if (config.custom) {
                 // Check if pressed key matches custom mapping
@@ -10508,6 +10513,19 @@ window.MGA_debugStorage = function() {
                     }
                     return false;
                 }
+            }
+        }
+
+        // STEP 2: Suppress original keys that have been remapped
+        for (const [action, config] of Object.entries(UnifiedState.data.hotkeys.gameKeys)) {
+            if (config.custom && matchesKeyCombo(e, config.original)) {
+                // Original key has been remapped, suppress it
+                e.preventDefault();
+                e.stopPropagation();
+                if (UnifiedState.data.settings.debugMode) {
+                    console.log(`🚫 [HOTKEYS] Suppressed ${config.original} (remapped to ${config.custom} for ${config.name})`);
+                }
+                return false;
             }
         }
     }
