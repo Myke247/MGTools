@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.11.3
+// @version      1.11.4
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -2266,6 +2266,24 @@ function MGA_saveJSON(key, value, retryCount = 0) {
             gmApiAvailable: typeof GM_setValue !== 'undefined',
             retryCount: retryCount
         });
+
+        // BUGFIX: Auto-cleanup on storage quota errors (from v1.11.3)
+        const errorString = ('' + error).toLowerCase();
+        if (errorString.indexOf('quota') >= 0 || errorString.indexOf('exceeded') >= 0) {
+            productionLog('🧹 [STORAGE-CLEANUP] Quota exceeded - auto-cleaning debug caches...');
+            const dropKeys = ['console-history', 'mga-debug-cache', 'mga-temp-cache'];
+            for (let i = 0; i < dropKeys.length; i++) {
+                try {
+                    localStorage.removeItem(dropKeys[i]);
+                    productionLog(`🧹 [STORAGE-CLEANUP] Removed: ${dropKeys[i]}`);
+                } catch (_e) {}
+            }
+            // Retry save after cleanup (one time only)
+            if (retryCount === 0) {
+                productionLog(`🔄 [STORAGE-CLEANUP] Retrying save after cleanup...`);
+                return MGA_saveJSON(key, value, 1);
+            }
+        }
 
         // Retry on error
         if (retryCount < MAX_RETRIES - 1) {
@@ -13733,7 +13751,19 @@ window.MGA_debugStorage = function() {
             const trigger = abilityData.lastAbilityTrigger;
             const currentTimestamp = trigger.performedAt;
 
-            if (!currentTimestamp || pet.hunger === 0) return;
+            // BUGFIX v1.11.4: Skip logging if pet is unfed (hunger = 0)
+            // Game shows "feed your pet" notification but creates empty trigger
+            if (!currentTimestamp || pet.hunger === 0) {
+                productionLog(`🚫 [ABILITY-SKIP] Pet ${pet.petSpecies} unfed (hunger: ${pet.hunger}) - skipping ability log`);
+                return;
+            }
+
+            // BUGFIX v1.11.4: Additional validation - skip if trigger has no valid ability ID
+            // This prevents fake ability logs from unfed pet notifications
+            if (!trigger.abilityId || trigger.abilityId === 'Unknown' || trigger.abilityId === '') {
+                productionLog(`🚫 [ABILITY-SKIP] Invalid ability ID for ${pet.petSpecies} - likely unfed pet notification`);
+                return;
+            }
 
             // Check if this is a new trigger - use UnifiedState instead of window variables
             if (!UnifiedState.data.lastAbilityTimestamps) {
@@ -15344,7 +15374,7 @@ window.MGA_debugStorage = function() {
 
         // OPTIMIZED: Monitor abilities every 3 seconds (reduced from 2s for better FPS)
         productionLog('🚨 [CRITICAL] Setting up ability monitoring timer...');
-        setInterval(() => {
+        window.abilityMonitoringInterval = setInterval(() => {
             monitorPetAbilities();
         }, 3000);
         productionLog('🚨 [CRITICAL] Ability monitoring started with simple setInterval (3s)');
@@ -15430,6 +15460,56 @@ window.MGA_debugStorage = function() {
             timerCount: timerManager.activeTimers.size,
             status: timerManager.getStatus()
         });
+
+        // BUGFIX: Visibility-aware performance optimization (from v1.11.3)
+        // Slower refresh when tab is hidden to save CPU/battery
+        document.addEventListener('visibilitychange', function() {
+            const hidden = document.hidden;
+            productionLog(`👁️ [VISIBILITY] Tab ${hidden ? 'hidden' : 'visible'} - adjusting intervals`);
+
+            // Adjust ability monitoring interval
+            if (window.abilityMonitoringInterval) {
+                clearInterval(window.abilityMonitoringInterval);
+            }
+            window.abilityMonitoringInterval = setInterval(() => {
+                monitorPetAbilities();
+            }, hidden ? 5000 : 3000); // 5s when hidden, 3s when visible
+
+            // Adjust notification interval
+            if (window.notificationInterval) {
+                clearInterval(window.notificationInterval);
+            }
+            window.notificationInterval = setInterval(() => {
+                // ... notification logic (same as above)
+                if (skipNextChecks > 0) {
+                    skipNextChecks--;
+                    return;
+                }
+                const currentWeather = window.roomState?.child?.data?.weather || window.roomState?.weather || null;
+                const isWeatherActive = currentWeather && currentWeather !== 'none' && currentWeather !== 'clear';
+                notificationCheckCounter++;
+                if (isWeatherActive && notificationCheckCounter % 2 !== 0) return;
+
+                const startTime = performance.now();
+                try {
+                    try {
+                        checkPetHunger();
+                    } catch (hungerError) {
+                        console.error('Error in checkPetHunger:', hungerError);
+                    }
+                } catch (error) {
+                    console.error('Critical error in notification checks:', error);
+                }
+
+                const checkDuration = performance.now() - startTime;
+                if (checkDuration > 50) {
+                    productionLog(`⏱️ [PERFORMANCE] Notification checks took ${checkDuration.toFixed(2)}ms`);
+                    skipNextChecks = 2;
+                }
+            }, hidden ? 20000 : 10000); // 20s when hidden, 10s when visible
+
+            productionLog(`👁️ [VISIBILITY] Intervals adjusted for ${hidden ? 'background' : 'foreground'} mode`);
+        }, { passive: true });
     }
 
     // ==================== NAVIGATION HELPERS ====================
