@@ -10146,8 +10146,8 @@ window.MGA_debugStorage = function() {
                 UnifiedState.data.settings.detailedTimestamps = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
 
-                // Update all ability log displays to use new timestamp format
-                updateAllAbilityLogDisplays();
+                // Update all ability log displays to use new timestamp format (force update even if no new logs)
+                updateAllAbilityLogDisplays(true);
                 productionLog(`🕐 [ABILITIES] Detailed timestamps: ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
         }
@@ -10415,10 +10415,10 @@ window.MGA_debugStorage = function() {
     // OPTIMIZED: Track log count to skip unnecessary updates
     let lastLogCount = 0;
 
-    function updateAllAbilityLogDisplays() {
-        // OPTIMIZED: Skip if no new logs
+    function updateAllAbilityLogDisplays(force = false) {
+        // OPTIMIZED: Skip if no new logs (unless forced by settings change)
         const currentLogCount = UnifiedState.data.petAbilityLogs?.length || 0;
-        if (currentLogCount === lastLogCount) {
+        if (!force && currentLogCount === lastLogCount) {
             debugLog('ABILITY_LOGS', 'Skipping update - no new logs');
             return;
         }
@@ -11321,7 +11321,8 @@ window.MGA_debugStorage = function() {
     function setupNotificationsTabHandlers(context = document) {
         // Notification enabled checkbox
         const notificationEnabledCheckbox = context.querySelector('#notifications-enabled-checkbox');
-        if (notificationEnabledCheckbox) {
+        if (notificationEnabledCheckbox && !notificationEnabledCheckbox.hasAttribute('data-handler-setup')) {
+            notificationEnabledCheckbox.setAttribute('data-handler-setup', 'true');
             notificationEnabledCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.enabled = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
@@ -11337,7 +11338,8 @@ window.MGA_debugStorage = function() {
 
         // Quick notification toggle button
         const quickToggleButton = context.querySelector('#notification-quick-toggle');
-        if (quickToggleButton) {
+        if (quickToggleButton && !quickToggleButton.hasAttribute('data-handler-setup')) {
+            quickToggleButton.setAttribute('data-handler-setup', 'true');
             quickToggleButton.addEventListener('click', () => {
                 const newState = !UnifiedState.data.settings.notifications.enabled;
                 UnifiedState.data.settings.notifications.enabled = newState;
@@ -11362,7 +11364,8 @@ window.MGA_debugStorage = function() {
 
         // Volume slider
         const volumeSlider = context.querySelector('#notification-volume-slider');
-        if (volumeSlider) {
+        if (volumeSlider && !volumeSlider.hasAttribute('data-handler-setup')) {
+            volumeSlider.setAttribute('data-handler-setup', 'true');
             volumeSlider.addEventListener('input', (e) => {
                 const volume = parseInt(e.target.value) / 100;
                 UnifiedState.data.settings.notifications.volume = volume;
@@ -11375,7 +11378,8 @@ window.MGA_debugStorage = function() {
 
         // Enable Continuous Mode checkbox
         const continuousCheckbox = context.querySelector('#notification-continuous-checkbox');
-        if (continuousCheckbox) {
+        if (continuousCheckbox && !continuousCheckbox.hasAttribute('data-handler-setup')) {
+            continuousCheckbox.setAttribute('data-handler-setup', 'true');
             continuousCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.continuousEnabled = e.target.checked;
 
@@ -11402,7 +11406,8 @@ window.MGA_debugStorage = function() {
 
         // Notification type selector
         const notificationTypeSelect = context.querySelector('#notification-type-select');
-        if (notificationTypeSelect) {
+        if (notificationTypeSelect && !notificationTypeSelect.hasAttribute('data-handler-setup')) {
+            notificationTypeSelect.setAttribute('data-handler-setup', 'true');
             notificationTypeSelect.addEventListener('change', (e) => {
                 // Prevent selecting continuous if not enabled
                 if (e.target.value === 'continuous' && !UnifiedState.data.settings.notifications.continuousEnabled) {
@@ -11420,7 +11425,8 @@ window.MGA_debugStorage = function() {
 
         // Acknowledgment required checkbox
         const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
-        if (acknowledgmentCheckbox) {
+        if (acknowledgmentCheckbox && !acknowledgmentCheckbox.hasAttribute('data-handler-setup')) {
+            acknowledgmentCheckbox.setAttribute('data-handler-setup', 'true');
             acknowledgmentCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.requiresAcknowledgment = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
@@ -11430,7 +11436,8 @@ window.MGA_debugStorage = function() {
 
         // Test notification button
         const testNotificationBtn = context.querySelector('#test-notification-btn');
-        if (testNotificationBtn) {
+        if (testNotificationBtn && !testNotificationBtn.hasAttribute('data-handler-setup')) {
+            testNotificationBtn.setAttribute('data-handler-setup', 'true');
             testNotificationBtn.addEventListener('click', () => {
                 const notifications = UnifiedState.data.settings.notifications;
                 playSelectedNotification();
@@ -11459,7 +11466,8 @@ window.MGA_debugStorage = function() {
 
         Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
             const checkbox = context.querySelector(`#${checkboxId}`);
-            if (checkbox) {
+            if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+                checkbox.setAttribute('data-handler-setup', 'true');
                 checkbox.addEventListener('change', (e) => {
                     const notifications = UnifiedState.data.settings.notifications;
                     if (e.target.checked) {
@@ -11487,7 +11495,8 @@ window.MGA_debugStorage = function() {
 
         Object.entries(eggWatchMap).forEach(([checkboxId, eggId]) => {
             const checkbox = context.querySelector(`#${checkboxId}`);
-            if (checkbox) {
+            if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+                checkbox.setAttribute('data-handler-setup', 'true');
                 checkbox.addEventListener('change', (e) => {
                     const notifications = UnifiedState.data.settings.notifications;
                     if (e.target.checked) {
@@ -11536,7 +11545,8 @@ window.MGA_debugStorage = function() {
 
         // Pet hunger enabled checkbox
         const petHungerCheckbox = context.querySelector('#pet-hunger-enabled');
-        if (petHungerCheckbox) {
+        if (petHungerCheckbox && !petHungerCheckbox.hasAttribute('data-handler-setup')) {
+            petHungerCheckbox.setAttribute('data-handler-setup', 'true');
             petHungerCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.petHungerEnabled = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
@@ -11546,7 +11556,8 @@ window.MGA_debugStorage = function() {
 
         // Pet hunger threshold slider
         const petHungerThreshold = context.querySelector('#pet-hunger-threshold');
-        if (petHungerThreshold) {
+        if (petHungerThreshold && !petHungerThreshold.hasAttribute('data-handler-setup')) {
+            petHungerThreshold.setAttribute('data-handler-setup', 'true');
             petHungerThreshold.addEventListener('input', (e) => {
                 const threshold = parseInt(e.target.value);
                 UnifiedState.data.settings.notifications.petHungerThreshold = threshold;
@@ -11560,7 +11571,8 @@ window.MGA_debugStorage = function() {
 
         // Ability notifications enabled checkbox
         const abilityNotificationsCheckbox = context.querySelector('#ability-notifications-enabled');
-        if (abilityNotificationsCheckbox) {
+        if (abilityNotificationsCheckbox && !abilityNotificationsCheckbox.hasAttribute('data-handler-setup')) {
+            abilityNotificationsCheckbox.setAttribute('data-handler-setup', 'true');
             abilityNotificationsCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.abilityNotificationsEnabled = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
@@ -11570,7 +11582,8 @@ window.MGA_debugStorage = function() {
 
         // Ability notification sound type selector
         const abilityNotificationSoundSelect = context.querySelector('#ability-notification-sound-select');
-        if (abilityNotificationSoundSelect) {
+        if (abilityNotificationSoundSelect && !abilityNotificationSoundSelect.hasAttribute('data-handler-setup')) {
+            abilityNotificationSoundSelect.setAttribute('data-handler-setup', 'true');
             abilityNotificationSoundSelect.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.abilityNotificationSound = e.target.value;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
@@ -11580,7 +11593,8 @@ window.MGA_debugStorage = function() {
 
         // Ability notification volume slider
         const abilityVolumeSlider = context.querySelector('#ability-notification-volume-slider');
-        if (abilityVolumeSlider) {
+        if (abilityVolumeSlider && !abilityVolumeSlider.hasAttribute('data-handler-setup')) {
+            abilityVolumeSlider.setAttribute('data-handler-setup', 'true');
             abilityVolumeSlider.addEventListener('input', (e) => {
                 const volume = parseInt(e.target.value) / 100;
                 UnifiedState.data.settings.notifications.abilityNotificationVolume = volume;
@@ -11594,17 +11608,21 @@ window.MGA_debugStorage = function() {
         // Ability category checkboxes
         const abilityCategoryCheckboxes = context.querySelectorAll('.ability-category-checkbox');
         abilityCategoryCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const category = e.target.dataset.category;
-                UnifiedState.data.settings.notifications.watchedAbilityCategories[category] = e.target.checked;
-                MGA_saveJSON('MGA_data', UnifiedState.data);
-                productionLog(`✨ [ABILITY-NOTIFY] ${category}: ${e.target.checked ? 'Enabled' : 'Disabled'}`);
-            });
+            if (!checkbox.hasAttribute('data-handler-setup')) {
+                checkbox.setAttribute('data-handler-setup', 'true');
+                checkbox.addEventListener('change', (e) => {
+                    const category = e.target.dataset.category;
+                    UnifiedState.data.settings.notifications.watchedAbilityCategories[category] = e.target.checked;
+                    MGA_saveJSON('MGA_data', UnifiedState.data);
+                    productionLog(`✨ [ABILITY-NOTIFY] ${category}: ${e.target.checked ? 'Enabled' : 'Disabled'}`);
+                });
+            }
         });
 
         // Select All ability categories button
         const selectAllAbilityCategories = context.querySelector('#select-all-ability-categories');
-        if (selectAllAbilityCategories) {
+        if (selectAllAbilityCategories && !selectAllAbilityCategories.hasAttribute('data-handler-setup')) {
+            selectAllAbilityCategories.setAttribute('data-handler-setup', 'true');
             selectAllAbilityCategories.addEventListener('click', () => {
                 const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories;
                 Object.keys(watchedCategories).forEach(category => {
@@ -11623,7 +11641,8 @@ window.MGA_debugStorage = function() {
 
         // Select None ability categories button
         const selectNoneAbilityCategories = context.querySelector('#select-none-ability-categories');
-        if (selectNoneAbilityCategories) {
+        if (selectNoneAbilityCategories && !selectNoneAbilityCategories.hasAttribute('data-handler-setup')) {
+            selectNoneAbilityCategories.setAttribute('data-handler-setup', 'true');
             selectNoneAbilityCategories.addEventListener('click', () => {
                 const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories;
                 Object.keys(watchedCategories).forEach(category => {
@@ -11642,7 +11661,8 @@ window.MGA_debugStorage = function() {
 
         // Weather notifications enabled checkbox
         const weatherNotificationsCheckbox = context.querySelector('#weather-notifications-enabled');
-        if (weatherNotificationsCheckbox) {
+        if (weatherNotificationsCheckbox && !weatherNotificationsCheckbox.hasAttribute('data-handler-setup')) {
+            weatherNotificationsCheckbox.setAttribute('data-handler-setup', 'true');
             weatherNotificationsCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.weatherNotificationsEnabled = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
@@ -11660,7 +11680,8 @@ window.MGA_debugStorage = function() {
 
         Object.entries(weatherEventMap).forEach(([checkboxId, eventName]) => {
             const checkbox = context.querySelector(`#${checkboxId}`);
-            if (checkbox) {
+            if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+                checkbox.setAttribute('data-handler-setup', 'true');
                 checkbox.addEventListener('change', (e) => {
                     const watchedEvents = UnifiedState.data.settings.notifications.watchedWeatherEvents;
                     if (e.target.checked) {
