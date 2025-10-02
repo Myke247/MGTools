@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.11.1
+// @version      1.11.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1820,13 +1820,34 @@ function applyResponsiveTextScaling(overlay, width, height) {
     function updateActivePetsFromRoomState() {
         // Removed excessive debug logging to improve performance
         // productionLog('🔧 [DEBUG] updateActivePetsFromRoomState() called');
-        const pets = getActivePetsFromRoomState();
-        const previousCount = UnifiedState.atoms.activePets.length;
+        const roomPets = getActivePetsFromRoomState();
+        const previousCount = UnifiedState.atoms.activePets?.length || 0;
 
-        UnifiedState.atoms.activePets = pets;
-        window.activePets = pets; // Expose globally for debugging (use window to avoid modifying page)
+        // CRITICAL BUGFIX: Don't overwrite if we already have better data from atom hook
+        // The atom gives us FULL pet data with hunger, abilities, etc.
+        // Room state only gives us petSpecies and slot - incomplete data!
+        if (window.activePets && window.activePets.length > 0 &&
+            window.activePets[0] && window.activePets[0].hunger !== undefined) {
+            // We have full atom data with hunger - preserve it!
+            productionLog('🐾 [SIMPLE-PETS] Preserving existing full pet data from atom (has hunger)');
 
-        const newCount = pets.length;
+            // Only update species info if it's missing
+            roomPets.forEach((roomPet, index) => {
+                if (window.activePets[index] && !window.activePets[index].petSpecies && roomPet.petSpecies) {
+                    window.activePets[index].petSpecies = roomPet.petSpecies;
+                    productionLog(`🐾 [SIMPLE-PETS] Added missing species ${roomPet.petSpecies} to slot ${index + 1}`);
+                }
+            });
+
+            UnifiedState.atoms.activePets = window.activePets;
+            return window.activePets; // Return the good data
+        }
+
+        // Only use room state data if we have NO atom data or it's incomplete
+        UnifiedState.atoms.activePets = roomPets;
+        window.activePets = roomPets; // Expose globally for debugging (use window to avoid modifying page)
+
+        const newCount = roomPets.length;
         if (newCount !== previousCount) {
             productionLog(`🐾 [SIMPLE-PETS] Pet count changed: ${previousCount} → ${newCount}`);
 
@@ -1839,7 +1860,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
             }
         }
 
-        return pets;
+        return roomPets;
     }
 
     // ==================== INTERVAL MANAGEMENT ====================
@@ -4143,6 +4164,15 @@ window.MGA_debugStorage = function() {
         // Track the popout window for cleanup
         trackPopoutWindow(popoutWindow);
 
+        // BUGFIX: Store window reference in Map for real-time updates
+        UnifiedState.data.popouts.windows.set(tabName, popoutWindow);
+
+        // Add cleanup listener to remove from Map when window closes
+        popoutWindow.addEventListener('beforeunload', () => {
+            UnifiedState.data.popouts.windows.delete(tabName);
+            debugLog('POPOUT_LIFECYCLE', `Removed ${tabName} from windows Map`);
+        });
+
         // Get tab content based on tab name
         let content = '';
         switch(tabName) {
@@ -4319,11 +4349,15 @@ window.MGA_debugStorage = function() {
             productionLog('Pop-out content refreshed for:', tabName);
         }
 
+        // BUGFIX: Expose refresh function on window object for external access
+        window.refreshPopoutContent = refreshPopoutContent;
+
         // Store the tab name for this popup window
         const currentTabName = '\${tabName}';
 
         // Auto-refresh every 5 seconds for dynamic tabs
-        if (['values', 'timers', 'rooms'].includes(currentTabName)) {
+        // BUGFIX: Added 'abilities' to auto-refresh list for real-time ability log updates
+        if (['values', 'timers', 'rooms', 'abilities'].includes(currentTabName)) {
             // Use managed interval to prevent memory leaks
             if (window.opener && window.opener.setManagedInterval) {
                 window.opener.setManagedInterval(
@@ -5756,6 +5790,15 @@ window.MGA_debugStorage = function() {
         // Track the popout window for cleanup
         trackPopoutWindow(popoutWindow);
 
+        // BUGFIX: Store window reference in Map for real-time updates
+        UnifiedState.data.popouts.windows.set(tabName, popoutWindow);
+
+        // Add cleanup listener to remove from Map when window closes
+        popoutWindow.addEventListener('beforeunload', () => {
+            UnifiedState.data.popouts.windows.delete(tabName);
+            debugLog('POPOUT_LIFECYCLE', `Removed ${tabName} from windows Map`);
+        });
+
         // Get tab content based on tab name
         let content = '';
         switch(tabName) {
@@ -5928,6 +5971,9 @@ window.MGA_debugStorage = function() {
                 mainWindow.setupSettingsTabHandlers.call(mainWindow, document);
             }
         }
+
+        // BUGFIX: Expose refresh function on window object for external access
+        window.refreshPopoutContent = refreshPopoutContent;
 
         // Store the tab name for this popup window
         const currentTabName = '\${tabName}';
@@ -8213,12 +8259,15 @@ window.MGA_debugStorage = function() {
 
     // Track previous hunger states for each pet
     let lastPetHungerStates = {};
+    let petHungerLastAlertTime = {}; // BUGFIX: Track when we last alerted per pet (timestamp) for time-based throttle
 
     function checkPetHunger() {
         if (!UnifiedState.data.settings.notifications.petHungerEnabled) return;
 
         try {
-            const activePets = UnifiedState.atoms.activePets || [];
+            // BUGFIX: Use window.activePets which has the REAL atom data with full hunger values
+            // UnifiedState.atoms.activePets might be stale or incomplete
+            const activePets = window.activePets || UnifiedState.atoms.activePets || [];
             // Threshold is a PERCENTAGE (0-100)
             // Default: 25 = alert when pet drops below 25% full
             const thresholdPercent = UnifiedState.data.settings.notifications.petHungerThreshold || 25;
@@ -8226,27 +8275,66 @@ window.MGA_debugStorage = function() {
             activePets.forEach((pet) => {
                 if (!pet || !pet.id) return;
 
-                const currentHunger = Number(pet.hunger) ?? 0;
+                // BUGFIX: Check if hunger data exists before processing
+                const currentHunger = pet.hunger !== undefined ? Number(pet.hunger) : null;
+                if (currentHunger === null || isNaN(currentHunger)) {
+                    productionLog(`⚠️ [PET-HUNGER] ${pet.petSpecies || 'Pet'} has no hunger data - skipping`);
+                    return; // Skip this pet if no hunger data
+                }
+
                 const petName = pet.petSpecies || 'Pet';
 
-                // Game uses 100,000 as max hunger (tested with turtles at 73k-85k when well-fed)
-                // Examples: 100000 = 100%, 50000 = 50%, 25000 = 25%, 450 = ~0.45%
-                // Note: Butterflies at 450/357 hunger = nearly starving (~0.4%)
-                const MAX_HUNGER = 100000;
-                const hungerPercent = (currentHunger / MAX_HUNGER) * 100;
+                // BUGFIX: Different species have different max hunger values
+                // Source: https://magicgarden.fandom.com/wiki/Pets
+                // Lower hunger = hungrier (inverse system!)
+                const SPECIES_MAX_HUNGER = {
+                    'Dragonfly': 250,
+                    'Worm': 500,
+                    'Snail': 1000,
+                    'Bee': 1500,
+                    'Chicken': 3000,
+                    'Capybara': 250000,
+                    'Turtle': 300000,
+                    'Butterfly': 100000,  // Estimate
+                    'Peacock': 100000     // Estimate
+                };
+                const estimatedMaxHunger = SPECIES_MAX_HUNGER[pet.petSpecies] || 100000;
+
+                // Calculate percentage based on species max
+                const hungerPercent = (currentHunger / estimatedMaxHunger) * 100;
 
                 // Get previous hunger percentage for comparison
                 const lastHunger = lastPetHungerStates[pet.id] ?? currentHunger;
-                const lastPercent = (lastHunger / MAX_HUNGER) * 100;
+                const lastPercent = (lastHunger / estimatedMaxHunger) * 100;
+
+                // BUGFIX: Time-based throttle instead of boolean flag to allow re-alerting
+                const ALERT_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes between alerts
+                const now = Date.now();
+                const lastAlertTime = petHungerLastAlertTime[pet.id] || 0;
+                const timeSinceLastAlert = now - lastAlertTime;
 
                 // Debug logging (only when enabled)
                 if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`🐾 [PET-HUNGER-DEBUG] ${petName}: ${hungerPercent.toFixed(1)}% (hunger=${currentHunger}), threshold=${thresholdPercent}%`);
+                    productionLog(`🐾 [PET-HUNGER-DEBUG] ${petName} (ID: ${pet.id}): ${hungerPercent.toFixed(1)}% (hunger=${currentHunger}/${estimatedMaxHunger}), threshold=${thresholdPercent}%, lastPercent=${lastPercent.toFixed(1)}%, timeSinceLastAlert=${(timeSinceLastAlert/1000).toFixed(0)}s`);
                 }
 
-                // Alert if hunger percentage DROPPED below threshold
-                if (hungerPercent < thresholdPercent && lastPercent >= thresholdPercent) {
-                    productionLog(`🐾 [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`);
+                // Critical thresholds that alert every 1 minute (more urgent than normal 5 min throttle)
+                const CRITICAL_THROTTLE_MS = 60 * 1000; // 1 minute for critical alerts
+                const isCritical = hungerPercent <= 1;
+                const criticalNeedsAlert = isCritical && (timeSinceLastAlert >= CRITICAL_THROTTLE_MS || !lastAlertTime);
+
+                // Alert if below threshold and enough time has passed since last alert
+                const needsAlert = hungerPercent < thresholdPercent && hungerPercent > 1 &&
+                                  (timeSinceLastAlert >= ALERT_THROTTLE_MS || !lastAlertTime);
+
+                // Also alert if hunger DROPPED below threshold since last check (crossing behavior)
+                const justCrossed = hungerPercent < thresholdPercent && lastPercent >= thresholdPercent;
+
+                if (needsAlert || justCrossed || criticalNeedsAlert) {
+                    const reason = isCritical ? 'CRITICAL hunger level' :
+                                  justCrossed ? 'crossed threshold' :
+                                  'below threshold (throttle expired)';
+                    productionLog(`🐾 [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%) - Reason: ${reason}`);
 
                     // Play different sound for pet hunger
                     const volume = UnifiedState.data.settings.notifications.volume || 0.3;
@@ -8254,6 +8342,17 @@ window.MGA_debugStorage = function() {
 
                     // Show visual notification with percentage
                     showNotificationToast(`⚠️ ${petName} needs feeding! Only ${Math.round(hungerPercent)}% full`, 'warning');
+
+                    // Update last alert timestamp
+                    petHungerLastAlertTime[pet.id] = now;
+                }
+
+                // Reset alert timestamp if pet is fed above threshold (allows immediate alert on next drop)
+                if (hungerPercent >= thresholdPercent && lastAlertTime > 0) {
+                    delete petHungerLastAlertTime[pet.id];
+                    if (UnifiedState.data.settings?.debugMode) {
+                        productionLog(`🐾 [PET-HUNGER-DEBUG] ${petName} fed above threshold, reset alert timer`);
+                    }
                 }
 
                 // Store hunger value for next comparison
@@ -8261,6 +8360,74 @@ window.MGA_debugStorage = function() {
             });
         } catch (error) {
             console.error('❌ [PET-HUNGER] Error checking pet hunger:', error);
+        }
+    }
+
+    // BUGFIX: Scan all active pets and alert for any currently below threshold
+    // This is called when user enables pet hunger alerts
+    function scanAndAlertHungryPets() {
+        if (!UnifiedState.data.settings.notifications.petHungerEnabled) return;
+
+        try {
+            // BUGFIX: Use window.activePets which has the REAL atom data with full hunger values
+            const activePets = window.activePets || UnifiedState.atoms.activePets || [];
+            const thresholdPercent = UnifiedState.data.settings.notifications.petHungerThreshold || 25;
+            const MAX_HUNGER = 100000;
+            const now = Date.now();
+
+            let hungryCount = 0;
+
+            activePets.forEach((pet) => {
+                if (!pet || !pet.id) return;
+
+                // BUGFIX: Check if hunger data exists before processing
+                const currentHunger = pet.hunger !== undefined ? Number(pet.hunger) : null;
+                if (currentHunger === null || isNaN(currentHunger)) {
+                    productionLog(`⚠️ [PET-HUNGER] ${pet.petSpecies || 'Pet'} has no hunger data in scan - skipping`);
+                    return; // Skip this pet if no hunger data
+                }
+
+                // BUGFIX: Different species have different max hunger values
+                // Source: https://magicgarden.fandom.com/wiki/Pets
+                const SPECIES_MAX_HUNGER = {
+                    'Dragonfly': 250,
+                    'Worm': 500,
+                    'Snail': 1000,
+                    'Bee': 1500,
+                    'Chicken': 3000,
+                    'Capybara': 250000,
+                    'Turtle': 300000,
+                    'Butterfly': 100000,  // Estimate
+                    'Peacock': 100000     // Estimate
+                };
+                const estimatedMaxHunger = SPECIES_MAX_HUNGER[pet.petSpecies] || 100000;
+                const hungerPercent = (currentHunger / estimatedMaxHunger) * 100;
+                const petName = pet.petSpecies || 'Pet';
+
+                // Alert for any pet currently below threshold
+                if (hungerPercent < thresholdPercent) {
+                    hungryCount++;
+                    productionLog(`🐾 [PET-HUNGER] Initial scan: ${petName} needs feeding! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`);
+
+                    // Show notification for this pet
+                    showNotificationToast(`⚠️ ${petName} needs feeding! Only ${Math.round(hungerPercent)}% full`, 'warning');
+
+                    // Mark with timestamp to enable time-based throttle
+                    petHungerLastAlertTime[pet.id] = now;
+                    lastPetHungerStates[pet.id] = currentHunger;
+                }
+            });
+
+            if (hungryCount > 0) {
+                // Play sound once for all hungry pets
+                const volume = UnifiedState.data.settings.notifications.volume || 0.3;
+                playDoubleBeepNotification(volume);
+                productionLog(`🐾 [PET-HUNGER] Initial scan found ${hungryCount} hungry pet(s)`);
+            } else {
+                productionLog(`🐾 [PET-HUNGER] Initial scan: All pets are well-fed`);
+            }
+        } catch (error) {
+            console.error('❌ [PET-HUNGER] Error scanning for hungry pets:', error);
         }
     }
 
@@ -10209,6 +10376,17 @@ window.MGA_debugStorage = function() {
 
                 // Clear timestamp cache and force full rebuild for timestamp format change
                 MGA_AbilityCache.timestamps.clear();
+
+                // BUGFIX: Force overlay refresh to show new timestamp format
+                // Update all overlays first to ensure they show the new format
+                UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                    if (tabName === 'abilities' && overlay && overlay.offsetParent !== null) {
+                        updateAbilityLogDisplay(overlay);
+                        debugLog('ABILITY_LOGS', 'Updated overlay with new timestamp format');
+                    }
+                });
+
+                // Then update main displays
                 updateAllAbilityLogDisplays(true);
                 productionLog(`🕐 [ABILITIES] Detailed timestamps: ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
@@ -10525,6 +10703,47 @@ window.MGA_debugStorage = function() {
             if (overlay.querySelector('#ability-logs')) {
                 updateAbilityLogDisplay(overlay);
                 debugLog('ABILITY_LOGS', 'Updated overlay ability logs', { overlayId: overlay.id });
+            }
+        });
+
+        // BUGFIX: Update separate window pop-outs in real-time
+        UnifiedState.data.popouts.windows.forEach((windowRef, tabName) => {
+            if (windowRef && !windowRef.closed && tabName === 'abilities') {
+                try {
+                    // Method 1: Direct DOM manipulation (most reliable)
+                    const popoutContent = windowRef.document?.getElementById('popout-content');
+                    if (popoutContent) {
+                        // Get fresh content from main window
+                        const freshContent = getAbilitiesTabContent();
+                        popoutContent.innerHTML = freshContent;
+
+                        // Re-run handlers in the pop-out window context
+                        if (typeof setupAbilitiesTabHandlers === 'function') {
+                            setupAbilitiesTabHandlers.call(window, windowRef.document);
+                        }
+                        debugLog('ABILITY_LOGS', 'Updated pop-out via direct DOM manipulation');
+                    } else {
+                        debugLog('ABILITY_LOGS', 'Pop-out content element not found, trying fallback');
+
+                        // Fallback: Try to call the refresh function if it exists
+                        if (windowRef.refreshPopoutContent && typeof windowRef.refreshPopoutContent === 'function') {
+                            windowRef.refreshPopoutContent('abilities');
+                            debugLog('ABILITY_LOGS', 'Updated pop-out via refresh function');
+                        }
+                    }
+                } catch (e) {
+                    debugLog('ABILITY_LOGS', 'Error updating separate window:', e.message);
+
+                    // Last resort: Force reload (disruptive but ensures fresh data)
+                    try {
+                        windowRef.location.reload();
+                        debugLog('ABILITY_LOGS', 'Forced pop-out refresh via reload');
+                    } catch (e2) {
+                        // Window is truly dead, clean up reference
+                        debugLog('ABILITY_LOGS', 'Window is dead, removing reference');
+                        UnifiedState.data.popouts.windows.delete(tabName);
+                    }
+                }
             }
         });
     }
@@ -11733,6 +11952,14 @@ window.MGA_debugStorage = function() {
                 UnifiedState.data.settings.notifications.petHungerEnabled = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
                 productionLog(`🐾 [PET-HUNGER] ${e.target.checked ? 'Enabled' : 'Disabled'} pet hunger notifications`);
+
+                // BUGFIX: Scan for currently hungry pets when enabling alerts
+                if (e.target.checked) {
+                    // Delay slightly to ensure atoms are available
+                    setTimeout(() => {
+                        scanAndAlertHungryPets();
+                    }, 500);
+                }
             });
         }
 
@@ -13551,30 +13778,9 @@ window.MGA_debugStorage = function() {
                     updateTabContent();
                 }
 
-                // Only update visible overlays
-                UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-                    if (overlay && document.contains(overlay) && tabName === 'abilities') {
-                        const isVisible = overlay.offsetParent !== null;
-                        if (!isVisible) return; // Skip hidden overlays
-
-                        if (overlay.className.includes('mga-overlay-content-only')) {
-                            updatePureOverlayContent(overlay, tabName);
-                            debugLog('OVERLAY_LIFECYCLE', 'Updated pure abilities overlay with fresh data');
-                        } else {
-                            const overlayContent = overlay.querySelector('.mga-overlay-content > div');
-                            if (overlayContent) {
-                                overlayContent.innerHTML = getAbilitiesTabContent();
-                                setTimeout(() => updateAbilityLogDisplay(overlay), 10);
-                                setTimeout(() => {
-                                    if (!overlay.querySelector('.mga-resize-handle')) {
-                                        addResizeHandleToOverlay(overlay);
-                                        productionLog('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
-                                    }
-                                }, 50);
-                            }
-                        }
-                    }
-                });
+                // BUGFIX: Removed duplicate overlay update loop
+                // updateAllAbilityLogDisplays() already handles all overlays at line 13548
+                // Duplicate updates were causing race conditions when both tab and pop-up were open
 
                 pendingAbilityUpdates = false;
             });
