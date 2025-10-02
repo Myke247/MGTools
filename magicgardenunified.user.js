@@ -7539,14 +7539,26 @@ window.MGA_debugStorage = function() {
 
     // Format timestamp based on user preference
     function formatTimestamp(timestamp) {
+        // PERFORMANCE: Check cache first (cache key includes timestamp + settings mode)
+        const cacheKey = `${timestamp}_${UnifiedState.data.settings.detailedTimestamps}`;
+        if (MGA_AbilityCache.timestamps.has(cacheKey)) {
+            return MGA_AbilityCache.timestamps.get(cacheKey);
+        }
+
         const date = new Date(timestamp);
+        let formatted;
         if (UnifiedState.data.settings.detailedTimestamps) {
             // Return HH:MM:SS format
-            return date.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            formatted = date.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         } else {
             // Return default H:MM AM/PM format
-            return date.toLocaleTimeString();
+            formatted = date.toLocaleTimeString();
         }
+
+        // PERFORMANCE: Cache result (cleared every minute via setInterval)
+        MGA_AbilityCache.timestamps.set(cacheKey, formatted);
+
+        return formatted;
     }
 
     // Show visual notification in game (legacy function, now routes through queue)
@@ -10156,9 +10168,9 @@ window.MGA_debugStorage = function() {
                     UnifiedState.data.abilityFilters[filterKey] = e.target.checked;
                     MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
 
-                    // Force update ALL overlays with ability logs since filters changed
-                    updateAllAbilityLogDisplays(true);
-                    debugLog('ABILITY_LOGS', `Filter ${filterKey} changed to ${e.target.checked}, force updated all overlays`);
+                    // PERFORMANCE: Use CSS visibility toggle instead of DOM rebuild
+                    updateAllLogVisibility();
+                    debugLog('ABILITY_LOGS', `Filter ${filterKey} changed to ${e.target.checked}, updated visibility via CSS`);
                 });
             }
         });
@@ -10168,10 +10180,14 @@ window.MGA_debugStorage = function() {
         if (clearLogsBtn && !clearLogsBtn.hasAttribute('data-handler-setup')) {
             clearLogsBtn.setAttribute('data-handler-setup', 'true');
             clearLogsBtn.addEventListener('click', () => {
+                // Clear both memory and archived logs
                 UnifiedState.data.petAbilityLogs = [];
                 MGA_saveJSON('MGA_petAbilityLogs', []);
+                MGA_saveJSON('MGA_petAbilityLogs_archive', []);
+                lastLogCount = 0; // Reset log count tracker
                 updateTabContent();
                 updateAllAbilityLogDisplays();
+                productionLog('🗑️ [ABILITIES] Cleared all ability logs (memory + archive)');
             });
         }
 
@@ -10191,7 +10207,8 @@ window.MGA_debugStorage = function() {
                 UnifiedState.data.settings.detailedTimestamps = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
 
-                // Update all ability log displays to use new timestamp format (force update even if no new logs)
+                // Clear timestamp cache and force full rebuild for timestamp format change
+                MGA_AbilityCache.timestamps.clear();
                 updateAllAbilityLogDisplays(true);
                 productionLog(`🕐 [ABILITIES] Detailed timestamps: ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
@@ -10203,6 +10220,20 @@ window.MGA_debugStorage = function() {
         const currentMode = UnifiedState.data.filterMode || 'categories';
         setTimeout(() => populateFilterModeContent(currentMode), 100);
     }
+
+    // PERFORMANCE OPTIMIZATION: Caching for expensive operations
+    const MGA_AbilityCache = {
+        categories: new Map(),
+        timestamps: new Map(),
+        normalizedNames: new Map(),
+        lastTimestampUpdate: 0
+    };
+
+    // Clear timestamp cache every minute (timestamps change over time)
+    setInterval(() => {
+        MGA_AbilityCache.timestamps.clear();
+        MGA_AbilityCache.lastTimestampUpdate = Date.now();
+    }, 60000);
 
     // Comprehensive ability categorization logic based on Pet Ability Logs 4
     function categorizeAbility(abilityType) {
@@ -10285,7 +10316,7 @@ window.MGA_debugStorage = function() {
             filterMode: UnifiedState.data.filterMode
         });
 
-        let html = '';
+        const htmlParts = [];
         filteredLogs.forEach((log, index) => {
             const category = categorizeAbilityToFilterKey(log.abilityType);
             const categoryData = {
@@ -10303,8 +10334,8 @@ window.MGA_debugStorage = function() {
             const isRecent = (Date.now() - log.timestamp) < 10000; // Less than 10 seconds ago
             const displayAbilityName = normalizeAbilityName(log.abilityType);
 
-            html += `
-                <div class="mga-log-item ${isRecent ? 'mga-log-recent' : ''}" data-category="${category}" style="--category-color: ${catData.color}">
+            htmlParts.push(`
+                <div class="mga-log-item ${isRecent ? 'mga-log-recent' : ''}" data-category="${category}" data-ability-type="${log.abilityType}" data-pet-name="${log.petName}" style="--category-color: ${catData.color}">
                     <div class="mga-log-header">
                         <span class="mga-log-icon">${catData.icon}</span>
                         <span class="mga-log-meta">
@@ -10316,15 +10347,19 @@ window.MGA_debugStorage = function() {
                     ${log.data && Object.keys(log.data).length > 0 ?
                         `<div class="mga-log-details">${formatLogData(log.data)}</div>` : ''}
                 </div>
-            `;
+            `);
         });
 
-        if (html === '') {
+        // PERFORMANCE: Use DocumentFragment for batch DOM updates
+        const fragment = targetDocument.createDocumentFragment();
+        const tempContainer = targetDocument.createElement('div');
+
+        if (htmlParts.length === 0) {
             const mode = UnifiedState.data.filterMode || 'categories';
             const modeText = mode === 'categories' ? 'category filters' :
                             mode === 'byPet' ? 'pet filters' :
                             'custom filters';
-            html = `<div class="mga-log-empty">
+            tempContainer.innerHTML = `<div class="mga-log-empty">
                 <div style="color: #888; text-align: center; padding: 20px;">
                     <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
                     <div>No abilities match the current ${modeText}</div>
@@ -10332,6 +10367,7 @@ window.MGA_debugStorage = function() {
                 </div>
             </div>`;
         } else {
+            tempContainer.innerHTML = htmlParts.join('');
             // Auto-scroll to newest if there are new entries
             setTimeout(() => {
                 if (abilityLogs.scrollHeight > abilityLogs.clientHeight) {
@@ -10340,7 +10376,13 @@ window.MGA_debugStorage = function() {
             }, 100);
         }
 
-        abilityLogs.innerHTML = html;
+        // Move all children to fragment, then update DOM once
+        while (tempContainer.firstChild) {
+            fragment.appendChild(tempContainer.firstChild);
+        }
+
+        abilityLogs.innerHTML = '';
+        abilityLogs.appendChild(fragment);
 
         // Add enhanced log styles if not already present
         if (!context.querySelector('#mga-log-styles')) {
@@ -10487,6 +10529,52 @@ window.MGA_debugStorage = function() {
         });
     }
 
+    // PERFORMANCE OPTIMIZATION: CSS-based filtering instead of DOM rebuild
+    function updateLogVisibility(context = document) {
+        const abilityLogs = context.querySelector('#ability-logs');
+        if (!abilityLogs) return;
+
+        const filterMode = UnifiedState.data.filterMode || 'categories';
+        const logItems = abilityLogs.querySelectorAll('.mga-log-item');
+
+        debugLog('ABILITY_LOGS', 'Updating log visibility via CSS', {
+            filterMode,
+            totalItems: logItems.length
+        });
+
+        logItems.forEach(item => {
+            let shouldShow = false;
+
+            if (filterMode === 'categories') {
+                const category = item.dataset.category;
+                shouldShow = UnifiedState.data.abilityFilters[category] || false;
+            } else if (filterMode === 'byPet') {
+                const petName = item.dataset.petName;
+                shouldShow = UnifiedState.data.petFilters.selectedPets[petName] || false;
+            } else if (filterMode === 'custom') {
+                const abilityType = item.dataset.abilityType;
+                shouldShow = UnifiedState.data.customAbilityFilters[abilityType] || false;
+            }
+
+            item.style.display = shouldShow ? '' : 'none';
+        });
+    }
+
+    // Apply visibility update to all contexts
+    function updateAllLogVisibility() {
+        debugLog('ABILITY_LOGS', 'Updating log visibility across all contexts');
+
+        updateLogVisibility(document);
+
+        const allOverlays = targetDocument.querySelectorAll('.mga-overlay-content-only, .mga-overlay');
+        allOverlays.forEach(overlay => {
+            if (overlay.offsetParent === null) return;
+            if (overlay.querySelector('#ability-logs')) {
+                updateLogVisibility(overlay);
+            }
+        });
+    }
+
     function addTestAbilities() {
         const testLogs = [
             // 💫 XP Boost
@@ -10572,8 +10660,8 @@ window.MGA_debugStorage = function() {
 
         // Populate content for the selected mode
         populateFilterModeContent(mode);
-        // Force update all displays since filters changed
-        updateAllAbilityLogDisplays(true);
+        // PERFORMANCE: Use CSS visibility toggle instead of DOM rebuild
+        updateAllLogVisibility();
     }
 
     function populateFilterModeContent(mode) {
@@ -10610,8 +10698,8 @@ window.MGA_debugStorage = function() {
             checkbox.addEventListener('change', (e) => {
                 UnifiedState.data.petFilters.selectedPets[pet] = e.target.checked;
                 MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
-                // Force update all displays since filters changed
-                updateAllAbilityLogDisplays(true);
+                // PERFORMANCE: Use CSS visibility toggle instead of DOM rebuild
+                updateAllLogVisibility();
             });
 
             const span = targetDocument.createElement('span');
@@ -10650,8 +10738,8 @@ window.MGA_debugStorage = function() {
             checkbox.addEventListener('change', (e) => {
                 UnifiedState.data.customMode.selectedAbilities[ability] = e.target.checked;
                 MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
-                // Force update all displays since filters changed
-                updateAllAbilityLogDisplays(true);
+                // PERFORMANCE: Use CSS visibility toggle instead of DOM rebuild
+                updateAllLogVisibility();
             });
 
             const span = targetDocument.createElement('span');
@@ -10707,8 +10795,8 @@ window.MGA_debugStorage = function() {
             MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
             populateIndividualAbilities();
         }
-        // Force update all displays since filters changed
-        updateAllAbilityLogDisplays(true);
+        // PERFORMANCE: Use CSS visibility toggle instead of DOM rebuild
+        updateAllLogVisibility();
     }
 
     function selectNoneFilters(mode) {
@@ -10728,8 +10816,8 @@ window.MGA_debugStorage = function() {
             MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
             populateIndividualAbilities();
         }
-        // Force update all displays since filters changed
-        updateAllAbilityLogDisplays(true);
+        // PERFORMANCE: Use CSS visibility toggle instead of DOM rebuild
+        updateAllLogVisibility();
     }
 
     // Enhanced shouldLogAbility function matching PAL4 logic
@@ -10763,26 +10851,43 @@ window.MGA_debugStorage = function() {
     function normalizeAbilityName(abilityType) {
         if (!abilityType) return abilityType;
 
+        // PERFORMANCE: Check cache first
+        if (MGA_AbilityCache.normalizedNames.has(abilityType)) {
+            return MGA_AbilityCache.normalizedNames.get(abilityType);
+        }
+
         // Known ability name changes:
         // "Produce Scale Boost" → "Crop Size Boost" (game renamed this ability)
         const normalized = abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost');
+
+        // PERFORMANCE: Cache result
+        MGA_AbilityCache.normalizedNames.set(abilityType, normalized);
 
         return normalized;
     }
 
     function categorizeAbilityToFilterKey(abilityType) {
+        // PERFORMANCE: Check cache first
+        if (MGA_AbilityCache.categories.has(abilityType)) {
+            return MGA_AbilityCache.categories.get(abilityType);
+        }
+
         const cleanType = (abilityType || '').toLowerCase();
 
-        if (cleanType.includes('xp') && cleanType.includes('boost')) return 'xpBoost';
-        if (cleanType.includes('hatch') && cleanType.includes('xp')) return 'xpBoost';
-        if (cleanType.includes('crop') && (cleanType.includes('size') || cleanType.includes('scale'))) return 'cropSizeBoost';
-        if (cleanType.includes('sell') && cleanType.includes('boost')) return 'selling';
-        if (cleanType.includes('refund')) return 'selling';
-        if (cleanType.includes('double') && cleanType.includes('harvest')) return 'harvesting';
-        if (cleanType.includes('growth') && cleanType.includes('boost')) return 'growthSpeed';
-        if (cleanType.includes('rainbow') || cleanType.includes('gold')) return 'specialMutations';
+        let category = 'other';
+        if (cleanType.includes('xp') && cleanType.includes('boost')) category = 'xpBoost';
+        else if (cleanType.includes('hatch') && cleanType.includes('xp')) category = 'xpBoost';
+        else if (cleanType.includes('crop') && (cleanType.includes('size') || cleanType.includes('scale'))) category = 'cropSizeBoost';
+        else if (cleanType.includes('sell') && cleanType.includes('boost')) category = 'selling';
+        else if (cleanType.includes('refund')) category = 'selling';
+        else if (cleanType.includes('double') && cleanType.includes('harvest')) category = 'harvesting';
+        else if (cleanType.includes('growth') && cleanType.includes('boost')) category = 'growthSpeed';
+        else if (cleanType.includes('rainbow') || cleanType.includes('gold')) category = 'specialMutations';
 
-        return 'other';
+        // PERFORMANCE: Cache result
+        MGA_AbilityCache.categories.set(abilityType, category);
+
+        return category;
     }
 
     function setupSeedsTabHandlers(context = document) {
