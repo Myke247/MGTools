@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.11.2
+// @version      1.11.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -768,8 +768,8 @@
             z-index: 30000;
             pointer-events: none;
             opacity: 0;
-            transform: translateY(5px);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            /* BUGFIX: Only transition opacity, not position (prevents "sliding" effect) */
+            transition: opacity 0.15s ease-in-out;
             max-width: 250px;
             word-wrap: break-word;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -777,7 +777,6 @@
 
         .mga-tooltip.show {
             opacity: 1;
-            transform: translateY(0);
         }
 
         .mga-tooltip::after {
@@ -7171,10 +7170,24 @@ window.MGA_debugStorage = function() {
 
     // ==================== AUDIO NOTIFICATION SYSTEM ====================
 
+    // BUGFIX: Reuse single AudioContext to prevent memory leaks and browser audio conflicts
+    let sharedAudioContext = null;
+
+    function getAudioContext() {
+        if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
+            sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        // Resume if suspended (browser autoplay policy)
+        if (sharedAudioContext.state === 'suspended') {
+            sharedAudioContext.resume();
+        }
+        return sharedAudioContext;
+    }
+
     // Play notification sound using Web Audio API
     function playNotificationSound(frequency = 800, duration = 200, volume = 0.3) {
         try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const audioContext = getAudioContext();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
 
@@ -9023,10 +9036,9 @@ window.MGA_debugStorage = function() {
                                 { name: 'XP Boost III', category: '💫 XP Boosts' },
                                 { name: 'XP Boost IV', category: '💫 XP Boosts' },
                                 { name: 'Hatch XP Boost', category: '💫 XP Boosts' },
-                                // Crop Size Boosts
+                                // Crop Size Boosts (only I and II exist in game)
                                 { name: 'Crop Size Boost I', category: '📈 Crop Size Boosts' },
                                 { name: 'Crop Size Boost II', category: '📈 Crop Size Boosts' },
-                                { name: 'Crop Size Boost III', category: '📈 Crop Size Boosts' },
                                 // Selling
                                 { name: 'Sell Boost I', category: '💰 Selling' },
                                 { name: 'Sell Boost II', category: '💰 Selling' },
@@ -12917,6 +12929,43 @@ window.MGA_debugStorage = function() {
     // Make debugging functions globally accessible
     window.debugCropHighlighting = debugCropHighlighting;
     window.applyCropHighlightingWithDebug = applyCropHighlightingWithDebug;
+
+    // BUGFIX: Add ability log verification command
+    window.MGA_AbilityLogDebug = {
+        checkLogs: function() {
+            const allLogs = MGA_getAllLogs();
+            const oldLogs = allLogs.filter(log =>
+                log.abilityType && /produce\s*scale\s*boost/i.test(log.abilityType)
+            );
+            const newLogs = allLogs.filter(log =>
+                log.abilityType && /crop\s*size\s*boost/i.test(log.abilityType)
+            );
+
+            console.log('=== ABILITY LOG VERIFICATION ===');
+            console.log('Old "Produce Scale Boost" logs:', oldLogs.length);
+            if (oldLogs.length > 0) {
+                console.warn('⚠️ Found unmigrated logs - migration may need to run again');
+                console.log('Sample old logs:', oldLogs.slice(0, 3));
+            }
+            console.log('New "Crop Size Boost" logs:', newLogs.length);
+            console.log('Total logs:', allLogs.length);
+            console.log('============================');
+
+            return { oldCount: oldLogs.length, newCount: newLogs.length, total: allLogs.length };
+        },
+        listAllAbilities: function() {
+            const allLogs = MGA_getAllLogs();
+            const abilityTypes = [...new Set(allLogs.map(log => log.abilityType))].sort();
+            console.log('=== ALL UNIQUE ABILITIES IN LOGS ===');
+            abilityTypes.forEach((ability, i) => {
+                const count = allLogs.filter(log => log.abilityType === ability).length;
+                console.log(`${i + 1}. ${ability} (${count} logs)`);
+            });
+            console.log('===================================');
+            return abilityTypes;
+        }
+    };
+
     window.MGA_CropDebug = {
         debug: debugCropHighlighting,
         apply: applyCropHighlightingWithDebug,
@@ -13646,6 +13695,30 @@ window.MGA_debugStorage = function() {
     // OPTIMIZED: Batch DOM updates and only update when necessary
     let pendingAbilityUpdates = false;
 
+    // Helper function to get crop info from garden (only if unambiguous)
+    function getGardenCropIfUnique() {
+        const tileObjects = window.gardenInfo?.garden?.tileObjects;
+        if (!tileObjects) return null;
+
+        // Count unique species (only plants, not empty tiles)
+        const speciesSet = new Set();
+        const tiles = Object.values(tileObjects);
+
+        tiles.forEach(tile => {
+            if (tile?.species && tile.objectType === 'plant') {
+                speciesSet.add(tile.species);
+            }
+        });
+
+        // Only return if there's exactly ONE unique species (unambiguous)
+        // If multiple crops, we can't know which one was affected
+        if (speciesSet.size === 1) {
+            return Array.from(speciesSet)[0];
+        }
+
+        return null; // Multiple crops or no crops - can't determine accurately
+    }
+
     function monitorPetAbilities() {
         if (!UnifiedState.atoms.petAbility || !UnifiedState.atoms.activePets) return;
 
@@ -13676,12 +13749,33 @@ window.MGA_debugStorage = function() {
             // Save ability timestamps to prevent duplicate logging after refresh
             MGA_debouncedSave('MGA_lastAbilityTimestamps', UnifiedState.data.lastAbilityTimestamps);
 
+            // BUGFIX: Enrich ability data with crop info if missing (only when unambiguous)
+            let enrichedData = trigger.data ? { ...trigger.data } : {};
+
+            // For granter abilities (Gold/Rainbow), try to add crop name if missing
+            const abilityId = trigger.abilityId || '';
+            if (abilityId.includes('Granter') && !enrichedData.cropName) {
+                // Strategy 1: Check currentCrop (works for single-crop users)
+                const currentCrop = window.currentCrop || UnifiedState.atoms.currentCrop;
+                if (currentCrop && currentCrop[0]?.species) {
+                    enrichedData.cropName = currentCrop[0].species;
+                } else {
+                    // Strategy 2: Check garden tiles (only if exactly ONE crop type exists)
+                    // This prevents showing wrong crop when multiple crop types are growing
+                    const uniqueCrop = getGardenCropIfUnique();
+                    if (uniqueCrop) {
+                        enrichedData.cropName = uniqueCrop;
+                    }
+                    // Otherwise: No crop name added (honest about uncertainty)
+                }
+            }
+
             const abilityLog = {
                 petName: pet.petSpecies || `Pet ${index + 1}`,
                 abilityType: trigger.abilityId || 'Unknown Ability',
                 timestamp: currentTimestamp,
                 timeString: formatTimestamp(currentTimestamp),
-                data: trigger.data || null
+                data: Object.keys(enrichedData).length > 0 ? enrichedData : null
             };
 
             UnifiedState.data.petAbilityLogs.unshift(abilityLog);
@@ -14948,6 +15042,45 @@ window.MGA_debugStorage = function() {
         }
 
         UnifiedState.data.petAbilityLogs = MGA_loadJSON('MGA_petAbilityLogs', []);
+
+        // BUGFIX: One-time migration - normalize old "Produce Scale Boost" ability names to "Crop Size Boost"
+        // This fixes "lost logs" issue when game renamed the ability
+        let migrationNeeded = false;
+        UnifiedState.data.petAbilityLogs = UnifiedState.data.petAbilityLogs.map(log => {
+            if (log.abilityType && /produce\s*scale\s*boost/i.test(log.abilityType)) {
+                migrationNeeded = true;
+                return {
+                    ...log,
+                    abilityType: log.abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost')
+                };
+            }
+            return log;
+        });
+
+        // Also migrate archived logs
+        const archivedLogs = MGA_loadJSON('MGA_petAbilityLogs_archive', []);
+        let archivedMigrationNeeded = false;
+        const migratedArchive = archivedLogs.map(log => {
+            if (log.abilityType && /produce\s*scale\s*boost/i.test(log.abilityType)) {
+                archivedMigrationNeeded = true;
+                return {
+                    ...log,
+                    abilityType: log.abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost')
+                };
+            }
+            return log;
+        });
+
+        if (migrationNeeded) {
+            MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+            productionLog('✅ [MIGRATION] Migrated old "Produce Scale Boost" logs to "Crop Size Boost"');
+        }
+
+        if (archivedMigrationNeeded) {
+            MGA_saveJSON('MGA_petAbilityLogs_archive', migratedArchive);
+            productionLog('✅ [MIGRATION] Migrated archived "Produce Scale Boost" logs to "Crop Size Boost"');
+        }
+
         productionLog('📦 [STORAGE] Loading pet ability logs, found:', UnifiedState.data.petAbilityLogs.length, 'entries');
 
         // Check if mainscript.txt pet ability logging is active
@@ -17225,6 +17358,7 @@ window.MGA_debugStorage = function() {
         tooltip: null,
         showTimeout: null,
         hideTimeout: null,
+        currentEvent: null, // Store current mouse event for positioning
 
         init: () => {
             // Create tooltip element
@@ -17253,6 +17387,9 @@ window.MGA_debugStorage = function() {
             const text = element.dataset.tooltip;
             const delay = element.dataset.tooltipDelay || 500;
 
+            // Store the event for positioning
+            window.MGA_Tooltips.currentEvent = e;
+
             window.MGA_Tooltips.showTimeout = setTimeout(() => {
                 window.MGA_Tooltips.show(element, text);
             }, parseInt(delay));
@@ -17278,6 +17415,9 @@ window.MGA_debugStorage = function() {
                 return;
             }
 
+            // Update current event for positioning
+            window.MGA_Tooltips.currentEvent = e;
+
             if (window.MGA_Tooltips.tooltip && window.MGA_Tooltips.tooltip.classList.contains('show')) {
                 // Check if we're still over a tooltip element
                 const tooltipElement = e.target?.closest?.('[data-tooltip]');
@@ -17292,12 +17432,23 @@ window.MGA_debugStorage = function() {
         show: (element, text) => {
             const tooltip = window.MGA_Tooltips.tooltip;
             tooltip.textContent = text;
+
+            // BUGFIX: Position immediately before showing to prevent flash at (0,0)
+            if (window.MGA_Tooltips.currentEvent) {
+                window.MGA_Tooltips.position(window.MGA_Tooltips.currentEvent);
+            }
+
             tooltip.classList.add('show');
         },
 
         hide: () => {
             const tooltip = window.MGA_Tooltips.tooltip;
             tooltip.classList.remove('show');
+
+            // BUGFIX: Reset position to prevent stuck tooltips
+            tooltip.style.left = '-9999px';
+            tooltip.style.top = '-9999px';
+            window.MGA_Tooltips.currentEvent = null;
         },
 
         position: (e) => {
