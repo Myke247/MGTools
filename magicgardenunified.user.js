@@ -14749,59 +14749,97 @@ window.MGA_debugStorage = function() {
             productionLog('📝 [COMPAT] Detected mainscript.txt pet ability logging system with', window.petAbilityLogs.length, 'entries');
             productionLog('📝 [COMPAT] Both systems will run independently with separate storage');
         }
-        UnifiedState.data.settings = MGA_loadJSON('MGA_settings', {
-            opacity: 95,
-            popoutOpacity: 50,
-            theme: 'default',
-            gradientStyle: 'blue-purple',
-            effectStyle: 'none',
-            compactMode: false,
-            ultraCompactMode: false,
-            useInGameOverlays: true,
-            debugMode: false,  // Disable debug logging by default to prevent console spam
-            aggressiveIdlePrevention: true,  // Enable anti-idle from bug.txt
-            notifications: {
-                enabled: true,
-                volume: 0.3,
-                notificationType: 'epic',  // Options: 'simple', 'triple', 'alarm', 'epic', 'continuous'
-                requiresAcknowledgment: false,
-                continuousEnabled: false,  // Controls whether continuous option is available
-                watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
-                watchedEggs: ["CommonEgg", "MythicalEgg"],
-                lastSeenTimestamps: {}
+        // BUGFIX: Load from MGA_data instead of MGA_settings (saves use MGA_data)
+        const loadedData = MGA_loadJSON('MGA_data', null);
+
+        if (loadedData && loadedData.settings) {
+            // If MGA_data exists, use it (this is where saves go)
+            UnifiedState.data.settings = loadedData.settings;
+            productionLog('📦 [STORAGE] Loaded settings from MGA_data');
+        } else {
+            // Fallback to MGA_settings for backward compatibility
+            UnifiedState.data.settings = MGA_loadJSON('MGA_settings', {
+                opacity: 95,
+                popoutOpacity: 50,
+                theme: 'default',
+                gradientStyle: 'blue-purple',
+                effectStyle: 'none',
+                compactMode: false,
+                ultraCompactMode: false,
+                useInGameOverlays: true,
+                debugMode: false,
+                aggressiveIdlePrevention: true,
+                notifications: {
+                    enabled: true,
+                    volume: 0.3,
+                    notificationType: 'epic',
+                    requiresAcknowledgment: false,
+                    continuousEnabled: false,
+                    watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
+                    watchedEggs: ["CommonEgg", "MythicalEgg"],
+                    lastSeenTimestamps: {}
+                },
+                detailedTimestamps: false
+            });
+            productionLog('📦 [STORAGE] Loaded settings from MGA_settings (fallback)');
+        }
+
+        // Ensure notifications object exists and has all required fields
+        if (!UnifiedState.data.settings.notifications) {
+            UnifiedState.data.settings.notifications = {};
+        }
+
+        // Set defaults for any missing notification fields
+        const notifDefaults = {
+            enabled: true,
+            volume: 0.3,
+            notificationType: 'epic',
+            requiresAcknowledgment: false,
+            continuousEnabled: false,
+            watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
+            watchedEggs: ["CommonEgg", "MythicalEgg"],
+            petHungerEnabled: false,
+            petHungerThreshold: 25,
+            petHungerSound: 'double',
+            abilityNotificationsEnabled: false,
+            watchedAbilities: [],
+            watchedAbilityCategories: {
+                xpBoost: true,
+                cropSizeBoost: true,
+                selling: true,
+                harvesting: true,
+                growthSpeed: true,
+                specialMutations: true,
+                other: true
             },
-            detailedTimestamps: false  // Show HH:MM:SS format instead of H:MM AM/PM
+            abilityNotificationSound: 'single',
+            abilityNotificationVolume: 0.2,
+            weatherNotificationsEnabled: false,
+            watchedWeatherEvents: ['Snow', 'Rain', 'AmberMoon', 'Dawn'],
+            shopFirebaseEnabled: false,
+            lastSeenTimestamps: {}
+        };
+
+        // Merge defaults with existing settings
+        Object.keys(notifDefaults).forEach(key => {
+            if (UnifiedState.data.settings.notifications[key] === undefined) {
+                UnifiedState.data.settings.notifications[key] = notifDefaults[key];
+            }
         });
 
-        // Ensure notifications object exists for existing users
-        if (!UnifiedState.data.settings.notifications) {
-            UnifiedState.data.settings.notifications = {
-                enabled: true,
-                volume: 0.3,
-                notificationType: 'epic',  // Options: 'simple', 'triple', 'alarm', 'epic', 'continuous'
-                requiresAcknowledgment: false,
-                watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
-                watchedEggs: ["CommonEgg", "MythicalEgg"],
-                lastSeenTimestamps: {}
-            };
-            MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
-            productionLog('🔔 [NOTIFICATIONS] Initialized notifications settings for existing user');
-        } else {
-            // Add new fields for existing notification settings
-            if (UnifiedState.data.settings.notifications.notificationType === undefined) {
-                UnifiedState.data.settings.notifications.notificationType = 'epic';
-            }
-            if (UnifiedState.data.settings.notifications.requiresAcknowledgment === undefined) {
-                UnifiedState.data.settings.notifications.requiresAcknowledgment = false;
-            }
-            if (UnifiedState.data.settings.notifications.continuousEnabled === undefined) {
-                UnifiedState.data.settings.notifications.continuousEnabled = false;
-            }
-            if (UnifiedState.data.settings.detailedTimestamps === undefined) {
-                UnifiedState.data.settings.detailedTimestamps = false;
-            }
-            MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
+        // Ensure watchedAbilityCategories exists and has all categories
+        if (!UnifiedState.data.settings.notifications.watchedAbilityCategories) {
+            UnifiedState.data.settings.notifications.watchedAbilityCategories = notifDefaults.watchedAbilityCategories;
         }
+
+        // Ensure detailedTimestamps setting exists
+        if (UnifiedState.data.settings.detailedTimestamps === undefined) {
+            UnifiedState.data.settings.detailedTimestamps = false;
+        }
+
+        // Save merged settings
+        MGA_saveJSON('MGA_data', UnifiedState.data);
+        productionLog('🔔 [NOTIFICATIONS] Ensured all notification settings have defaults');
 
         // Load hotkeys data
         const savedHotkeys = MGA_loadJSON('MGA_hotkeys', null);
