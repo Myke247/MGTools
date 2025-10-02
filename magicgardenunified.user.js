@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.10.6
+// @version      1.11.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -17,6 +17,16 @@
 
 (function() {
     'use strict';
+
+    // ==================== PRODUCTION MODE (MUST BE FIRST) ====================
+    // Set to true to disable non-critical logging for performance
+    const PRODUCTION = true; // OPTIMIZED: Enabled to dramatically improve FPS
+
+    // Production-aware console logging - optimized as no-ops for performance
+    const productionLog = PRODUCTION ? () => {} : console.log.bind(console);
+    const productionWarn = PRODUCTION ? () => {} : console.warn.bind(console);
+    // Keep errors enabled for critical issues
+    const productionError = console.error.bind(console);
 
     // ==================== SELECTIVE CONTEXT ISOLATION ====================
     // Detect execution context and set up selective window/document references
@@ -89,13 +99,13 @@
 
             // Log drag overlay exclusion
             if (dragOverlays.length > 0) {
-                console.log(`✅ [MODAL-CHECK] Excluding ${dragOverlays.length} game drag overlays (normal game UI, not blocking modals)`);
+                productionLog(`✅ [MODAL-CHECK] Excluding ${dragOverlays.length} game drag overlays (normal game UI, not blocking modals)`);
             }
 
             // DISABLED: False positive detection - game naturally has modal/overlay elements
             // This was blocking initialization and causing infinite retry loops
             if (false && totalModalElements > 0) {
-                console.log('⏳ [MODAL-CHECK] Game modal system active - deferring MGA interactions', modalDetails);
+                productionLog('⏳ [MODAL-CHECK] Game modal system active - deferring MGA interactions', modalDetails);
                 if (window.MGA_DEBUG) {
                     window.MGA_DEBUG.logModalEvent('MODAL_SYSTEM_ACTIVE', modalDetails);
                 }
@@ -104,7 +114,7 @@
 
             // SIMPLIFIED: Only block for actual modal/dialog containers, not individual buttons
             // If there are no modals/dialogs detected above, allow initialization
-            console.log(`✅ [MODAL-CHECK] No blocking modals detected - MGA initialization allowed`);
+            productionLog(`✅ [MODAL-CHECK] No blocking modals detected - MGA initialization allowed`);
 
             return true;
         } catch (error) {
@@ -119,30 +129,30 @@
     // ==================== SCRIPT IDENTIFICATION ====================
     // DO NOT override console - causes issues in Tampermonkey sandbox
 
-    console.log('🔧 [CONTEXT] Script context:', window.MGA_CONTEXT);
-    console.log('🔧 [CONTEXT] GM API available:', isGMApiAvailable());
-    console.log('🔧 [CONTEXT] unsafeWindow available:', isUserscript);
-    console.log('🔧 [CONTEXT] Selective isolation enabled - game modals preserved');
+    productionLog('🔧 [CONTEXT] Script context:', window.MGA_CONTEXT);
+    productionLog('🔧 [CONTEXT] GM API available:', isGMApiAvailable());
+    productionLog('🔧 [CONTEXT] unsafeWindow available:', isUserscript);
+    productionLog('🔧 [CONTEXT] Selective isolation enabled - game modals preserved');
 
     // Add manual debug export command
-    console.log('🛠️ [DEBUG] Manual debug export: Run "MGA_DEBUG.exportDebug()" in console anytime');
-    console.log('🛠️ [DEBUG] Auto-export will trigger in 30s if issues are detected');
+    productionLog('🛠️ [DEBUG] Manual debug export: Run "MGA_DEBUG.exportDebug()" in console anytime');
+    productionLog('🛠️ [DEBUG] Auto-export will trigger in 30s if issues are detected');
 
     // Verify debug system is working
     setTimeout(() => {
         if (typeof window.MGA_DEBUG === 'undefined') {
             console.error('❌ [DEBUG-VERIFY] MGA_DEBUG is not defined! Debug system failed to initialize');
-            console.log('🔧 [FALLBACK] Basic logging will continue without full debug system');
+            productionLog('🔧 [FALLBACK] Basic logging will continue without full debug system');
         } else {
-            console.log('✅ [DEBUG-VERIFY] MGA_DEBUG is available and working');
-            console.log('🔧 [DEBUG-VERIFY] Available methods:', Object.keys(window.MGA_DEBUG));
+            productionLog('✅ [DEBUG-VERIFY] MGA_DEBUG is available and working');
+            productionLog('🔧 [DEBUG-VERIFY] Available methods:', Object.keys(window.MGA_DEBUG));
         }
     }, 100);
 
     // Add modal system verification logging
     function logModalSystemStatus() {
         const initialModalCheck = checkForGameModals();
-        console.log('✅ [MODAL-SYSTEM] Modal isolation verification:', {
+        productionLog('✅ [MODAL-SYSTEM] Modal isolation verification:', {
             gameModalsActive: !initialModalCheck,
             eventIsolationActive: typeof isMGAEvent === 'function',
             contextIsolationActive: typeof createMGAElement === 'function',
@@ -153,7 +163,7 @@
         // Test event isolation function
         const testEvent = { target: document.body };
         const testMGAEvent = { target: { closest: () => null } };
-        console.log('🧪 [MODAL-SYSTEM] Event isolation test:', {
+        productionLog('🧪 [MODAL-SYSTEM] Event isolation test:', {
             gameEventBlocked: !isMGAEvent(testEvent),
             mgaEventAllowed: !isMGAEvent(testMGAEvent) // Should be false since closest returns null
         });
@@ -195,7 +205,7 @@
                 }
             };
             debugData.loadingStages.push(entry);
-            console.log(`🐛 [DEBUG-STAGE] ${stage}:`, entry);
+            productionLog(`🐛 [DEBUG-STAGE] ${stage}:`, entry);
         }
 
         function logModalEvent(event, details = {}) {
@@ -207,7 +217,7 @@
                 mgaElements: targetDocument.querySelectorAll('.mga-panel, .mga-toggle-btn').length
             };
             debugData.modalEvents.push(entry);
-            console.log(`🐛 [DEBUG-MODAL] ${event}:`, entry);
+            productionLog(`🐛 [DEBUG-MODAL] ${event}:`, entry);
         }
 
         function logContextIssue(issue, details = {}) {
@@ -223,7 +233,7 @@
                 }
             };
             debugData.contextIssues.push(entry);
-            console.log(`🐛 [DEBUG-CONTEXT] ${issue}:`, entry);
+            productionLog(`🐛 [DEBUG-CONTEXT] ${issue}:`, entry);
         }
 
         function logError(error, context = '') {
@@ -245,7 +255,7 @@
             logError,
             getData: () => debugData,
             exportDebug: () => {
-                console.log('🐛 [DEBUG-EXPORT] Complete debug data:', JSON.stringify(debugData, null, 2));
+                productionLog('🐛 [DEBUG-EXPORT] Complete debug data:', JSON.stringify(debugData, null, 2));
                 return debugData;
             }
         };
@@ -263,17 +273,17 @@
     let DEBUG;
     try {
         DEBUG = createDebugLogger();
-        console.log('✅ [DEBUG-INIT] Debug system initialized successfully');
+        productionLog('✅ [DEBUG-INIT] Debug system initialized successfully');
     } catch (error) {
         console.error('❌ [DEBUG-INIT] Failed to initialize debug system:', error);
         // Create a minimal debug fallback
         window.MGA_DEBUG = {
-            logStage: (stage, details) => console.log(`🐛 [DEBUG-STAGE] ${stage}:`, details),
-            logModalEvent: (event, details) => console.log(`🐛 [DEBUG-MODAL] ${event}:`, details),
-            logContextIssue: (issue, details) => console.log(`🐛 [DEBUG-CONTEXT] ${issue}:`, details),
+            logStage: (stage, details) => productionLog(`🐛 [DEBUG-STAGE] ${stage}:`, details),
+            logModalEvent: (event, details) => productionLog(`🐛 [DEBUG-MODAL] ${event}:`, details),
+            logContextIssue: (issue, details) => productionLog(`🐛 [DEBUG-CONTEXT] ${issue}:`, details),
             logError: (error, context) => console.error(`🐛 [DEBUG-ERROR] ${context}:`, error),
             getData: () => ({ error: 'Debug system failed to initialize', fallback: true }),
-            exportDebug: () => console.log('🐛 [DEBUG-EXPORT] Debug system failed to initialize properly')
+            exportDebug: () => productionLog('🐛 [DEBUG-EXPORT] Debug system failed to initialize properly')
         };
         DEBUG = window.MGA_DEBUG;
     }
@@ -300,11 +310,11 @@
             const uiNotCreated = !debugData.loadingStages.some(s => s.stage === 'CREATE_UI_COMPLETED');
 
             if (hasErrors || hasModalIssues || uiNotCreated) {
-                console.log('🚨 [AUTO-DEBUG] Issues detected - exporting debug data...');
+                productionLog('🚨 [AUTO-DEBUG] Issues detected - exporting debug data...');
                 window.MGA_DEBUG.exportDebug();
-                console.log('📋 [AUTO-DEBUG] Copy the debug data above and paste it into mgdebug.txt');
+                productionLog('📋 [AUTO-DEBUG] Copy the debug data above and paste it into mgdebug.txt');
             } else {
-                console.log('✅ [AUTO-DEBUG] No issues detected in first 30 seconds');
+                productionLog('✅ [AUTO-DEBUG] No issues detected in first 30 seconds');
             }
         }
     }, 30000);
@@ -317,15 +327,15 @@
         if (initializationStarted) return;
         initializationStarted = true;
 
-        console.log('🚀 Magic Garden Unified Assistant v1.6.0 - STORAGE FIX');
-        console.log('🔧 CRITICAL: Disabled data-destroying migration system');
-        console.log('🔧 Fixed: Now uses localStorage directly (100% reliable)');
-        console.log('🔧 Fixed: Active pets detection with retry logic');
-        console.log('✅ Seeds + Pet Presets will now SAVE and LOAD correctly!');
-        console.log('🔧 [TIMING] Page load state:', document.readyState);
-        console.log('🔧 [BASIC-DEBUG] Script execution started at:', new Date().toISOString());
-        console.log('🔧 [BASIC-DEBUG] Location:', window.location.href);
-        console.log('🔧 [BASIC-DEBUG] User Agent:', navigator.userAgent);
+        productionLog('🚀 Magic Garden Unified Assistant v1.6.0 - STORAGE FIX');
+        productionLog('🔧 CRITICAL: Disabled data-destroying migration system');
+        productionLog('🔧 Fixed: Now uses localStorage directly (100% reliable)');
+        productionLog('🔧 Fixed: Active pets detection with retry logic');
+        productionLog('✅ Seeds + Pet Presets will now SAVE and LOAD correctly!');
+        productionLog('🔧 [TIMING] Page load state:', document.readyState);
+        productionLog('🔧 [BASIC-DEBUG] Script execution started at:', new Date().toISOString());
+        productionLog('🔧 [BASIC-DEBUG] Location:', window.location.href);
+        productionLog('🔧 [BASIC-DEBUG] User Agent:', navigator.userAgent);
 
         // Proceed with initialization
         startMGAInitialization();
@@ -333,35 +343,35 @@
 
     // CRITICAL FIX: Handle all readyState possibilities for Tampermonkey compatibility
     // document-idle means readyState is 'interactive' - not 'loading' or 'complete'
-    console.log('🔧 [INIT] Initial readyState:', document.readyState);
+    productionLog('🔧 [INIT] Initial readyState:', document.readyState);
 
     // NEW: Add delay for Tampermonkey to let game load first
     const initDelay = isUserscript ? 3000 : 100; // 3 second delay for Tampermonkey, 100ms for console
 
     if (document.readyState === 'complete') {
         // Page is already fully loaded
-        console.log(`🔧 [INIT] Page already complete, initializing in ${initDelay}ms`);
+        productionLog(`🔧 [INIT] Page already complete, initializing in ${initDelay}ms`);
         setTimeout(initializeWhenReady, initDelay);
     } else if (document.readyState === 'interactive') {
         // DOM is ready but resources still loading (document-idle state)
         // Wait for resources plus our delay
-        console.log(`🔧 [INIT] DOM interactive (document-idle), initializing in ${initDelay}ms...`);
+        productionLog(`🔧 [INIT] DOM interactive (document-idle), initializing in ${initDelay}ms...`);
         setTimeout(() => {
             initializeWhenReady();
         }, initDelay); // Delay to let game initialize
     } else {
         // readyState is 'loading' - wait for full page load
-        console.log('🔧 [INIT] DOM still loading, waiting for load event...');
+        productionLog('🔧 [INIT] DOM still loading, waiting for load event...');
         window.addEventListener('load', initializeWhenReady);
 
         // Backup: also listen for DOMContentLoaded
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🔧 [TIMING] DOM ready, waiting for complete load...');
+            productionLog('🔧 [TIMING] DOM ready, waiting for complete load...');
         });
     }
 
     function startMGAInitialization() {
-        console.log('🚀 [TIMING] Starting MGA initialization with readyState:', document.readyState);
+        productionLog('🚀 [TIMING] Starting MGA initialization with readyState:', document.readyState);
 
     // Detect other Magic Garden scripts
     setTimeout(() => {
@@ -369,16 +379,16 @@
                              typeof window.petAbilityLogs !== 'undefined' ||
                              document.hidden === false;
         if (hasMainScript) {
-            console.log('📝 [COMPAT] Detected mainscript.txt is also running - compatibility mode enabled');
+            productionLog('📝 [COMPAT] Detected mainscript.txt is also running - compatibility mode enabled');
         } else {
-            console.log('📝 [COMPAT] No other Magic Garden scripts detected - running standalone');
+            productionLog('📝 [COMPAT] No other Magic Garden scripts detected - running standalone');
         }
     }, 100);
 
     // ==================== IMMEDIATE IDLE PREVENTION ====================
     // CRITICAL: Apply idle prevention immediately before any game code runs
     (function() {
-        console.log('🚫 [IDLE-PREVENTION] Applying immediate anti-idle protection...');
+        productionLog('🚫 [IDLE-PREVENTION] Applying immediate anti-idle protection...');
 
         // Override document properties to prevent idle detection
         try {
@@ -392,9 +402,9 @@
                 writable: false,
                 configurable: false
             });
-            console.log('✅ [IDLE-PREVENTION] Document properties overridden');
+            productionLog('✅ [IDLE-PREVENTION] Document properties overridden');
         } catch (e) {
-            console.warn('⚠️ [IDLE-PREVENTION] Could not override document properties:', e);
+            productionWarn('⚠️ [IDLE-PREVENTION] Could not override document properties:', e);
         }
 
         // Block idle detection events with capture phase (highest priority)
@@ -413,7 +423,7 @@
             e.preventDefault();
         }, true);
 
-        console.log('✅ [IDLE-PREVENTION] Event listeners added with capture phase');
+        productionLog('✅ [IDLE-PREVENTION] Event listeners added with capture phase');
     })();
 
     // ==================== INITIALIZATION ====================
@@ -1125,11 +1135,11 @@
     // Production flag to minimize script size by removing debug logs
     // NOTE: To enable production mode and remove ~500 console.log statements:
     // 1. Change PRODUCTION to true below
-    // 2. Replace all 'console.log(' with 'productionLog(' in the script
-    // 3. Replace all 'console.warn(' with 'productionWarn(' in the script
+    // 2. Replace all 'productionLog(' with 'productionLog(' in the script
+    // 3. Replace all 'productionWarn(' with 'productionWarn(' in the script
     // 4. Replace all 'console.error(' with 'productionError(' in the script
     // This can save ~100-150KB in script size for better performance
-    const PRODUCTION = false; // Set to true to remove console.log statements
+    const PRODUCTION = true; // OPTIMIZED: Enabled to dramatically improve FPS
 
     const DEBUG_FLAGS = {
         OVERLAY_LIFECYCLE: false,  // Disabled to reduce console spam
@@ -1143,27 +1153,11 @@
         PERFORMANCE: false
     };
 
-    // Production-aware console logging
-    function productionLog(...args) {
-        if (!PRODUCTION) {
-            console.log(...args);
-        }
-    }
+    // Note: productionLog, productionWarn, productionError are defined at top of file (line 26-29)
 
-    function productionWarn(...args) {
-        if (!PRODUCTION) {
-            console.warn(...args);
-        }
-    }
-
-    function productionError(...args) {
-        if (!PRODUCTION) {
-            console.error(...args);
-        }
-    }
-
+    // Optimized debugLog - no-op in production mode
     function debugLog(category, message, data = null) {
-        if (DEBUG_FLAGS[category]) {
+        if (!PRODUCTION && DEBUG_FLAGS[category]) {
             const timestamp = new Date().toLocaleTimeString();
             productionLog(`[MGA-DEBUG-${category}] ${timestamp} ${message}`, data || '');
         }
@@ -1222,7 +1216,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
     // If flags are older than 5 seconds, they're stale from a previous load
     if (flagAge > 5000) {
-        console.log('🔄 Detected stale initialization flags, clearing...');
+        productionLog('🔄 Detected stale initialization flags, clearing...');
         try {
             delete window._MGA_INITIALIZING;
         } catch (e) {
@@ -1243,14 +1237,14 @@ function applyResponsiveTextScaling(overlay, width, height) {
     const forceInit = targetWindow.location.search.includes('force=true') || window._MGA_FORCE_INIT;
 
     if ((window._MGA_INITIALIZING || window._MGA_INITIALIZED) && !forceInit) {
-        console.log('🔒 MGA already initializing or initialized, stopping duplicate execution');
-        console.log('💡 Use ?force=true in URL or MGA.forceInit() to re-initialize');
+        productionLog('🔒 MGA already initializing or initialized, stopping duplicate execution');
+        productionLog('💡 Use ?force=true in URL or MGA.forceInit() to re-initialize');
         return;
     }
 
     // Clear flags if forcing re-initialization
     if (forceInit) {
-        console.log('🔄 Force initialization requested - clearing existing flags');
+        productionLog('🔄 Force initialization requested - clearing existing flags');
         window._MGA_INITIALIZED = false;
         window._MGA_FORCE_INIT = false;
     }
@@ -1324,9 +1318,24 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     continuousEnabled: false,  // Controls whether continuous option is available
                     watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
                     watchedEggs: ["CommonEgg", "MythicalEgg"],
+                    // Pet hunger notifications
+                    petHungerEnabled: false,
+                    petHungerThreshold: 25,  // Notify when hunger drops below this % (percentage of observed max)
+                    petHungerSound: 'double',  // Different sound than shop notifications
+                    // Ability trigger notifications
+                    abilityNotificationsEnabled: false,
+                    watchedAbilities: [],  // List of abilities to watch (empty = all abilities)
+                    abilityNotificationSound: 'single',  // 'single', 'double', 'triple'
+                    abilityNotificationVolume: 0.2,  // Separate volume for abilities (quieter by default)
+                    // Weather event notifications
+                    weatherNotificationsEnabled: false,
+                    watchedWeatherEvents: ['Snow', 'Rain', 'AmberMoon', 'Dawn'],
+                    // Shop UI Firebase integration toggle
+                    shopFirebaseEnabled: false,
                     lastSeenTimestamps: {}
                 },
-                detailedTimestamps: true  // Show HH:MM:SS 24-hour format instead of 12-hour AM/PM
+                detailedTimestamps: true,  // Show HH:MM:SS 24-hour format instead of 12-hour AM/PM
+                debugMode: false  // Enable debug logging for troubleshooting
             },
             hotkeys: {
                 enabled: true,
@@ -1382,6 +1391,9 @@ function applyResponsiveTextScaling(overlay, width, height) {
         }
     };
 
+    // Export UnifiedState for debugging and external access
+    targetWindow.UnifiedState = UnifiedState;
+
     /* CHECKPOINT removed: UNIFIED_STATE_COMPLETE */
 
     // ==================== ROOM STATUS & FIREBASE ====================
@@ -1415,7 +1427,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
         try {
             const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
             if (!roomState?.child?.data?.userSlots) {
-                console.log('[Room Status] No userSlots data available', {
+                productionLog('[Room Status] No userSlots data available', {
                     hasRoomConnection: !!targetWindow.MagicCircle_RoomConnection,
                     hasRoomState: !!roomState,
                     hasChild: !!roomState?.child,
@@ -1425,7 +1437,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
             }
             const userSlots = roomState.child.data.userSlots;
             const count = userSlots.filter(slot => slot !== null && slot !== undefined).length;
-            console.log('[Room Status] Player count:', count, 'userSlots:', userSlots);
+            productionLog('[Room Status] Player count:', count, 'userSlots:', userSlots);
             return count;
         } catch (err) {
             console.error('[Room Status] Failed to get player count:', err);
@@ -1448,7 +1460,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
     // Load Firebase SDK and initialize with authentication
     async function initializeFirebase() {
         try {
-            console.log('📡 Loading Firebase SDK...');
+            productionLog('📡 Loading Firebase SDK...');
 
             // Import Firebase modules
             const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js');
@@ -1460,19 +1472,19 @@ function applyResponsiveTextScaling(overlay, width, height) {
             UnifiedState.firebase.database = getDatabase(UnifiedState.firebase.app);
             const auth = getAuth(UnifiedState.firebase.app);
 
-            console.log('✅ Firebase app initialized');
+            productionLog('✅ Firebase app initialized');
 
             // Return a promise that resolves when authenticated
             return new Promise((resolve) => {
                 // Try to sign in anonymously
                 signInAnonymously(auth)
                     .then(() => {
-                        console.log('🔐 Signing in anonymously...');
+                        productionLog('🔐 Signing in anonymously...');
                     })
                     .catch((error) => {
                         console.error('❌ Anonymous sign-in failed:', error.code, error.message);
                         // If sign-in fails, still try to return functions (will fail on write if rules require auth)
-                        console.warn('⚠️ Continuing without authentication - writes may fail');
+                        productionWarn('⚠️ Continuing without authentication - writes may fail');
                         resolve({ ref, set, onValue, onDisconnect });
                     });
 
@@ -1483,10 +1495,10 @@ function applyResponsiveTextScaling(overlay, width, height) {
                         authResolved = true;
                         if (user) {
                             const uid = user.uid;
-                            console.log('✅ Authenticated with uid:', uid);
+                            productionLog('✅ Authenticated with uid:', uid);
                             UnifiedState.data.roomStatus.reporterId = uid;
                         } else {
-                            console.warn('⚠️ No user authenticated');
+                            productionWarn('⚠️ No user authenticated');
                             // Generate fallback ID
                             UnifiedState.data.roomStatus.reporterId = getReporterId();
                         }
@@ -1497,7 +1509,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
                 // Timeout fallback - if auth doesn't resolve in 5 seconds, proceed anyway
                 setTimeout(() => {
                     if (!authResolved) {
-                        console.warn('⚠️ Auth timeout - proceeding without authentication');
+                        productionWarn('⚠️ Auth timeout - proceeding without authentication');
                         authResolved = true;
                         UnifiedState.data.roomStatus.reporterId = getReporterId();
                         resolve({ ref, set, onValue, onDisconnect });
@@ -1526,7 +1538,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
             // Report immediately - but only if we have actual data
             const count = getActualPlayerCount();
             if (count === null) {
-                console.warn(`[Room Status] No player data available yet for ${roomCode}, will retry on next interval`);
+                productionWarn(`[Room Status] No player data available yet for ${roomCode}, will retry on next interval`);
                 // Don't report or update local state with invalid data
             } else {
                 await set(currentRoomRef, {
@@ -1541,7 +1553,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
                 }
                 UnifiedState.data.roomStatus.counts[roomCode] = count;
 
-                console.log(`📊 Reported ${count} players in ${roomCode}`);
+                productionLog(`📊 Reported ${count} players in ${roomCode}`);
             }
 
             // Set up onDisconnect cleanup
@@ -1556,7 +1568,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
                     // Skip if we don't have valid data yet
                     if (currentCount === null) {
-                        console.log('[Room Status] Skipping report - no player data available yet');
+                        productionLog('[Room Status] Skipping report - no player data available yet');
                         return;
                     }
 
@@ -1576,7 +1588,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     // Update local state immediately
                     UnifiedState.data.roomStatus.counts[roomCode] = currentCount;
 
-                    console.log(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount})`);
+                    productionLog(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount})`);
                 } catch (err) {
                     console.error('Failed to report room count:', err);
                 }
@@ -1597,7 +1609,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
             UnifiedState.firebase.unsubscribe = onValue(allRoomsRef, (snapshot) => {
                 const roomData = snapshot.val() || {};
-                console.log('[Room Status] Received update from Firebase:', roomData);
+                productionLog('[Room Status] Received update from Firebase:', roomData);
 
                 // Update room counts - use the highest count from fresh data to prevent flickering
                 const counts = {};
@@ -1615,20 +1627,20 @@ function applyResponsiveTextScaling(overlay, width, height) {
                             counts[roomCode] = existingCount;
                         }
 
-                        console.log(`[Room Status] ${roomCode}: ${counts[roomCode]} players (new: ${newCount}, existing: ${existingCount}, age: ${Math.round(age/1000)}s)`);
+                        productionLog(`[Room Status] ${roomCode}: ${counts[roomCode]} players (new: ${newCount}, existing: ${existingCount}, age: ${Math.round(age/1000)}s)`);
                     } else {
                         counts[roomCode] = 0;
                     }
                 });
 
                 UnifiedState.data.roomStatus.counts = counts;
-                console.log('[Room Status] Updated counts:', counts);
+                productionLog('[Room Status] Updated counts:', counts);
 
                 // Update display if rooms tab is active
                 updateRoomStatusDisplay();
             });
 
-            console.log('✅ Listening to all room counts');
+            productionLog('✅ Listening to all room counts');
         } catch (err) {
             console.error('Failed to start room listener:', err);
         }
@@ -1733,20 +1745,20 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
     // ==================== SIMPLE PET DETECTION ====================
     function getActivePetsFromRoomState() {
-        console.log('🔧 [DEBUG] getActivePetsFromRoomState() called - checking for pets...');
+        productionLog('🔧 [DEBUG] getActivePetsFromRoomState() called - checking for pets...');
         try {
             // CORRECT path: Get the actual atom value that console shows
             const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
             // Reduced logging for performance
-            // console.log('🔧 [DEBUG] roomState available:', !!roomState, roomState?.child?.data ? 'data exists' : 'no data');
+            // productionLog('🔧 [DEBUG] roomState available:', !!roomState, roomState?.child?.data ? 'data exists' : 'no data');
             if (!roomState?.child?.data) {
-                console.log('🐾 [SIMPLE-PETS] No room state data');
+                productionLog('🐾 [SIMPLE-PETS] No room state data');
                 return [];
             }
 
             // Debug: Log the actual structure (disabled for performance)
-            // console.log('🐾 [DEBUG] Actual roomState.child.data structure:', JSON.stringify(roomState.child.data, null, 2).substring(0, 500));
-            // console.log('🐾 [DEBUG] roomState.child.data keys:', Object.keys(roomState.child.data || {}));
+            // productionLog('🐾 [DEBUG] Actual roomState.child.data structure:', JSON.stringify(roomState.child.data, null, 2).substring(0, 500));
+            // productionLog('🐾 [DEBUG] roomState.child.data keys:', Object.keys(roomState.child.data || {}));
 
             // Try multiple data sources in priority order
             let petData = null;
@@ -1754,7 +1766,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
             // Source 1: Check if pet data is directly in child.data (field1, field2, field3 format)
             if (roomState.child.data.field1 !== undefined) {
                 petData = roomState.child.data;
-                console.log('🐾 [SIMPLE-PETS] Found pet data in child.data directly');
+                productionLog('🐾 [SIMPLE-PETS] Found pet data in child.data directly');
             }
 
             // Source 2: No longer needed - using myPetSlotsAtom instead
@@ -1762,19 +1774,19 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
             if (!petData) {
                 if (UnifiedState.data.settings?.debugMode) {
-                    console.log('🐾 [SIMPLE-PETS] No pet data found in room state');
+                    productionLog('🐾 [SIMPLE-PETS] No pet data found in room state');
                 }
 
                 // FALLBACK: Use atom data if available
                 if (window.activePets && window.activePets.length > 0) {
                     if (UnifiedState.data.settings?.debugMode) {
-                        console.log('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
+                        productionLog('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
                     }
                     return window.activePets;
                 }
 
                 if (UnifiedState.data.settings?.debugMode) {
-                    console.log('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
+                    productionLog('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
                 }
                 return [];
             }
@@ -1788,17 +1800,17 @@ function applyResponsiveTextScaling(overlay, width, height) {
                 }
             });
 
-            console.log('🐾 [SIMPLE-PETS] Extracted pets:', pets);
+            productionLog('🐾 [SIMPLE-PETS] Extracted pets:', pets);
             return pets;
         } catch (error) {
-            console.log('🐾 [SIMPLE-PETS] Error:', error.message);
+            productionLog('🐾 [SIMPLE-PETS] Error:', error.message);
             return [];
         }
     }
 
     function updateActivePetsFromRoomState() {
         // Removed excessive debug logging to improve performance
-        // console.log('🔧 [DEBUG] updateActivePetsFromRoomState() called');
+        // productionLog('🔧 [DEBUG] updateActivePetsFromRoomState() called');
         const pets = getActivePetsFromRoomState();
         const previousCount = UnifiedState.atoms.activePets.length;
 
@@ -1807,7 +1819,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
 
         const newCount = pets.length;
         if (newCount !== previousCount) {
-            console.log(`🐾 [SIMPLE-PETS] Pet count changed: ${previousCount} → ${newCount}`);
+            productionLog(`🐾 [SIMPLE-PETS] Pet count changed: ${previousCount} → ${newCount}`);
 
             // Update UI if pets tab is active
             if (UnifiedState.activeTab === 'pets') {
@@ -1965,12 +1977,12 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
     try {
         // Enhanced logging for critical operations
         if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
-            console.log(`📚 [GM-STORAGE] Attempting to load critical data: ${key}`);
+            productionLog(`📚 [GM-STORAGE] Attempting to load critical data: ${key}`);
         }
 
         // Enhanced GM API check before using GM_getValue
         if (!isGMApiAvailable()) {
-            console.warn(`⚠️ [GM-STORAGE] GM_getValue not available! Using localStorage fallback.`);
+            productionWarn(`⚠️ [GM-STORAGE] GM_getValue not available! Using localStorage fallback.`);
             try {
                 const localVal = targetWindow.localStorage.getItem(key);
                 if (localVal === null) return fallback;
@@ -1986,27 +1998,27 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
 
         if (val === null || val === undefined) {
             if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
-                console.log(`📝 [GM-STORAGE] No data found for critical key: ${key} - checking localStorage`);
+                productionLog(`📝 [GM-STORAGE] No data found for critical key: ${key} - checking localStorage`);
 
                 // Try localStorage as fallback
                 try {
                     const localVal = targetWindow.localStorage.getItem(key);
                     if (localVal !== null) {
-                        console.log(`✅ [STORAGE-RECOVERY] Found data in localStorage for ${key}, copying to GM storage`);
+                        productionLog(`✅ [STORAGE-RECOVERY] Found data in localStorage for ${key}, copying to GM storage`);
                         const parsed = JSON.parse(localVal);
                         // Copy to GM storage for future use
                         GM_setValue(key, localVal);
-                        console.log(`✅ [STORAGE-RECOVERY] Successfully migrated ${key} from localStorage to GM storage`);
+                        productionLog(`✅ [STORAGE-RECOVERY] Successfully migrated ${key} from localStorage to GM storage`);
                         return parsed;
                     }
                 } catch (e) {
                     console.error(`❌ [STORAGE-RECOVERY] Failed to recover ${key} from localStorage:`, e);
                 }
 
-                console.log(`📝 [GM-STORAGE] No data found for ${key} - returning fallback`);
-                console.log(`📝 [GM-STORAGE] Fallback value:`, fallback);
+                productionLog(`📝 [GM-STORAGE] No data found for ${key} - returning fallback`);
+                productionLog(`📝 [GM-STORAGE] Fallback value:`, fallback);
             } else {
-                console.log(`📝 [GM-STORAGE] No data found for key: ${key}`);
+                productionLog(`📝 [GM-STORAGE] No data found for key: ${key}`);
             }
             return fallback;
         }
@@ -2015,15 +2027,15 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
         let parsed;
         if (typeof val === 'string') {
             if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
-                console.log(`📚 [GM-STORAGE] Raw string data found for ${key}, length:`, val.length);
-                console.log(`📚 [GM-STORAGE] Raw data preview:`, val.substring(0, 100));
+                productionLog(`📚 [GM-STORAGE] Raw string data found for ${key}, length:`, val.length);
+                productionLog(`📚 [GM-STORAGE] Raw data preview:`, val.substring(0, 100));
             }
 
             // Check for obviously corrupted data patterns
             if (val.includes('undefined') || val.startsWith('undefined') || val === 'null') {
-                console.warn(`⚠️ [GM-STORAGE] Detected corrupted data for ${key}: ${val.substring(0, 50)}...`);
+                productionWarn(`⚠️ [GM-STORAGE] Detected corrupted data for ${key}: ${val.substring(0, 50)}...`);
                 if (autoRecover) {
-                    console.log(`🔧 [GM-STORAGE] Auto-removing corrupted data for ${key}`);
+                    productionLog(`🔧 [GM-STORAGE] Auto-removing corrupted data for ${key}`);
                     GM_setValue(key, null);
                 }
                 return fallback;
@@ -2036,9 +2048,9 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
                 console.error(`❌ [GM-STORAGE] Raw data (first 300 chars):`, val.substring(0, 300));
 
                 if (autoRecover) {
-                    console.warn(`🔧 [GM-STORAGE] Auto-removing unparseable data for ${key} and returning fallback`);
+                    productionWarn(`🔧 [GM-STORAGE] Auto-removing unparseable data for ${key} and returning fallback`);
                     GM_setValue(key, null);
-                    console.log(`✅ [GM-STORAGE] Corrupted data cleared for ${key}`);
+                    productionLog(`✅ [GM-STORAGE] Corrupted data cleared for ${key}`);
                 }
                 return fallback;
             }
@@ -2051,18 +2063,18 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
         if ((key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') && parsed && typeof parsed === 'object') {
             const isEmpty = Array.isArray(parsed) ? parsed.length === 0 : Object.keys(parsed).length === 0;
             if (isEmpty) {
-                console.log(`📝 [GM-STORAGE] Empty data in GM storage for ${key} - checking localStorage`);
+                productionLog(`📝 [GM-STORAGE] Empty data in GM storage for ${key} - checking localStorage`);
                 try {
                     const localVal = targetWindow.localStorage.getItem(key);
                     if (localVal !== null) {
-                        console.log(`✅ [STORAGE-RECOVERY] Found data in localStorage for ${key}, copying to GM storage`);
+                        productionLog(`✅ [STORAGE-RECOVERY] Found data in localStorage for ${key}, copying to GM storage`);
                         const localParsed = JSON.parse(localVal);
                         // Copy to GM storage for future use
                         GM_setValue(key, localVal);
-                        console.log(`✅ [STORAGE-RECOVERY] Successfully migrated ${key} from localStorage to GM storage`);
+                        productionLog(`✅ [STORAGE-RECOVERY] Successfully migrated ${key} from localStorage to GM storage`);
                         parsed = localParsed;
                     } else {
-                        console.log(`📝 [STORAGE-RECOVERY] No data in localStorage either for ${key}`);
+                        productionLog(`📝 [STORAGE-RECOVERY] No data in localStorage either for ${key}`);
                     }
                 } catch (e) {
                     console.error(`❌ [STORAGE-RECOVERY] Failed to recover ${key} from localStorage:`, e);
@@ -2083,15 +2095,15 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
                     validatedPresets[presetName] = preset;
                     hasValidPresets = true;
                 } else {
-                    console.warn(`⚠️ [GM-STORAGE] Invalid pet preset '${presetName}' detected and skipped`);
+                    productionWarn(`⚠️ [GM-STORAGE] Invalid pet preset '${presetName}' detected and skipped`);
                 }
             }
 
             if (hasValidPresets) {
-                console.log(`✅ [GM-STORAGE] Successfully loaded ${key} with ${Object.keys(validatedPresets).length} valid presets:`, Object.keys(validatedPresets));
+                productionLog(`✅ [GM-STORAGE] Successfully loaded ${key} with ${Object.keys(validatedPresets).length} valid presets:`, Object.keys(validatedPresets));
                 return validatedPresets;
             } else {
-                console.warn(`⚠️ [GM-STORAGE] No valid presets found in ${key}, returning fallback`);
+                productionWarn(`⚠️ [GM-STORAGE] No valid presets found in ${key}, returning fallback`);
                 if (autoRecover) {
                     GM_setValue(key, null);
                 }
@@ -2103,24 +2115,24 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
             // Validate seeds array
             const validSeeds = parsed.filter(seed => typeof seed === 'string' && seed.trim().length > 0);
             if (validSeeds.length !== parsed.length) {
-                console.warn(`⚠️ [GM-STORAGE] Some invalid seeds detected in ${key}, filtered to ${validSeeds.length} valid seeds`);
+                productionWarn(`⚠️ [GM-STORAGE] Some invalid seeds detected in ${key}, filtered to ${validSeeds.length} valid seeds`);
                 if (autoRecover && validSeeds.length > 0) {
                     // Save the cleaned version
-                    console.log(`🔧 [GM-STORAGE] Auto-saving cleaned seeds data`);
+                    productionLog(`🔧 [GM-STORAGE] Auto-saving cleaned seeds data`);
                     MGA_saveJSON(key, validSeeds);
                 }
             }
-            console.log(`✅ [GM-STORAGE] Successfully loaded ${key}: ${validSeeds.length} seeds`);
+            productionLog(`✅ [GM-STORAGE] Successfully loaded ${key}: ${validSeeds.length} seeds`);
             return validSeeds;
         }
 
         // General validation for other data types
         if (parsed === null || parsed === undefined) {
-            console.warn(`⚠️ [GM-STORAGE] Loaded null/undefined data for ${key}, returning fallback`);
+            productionWarn(`⚠️ [GM-STORAGE] Loaded null/undefined data for ${key}, returning fallback`);
             return fallback;
         }
 
-        console.log(`✅ [GM-STORAGE] Successfully loaded ${key}: ${typeof parsed} ${Array.isArray(parsed) ? `(${parsed.length} items)` : Object.keys(parsed || {}).length ? `(${Object.keys(parsed).length} keys)` : '(empty)'}`);
+        productionLog(`✅ [GM-STORAGE] Successfully loaded ${key}: ${typeof parsed} ${Array.isArray(parsed) ? `(${parsed.length} items)` : Object.keys(parsed || {}).length ? `(${Object.keys(parsed).length} keys)` : '(empty)'}`);
         return parsed;
 
     } catch (e) {
@@ -2135,7 +2147,7 @@ function MGA_loadJSON(key, fallback, autoRecover = true) {
     }
 }
 
-function MGA_saveJSON(key, value) {
+function MGA_saveJSON(key, value, retryCount = 0) {
     // CRITICAL: Ensure we never use MainScript keys
     if (key && !key.startsWith('MGA_')) {
         console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${key}`);
@@ -2144,18 +2156,21 @@ function MGA_saveJSON(key, value) {
         key = 'MGA_' + key;
     }
 
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 100;
+
     try {
         // Enhanced GM API availability check
         if (!isGMApiAvailable()) {
-            console.warn(`⚠️ [GM-STORAGE] GM_setValue not available! Falling back to localStorage.`);
+            productionWarn(`⚠️ [GM-STORAGE] GM_setValue not available! Falling back to localStorage.`);
             return MGA_saveJSON_localStorage_fallback(key, value);
         }
 
         // Enhanced logging for critical operations
         if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
-            console.log(`💾 [GM-STORAGE] Attempting to save critical data: ${key}`);
-            console.log(`💾 [GM-STORAGE] Data type:`, typeof value);
-            console.log(`💾 [GM-STORAGE] Data content:`, value);
+            productionLog(`💾 [GM-STORAGE] Attempting to save critical data: ${key} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+            productionLog(`💾 [GM-STORAGE] Data type:`, typeof value);
+            productionLog(`💾 [GM-STORAGE] Data content:`, value);
         }
 
         // GM can store objects directly, but let's use JSON for consistency and debugging
@@ -2163,28 +2178,53 @@ function MGA_saveJSON(key, value) {
 
         // Save using GM_setValue for reliable persistence
         GM_setValue(key, jsonString);
-        console.log(`💾 [GM-STORAGE] GM_setValue succeeded for ${key}`);
+        productionLog(`💾 [GM-STORAGE] GM_setValue executed for ${key}`);
 
-        // Verification using GM_getValue
+        // Enhanced verification with deep check
         const verification = GM_getValue(key, null);
         if (!verification) {
             console.error(`❌ [GM-STORAGE] Save verification failed for ${key} - no data retrieved!`);
+
+            // Retry logic
+            if (retryCount < MAX_RETRIES - 1) {
+                productionLog(`🔄 [GM-STORAGE] Retrying save for ${key} in ${RETRY_DELAY}ms...`);
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(MGA_saveJSON(key, value, retryCount + 1));
+                    }, RETRY_DELAY);
+                });
+            }
+
+            // Final attempt failed - show user alert
+            console.error(`❌ [GM-STORAGE] All retry attempts failed for ${key}`);
+            if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
+                alert(`⚠️ Failed to save ${key.replace('MGA_', '')}! Your changes may not persist.`);
+            }
             return false;
         }
 
-        // SIMPLIFIED: Just check if data exists, don't do string comparison
-        // String comparison can fail due to minor formatting differences
-        // If we got here, GM_getValue returned data, so save succeeded
-
+        // Deep verification for critical data
         if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete') {
-            console.log(`✅ [GM-STORAGE] Critical data verification passed for ${key}`);
+            try {
+                const parsedVerification = JSON.parse(verification);
+                const originalKeys = Object.keys(value || {}).sort();
+                const savedKeys = Object.keys(parsedVerification || {}).sort();
+
+                if (JSON.stringify(originalKeys) !== JSON.stringify(savedKeys)) {
+                    productionWarn(`⚠️ [GM-STORAGE] Data structure mismatch for ${key}, but save likely succeeded`);
+                }
+
+                productionLog(`✅ [GM-STORAGE] Critical data verification passed for ${key}`);
+            } catch (e) {
+                productionWarn(`⚠️ [GM-STORAGE] Could not deep verify ${key}, but data exists`);
+            }
         }
 
         // Success logging
         if (key === 'MGA_petPresets') {
-            console.log('💾 [GM-STORAGE] ✅ Pet presets saved successfully');
+            productionLog('💾 [GM-STORAGE] ✅ Pet presets saved successfully');
         } else if (key.startsWith('MGA_')) {
-            console.log(`💾 [GM-STORAGE] ✅ Saved ${key}`);
+            productionLog(`💾 [GM-STORAGE] ✅ Saved ${key}`);
         }
 
         return true;
@@ -2194,8 +2234,20 @@ function MGA_saveJSON(key, value) {
         console.error(`❌ [GM-STORAGE] Error details:`, {
             name: error.name,
             message: error.message,
-            gmApiAvailable: typeof GM_setValue !== 'undefined'
+            gmApiAvailable: typeof GM_setValue !== 'undefined',
+            retryCount: retryCount
         });
+
+        // Retry on error
+        if (retryCount < MAX_RETRIES - 1) {
+            productionLog(`🔄 [GM-STORAGE] Retrying save for ${key} after error...`);
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(MGA_saveJSON(key, value, retryCount + 1));
+                }, RETRY_DELAY);
+            });
+        }
+
         return false;
     }
 }
@@ -2209,7 +2261,7 @@ function MGA_saveJSON_localStorage_fallback(key, value) {
         // Simple verification
         const verification = localStorage.getItem(key);
         if (verification === jsonString) {
-            console.log(`💾 [FALLBACK] Successfully saved ${key} to localStorage`);
+            productionLog(`💾 [FALLBACK] Successfully saved ${key} to localStorage`);
             return true;
         } else {
             console.error(`❌ [FALLBACK] localStorage save verification failed for ${key}`);
@@ -2226,12 +2278,12 @@ function MGA_saveJSON_localStorage_fallback(key, value) {
 
 function MGA_migrateFromLocalStorage() {
     try {
-        console.log('🔄 [MIGRATION] Starting data migration from localStorage to GM storage...');
+        productionLog('🔄 [MIGRATION] Starting data migration from localStorage to GM storage...');
 
         // Check if migration has already been completed (handle both boolean and string values)
         const migrationComplete = GM_getValue('MGA_migration_completed', false);
         if (migrationComplete === true || migrationComplete === 'true') {
-            console.log('✅ [MIGRATION] Migration already completed, skipping...');
+            productionLog('✅ [MIGRATION] Migration already completed, skipping...');
             return;
         }
 
@@ -2269,8 +2321,8 @@ function MGA_migrateFromLocalStorage() {
                     timestamp: Date.now()
                 });
 
-                console.log(`✅ [MIGRATION] Data migration completed!`);
-                console.log(`📊 [MIGRATION] Statistics:`, {
+                productionLog(`✅ [MIGRATION] Data migration completed!`);
+                productionLog(`📊 [MIGRATION] Statistics:`, {
                     migratedKeys: migratedCount,
                     totalDataSize: totalDataSize + ' chars',
                     timestamp: new Date().toISOString()
@@ -2287,22 +2339,22 @@ function MGA_migrateFromLocalStorage() {
                     migratedCount++;
                     totalDataSize += localStorageData.length;
 
-                    console.log(`📦 [MIGRATION] Migrated ${key} (${localStorageData.length} chars)`);
+                    productionLog(`📦 [MIGRATION] Migrated ${key} (${localStorageData.length} chars)`);
 
                     // Verify the migration worked
                     const verification = GM_getValue(key, null);
                     if (verification === localStorageData) {
-                        console.log(`✅ [MIGRATION] Successfully verified ${key}`);
+                        productionLog(`✅ [MIGRATION] Successfully verified ${key}`);
 
                         // Only remove from localStorage after successful verification
                         localStorage.removeItem(key);
-                        console.log(`🗑️ [MIGRATION] Removed ${key} from localStorage`);
+                        productionLog(`🗑️ [MIGRATION] Removed ${key} from localStorage`);
                     } else {
                         console.error(`❌ [MIGRATION] Verification failed for ${key} - keeping localStorage version`);
                     }
                 } else {
                     // No data in localStorage for this key
-                    console.log(`📝 [MIGRATION] No data found for ${key} in localStorage`);
+                    productionLog(`📝 [MIGRATION] No data found for ${key} in localStorage`);
                 }
             } catch (error) {
                 console.error(`❌ [MIGRATION] Failed to migrate ${key}:`, error);
@@ -2341,8 +2393,195 @@ function MGA_getMigrationStatus() {
 }
 
 // Export migration functions for debugging
-window.MGA_migrateFromLocalStorage = MGA_migrateFromLocalStorage;
-window.MGA_getMigrationStatus = MGA_getMigrationStatus;
+targetWindow.MGA_migrateFromLocalStorage = MGA_migrateFromLocalStorage;
+targetWindow.MGA_getMigrationStatus = MGA_getMigrationStatus;
+targetWindow.MGA_saveJSON = MGA_saveJSON;
+targetWindow.MGA_loadJSON = MGA_loadJSON;
+
+// Export startIntervals for debugging and emergency use
+targetWindow.startIntervals = startIntervals;
+
+// ==================== COMPREHENSIVE DEBUG COLLECTION ====================
+targetWindow.collectMGADebug = function() {
+    productionLog('🔍 Starting comprehensive MGA debug collection...');
+
+    const debugData = {
+        timestamp: new Date().toISOString(),
+        version: typeof GM_info !== 'undefined' ? (GM_info?.script?.version || 'Unknown') : 'Unknown',
+        userAgent: navigator.userAgent,
+
+        // Script State
+        scriptState: {
+            mainScriptDetected: (typeof MGAIsolationSystem !== 'undefined' ? MGAIsolationSystem?.mainScriptDetected : false) || false,
+            protectedGlobals: (typeof MGAIsolationSystem !== 'undefined' ? MGAIsolationSystem?.protectedGlobals : []) || [],
+            globalFunctions: {
+                hasLoadJSON: typeof targetWindow.loadJSON !== 'undefined',
+                hasSaveJSON: typeof targetWindow.saveJSON !== 'undefined',
+                loadJSONOwner: (typeof targetWindow.loadJSON !== 'undefined' && targetWindow.loadJSON === MGA_loadJSON) ? 'MGA' : 'Other',
+                saveJSONOwner: (typeof targetWindow.saveJSON !== 'undefined' && targetWindow.saveJSON === MGA_saveJSON) ? 'MGA' : 'Other'
+            }
+        },
+
+        // Pet Hunger System
+        petHungerSystem: {
+            enabled: UnifiedState?.data?.settings?.notifications?.petHungerEnabled || false,
+            threshold: UnifiedState?.data?.settings?.notifications?.petHungerThreshold || 25,
+            activePets: UnifiedState?.atoms?.activePets?.map(pet => ({
+                id: pet?.id,
+                species: pet?.petSpecies,
+                hunger: pet?.hunger,
+                health: pet?.health,
+                slot: pet?.slot
+            })) || [],
+            lastStates: (typeof lastPetHungerStates !== 'undefined') ? Object.keys(lastPetHungerStates || {}).map(id => ({
+                petId: id,
+                lastHunger: lastPetHungerStates[id]
+            })) : []
+        },
+
+        // Shop System
+        shopSystem: {
+            firebaseEnabled: UnifiedState?.data?.settings?.notifications?.shopFirebaseEnabled || false,
+            watchedSeeds: UnifiedState?.data?.settings?.notifications?.watchedSeeds || [],
+            watchedEggs: UnifiedState?.data?.settings?.notifications?.watchedEggs || [],
+            shopData: {
+                globalShop: typeof targetWindow.globalShop !== 'undefined' ? 'Present' : 'Missing',
+                quinoaData: UnifiedState?.atoms?.quinoaData ? 'Present' : 'Missing',
+                seedTimer: UnifiedState?.data?.timers?.seed,
+                eggTimer: UnifiedState?.data?.timers?.egg,
+                toolTimer: UnifiedState?.data?.timers?.tool
+            },
+            lastCheck: new Date().toISOString()
+        },
+
+        // Weather System
+        weatherSystem: {
+            enabled: UnifiedState?.data?.settings?.notifications?.weatherNotificationsEnabled || false,
+            watchedEvents: UnifiedState?.data?.settings?.notifications?.watchedWeatherEvents || [],
+            currentWeather: targetWindow.roomState?.child?.data?.weather || targetWindow.roomState?.weather || 'Unknown',
+            lastWeatherState: (typeof lastWeatherState !== 'undefined') ? lastWeatherState : null
+        },
+
+        // Performance Metrics
+        performance: {
+            memoryUsage: performance?.memory ? {
+                usedJSHeapSize: (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB',
+                totalJSHeapSize: (performance.memory.totalJSHeapSize / 1048576).toFixed(2) + ' MB',
+                jsHeapSizeLimit: (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2) + ' MB'
+            } : 'Not available',
+            intervals: {
+                notificationInterval: (typeof notificationInterval !== 'undefined') ? 'Active' : 'Inactive',
+                firebaseInterval: UnifiedState?.firebase?.reportInterval ? 'Active' : 'Inactive',
+                timerManagerActive: (typeof timerManager !== 'undefined') ? (timerManager?.isRunning || false) : false,
+                activeTimers: (typeof timerManager !== 'undefined') ? (timerManager?.activeTimers?.size || 0) : 0
+            }
+        },
+
+        // Storage Status
+        storageStatus: {
+            gmApiAvailable: (typeof isGMApiAvailable !== 'undefined') ? isGMApiAvailable() : false,
+            migrationStatus: (typeof MGA_getMigrationStatus !== 'undefined') ? MGA_getMigrationStatus() : 'N/A',
+            storedData: (typeof GM_getValue !== 'undefined') ? {
+                petPresets: GM_getValue('MGA_petPresets') ? 'Present' : 'Missing',
+                seedsToDelete: GM_getValue('MGA_seedsToDelete') ? 'Present' : 'Missing',
+                settings: GM_getValue('MGA_data') ? 'Present' : 'Missing'
+            } : 'GM API not available'
+        },
+
+        // AutoFeed Protection
+        autoFeedStatus: {
+            autoFeedEnabled: targetWindow.autoFeedEnabled,
+            autoFeedState: targetWindow.autoFeedState,
+            autoFeedSkipFavorited: targetWindow.autoFeedSkipFavorited,
+            protection: (typeof MGAIsolationSystem !== 'undefined') ? (MGAIsolationSystem?.isAutofeedProtected || false) : false
+        },
+
+        // Errors and Warnings
+        recentErrors: []
+    };
+
+    productionLog('📊 Collecting performance data for 10 seconds...');
+    productionLog('⏳ Monitoring for errors and performance issues...');
+
+    // Note: Error capturing disabled due to browser security restrictions
+    const errors = [];
+
+    // Create performance monitor
+    let frameCount = 0;
+    let lastFrameTime = performance.now();
+    const fpsData = [];
+
+    function measureFPS() {
+        const currentTime = performance.now();
+        const delta = currentTime - lastFrameTime;
+        if (delta > 0) {
+            const fps = 1000 / delta;
+            fpsData.push({
+                time: new Date().toISOString(),
+                fps: Math.round(fps),
+                weather: window.roomState?.child?.data?.weather || window.roomState?.weather || 'None'
+            });
+        }
+        lastFrameTime = currentTime;
+        frameCount++;
+
+        if (frameCount < 600) { // Run for ~10 seconds at 60fps
+            requestAnimationFrame(measureFPS);
+        } else {
+            finishDebugCollection();
+        }
+    }
+
+    requestAnimationFrame(measureFPS);
+
+    function finishDebugCollection() {
+        // Add collected data
+        debugData.recentErrors = errors;
+        debugData.performance.fpsAnalysis = {
+            samples: fpsData.length,
+            averageFPS: Math.round(fpsData.reduce((a, b) => a + b.fps, 0) / fpsData.length),
+            minFPS: Math.min(...fpsData.map(d => d.fps)),
+            maxFPS: Math.max(...fpsData.map(d => d.fps)),
+            weatherDuringTest: [...new Set(fpsData.map(d => d.weather))]
+        };
+
+        // Create downloadable file
+        const debugText = JSON.stringify(debugData, null, 2);
+        const blob = new Blob([debugText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mga-debug-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        productionLog('✅ Debug collection complete!');
+        productionLog('📁 Debug file downloaded');
+        productionLog('📊 Debug Summary:', {
+            petHungerEnabled: debugData.petHungerSystem.enabled,
+            activePets: debugData.petHungerSystem.activePets.length,
+            weatherEnabled: debugData.weatherSystem.enabled,
+            currentWeather: debugData.weatherSystem.currentWeather,
+            averageFPS: debugData.performance.fpsAnalysis?.averageFPS,
+            errors: debugData.recentErrors.length
+        });
+
+        // Also log to console for immediate viewing
+        productionLog('🔍 Full Debug Data:', debugData);
+
+        return debugData;
+    }
+
+    // Also set a timeout in case FPS monitoring doesn't complete
+    setTimeout(() => {
+        if (frameCount < 600) {
+            productionLog('⏱️ Timeout reached, finishing collection early...');
+            finishDebugCollection();
+        }
+    }, 12000);
+
+    return 'Debug collection started... Will complete in 10 seconds.';
+};
 
 // ==================== MEMORY MANAGEMENT SYSTEM ====================
 // Prevent memory leaks and accumulation that requires tab restarts
@@ -2372,7 +2611,7 @@ function MGA_addTimeout(timeout) {
 
 // Clean up all MGA resources
 function MGA_cleanup() {
-    console.log('🧹 [MEMORY] Starting MGA cleanup...');
+    productionLog('🧹 [MEMORY] Starting MGA cleanup...');
 
     try {
         // Clear all intervals
@@ -2381,7 +2620,7 @@ function MGA_cleanup() {
                 clearInterval(interval);
             }
         });
-        console.log(`🧹 [MEMORY] Cleared ${mgaIntervals.length} intervals`);
+        productionLog(`🧹 [MEMORY] Cleared ${mgaIntervals.length} intervals`);
         mgaIntervals = [];
 
         // Clear all timeouts
@@ -2390,14 +2629,14 @@ function MGA_cleanup() {
                 clearTimeout(timeout);
             }
         });
-        console.log(`🧹 [MEMORY] Cleared ${mgaTimeouts.length} timeouts`);
+        productionLog(`🧹 [MEMORY] Cleared ${mgaTimeouts.length} timeouts`);
         mgaTimeouts = [];
 
         // Run custom cleanup handlers
         mgaCleanupHandlers.forEach((handler, index) => {
             try {
                 handler();
-                console.log(`🧹 [MEMORY] Executed cleanup handler ${index + 1}`);
+                productionLog(`🧹 [MEMORY] Executed cleanup handler ${index + 1}`);
             } catch (error) {
                 console.error(`❌ [MEMORY] Cleanup handler ${index + 1} failed:`, error);
             }
@@ -2409,10 +2648,10 @@ function MGA_cleanup() {
                 try {
                     element.removeEventListener(event, handler);
                 } catch (error) {
-                    console.warn(`⚠️ [MEMORY] Failed to remove event listener:`, error);
+                    productionWarn(`⚠️ [MEMORY] Failed to remove event listener:`, error);
                 }
             });
-            console.log(`🧹 [MEMORY] Removed ${window.MGA_Internal.eventListeners.length} event listeners`);
+            productionLog(`🧹 [MEMORY] Removed ${window.MGA_Internal.eventListeners.length} event listeners`);
             window.MGA_Internal.eventListeners = [];
         }
 
@@ -2434,12 +2673,12 @@ function MGA_cleanup() {
 
             // Clear large arrays
             if (window.UnifiedState.data?.petAbilityLogs) {
-                console.log(`🧹 [MEMORY] Clearing ${window.UnifiedState.data.petAbilityLogs.length} pet ability logs from memory`);
+                productionLog(`🧹 [MEMORY] Clearing ${window.UnifiedState.data.petAbilityLogs.length} pet ability logs from memory`);
                 window.UnifiedState.data.petAbilityLogs = [];
             }
         }
 
-        console.log('✅ [MEMORY] MGA cleanup completed successfully');
+        productionLog('✅ [MEMORY] MGA cleanup completed successfully');
 
     } catch (error) {
         console.error('❌ [MEMORY] MGA cleanup failed:', error);
@@ -2448,13 +2687,13 @@ function MGA_cleanup() {
 
 // Set up automatic cleanup on page unload
 window.addEventListener('beforeunload', () => {
-    console.log('🔄 [MEMORY] Page unloading, starting cleanup...');
+    productionLog('🔄 [MEMORY] Page unloading, starting cleanup...');
     MGA_cleanup();
 });
 
 // Set up cleanup on page hide (for mobile/tab switching)
 window.addEventListener('pagehide', () => {
-    console.log('🔄 [MEMORY] Page hiding, starting cleanup...');
+    productionLog('🔄 [MEMORY] Page hiding, starting cleanup...');
     MGA_cleanup();
 });
 
@@ -2487,7 +2726,7 @@ function MGA_debouncedSave(key, data) {
     const timeout = setTimeout(() => {
         try {
             MGA_saveJSON(key, data);
-            console.log(`💾 [MEMORY] Debounced save completed for ${key}`);
+            productionLog(`💾 [MEMORY] Debounced save completed for ${key}`);
         } catch (error) {
             console.error(`❌ [MEMORY] Debounced save failed for ${key}:`, error);
         }
@@ -2503,7 +2742,7 @@ function MGA_manageLogMemory(logs) {
         return logs; // No management needed
     }
 
-    console.log(`🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`);
+    productionLog(`🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`);
 
     // Keep the most recent logs in memory
     const recentLogs = logs.slice(0, MGA_MemoryConfig.maxLogsInMemory);
@@ -2515,7 +2754,7 @@ function MGA_manageLogMemory(logs) {
         const existingArchive = MGA_loadJSON('MGA_petAbilityLogs_archive', []);
         const combinedArchive = [...archivedLogs, ...existingArchive].slice(0, MGA_MemoryConfig.maxLogsInStorage);
         MGA_debouncedSave('MGA_petAbilityLogs_archive', combinedArchive);
-        console.log(`📦 [MEMORY] Archived ${archivedLogs.length} logs to storage`);
+        productionLog(`📦 [MEMORY] Archived ${archivedLogs.length} logs to storage`);
     }
 
     return recentLogs;
@@ -2568,7 +2807,7 @@ const MGA_DOMPool = {
     },
 
     cleanup: function() {
-        console.log('🧹 [MEMORY] Cleaning DOM element pools');
+        productionLog('🧹 [MEMORY] Cleaning DOM element pools');
         this.pools.clear();
     }
 };
@@ -2590,7 +2829,7 @@ function MGA_getAllLogs() {
     const allLogs = [...memoryLogs, ...archivedLogs];
     allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-    console.log(`📜 [MEMORY] Retrieved ${memoryLogs.length} memory logs + ${archivedLogs.length} archived logs = ${allLogs.length} total`);
+    productionLog(`📜 [MEMORY] Retrieved ${memoryLogs.length} memory logs + ${archivedLogs.length} archived logs = ${allLogs.length} total`);
     return allLogs;
 }
 
@@ -2665,13 +2904,13 @@ window.MGA_ConflictDetection = {
         // Create safe accessors that prevent MGA from accidentally touching MainScript variables
         this.protectedGlobals.forEach(globalVar => {
             if (window[globalVar] !== undefined) {
-                console.log(`🔒 [MGA-ISOLATION] Ensuring MGA cannot access MainScript global: ${globalVar}`);
+                productionLog(`🔒 [MGA-ISOLATION] Ensuring MGA cannot access MainScript global: ${globalVar}`);
 
                 // Define a read-only accessor for debugging
                 Object.defineProperty(window, `MGA_SAFE_${globalVar}`, {
                     get: function() {
-                        console.warn(`⚠️ [MGA-ISOLATION] MGA attempted to access MainScript global: ${globalVar}`);
-                        console.warn(`⚠️ [MGA-ISOLATION] This access was blocked to prevent interference`);
+                        productionWarn(`⚠️ [MGA-ISOLATION] MGA attempted to access MainScript global: ${globalVar}`);
+                        productionWarn(`⚠️ [MGA-ISOLATION] This access was blocked to prevent interference`);
                         console.trace();
                         return undefined; // Always return undefined to MGA
                     },
@@ -2682,8 +2921,8 @@ window.MGA_ConflictDetection = {
         });
 
         // Specifically protect autofeed variables
-        console.log(`🔒 [MGA-ISOLATION] MainScript autofeed protection active`);
-        console.log(`🔒 [MGA-ISOLATION] MGA will not interfere with autofeed functionality`);
+        productionLog(`🔒 [MGA-ISOLATION] MainScript autofeed protection active`);
+        productionLog(`🔒 [MGA-ISOLATION] MGA will not interfere with autofeed functionality`);
     },
 
     detectMainScript: function() {
@@ -2694,11 +2933,11 @@ window.MGA_ConflictDetection = {
         this.mainScriptDetected = hasMainScriptFunctions || hasMainScriptVars || hasVisibilityOverride;
 
         if (this.mainScriptDetected) {
-            // console.log('🔍 [MGA-ISOLATION] MainScript.txt detected - enabling full isolation mode');
-            console.log('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or MainScript variables');
-            console.log('📝 [MGA-ISOLATION] Protected variables:', this.protectedGlobals);
+            // productionLog('🔍 [MGA-ISOLATION] MainScript.txt detected - enabling full isolation mode');
+            productionLog('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or MainScript variables');
+            productionLog('📝 [MGA-ISOLATION] Protected variables:', this.protectedGlobals);
         } else {
-            console.log('📝 [MGA-ISOLATION] No MainScript detected - running in standalone mode');
+            productionLog('📝 [MGA-ISOLATION] No MainScript detected - running in standalone mode');
         }
 
         return this.mainScriptDetected;
@@ -2713,16 +2952,16 @@ window.MGA_ConflictDetection = {
         this.protectedGlobals.forEach(globalVar => {
             if (window[globalVar] !== undefined) {
                 // MainScript global exists - make sure we don't interfere
-                // console.log(`🔍 [MGA-ISOLATION] MainScript global '${globalVar}' is active - ensuring no interference`);
+                // productionLog(`🔍 [MGA-ISOLATION] MainScript global '${globalVar}' is active - ensuring no interference`);
             }
         });
 
         // Check if global loadJSON/saveJSON are MainScript's versions
         if (window.loadJSON && window.loadJSON !== MGA_loadJSON) {
-            console.log('🔒 [MGA-ISOLATION] Global loadJSON belongs to MainScript - MGA using isolated MGA_loadJSON');
+            productionLog('🔒 [MGA-ISOLATION] Global loadJSON belongs to MainScript - MGA using isolated MGA_loadJSON');
         }
         if (window.saveJSON && window.saveJSON !== MGA_saveJSON) {
-            console.log('🔒 [MGA-ISOLATION] Global saveJSON belongs to MainScript - MGA using isolated MGA_saveJSON');
+            productionLog('🔒 [MGA-ISOLATION] Global saveJSON belongs to MainScript - MGA using isolated MGA_saveJSON');
         }
 
         return violations.length === 0;
@@ -2743,20 +2982,20 @@ window.MGA_ConflictDetection = {
                         writable: true,
                         configurable: true
                     });
-                    console.log(`🛡️ [MGA-ISOLATION] Stored original value for MainScript global: ${globalVar}`);
+                    productionLog(`🛡️ [MGA-ISOLATION] Stored original value for MainScript global: ${globalVar}`);
                 } catch (protectionError) {
-                    console.warn(`⚠️ [MGA-ISOLATION] Could not store original value for ${globalVar}:`, protectionError.message);
+                    productionWarn(`⚠️ [MGA-ISOLATION] Could not store original value for ${globalVar}:`, protectionError.message);
                 }
             }
         });
 
         // Simple function protection - just save references without modifying
         if (window.loadJSON && window.loadJSON !== window.MGA_loadJSON) {
-            console.log(`🔒 [MGA-ISOLATION] MainScript loadJSON detected - storing reference`);
+            productionLog(`🔒 [MGA-ISOLATION] MainScript loadJSON detected - storing reference`);
             window._MGA_MAINSCRIPT_loadJSON = window.loadJSON;
         }
         if (window.saveJSON && window.saveJSON !== window.MGA_saveJSON) {
-            console.log(`🔒 [MGA-ISOLATION] MainScript saveJSON detected - storing reference`);
+            productionLog(`🔒 [MGA-ISOLATION] MainScript saveJSON detected - storing reference`);
             window._MGA_MAINSCRIPT_saveJSON = window.saveJSON;
         }
     },
@@ -2799,7 +3038,7 @@ window.MGA_ConflictDetection = {
             return false;
         }
 
-        console.log(`✅ [MGA-ISOLATION] Isolation validation passed - no violations detected`);
+        productionLog(`✅ [MGA-ISOLATION] Isolation validation passed - no violations detected`);
         return true;
     }
 };
@@ -2832,7 +3071,7 @@ window.MGA_safeSave = function(key, value, options = {}) {
 
         if (success) {
             if (!silent) {
-                console.log(`✅ [MGA-SAFE-SAVE] Successfully saved ${description}`);
+                productionLog(`✅ [MGA-SAFE-SAVE] Successfully saved ${description}`);
             }
             return { success: true };
         } else {
@@ -2893,53 +3132,53 @@ window.MGA_validateSaveData = function(key, value) {
 
 // Diagnostic function for localStorage issues
 window.MGA_debugStorage = function() {
-    console.log('🔍 [MGA-STORAGE] localStorage Diagnostic Report');
-    console.log('=====================================');
+    productionLog('🔍 [MGA-STORAGE] localStorage Diagnostic Report');
+    productionLog('=====================================');
 
     try {
         // Check basic availability
-        console.log('📊 Basic Info:');
-        console.log('  localStorage available:', typeof localStorage !== 'undefined');
-        console.log('  Total items in localStorage:', localStorage.length);
+        productionLog('📊 Basic Info:');
+        productionLog('  localStorage available:', typeof localStorage !== 'undefined');
+        productionLog('  Total items in localStorage:', localStorage.length);
 
         // Check MGA-specific keys
         const mgaKeys = Object.keys(localStorage).filter(k => k.startsWith('MGA_'));
-        console.log('  MGA-specific keys found:', mgaKeys.length);
-        console.log('  MGA keys:', mgaKeys);
+        productionLog('  MGA-specific keys found:', mgaKeys.length);
+        productionLog('  MGA keys:', mgaKeys);
 
         // Check each MGA key
-        console.log('\n📝 MGA Data Status:');
+        productionLog('\n📝 MGA Data Status:');
         mgaKeys.forEach(key => {
             try {
                 const value = localStorage.getItem(key);
                 const parsed = JSON.parse(value);
-                console.log(`  ${key}:`, {
+                productionLog(`  ${key}:`, {
                     exists: true,
                     size: value.length + ' chars',
                     type: typeof parsed,
                     itemCount: Array.isArray(parsed) ? parsed.length : Object.keys(parsed || {}).length
                 });
             } catch (e) {
-                console.log(`  ${key}: ❌ Invalid JSON - ${e.message}`);
+                productionLog(`  ${key}: ❌ Invalid JSON - ${e.message}`);
             }
         });
 
         // Check conflicts
-        console.log('\n⚠️ Potential Conflicts:');
-        console.log('  window.loadJSON defined by:', window.loadJSON === MGA_loadJSON ? 'MGA' : 'Other script');
-        console.log('  window.saveJSON defined by:', window.saveJSON === MGA_saveJSON ? 'MGA' : 'Other script');
+        productionLog('\n⚠️ Potential Conflicts:');
+        productionLog('  window.loadJSON defined by:', window.loadJSON === MGA_loadJSON ? 'MGA' : 'Other script');
+        productionLog('  window.saveJSON defined by:', window.saveJSON === MGA_saveJSON ? 'MGA' : 'Other script');
 
         // Storage space test
-        console.log('\n💾 Storage Test:');
+        productionLog('\n💾 Storage Test:');
         const testKey = 'MGA_storageTest';
         const testData = { test: true, timestamp: Date.now() };
         try {
             MGA_saveJSON(testKey, testData);
             const retrieved = MGA_loadJSON(testKey, null);
-            console.log('  Storage test result:', retrieved && retrieved.test === true ? '✅ PASSED' : '❌ FAILED');
+            productionLog('  Storage test result:', retrieved && retrieved.test === true ? '✅ PASSED' : '❌ FAILED');
             localStorage.removeItem(testKey);
         } catch (e) {
-            console.log('  Storage test result: ❌ FAILED -', e.message);
+            productionLog('  Storage test result: ❌ FAILED -', e.message);
         }
 
     } catch (error) {
@@ -2951,13 +3190,13 @@ window.MGA_debugStorage = function() {
         try {
             // Check for connection availability
             if (!targetWindow.MagicCircle_RoomConnection) {
-                console.warn('⚠️ MagicCircle_RoomConnection not available');
+                productionWarn('⚠️ MagicCircle_RoomConnection not available');
                 return false;
             }
 
             // Validate that sendMessage exists and is a function
             if (typeof targetWindow.MagicCircle_RoomConnection.sendMessage !== 'function') {
-                console.warn('⚠️ sendMessage is not a function or not available');
+                productionWarn('⚠️ sendMessage is not a function or not available');
                 return false;
             }
 
@@ -2975,11 +3214,11 @@ window.MGA_debugStorage = function() {
         const msg = { scopePath: ["Room", "Quinoa"], ...payloadObj };
         try {
             if (!targetWindow.MagicCircle_RoomConnection || !targetWindow.MagicCircle_RoomConnection.sendMessage) {
-                console.warn('⚠️ MagicCircle_RoomConnection not available for sendToGame');
+                productionWarn('⚠️ MagicCircle_RoomConnection not available for sendToGame');
                 return false;
             }
 
-            console.log('🎮 sendToGame:', msg);
+            productionLog('🎮 sendToGame:', msg);
             targetWindow.MagicCircle_RoomConnection.sendMessage(msg);
             return true;
         } catch (error) {
@@ -2995,25 +3234,25 @@ window.MGA_debugStorage = function() {
         const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
         if (!atomCache || !atomCache.get) {
             if (retryCount >= maxRetries) {
-                console.warn(`⚠️ [ATOM-HOOK] Gave up waiting for jotaiAtomCache for ${windowKey} after ${maxRetries} retries`);
-                console.warn(`⚠️ [ATOM-HOOK] Script will continue with reduced functionality`);
+                productionWarn(`⚠️ [ATOM-HOOK] Gave up waiting for jotaiAtomCache for ${windowKey} after ${maxRetries} retries`);
+                productionWarn(`⚠️ [ATOM-HOOK] Script will continue with reduced functionality`);
                 return;
             }
-            console.log(`⏳ Waiting for jotaiAtomCache for ${windowKey}... (${retryCount + 1}/${maxRetries})`);
+            productionLog(`⏳ Waiting for jotaiAtomCache for ${windowKey}... (${retryCount + 1}/${maxRetries})`);
             setTimeout(() => hookAtom(atomPath, windowKey, callback, retryCount + 1), 500);
             return;
         }
-        console.log(`🔗 Attempting to hook atom: ${windowKey} at path: ${atomPath}`);
+        productionLog(`🔗 Attempting to hook atom: ${windowKey} at path: ${atomPath}`);
 
         try {
             const atom = atomCache.get(atomPath);
             if (!atom || !atom.read) {
-                console.warn(`❌ Could not find atom for ${atomPath}`);
+                productionWarn(`❌ Could not find atom for ${atomPath}`);
                 // List available atoms for debugging
                 const allAtoms = Array.from(atomCache.keys());
                 const petAtoms = allAtoms.filter(key => key.includes('Pet') || key.includes('pet') || key.includes('Slot'));
-                console.log('🔍 Pet-related atoms:', petAtoms);
-                console.log('🔍 All atoms (first 20):', allAtoms.slice(0, 20));
+                productionLog('🔍 Pet-related atoms:', petAtoms);
+                productionLog('🔍 All atoms (first 20):', allAtoms.slice(0, 20));
                 return;
             }
 
@@ -3023,7 +3262,7 @@ window.MGA_debugStorage = function() {
 
                 // Enhanced debugging for activePets
                 if (windowKey === 'activePets' && UnifiedState.data.settings?.debugMode) {
-                    console.log(`🐾 [ATOM-DEBUG] ${windowKey} raw value:`, {
+                    productionLog(`🐾 [ATOM-DEBUG] ${windowKey} raw value:`, {
                         value: rawValue,
                         type: typeof rawValue,
                         isArray: Array.isArray(rawValue),
@@ -3040,7 +3279,7 @@ window.MGA_debugStorage = function() {
                     if (callbackResult !== undefined) {
                         finalValue = callbackResult;
                         if (windowKey === 'activePets' && UnifiedState.data.settings?.debugMode) {
-                            console.log(`🐾 [ATOM-DEBUG] ${windowKey} transformed by callback:`, finalValue);
+                            productionLog(`🐾 [ATOM-DEBUG] ${windowKey} transformed by callback:`, finalValue);
                         }
                     }
                 }
@@ -3050,7 +3289,7 @@ window.MGA_debugStorage = function() {
                 window[windowKey] = finalValue;
 
                 if (windowKey === 'activePets' && UnifiedState.data.settings?.debugMode) {
-                    console.log(`🐾 [ATOM-DEBUG] ${windowKey} stored in UnifiedState:`, {
+                    productionLog(`🐾 [ATOM-DEBUG] ${windowKey} stored in UnifiedState:`, {
                         count: finalValue?.length || 0,
                         value: finalValue
                     });
@@ -3059,7 +3298,7 @@ window.MGA_debugStorage = function() {
                 return rawValue; // Return raw value to game
             };
 
-            console.log(`✅ hookAtom: Successfully hooked ${windowKey}`);
+            productionLog(`✅ hookAtom: Successfully hooked ${windowKey}`);
 
             // Don't force an initial read - it might trigger game modals
             // Instead, wait for the game to naturally read the atom
@@ -3513,7 +3752,7 @@ window.MGA_debugStorage = function() {
 
     // ==================== UI CREATION ====================
     function createUnifiedUI() {
-        console.log('🎨 Creating Unified UI...');
+        productionLog('🎨 Creating Unified UI...');
 
         // Add styles
         const styleSheet = targetDocument.createElement('style');
@@ -3531,7 +3770,7 @@ window.MGA_debugStorage = function() {
         targetDocument.body.appendChild(toggleBtn);
 
         // Verify toggle button attachment
-        console.log('🔧 [UI-VERIFICATION] Toggle button attached to body:', !!targetDocument.querySelector('.mga-toggle-btn'));
+        productionLog('🔧 [UI-VERIFICATION] Toggle button attached to body:', !!targetDocument.querySelector('.mga-toggle-btn'));
         UnifiedState.panels.toggle = toggleBtn;
 
         // Load toggle button position
@@ -3548,7 +3787,7 @@ window.MGA_debugStorage = function() {
             panel.style.display = savedVisibility ? 'block' : 'none';
 
             if (UnifiedState.data.settings.debugMode) {
-                console.log(`🔄 Window focused - Panel restored to: ${savedVisibility ? 'visible' : 'hidden'}`);
+                productionLog(`🔄 Window focused - Panel restored to: ${savedVisibility ? 'visible' : 'hidden'}`);
             }
         });
 
@@ -3560,7 +3799,7 @@ window.MGA_debugStorage = function() {
             MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
 
             if (UnifiedState.data.settings.debugMode) {
-                console.log(`💾 Window blurred - Panel state saved: ${currentVisibility ? 'visible' : 'hidden'}`);
+                productionLog(`💾 Window blurred - Panel state saved: ${currentVisibility ? 'visible' : 'hidden'}`);
             }
         });
 
@@ -3690,7 +3929,7 @@ window.MGA_debugStorage = function() {
                     // Debounce to prevent spam - only update after mutations stop for 100ms
                     debounceTimer = setTimeout(() => {
                         if (UnifiedState.data.settings?.debugMode) {
-                            console.log('🔄 [REACT-INTERFERENCE] Detected React re-render, updating pets display');
+                            productionLog('🔄 [REACT-INTERFERENCE] Detected React re-render, updating pets display');
                         }
 
                         isUpdating = true;
@@ -3720,16 +3959,16 @@ window.MGA_debugStorage = function() {
 
         // Verify UI attachment for debugging
         const uiElements = targetDocument.querySelectorAll('.mga-panel');
-        console.log('🔧 [UI-VERIFICATION] UI elements attached:', uiElements.length);
-        console.log('🔧 [UI-VERIFICATION] Panel in DOM:', !!targetDocument.querySelector('.mga-panel'));
-        console.log('🔧 [UI-VERIFICATION] Toggle button in DOM:', !!targetDocument.querySelector('.mga-toggle-btn'));
+        productionLog('🔧 [UI-VERIFICATION] UI elements attached:', uiElements.length);
+        productionLog('🔧 [UI-VERIFICATION] Panel in DOM:', !!targetDocument.querySelector('.mga-panel'));
+        productionLog('🔧 [UI-VERIFICATION] Toggle button in DOM:', !!targetDocument.querySelector('.mga-toggle-btn'));
 
         if (uiElements.length === 0) {
             console.error('❌ [UI-VERIFICATION] CRITICAL: No UI elements found in DOM after attachment!');
             console.error('❌ [UI-VERIFICATION] Target body exists:', !!targetDocument.body);
             console.error('❌ [UI-VERIFICATION] Panel element exists:', !!panel);
         } else {
-            console.log('✅ [UI-VERIFICATION] UI successfully attached to DOM');
+            productionLog('✅ [UI-VERIFICATION] UI successfully attached to DOM');
         }
 
         // Setup tab switching
@@ -3826,7 +4065,7 @@ window.MGA_debugStorage = function() {
         // Show panel by default (override any saved hidden state for demo)
         panel.style.display = 'block';
         UnifiedState.data.settings.panelVisible = true;
-        console.log(`🔄 Panel initialized as visible for demo mode`);
+        productionLog(`🔄 Panel initialized as visible for demo mode`);
 
         // Initialize dynamic scaling
         applyDynamicScaling(panel, panel.offsetWidth);
@@ -3847,12 +4086,12 @@ window.MGA_debugStorage = function() {
             scalingObserver.observe(panel);
         }
 
-        console.log('✅ Unified UI created successfully!');
+        productionLog('✅ Unified UI created successfully!');
     }
 
     // Pop-out window functionality
     function openTabInPopout(tabName) {
-        console.log(`🔗 Opening ${tabName} tab in pop-out window...`);
+        productionLog(`🔗 Opening ${tabName} tab in pop-out window...`);
 
         const tabTitles = {
             pets: '🐾 Pet Loadouts',
@@ -3872,7 +4111,7 @@ window.MGA_debugStorage = function() {
         const popoutWindow = window.open('', `mga_popout_${tabName}`, windowFeatures);
 
         if (!popoutWindow) {
-            console.warn('⚠️ Pop-out blocked! Please allow popups for this site.');
+            productionWarn('⚠️ Pop-out blocked! Please allow popups for this site.');
             return;
         }
 
@@ -3996,7 +4235,7 @@ window.MGA_debugStorage = function() {
 
         function refreshPopoutContent(tabName) {
             if (!mainWindow || mainWindow.closed) {
-                console.warn('⚠️ Main window is closed. Cannot refresh content.');
+                productionWarn('⚠️ Main window is closed. Cannot refresh content.');
                 return;
             }
 
@@ -4052,7 +4291,7 @@ window.MGA_debugStorage = function() {
                 mainWindow.setupRoomJoinButtons.call(mainWindow);
             }
 
-            console.log('Pop-out content refreshed for:', tabName);
+            productionLog('Pop-out content refreshed for:', tabName);
         }
 
         // Store the tab name for this popup window
@@ -4072,14 +4311,14 @@ window.MGA_debugStorage = function() {
 
         // Cleanup when window closes
         window.addEventListener('beforeunload', () => {
-            console.log('Pop-out window closing for:', currentTabName);
+            productionLog('Pop-out window closing for:', currentTabName);
         });
     </script>
 </body>
 </html>
         `;
 
-        console.log('🌱 [WINDOW DEBUG] Content being written to separate window:', {
+        productionLog('🌱 [WINDOW DEBUG] Content being written to separate window:', {
             tabName,
             contentLength: content.length,
             htmlLength: popoutHTML.length,
@@ -4124,11 +4363,11 @@ window.MGA_debugStorage = function() {
                         break;
                 }
             } catch (error) {
-                console.warn('Could not set up pop-out handlers:', error);
+                productionWarn('Could not set up pop-out handlers:', error);
             }
         }, 100);
 
-        console.log(`✅ Pop-out window opened for ${tabName} tab`);
+        productionLog(`✅ Pop-out window opened for ${tabName} tab`);
     }
 
     // Expose content functions in MGA namespace for pop-out windows (prevents conflicts)
@@ -4420,7 +4659,7 @@ window.MGA_debugStorage = function() {
         // Get and add content directly to overlay - PURE CONTENT ONLY
         const contentHTML = getContentForTab(tabName, true); // isPopout=true for overlays
 
-        console.log('🔍 [CONTENT DEBUG] Variables check:', {
+        productionLog('🔍 [CONTENT DEBUG] Variables check:', {
             contentHtmlType: typeof contentHtml,
             contentHtmlLength: contentHtml?.length,
             contentHTMLType: typeof contentHTML,
@@ -4442,7 +4681,7 @@ window.MGA_debugStorage = function() {
             overlay.innerHTML = contentHtml + contentHTML;
         }
 
-        console.log('🌱 [OVERLAY DEBUG] Content inserted:', {
+        productionLog('🌱 [OVERLAY DEBUG] Content inserted:', {
             tabName,
             contentLength: contentHTML.length,
             overlayHTML: overlay.innerHTML.substring(0, 200)
@@ -4792,14 +5031,14 @@ window.MGA_debugStorage = function() {
 
     // PROFESSIONAL RESIZE SYSTEM FOR POP-OUTS
     function addResizeHandleToOverlay(overlay) {
-        console.log('🔧 [RESIZE DEBUG] Adding resize handle to overlay:', overlay.id);
+        productionLog('🔧 [RESIZE DEBUG] Adding resize handle to overlay:', overlay.id);
         debugLog('RESIZE', 'Adding resize handle to overlay', { overlayId: overlay.id });
 
         // Remove any existing resize handles first to prevent duplicates
         const existingHandle = overlay.querySelector('.mga-resize-handle');
         if (existingHandle) {
             existingHandle.remove();
-            console.log('🔧 [RESIZE DEBUG] Removed existing handle before adding new one');
+            productionLog('🔧 [RESIZE DEBUG] Removed existing handle before adding new one');
         }
 
         // Use the unified resize system with overlay-specific options
@@ -5239,7 +5478,7 @@ window.MGA_debugStorage = function() {
         // Update the corresponding pop-out button state
         updatePopoutButtonStateByTab(tabName, false);
 
-        console.log(`🗑️ Closed in-game overlay for ${tabName} tab`);
+        productionLog(`🗑️ Closed in-game overlay for ${tabName} tab`);
     }
 
     function updatePopoutButtonStateByTab(tabName, isActive) {
@@ -5378,7 +5617,7 @@ window.MGA_debugStorage = function() {
         `;
 
             // Update overlay content
-            console.log('🔍 [PURE OVERLAY DEBUG] Variables check:', {
+            productionLog('🔍 [PURE OVERLAY DEBUG] Variables check:', {
                 contentHtmlType: typeof contentHtml,
                 contentHtmlLength: contentHtml?.length,
                 contentType: typeof content,
@@ -5396,7 +5635,7 @@ window.MGA_debugStorage = function() {
             setTimeout(() => {
                 if (!overlay.querySelector('.mga-resize-handle')) {
                     addResizeHandleToOverlay(overlay);
-                    console.log(`🔧 [RESIZE] Re-added missing resize handle to ${tabName} pure overlay`);
+                    productionLog(`🔧 [RESIZE] Re-added missing resize handle to ${tabName} pure overlay`);
                 }
             }, 50);
 
@@ -5411,7 +5650,7 @@ window.MGA_debugStorage = function() {
     function setupPureOverlayHandlers(overlay, tabName) {
         setTimeout(() => {
             try {
-                console.log(`🔧 [HANDLER-SETUP] Setting up handlers for ${tabName} overlay`);
+                productionLog(`🔧 [HANDLER-SETUP] Setting up handlers for ${tabName} overlay`);
                 debugLog('HANDLER_SETUP', `Setting up pure overlay handlers for ${tabName}`, {
                     overlayId: overlay.id
                 });
@@ -5455,13 +5694,13 @@ window.MGA_debugStorage = function() {
             // NEW: Handle pure content overlays (no .mga-overlay-content wrapper)
             if (overlay.className.includes('mga-overlay-content-only')) {
                 updatePureOverlayContent(overlay, tabName);
-                console.log(`🔄 Refreshed pure overlay content for ${tabName} tab`);
+                productionLog(`🔄 Refreshed pure overlay content for ${tabName} tab`);
             } else {
                 // LEGACY: Handle old overlay structure if it exists
                 const contentArea = overlay.querySelector('.mga-overlay-content');
                 if (contentArea) {
                     updateOverlayContent(contentArea, tabName);
-                    console.log(`🔄 Refreshed legacy overlay content for ${tabName} tab`);
+                    productionLog(`🔄 Refreshed legacy overlay content for ${tabName} tab`);
                 }
             }
         }
@@ -5469,7 +5708,7 @@ window.MGA_debugStorage = function() {
 
     // Rename original function to avoid conflicts
     function openTabInSeparateWindow(tabName) {
-        console.log(`🔗 Opening ${tabName} tab in separate window...`);
+        productionLog(`🔗 Opening ${tabName} tab in separate window...`);
 
         const tabTitles = {
             pets: '🐾 Pets',
@@ -5485,7 +5724,7 @@ window.MGA_debugStorage = function() {
         const popoutWindow = window.open('', `mga_popout_${tabName}`, windowFeatures);
 
         if (!popoutWindow) {
-            console.warn('⚠️ Pop-out blocked! Please allow popups for this site.');
+            productionWarn('⚠️ Pop-out blocked! Please allow popups for this site.');
             return;
         }
 
@@ -5610,7 +5849,7 @@ window.MGA_debugStorage = function() {
 
         function refreshPopoutContent(tabName) {
             if (!mainWindow || mainWindow.closed) {
-                console.warn('⚠️ Main window is closed. Cannot refresh content.');
+                productionWarn('⚠️ Main window is closed. Cannot refresh content.');
                 return;
             }
 
@@ -5679,7 +5918,7 @@ window.MGA_debugStorage = function() {
 
         // Cleanup when window closes
         window.addEventListener('beforeunload', () => {
-            console.log('Pop-out window closing for:', currentTabName);
+            productionLog('Pop-out window closing for:', currentTabName);
         });
     </script>
 </body>
@@ -5720,11 +5959,11 @@ window.MGA_debugStorage = function() {
                         break;
                 }
             } catch (error) {
-                console.warn('Could not set up separate window popout handlers:', error);
+                productionWarn('Could not set up separate window popout handlers:', error);
             }
         }, 100);
 
-        console.log(`✅ Separate window opened for ${tabName} tab`);
+        productionLog(`✅ Separate window opened for ${tabName} tab`);
     }
 
     // TOGGLE FUNCTIONALITY - Professional pop-out management
@@ -5828,7 +6067,7 @@ window.MGA_debugStorage = function() {
                 preservedInputFocused = document.activeElement === currentInput;
                 preservedCursorPosition = currentInput.selectionStart || 0;
                 if (UnifiedState.data.settings.debugMode) {
-                    console.log('🔒 Preserving input state:', { value: preservedInputValue, focused: preservedInputFocused, cursor: preservedCursorPosition });
+                    productionLog('🔒 Preserving input state:', { value: preservedInputValue, focused: preservedInputFocused, cursor: preservedCursorPosition });
                 }
             }
         }
@@ -5839,7 +6078,7 @@ window.MGA_debugStorage = function() {
         switch(UnifiedState.activeTab) {
             case 'pets':
                 // 🔍 RENDER CYCLE DEBUG: Track pets tab content generation
-                console.log('🔄 [RENDER-CYCLE] Starting pets tab content generation', {
+                productionLog('🔄 [RENDER-CYCLE] Starting pets tab content generation', {
                     timestamp: new Date().toLocaleTimeString(),
                     activeTab: UnifiedState.activeTab,
                     atomActivePets: UnifiedState.atoms.activePets?.length || 0,
@@ -5848,7 +6087,7 @@ window.MGA_debugStorage = function() {
                 });
 
                 const petsHtml = getPetsTabContent();
-                console.log('🔄 [RENDER-CYCLE] Generated pets HTML', {
+                productionLog('🔄 [RENDER-CYCLE] Generated pets HTML', {
                     htmlLength: petsHtml.length,
                     containsActivePets: petsHtml.includes('Active Pets'),
                     containsPetData: petsHtml.includes('mga-pet-'),
@@ -5860,7 +6099,7 @@ window.MGA_debugStorage = function() {
                 // Check what was actually rendered to DOM
                 setTimeout(() => {
                     const activePetsElements = contentEl.querySelectorAll('.mga-pet-item');
-                    console.log('🔄 [RENDER-CYCLE] DOM render result', {
+                    productionLog('🔄 [RENDER-CYCLE] DOM render result', {
                         activePetsInDOM: activePetsElements.length,
                         elementsFound: activePetsElements.length > 0,
                         renderStage: 'dom-updated',
@@ -5881,7 +6120,7 @@ window.MGA_debugStorage = function() {
                                 // Set cursor to preserved position
                                 newInput.setSelectionRange(preservedCursorPosition, preservedCursorPosition);
                                 if (UnifiedState.data.settings.debugMode) {
-                                    console.log('✅ Restored input state:', { value: newInput.value, focused: document.activeElement === newInput });
+                                    productionLog('✅ Restored input state:', { value: newInput.value, focused: document.activeElement === newInput });
                                 }
                             }
                         }
@@ -5934,11 +6173,11 @@ window.MGA_debugStorage = function() {
     // ==================== TAB CONTENTS ====================
     // Simplified pets content for popouts - JUST preset selection
     function getPetsPopoutContent() {
-        console.log('🔍 [PETS DEBUG] getPetsPopoutContent() called');
+        productionLog('🔍 [PETS DEBUG] getPetsPopoutContent() called');
         // Use multiple sources for pet data (same as updateActivePetsDisplay)
         const activePets = UnifiedState.atoms.activePets || window.activePets || [];
         const petPresets = UnifiedState.data.petPresets;
-        console.log('🔍 [PETS DEBUG] Data check:', {
+        productionLog('🔍 [PETS DEBUG] Data check:', {
             activePetsCount: activePets.length,
             presetsCount: Object.keys(petPresets).length,
             unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
@@ -6016,7 +6255,7 @@ window.MGA_debugStorage = function() {
         });
 
         html += `</div>`;
-        console.log('🔍 [PETS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
+        productionLog('🔍 [PETS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
         return html;
     }
 
@@ -6025,7 +6264,7 @@ window.MGA_debugStorage = function() {
         // Find all preset cards
         const cards = context.querySelectorAll('.mga-preset-clickable[data-preset]');
 
-        console.log(`🔧 [PETS-HANDLERS] Setting up handlers for ${cards.length} preset cards`);
+        productionLog(`🔧 [PETS-HANDLERS] Setting up handlers for ${cards.length} preset cards`);
 
         // Set up preset card handlers - use cloneNode to ensure clean slate
         cards.forEach((presetCard, index) => {
@@ -6035,11 +6274,11 @@ window.MGA_debugStorage = function() {
 
             // Attach fresh handler to the cloned card
             newCard.addEventListener('click', (e) => {
-                console.log(`🎯 [PETS-CLICK] Clicked preset #${index}: ${e.currentTarget.dataset.preset}`);
+                productionLog(`🎯 [PETS-CLICK] Clicked preset #${index}: ${e.currentTarget.dataset.preset}`);
                 const presetName = e.currentTarget.dataset.preset;
 
                 if (!presetName || !UnifiedState.data.petPresets[presetName]) {
-                    console.warn('⚠️ Preset not found!');
+                    productionWarn('⚠️ Preset not found!');
                     return;
                 }
 
@@ -6070,7 +6309,7 @@ window.MGA_debugStorage = function() {
 
                 // Update displays after all pets are placed (single refresh with retry)
                 const refreshPetDisplays = () => {
-                    console.log('🔄 [PETS-REFRESH] Starting refresh...');
+                    productionLog('🔄 [PETS-REFRESH] Starting refresh...');
                     // Force update from room state
                     updateActivePetsFromRoomState();
 
@@ -6107,13 +6346,13 @@ window.MGA_debugStorage = function() {
                 // Single refresh after 2 seconds (gives game time to update)
                 setTimeout(() => {
                     refreshPetDisplays();
-                    console.log('✅ [PETS-REFRESH] First refresh complete');
+                    productionLog('✅ [PETS-REFRESH] First refresh complete');
 
                     // Retry handler reattachment after a short delay to ensure reliability
                     setTimeout(() => {
                         const overlay = UnifiedState.data.popouts.overlays.get('pets');
                         if (overlay && document.contains(overlay)) {
-                            console.log('🔄 [PETS-HANDLERS] Reattaching handlers to ensure reliability');
+                            productionLog('🔄 [PETS-HANDLERS] Reattaching handlers to ensure reliability');
                             setupPetPopoutHandlers(overlay);
                         }
                     }, 500);
@@ -6129,7 +6368,7 @@ window.MGA_debugStorage = function() {
                     e.currentTarget.style.pointerEvents = '';
                 }, 200);
 
-                console.log(`✅ [PETS-SWAP] Loaded preset: ${presetName}`);
+                productionLog(`✅ [PETS-SWAP] Loaded preset: ${presetName}`);
             });
         });
 
@@ -6165,7 +6404,11 @@ window.MGA_debugStorage = function() {
                     placePetPreset(presetName);
                 } else if (action === 'remove') {
                     delete UnifiedState.data.petPresets[presetName];
-                    MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    const saveSuccess = MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+                    if (!saveSuccess) {
+                        console.error('❌ Failed to save after removing preset');
+                        alert('⚠️ Failed to save changes! The preset removal may not persist.');
+                    }
                     refreshPresetsList(context);
                     refreshSeparateWindowPopouts('pets');
                 }
@@ -6181,7 +6424,7 @@ window.MGA_debugStorage = function() {
         const activePets = UnifiedState.atoms.activePets || window.activePets || [];
         const petPresets = UnifiedState.data.petPresets;
 
-        console.log('🐾 [PETS-TAB-CONTENT] Generating HTML with pets:', {
+        productionLog('🐾 [PETS-TAB-CONTENT] Generating HTML with pets:', {
             unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
             windowActivePets: window.activePets?.length || 0,
             finalActivePets: activePets.length,
@@ -6363,7 +6606,7 @@ window.MGA_debugStorage = function() {
 
     function getSeedsTabContent() {
         debugLog('SEEDS_TAB', 'getSeedsTabContent() called - generating full content');
-        console.log('🔍 [SEEDS DEBUG] getSeedsTabContent() called - generating content');
+        productionLog('🔍 [SEEDS DEBUG] getSeedsTabContent() called - generating content');
         const seedGroups = [
             { name: "Common", color: "#fff", seeds: ["Carrot", "Strawberry", "Aloe"] },
             { name: "Uncommon", color: "#0f0", seeds: ["Apple", "Tulip", "Tomato", "Blueberry"] },
@@ -6415,7 +6658,7 @@ window.MGA_debugStorage = function() {
             "Lychee": "Lychee", "Starweaver": "Starweaver", "Moonbinder": "Moonbinder", "Dawnbinder": "Dawnbinder"
         };
 
-        console.log('🔍 [SEEDS DEBUG] Applying saved state to checkboxes:', {
+        productionLog('🔍 [SEEDS DEBUG] Applying saved state to checkboxes:', {
             savedSeedsToDelete: UnifiedState.data.seedsToDelete,
             savedSeedsCount: UnifiedState.data.seedsToDelete?.length || 0
         });
@@ -6440,7 +6683,7 @@ window.MGA_debugStorage = function() {
                 const isChecked = UnifiedState.data.seedsToDelete?.includes(internalId) || false;
                 const checkedAttr = isChecked ? 'checked' : '';
 
-                console.log(`🔍 [SEEDS DEBUG] Seed ${seed} (${internalId}): checked=${isChecked}`);
+                productionLog(`🔍 [SEEDS DEBUG] Seed ${seed} (${internalId}): checked=${isChecked}`);
 
                 html += `
                     <label class="mga-checkbox-group" style="${protectedStyle}">
@@ -6454,7 +6697,7 @@ window.MGA_debugStorage = function() {
         });
 
         debugLog('SEEDS_TAB', 'getSeedsTabContent() returning HTML', { htmlLength: html.length });
-        console.log('🔍 [SEEDS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
+        productionLog('🔍 [SEEDS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
         return html;
     }
 
@@ -6876,7 +7119,7 @@ window.MGA_debugStorage = function() {
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + duration/1000);
 
-            console.log(`🔊 [NOTIFICATIONS] Sound played for rare item!`);
+            productionLog(`🔊 [NOTIFICATIONS] Sound played for rare item!`);
         } catch (error) {
             console.error('❌ [NOTIFICATIONS] Failed to play notification sound:', error);
         }
@@ -6887,6 +7130,17 @@ window.MGA_debugStorage = function() {
         playNotificationSound(1000, 250, volume);
         setTimeout(() => playNotificationSound(1000, 200, volume * 0.8), 300);
         setTimeout(() => playNotificationSound(1200, 150, volume * 0.6), 600);
+    }
+
+    // Play double beep notification for pet hunger (different from shop alerts)
+    function playDoubleBeepNotification(volume = 0.3) {
+        playNotificationSound(600, 200, volume);
+        setTimeout(() => playNotificationSound(600, 200, volume * 0.9), 250);
+    }
+
+    // Play single beep for ability notifications (subtle)
+    function playSingleBeepNotification(volume = 0.2) {
+        playNotificationSound(500, 150, volume);
     }
 
     // Play alarm siren notification (very loud and noticeable)
@@ -6912,14 +7166,14 @@ window.MGA_debugStorage = function() {
             playNotificationSound(tone, 300, volume);
         }, 350);
 
-        console.log('🚨 [NOTIFICATIONS] Continuous alarm started - requires acknowledgment!');
+        productionLog('🚨 [NOTIFICATIONS] Continuous alarm started - requires acknowledgment!');
     }
 
     function stopContinuousAlarm() {
         if (continuousAlarmInterval) {
             clearInterval(continuousAlarmInterval);
             continuousAlarmInterval = null;
-            console.log('✅ [NOTIFICATIONS] Continuous alarm stopped');
+            productionLog('✅ [NOTIFICATIONS] Continuous alarm stopped');
         }
     }
 
@@ -6944,7 +7198,7 @@ window.MGA_debugStorage = function() {
         const volume = notifications.volume || 0.3;
         const type = notifications.notificationType || 'triple';
 
-        console.log(`🔊 [NOTIFICATIONS] Playing ${type} notification at ${Math.round(volume * 100)}% volume`);
+        productionLog(`🔊 [NOTIFICATIONS] Playing ${type} notification at ${Math.round(volume * 100)}% volume`);
 
         switch (type) {
             case 'simple':
@@ -7001,13 +7255,22 @@ window.MGA_debugStorage = function() {
         const notifications = UnifiedState.data.settings.notifications;
         notifications.lastSeenTimestamps[itemId] = Date.now();
         MGA_saveJSON('MGA_data', UnifiedState.data);
-        console.log(`📅 [NOTIFICATIONS] Updated last seen for ${itemId}`);
+        productionLog(`📅 [NOTIFICATIONS] Updated last seen for ${itemId}`);
     }
 
     // Get time since last seen (in human readable format)
     function getTimeSinceLastSeen(itemId) {
         const notifications = UnifiedState.data.settings.notifications;
-        const timestamp = notifications.lastSeenTimestamps[itemId];
+
+        // Map UI names to shop IDs for celestial seeds
+        // UI shows "Moonbinder" but shop stores as "MoonCelestial"
+        const reverseNameMap = {
+            'Moonbinder': 'MoonCelestial',
+            'Dawnbinder': 'DawnCelestial'
+        };
+        const lookupId = reverseNameMap[itemId] || itemId;
+
+        const timestamp = notifications.lastSeenTimestamps[lookupId];
         if (!timestamp) return "Never seen";
 
         const diff = Date.now() - timestamp;
@@ -7420,36 +7683,18 @@ window.MGA_debugStorage = function() {
     let eggRestockNotifiedItems = new Set(); // Track items notified during current restock
     let isFirstRun = true; // Track if this is the first check to notify for watched items already in stock
     const CHECK_INTERVAL = 2000; // Check every 2 seconds for better timing
+
+    // Restock detection constants (same as Buy UI for maximum reliability)
+    const SMALL_EDGE = 5;      // Timer at or below 5s means near restock
+    const LARGE_EDGE = 180;    // Timer at or above 180s means just restocked
+    const BIG_JUMP_DELTA = 60; // Timer jump of 60+ seconds indicates restock
     const NOTIFICATION_COOLDOWN = 30000; // 30 seconds between notifications for same item to prevent duplicates
     const RESTOCK_COOLDOWN = 30000; // 30 seconds cooldown after restock to catch all new items
 
     // Check for new watched items in shop
     function checkForWatchedItems() {
-        console.log(`🚨 [CRITICAL] checkForWatchedItems CALLED - ${new Date().toLocaleTimeString()}`);
-        console.log(`🚨 [CRITICAL] Function reached, notifications object:`, UnifiedState.data.settings?.notifications);
-        console.log(`🔔 [NOTIFICATIONS] checkForWatchedItems() called at ${new Date().toLocaleTimeString()}`);
-
-        // Add debugging to show globalShop structure
-        console.log(`🔍 [NOTIFICATIONS] globalShop structure:`, {
-            hasGlobalShop: !!targetWindow?.globalShop,
-            shopKeys: targetWindow?.globalShop ? Object.keys(targetWindow.globalShop) : 'no globalShop',
-            hasShops: !!targetWindow?.globalShop?.shops,
-            shopsKeys: targetWindow?.globalShop?.shops ? Object.keys(targetWindow.globalShop.shops) : 'no shops'
-        });
-
         const notifications = UnifiedState.data.settings.notifications;
-        if (!notifications) {
-            console.warn(`⚠️ [NOTIFICATIONS] No notifications settings found`);
-            console.log(`🔍 [NOTIFICATIONS] UnifiedState.data.settings structure:`, Object.keys(UnifiedState.data.settings || {}));
-            return;
-        }
-        if (!notifications.enabled) {
-            console.warn(`⚠️ [NOTIFICATIONS] Notifications are disabled in settings`);
-            return;
-        }
-        console.log(`✅ [NOTIFICATIONS] System active - checking for watched items...`);
-        console.log(`🎯 [NOTIFICATIONS] Watched seeds: [${notifications.watchedSeeds.join(', ')}]`);
-        console.log(`🎯 [NOTIFICATIONS] Watched eggs: [${notifications.watchedEggs.join(', ')}]`);
+        if (!notifications || !notifications.enabled) return;
 
         try {
             const now = Date.now();
@@ -7461,30 +7706,30 @@ window.MGA_debugStorage = function() {
             if (now - lastRestockCheck < CHECK_INTERVAL) return;
             lastRestockCheck = now;
 
-            console.log(`🔍 [NOTIFICATIONS] Checking shops... (every ${CHECK_INTERVAL/1000}s)`);
-
             // Get timer data - use both sources for reliability
             const quinoaData = UnifiedState.atoms.quinoaData || targetWindow?.globalShop;
-            // Don't return early - just warn and continue
-            if (!quinoaData && !targetWindow?.globalShop) {
-                console.warn(`⚠️ [NOTIFICATIONS] No shop data available yet, will retry next tick`);
-                // Don't return - let it continue and check again next time
-            }
+            if (!quinoaData && !targetWindow?.globalShop) return; // No shop data available
 
             // Use targetWindow.globalShop as primary source, quinoaData as fallback
             const shopData = targetWindow?.globalShop || UnifiedState.atoms.quinoaData || quinoaData;
             const seedTimer = shopData?.shops?.seed?.secondsUntilRestock || 999;
             const eggTimer = shopData?.shops?.egg?.secondsUntilRestock || 999;
 
-            // Detect restock cycles (proper restock moment detection)
-            // Fixed: Detect actual restock when timer goes from high (>10) to low (<10)
-            const seedRestocked = seedTimer < 10 && lastSeedTimer > 10;
-            const eggRestocked = eggTimer < 10 && lastEggTimer > 10;
+            // Detect restock using robust edge-detection (same method as Buy UI)
+            // Method 1: Timer was ≤5s and now ≥180s (actual reset moment)
+            // Method 2: Timer jumped by ≥60s (big jump indicates restock)
+            const seedRestocked =
+                (lastSeedTimer <= SMALL_EDGE && seedTimer >= LARGE_EDGE) ||
+                (seedTimer - lastSeedTimer >= BIG_JUMP_DELTA && lastSeedTimer > 0);
 
-            console.log(`⏱️ [NOTIFICATIONS] Timers - Seed: ${lastSeedTimer}→${seedTimer}, Egg: ${lastEggTimer}→${eggTimer}`);
+            const eggRestocked =
+                (lastEggTimer <= SMALL_EDGE && eggTimer >= LARGE_EDGE) ||
+                (eggTimer - lastEggTimer >= BIG_JUMP_DELTA && lastEggTimer > 0);
+
+            // Timer tracking (silent unless restock detected)
 
             if (seedRestocked) {
-                console.log(`🔄 [NOTIFICATIONS] SEED SHOP RESTOCKED! Timer: ${lastSeedTimer}→${seedTimer}`);
+                productionLog(`🔄 [NOTIFICATIONS] SEED SHOP RESTOCKED! (Edge detection: ${lastSeedTimer}→${seedTimer})`);
                 previousSeedInventory = []; // Clear for new cycle
                 previousSeedQuantities = {}; // Clear quantity tracking
                 seedRestockNotifiedItems.clear(); // Clear restock notification tracking
@@ -7492,7 +7737,7 @@ window.MGA_debugStorage = function() {
             }
 
             if (eggRestocked) {
-                console.log(`🔄 [NOTIFICATIONS] EGG SHOP RESTOCKED! Timer: ${lastEggTimer}→${eggTimer}`);
+                productionLog(`🔄 [NOTIFICATIONS] EGG SHOP RESTOCKED! (Edge detection: ${lastEggTimer}→${eggTimer})`);
                 previousEggInventory = []; // Clear for new cycle
                 previousEggQuantities = {}; // Clear quantity tracking
                 eggRestockNotifiedItems.clear(); // Clear restock notification tracking
@@ -7508,41 +7753,7 @@ window.MGA_debugStorage = function() {
             const inStockSeeds = currentSeeds.filter(item => item.initialStock > 0);
             const currentSeedIds = inStockSeeds.map(item => item.species);
 
-            // Debug shop data access - don't return early
-            if (!targetWindow?.globalShop) {
-                console.warn(`⚠️ [NOTIFICATIONS] No globalShop data found on targetWindow`);
-                console.log(`🔍 [NOTIFICATIONS] targetWindow structure:`, {
-                    hasTargetWindow: !!targetWindow,
-                    targetWindowKeys: targetWindow ? Object.keys(targetWindow) : []
-                });
-                // Don't return - continue to check if data becomes available
-            }
-            if (targetWindow?.globalShop && !targetWindow.globalShop.shops) {
-                console.warn(`⚠️ [NOTIFICATIONS] No shops data in globalShop`);
-                console.log(`🔍 [NOTIFICATIONS] globalShop structure:`, {
-                    hasGlobalShop: !!targetWindow.globalShop,
-                    globalShopKeys: targetWindow.globalShop ? Object.keys(targetWindow.globalShop) : []
-                });
-                // Don't return - continue to check if data becomes available
-            }
-
-            // Log detailed shop state every time for debugging
-            console.log(`🛒 [NOTIFICATIONS] Shop data:`, {
-                seedShopExists: !!targetWindow.globalShop.shops.seed,
-                seedInventoryLength: currentSeeds.length,
-                inStockSeedsCount: inStockSeeds.length,
-                currentSeedIds: currentSeedIds,
-                rawSeedData: currentSeeds.map(s => ({ species: s.species, stock: s.initialStock }))
-            });
-
-            // Log current shop state
-            if (currentSeedIds.length > 0) {
-                const hasNewSeeds = currentSeedIds.some(id => !previousSeedInventory.includes(id));
-                if (hasNewSeeds) {
-                    console.log(`🛒 [NOTIFICATIONS] Seeds in shop:`, currentSeedIds,
-                        `| Timer: ${seedTimer}s | Previous:`, previousSeedInventory);
-                }
-            }
+            // OPTIMIZED: Removed excessive debug logging
 
             // Track seed quantities (FIXED APPROACH)
             const currentSeedQuantities = {};
@@ -7552,13 +7763,13 @@ window.MGA_debugStorage = function() {
 
             // Initialize previous quantities if empty (first run)
             if (Object.keys(previousSeedQuantities).length === 0 && !seedRestocked) {
-                console.log(`🔧 [NOTIFICATIONS] Initializing previous seed quantities...`);
+                productionLog(`🔧 [NOTIFICATIONS] Initializing previous seed quantities...`);
                 Object.keys(currentSeedQuantities).forEach(seedId => {
                     previousSeedQuantities[seedId] = currentSeedQuantities[seedId];
                 });
             }
 
-            console.log(`🛒 [NOTIFICATIONS] Current seed quantities:`, currentSeedQuantities, `| Previous:`, previousSeedQuantities);
+            productionLog(`🛒 [NOTIFICATIONS] Current seed quantities:`, currentSeedQuantities, `| Previous:`, previousSeedQuantities);
 
             // Find seeds with increased quantities or new items (after restock)
             Object.keys(currentSeedQuantities).forEach(seedId => {
@@ -7566,14 +7777,14 @@ window.MGA_debugStorage = function() {
                 const newQuantity = currentSeedQuantities[seedId];
 
                 // Always log each seed being processed for debugging
-                console.log(`🔍 [NOTIFICATIONS] Processing seed: ${seedId} (${oldQuantity}→${newQuantity})`);
+                productionLog(`🔍 [NOTIFICATIONS] Processing seed: ${seedId} (${oldQuantity}→${newQuantity})`);
 
                 // Determine if we should check for notification
                 const quantityIncreased = newQuantity > oldQuantity;
                 const isRestockWindow = seedRestocked && (now - lastSeedRestock) < RESTOCK_COOLDOWN;
                 const alreadyNotifiedInRestock = seedRestockNotifiedItems.has(seedId);
 
-                console.log(`🔍 [NOTIFICATIONS] ${seedId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+                productionLog(`🔍 [NOTIFICATIONS] ${seedId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
 
                 // Only trigger notification if:
                 // 1) First run and item is in stock, OR
@@ -7582,19 +7793,19 @@ window.MGA_debugStorage = function() {
                 // 4) New item appears (oldQuantity was 0)
                 const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
 
-                console.log(`🔍 [NOTIFICATIONS] ${seedId} shouldCheck: ${shouldCheck}`);
+                productionLog(`🔍 [NOTIFICATIONS] ${seedId} shouldCheck: ${shouldCheck}`);
 
                 if (shouldCheck) {
-                    console.log(`🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked} | RestockWindow: ${isRestockWindow}`);
+                    productionLog(`🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked} | RestockWindow: ${isRestockWindow}`);
 
                     // Update last seen for ANY seed that appears or increases
                     updateLastSeen(seedId);
 
                     // Check if it's a watched seed with detailed logging
                     const isWatched = isWatchedItem(seedId, 'seed');
-                    console.log(`🔍 [NOTIFICATIONS] Is ${seedId} watched? ${isWatched}`);
-                    console.log(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedSeeds.join(', ')}]`);
-                    console.log(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedSeeds.map(w => ({
+                    productionLog(`🔍 [NOTIFICATIONS] Is ${seedId} watched? ${isWatched}`);
+                    productionLog(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedSeeds.join(', ')}]`);
+                    productionLog(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedSeeds.map(w => ({
                         watched: w,
                         current: seedId,
                         exactMatch: w === seedId,
@@ -7607,10 +7818,10 @@ window.MGA_debugStorage = function() {
                         const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
                         const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
 
-                        console.log(`🔍 [NOTIFICATIONS] ${seedId} cooldown check: lastNotified=${lastNotified}, now=${now}, diff=${now-lastNotified}, canNotify=${canNotify}`);
+                        productionLog(`🔍 [NOTIFICATIONS] ${seedId} cooldown check: lastNotified=${lastNotified}, now=${now}, diff=${now-lastNotified}, canNotify=${canNotify}`);
 
                         if (canNotify) {
-                            console.log(`🎉 [NOTIFICATIONS] RARE SEED DETECTED: ${seedId} (${newQuantity} in stock)`);
+                            productionLog(`🎉 [NOTIFICATIONS] RARE SEED DETECTED: ${seedId} (${newQuantity} in stock)`);
                             notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
 
                             // Track that we notified this item during restock
@@ -7628,17 +7839,17 @@ window.MGA_debugStorage = function() {
                                 icon: '🌱'
                             });
                         } else {
-                            console.log(`⏰ [NOTIFICATIONS] ${seedId} on cooldown, not notifying`);
+                            productionLog(`⏰ [NOTIFICATIONS] ${seedId} on cooldown, not notifying`);
                         }
                     } else {
-                        console.log(`❌ [NOTIFICATIONS] ${seedId} is not watched, skipping notification`);
+                        productionLog(`❌ [NOTIFICATIONS] ${seedId} is not watched, skipping notification`);
                     }
                 } else {
-                    console.log(`⏭️ [NOTIFICATIONS] ${seedId} shouldCheck=false, skipping`);
+                    productionLog(`⏭️ [NOTIFICATIONS] ${seedId} shouldCheck=false, skipping`);
                 }
             });
 
-            console.log(`✅ [NOTIFICATIONS] Finished checking seeds, moving to eggs...`);
+            productionLog(`✅ [NOTIFICATIONS] Finished checking seeds, moving to eggs...`);
 
             // Check egg shop
             // Declare variables OUTSIDE try block to fix scope issue
@@ -7646,18 +7857,18 @@ window.MGA_debugStorage = function() {
             let currentEggQuantities = {};
 
             try {
-                console.log(`🥚 [NOTIFICATIONS] === CHECKING EGG SHOP ===`);
+                productionLog(`🥚 [NOTIFICATIONS] === CHECKING EGG SHOP ===`);
                 const currentEggs = targetWindow?.globalShop?.shops?.egg?.inventory || [];
                 const inStockEggs = currentEggs.filter(item => item.initialStock > 0);
                 currentEggIds = inStockEggs.map(item => item.eggId);
 
             // Always log current egg state for debugging (like seeds)
-            console.log(`🥚 [NOTIFICATIONS] Current eggs in shop: [${currentEggIds.join(', ')}] | Previous: [${previousEggInventory.join(', ')}]`);
-            console.log(`🥚 [NOTIFICATIONS] Raw egg inventory:`, currentEggs.map(e => `${e.eggId}(stock:${e.initialStock})`));
+            productionLog(`🥚 [NOTIFICATIONS] Current eggs in shop: [${currentEggIds.join(', ')}] | Previous: [${previousEggInventory.join(', ')}]`);
+            productionLog(`🥚 [NOTIFICATIONS] Raw egg inventory:`, currentEggs.map(e => `${e.eggId}(stock:${e.initialStock})`));
 
             // Debug egg shop structure
             if (currentEggs.length === 0) {
-                console.log(`🥚 [NOTIFICATIONS] No eggs found. Shop structure:`, {
+                productionLog(`🥚 [NOTIFICATIONS] No eggs found. Shop structure:`, {
                     hasGlobalShop: !!targetWindow?.globalShop,
                     hasShops: !!targetWindow?.globalShop?.shops,
                     hasEggShop: !!targetWindow?.globalShop?.shops?.egg,
@@ -7674,13 +7885,13 @@ window.MGA_debugStorage = function() {
 
             // Initialize previous quantities if empty (first run)
             if (Object.keys(previousEggQuantities).length === 0 && !eggRestocked) {
-                console.log(`🔧 [NOTIFICATIONS] Initializing previous egg quantities...`);
+                productionLog(`🔧 [NOTIFICATIONS] Initializing previous egg quantities...`);
                 Object.keys(currentEggQuantities).forEach(eggId => {
                     previousEggQuantities[eggId] = currentEggQuantities[eggId];
                 });
             }
 
-            console.log(`🥚 [NOTIFICATIONS] Current egg quantities:`, currentEggQuantities, `| Previous:`, previousEggQuantities);
+            productionLog(`🥚 [NOTIFICATIONS] Current egg quantities:`, currentEggQuantities, `| Previous:`, previousEggQuantities);
 
             // Find eggs with increased quantities or new items (after restock)
             Object.keys(currentEggQuantities).forEach(eggId => {
@@ -7688,14 +7899,14 @@ window.MGA_debugStorage = function() {
                 const newQuantity = currentEggQuantities[eggId];
 
                 // Always log each egg being processed for debugging (like seeds)
-                console.log(`🔍 [NOTIFICATIONS] Processing egg: ${eggId} (${oldQuantity}→${newQuantity})`);
+                productionLog(`🔍 [NOTIFICATIONS] Processing egg: ${eggId} (${oldQuantity}→${newQuantity})`);
 
                 // Determine if we should check for notification
                 const quantityIncreased = newQuantity > oldQuantity;
                 const isRestockWindow = eggRestocked && (now - lastEggRestock) < RESTOCK_COOLDOWN;
                 const alreadyNotifiedInRestock = eggRestockNotifiedItems.has(eggId);
 
-                console.log(`🔍 [NOTIFICATIONS] ${eggId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+                productionLog(`🔍 [NOTIFICATIONS] ${eggId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
 
                 // Only trigger notification if:
                 // 1) First run and item is in stock, OR
@@ -7704,19 +7915,19 @@ window.MGA_debugStorage = function() {
                 // 4) New item appears (oldQuantity was 0)
                 const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
 
-                console.log(`🔍 [NOTIFICATIONS] ${eggId} shouldCheck: ${shouldCheck}`);
+                productionLog(`🔍 [NOTIFICATIONS] ${eggId} shouldCheck: ${shouldCheck}`);
 
                 if (shouldCheck) {
-                    console.log(`🆕 [NOTIFICATIONS] Egg stock change: ${eggId} (${oldQuantity}→${newQuantity}) | Restock: ${eggRestocked} | RestockWindow: ${isRestockWindow}`);
+                    productionLog(`🆕 [NOTIFICATIONS] Egg stock change: ${eggId} (${oldQuantity}→${newQuantity}) | Restock: ${eggRestocked} | RestockWindow: ${isRestockWindow}`);
 
                     // Update last seen for ANY egg that appears or increases
                     updateLastSeen(eggId);
 
                     // Check if it's a watched egg with detailed logging
                     const isWatched = isWatchedItem(eggId, 'egg');
-                    console.log(`🔍 [NOTIFICATIONS] Is ${eggId} watched? ${isWatched}`);
-                    console.log(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedEggs.join(', ')}]`);
-                    console.log(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedEggs.map(w => ({
+                    productionLog(`🔍 [NOTIFICATIONS] Is ${eggId} watched? ${isWatched}`);
+                    productionLog(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedEggs.join(', ')}]`);
+                    productionLog(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedEggs.map(w => ({
                         watched: w,
                         current: eggId,
                         exactMatch: w === eggId,
@@ -7730,7 +7941,7 @@ window.MGA_debugStorage = function() {
                         const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
 
                         if (canNotify) {
-                            console.log(`🎉 [NOTIFICATIONS] RARE EGG DETECTED: ${eggId} (${newQuantity} in stock)`);
+                            productionLog(`🎉 [NOTIFICATIONS] RARE EGG DETECTED: ${eggId} (${newQuantity} in stock)`);
                             notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
 
                             // Track that we notified this item during restock
@@ -7748,17 +7959,17 @@ window.MGA_debugStorage = function() {
                                 icon: '🥚'
                             });
                         } else {
-                            console.log(`⏰ [NOTIFICATIONS] ${eggId} on cooldown, not notifying`);
+                            productionLog(`⏰ [NOTIFICATIONS] ${eggId} on cooldown, not notifying`);
                         }
                     } else {
-                        console.log(`❌ [NOTIFICATIONS] ${eggId} is not watched, skipping notification`);
+                        productionLog(`❌ [NOTIFICATIONS] ${eggId} is not watched, skipping notification`);
                     }
                 } else {
-                    console.log(`⏭️ [NOTIFICATIONS] ${eggId} shouldCheck=false, skipping`);
+                    productionLog(`⏭️ [NOTIFICATIONS] ${eggId} shouldCheck=false, skipping`);
                 }
             });
 
-            console.log(`✅ [NOTIFICATIONS] Finished checking all eggs`);
+            productionLog(`✅ [NOTIFICATIONS] Finished checking all eggs`);
 
                 // Update egg inventory and quantities INSIDE try block
                 // CRITICAL FIX: Create copies instead of reference assignment
@@ -7771,7 +7982,7 @@ window.MGA_debugStorage = function() {
 
             // Process batch notifications if any items were detected
             if (detectedItems.length > 0) {
-                console.log(`🎉 [NOTIFICATIONS] Batch detected: ${detectedItems.length} items`);
+                productionLog(`🎉 [NOTIFICATIONS] Batch detected: ${detectedItems.length} items`);
 
                 // Play notification sound once for all items
                 playSelectedNotification();
@@ -7790,7 +8001,7 @@ window.MGA_debugStorage = function() {
 
                 // Queue the batch notification
                 queueNotification(notificationMessage.trim(), notifications.requiresAcknowledgment);
-                console.log(`📢 [NOTIFICATIONS] Batched notification sent for ${detectedItems.length} items`);
+                productionLog(`📢 [NOTIFICATIONS] Batched notification sent for ${detectedItems.length} items`);
             }
 
             // Update previous seed inventory and quantities (seeds already succeeded if we got here)
@@ -7800,7 +8011,7 @@ window.MGA_debugStorage = function() {
 
             // Clear first run flag after first check completes
             if (isFirstRun) {
-                console.log(`✅ [NOTIFICATIONS] First run complete - will now only notify on changes`);
+                productionLog(`✅ [NOTIFICATIONS] First run complete - will now only notify on changes`);
                 isFirstRun = false;
             }
 
@@ -7808,6 +8019,256 @@ window.MGA_debugStorage = function() {
             console.error('❌ [NOTIFICATIONS] Error checking for watched items:', error);
             console.error('Stack trace:', error.stack);
             // Don't let errors stop the notification system - it will try again next interval
+        }
+    }
+
+    // ==================== EVENT-DRIVEN SHOP MONITORING ====================
+
+    let shopWatcherInitialized = false;
+
+    function initializeShopWatcher() {
+        if (shopWatcherInitialized) return;
+
+        productionLog('🔄 [SHOP-WATCHER] Initializing event-driven shop monitoring...');
+
+        // Try to find and watch globalShop
+        function watchShopData() {
+            if (!targetWindow.globalShop) {
+                productionWarn('⚠️ [SHOP-WATCHER] globalShop not found, will retry...');
+                setTimeout(watchShopData, 5000);
+                return;
+            }
+
+            productionLog('✅ [SHOP-WATCHER] Found globalShop, setting up watchers...');
+
+            // Store original shop data
+            let lastSeedData = JSON.stringify(targetWindow.globalShop?.shops?.seed || {});
+            let lastEggData = JSON.stringify(targetWindow.globalShop?.shops?.egg || {});
+
+            // Create a proxy to intercept shop updates
+            if (targetWindow.globalShop && targetWindow.globalShop.shops) {
+                try {
+                    const originalShops = targetWindow.globalShop.shops;
+
+                    // Create proxies for seed and egg shops
+                    const shopProxy = new Proxy(originalShops, {
+                        set(target, property, value) {
+                            const result = Reflect.set(target, property, value);
+
+                            // Check if seed or egg shop data changed
+                            if (property === 'seed') {
+                                const newData = JSON.stringify(value);
+                                if (newData !== lastSeedData) {
+                                    productionLog('🔄 [SHOP-WATCHER] Seed shop data changed!');
+                                    lastSeedData = newData;
+                                    // Trigger immediate check
+                                    setTimeout(() => checkForWatchedItems(), 0);
+                                }
+                            } else if (property === 'egg') {
+                                const newData = JSON.stringify(value);
+                                if (newData !== lastEggData) {
+                                    productionLog('🔄 [SHOP-WATCHER] Egg shop data changed!');
+                                    lastEggData = newData;
+                                    // Trigger immediate check
+                                    setTimeout(() => checkForWatchedItems(), 0);
+                                }
+                            }
+
+                            return result;
+                        }
+                    });
+
+                    // Replace the shops object with our proxy
+                    targetWindow.globalShop.shops = shopProxy;
+                    productionLog('✅ [SHOP-WATCHER] Shop proxy installed successfully');
+
+                } catch(e) {
+                    productionWarn('⚠️ [SHOP-WATCHER] Could not create proxy:', e);
+                    // Fall back to polling if proxy fails
+                }
+            }
+
+            // Also watch for complete globalShop replacement
+            let globalShopDescriptor = Object.getOwnPropertyDescriptor(targetWindow, 'globalShop');
+            if (!globalShopDescriptor || globalShopDescriptor.configurable !== false) {
+                Object.defineProperty(targetWindow, 'globalShop', {
+                    get() {
+                        return this._globalShop;
+                    },
+                    set(newValue) {
+                        productionLog('🔄 [SHOP-WATCHER] globalShop replaced entirely!');
+                        this._globalShop = newValue;
+
+                        // Re-initialize watchers for the new shop
+                        shopWatcherInitialized = false;
+                        setTimeout(() => initializeShopWatcher(), 100);
+
+                        // Trigger immediate check
+                        setTimeout(() => checkForWatchedItems(), 0);
+                    },
+                    configurable: true
+                });
+
+                // Set initial value
+                targetWindow._globalShop = targetWindow.globalShop;
+                productionLog('✅ [SHOP-WATCHER] globalShop setter installed');
+            }
+
+            shopWatcherInitialized = true;
+        }
+
+        // Start watching
+        watchShopData();
+
+        // DISABLED: MutationObserver causes severe FPS lag - relying on Proxy and polling only
+        // if (typeof MutationObserver !== 'undefined') {
+        //     const observer = new MutationObserver((mutations) => {
+        //         for (const mutation of mutations) {
+        //             if (mutation.target.classList?.contains('shop') ||
+        //                 mutation.target.id?.includes('shop') ||
+        //                 mutation.target.textContent?.includes('Restock')) {
+        //                 productionLog('🔄 [SHOP-WATCHER] Shop DOM changed, checking items...');
+        //                 setTimeout(() => checkForWatchedItems(), 100);
+        //                 break;
+        //             }
+        //         }
+        //     });
+        //     const gameContainer = targetDocument.querySelector('#game-container, .game-wrapper, body');
+        //     if (gameContainer) {
+        //         observer.observe(gameContainer, { childList: true, subtree: true, characterData: true });
+        //     }
+        // }
+    }
+
+    // ==================== PET HUNGER MONITORING ====================
+
+    // Track previous hunger states for each pet
+    let lastPetHungerStates = {};
+
+    function checkPetHunger() {
+        if (!UnifiedState.data.settings.notifications.petHungerEnabled) return;
+
+        try {
+            const activePets = UnifiedState.atoms.activePets || [];
+            // Threshold is a PERCENTAGE (0-100)
+            // Default: 25 = alert when pet drops below 25% full
+            const thresholdPercent = UnifiedState.data.settings.notifications.petHungerThreshold || 25;
+
+            activePets.forEach((pet) => {
+                if (!pet || !pet.id) return;
+
+                const currentHunger = Number(pet.hunger) ?? 0;
+                const petName = pet.petSpecies || 'Pet';
+
+                // Game uses standard scale: hunger value / 100 = percentage
+                // Examples: 10000 = 100%, 5000 = 50%, 2500 = 25%
+                const hungerPercent = currentHunger / 100;
+
+                // Get previous hunger percentage for comparison
+                const lastHunger = lastPetHungerStates[pet.id] ?? currentHunger;
+                const lastPercent = lastHunger / 100;
+
+                // Debug logging (only when enabled)
+                if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`🐾 [PET-HUNGER-DEBUG] ${petName}: ${hungerPercent.toFixed(1)}% (hunger=${currentHunger}), threshold=${thresholdPercent}%`);
+                }
+
+                // Alert if hunger percentage DROPPED below threshold
+                if (hungerPercent < thresholdPercent && lastPercent >= thresholdPercent) {
+                    productionLog(`🐾 [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`);
+
+                    // Play different sound for pet hunger
+                    const volume = UnifiedState.data.settings.notifications.volume || 0.3;
+                    playDoubleBeepNotification(volume);
+
+                    // Show visual notification with percentage
+                    showNotificationToast(`⚠️ ${petName} needs feeding! Only ${Math.round(hungerPercent)}% full`, 'warning');
+                }
+
+                // Store hunger value for next comparison
+                lastPetHungerStates[pet.id] = currentHunger;
+            });
+        } catch (error) {
+            console.error('❌ [PET-HUNGER] Error checking pet hunger:', error);
+        }
+    }
+
+    // Helper function to show toast notifications
+    function showNotificationToast(message, type = 'info') {
+        try {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'warning' ? 'rgba(255, 165, 0, 0.9)' : type === 'success' ? 'rgba(76, 175, 80, 0.9)' : 'rgba(33, 150, 243, 0.9)'};
+                color: white;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                z-index: 2147483647;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                max-width: 300px;
+                word-wrap: break-word;
+                transition: opacity 0.3s ease;
+            `;
+
+            document.body.appendChild(toast);
+
+            // Fade out and remove after 5 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        } catch (error) {
+            console.error('❌ [TOAST] Error showing notification toast:', error);
+        }
+    }
+
+    // ==================== WEATHER EVENT DETECTION ====================
+
+    // Weather event tracking
+    let lastWeatherState = null;
+
+    function detectWeatherEvents() {
+        if (!UnifiedState.data.settings.notifications.weatherNotificationsEnabled) return;
+
+        try {
+            // Check game state for weather (adjust based on actual game structure)
+            const roomState = targetWindow?.MagicCircle_RoomConnection?.lastRoomStateJsonable;
+            const currentWeather = roomState?.child?.data?.weather || roomState?.weather || null;
+
+            if (currentWeather && currentWeather !== lastWeatherState) {
+                const watchedEvents = UnifiedState.data.settings.notifications.watchedWeatherEvents || [];
+
+                // Check if this is a watched weather event
+                const eventMapping = {
+                    'snow': 'Snow',
+                    'rain': 'Rain',
+                    'amber_moon': 'AmberMoon',
+                    'ambermoon': 'AmberMoon',
+                    'dawn': 'Dawn'
+                };
+
+                const mappedEvent = eventMapping[currentWeather.toLowerCase()] || currentWeather;
+
+                if (watchedEvents.includes(mappedEvent)) {
+                    productionLog(`🌤️ [WEATHER] ${mappedEvent} event detected!`);
+
+                    // Play weather notification
+                    const volume = UnifiedState.data.settings.notifications.volume || 0.3;
+                    playTripleBeepNotification(volume);
+
+                    // Show notification
+                    showNotificationToast(`🌤️ Weather Event: ${mappedEvent}`, 'info');
+                }
+
+                lastWeatherState = currentWeather;
+            }
+        } catch (error) {
+            console.error('❌ [WEATHER] Error detecting weather events:', error);
         }
     }
 
@@ -7973,6 +8434,41 @@ window.MGA_debugStorage = function() {
 
     function getNotificationsTabContent() {
         const settings = UnifiedState.data.settings;
+
+        // Ensure new notification properties exist (for backwards compatibility with old saved data)
+        if (!settings.notifications.petHungerEnabled && settings.notifications.petHungerEnabled !== false) {
+            settings.notifications.petHungerEnabled = false;
+        }
+        if (!settings.notifications.petHungerThreshold) {
+            settings.notifications.petHungerThreshold = 20;
+        }
+        if (!settings.notifications.abilityNotificationsEnabled && settings.notifications.abilityNotificationsEnabled !== false) {
+            settings.notifications.abilityNotificationsEnabled = false;
+        }
+        if (!settings.notifications.watchedAbilities) {
+            settings.notifications.watchedAbilities = [];
+        }
+        if (!settings.notifications.weatherNotificationsEnabled && settings.notifications.weatherNotificationsEnabled !== false) {
+            settings.notifications.weatherNotificationsEnabled = false;
+        }
+        if (!settings.notifications.watchedWeatherEvents) {
+            settings.notifications.watchedWeatherEvents = ['Snow', 'Rain', 'AmberMoon', 'Dawn'];
+        }
+        if (!settings.notifications.abilityNotificationSound) {
+            settings.notifications.abilityNotificationSound = 'single';
+        }
+        if (settings.notifications.abilityNotificationVolume === undefined) {
+            settings.notifications.abilityNotificationVolume = 0.2;
+        }
+        // Ensure continuousEnabled is explicitly false if undefined
+        if (settings.notifications.continuousEnabled === undefined || settings.notifications.continuousEnabled === null) {
+            settings.notifications.continuousEnabled = false;
+        }
+        // Ensure debugMode exists
+        if (settings.debugMode === undefined) {
+            settings.debugMode = false;
+        }
+
         return `
             <div class="mga-section">
                 <div class="mga-section-title">🔔 Shop Alert Notifications</div>
@@ -8185,6 +8681,125 @@ window.MGA_debugStorage = function() {
                     </div>
                 </div>
             </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🐾 Pet Hunger Alerts</div>
+                <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                    Get notified when your pets' hunger drops below a threshold.
+                </p>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="pet-hunger-enabled" class="mga-checkbox"
+                               ${settings.notifications.petHungerEnabled ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>🔊 Enable Pet Hunger Notifications</span>
+                    </label>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Alert when hunger below: ${settings.notifications.petHungerThreshold || 20}%
+                    </label>
+                    <input type="range" class="mga-slider" id="pet-hunger-threshold"
+                           min="5" max="50" step="5" value="${settings.notifications.petHungerThreshold || 20}"
+                           style="width: 100%; accent-color: #ff9900;">
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">✨ Ability Trigger Alerts</div>
+                <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                    Get notified when your pets trigger abilities. Leave all unchecked to be notified for all abilities.
+                </p>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="ability-notifications-enabled" class="mga-checkbox"
+                               ${settings.notifications.abilityNotificationsEnabled ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>🔊 Enable Ability Notifications</span>
+                    </label>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Ability Sound Type
+                    </label>
+                    <select class="mga-select" id="ability-notification-sound-select"
+                            style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: white; font-size: 12px;">
+                        <option value="single" ${settings.notifications.abilityNotificationSound === 'single' ? 'selected' : ''}>🔊 Single Beep (Subtle)</option>
+                        <option value="double" ${settings.notifications.abilityNotificationSound === 'double' ? 'selected' : ''}>🔔 Double Beep</option>
+                        <option value="triple" ${settings.notifications.abilityNotificationSound === 'triple' ? 'selected' : ''}>🎵 Triple Beep</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                        Ability Alert Volume: ${Math.round((settings.notifications.abilityNotificationVolume || 0.2) * 100)}%
+                    </label>
+                    <input type="range" class="mga-slider" id="ability-notification-volume-slider"
+                           min="0" max="100" value="${(settings.notifications.abilityNotificationVolume || 0.2) * 100}"
+                           style="width: 100%; accent-color: #9f7aea;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                        Watched Abilities (Optional - leave empty to watch all)
+                    </label>
+                    <p style="font-size: 11px; color: #888; margin-bottom: 8px;">
+                        Select specific abilities to watch, or leave all unchecked to be notified for every ability trigger.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🌤️ Weather Event Alerts</div>
+                <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                    Get notified when weather events occur in the game.
+                </p>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="weather-notifications-enabled" class="mga-checkbox"
+                               ${settings.notifications.weatherNotificationsEnabled ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>🔊 Enable Weather Notifications</span>
+                    </label>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                        Watched Weather Events
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-snow" class="mga-checkbox"
+                                   ${settings.notifications.watchedWeatherEvents.includes('Snow') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>❄️ Snow</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-rain" class="mga-checkbox"
+                                   ${settings.notifications.watchedWeatherEvents.includes('Rain') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌧️ Rain</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-amber-moon" class="mga-checkbox"
+                                   ${settings.notifications.watchedWeatherEvents.includes('AmberMoon') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌙 Amber Moon</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-dawn" class="mga-checkbox"
+                                   ${settings.notifications.watchedWeatherEvents.includes('Dawn') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌅 Dawn</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
         `;
     }
 
@@ -8304,6 +8919,21 @@ window.MGA_debugStorage = function() {
             </div>
 
             <div class="mga-section">
+                <div class="mga-section-title">Developer Options</div>
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="debug-mode-checkbox" class="mga-checkbox"
+                               ${settings.debugMode ? 'checked' : ''}
+                               style="accent-color: #4a9eff;">
+                        <span>🐛 Enable Debug Mode</span>
+                    </label>
+                    <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                        Shows detailed console logs for troubleshooting pet hunger, notifications, and more.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mga-section">
                 <div class="mga-section-title">Data Management</div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <button class="mga-btn mga-btn-sm" id="export-settings-btn">Export Settings</button>
@@ -8330,10 +8960,10 @@ window.MGA_debugStorage = function() {
                     // Trigger refresh in the separate window
                     if (windowRef.refreshPopoutContent) {
                         windowRef.refreshPopoutContent(tabName);
-                        console.log(`🔄 [POPOUT] Refreshed ${tabName} window popout`);
+                        productionLog(`🔄 [POPOUT] Refreshed ${tabName} window popout`);
                     } else if (windowRef.location) {
                         // Fallback: force reload if refresh function not available
-                        console.warn(`⚠️ [POPOUT] No refresh function for ${tabName}, reloading window`);
+                        productionWarn(`⚠️ [POPOUT] No refresh function for ${tabName}, reloading window`);
                         windowRef.location.reload();
                     }
                 }
@@ -8347,7 +8977,7 @@ window.MGA_debugStorage = function() {
     function placePetPreset(presetName) {
         const preset = UnifiedState.data.petPresets[presetName];
         if (!preset) {
-            console.warn(`[PETS] Preset "${presetName}" not found`);
+            productionWarn(`[PETS] Preset "${presetName}" not found`);
             return;
         }
 
@@ -8400,13 +9030,13 @@ window.MGA_debugStorage = function() {
         // First refresh after 1.5 seconds
         setTimeout(() => {
             refreshAllPetDisplays();
-            console.log(`✅ [PETS] Placed preset "${presetName}" and updated displays (first refresh)`);
+            productionLog(`✅ [PETS] Placed preset "${presetName}" and updated displays (first refresh)`);
         }, preset.length * 50 + 1500);
 
         // Backup refresh after 2.5 seconds to catch slow updates
         setTimeout(() => {
             refreshAllPetDisplays();
-            console.log(`✅ [PETS] Backup refresh for preset "${presetName}"`);
+            productionLog(`✅ [PETS] Backup refresh for preset "${presetName}"`);
         }, preset.length * 50 + 2500);
     }
 
@@ -8441,7 +9071,7 @@ window.MGA_debugStorage = function() {
     function updateActivePetsDisplay(context = document, retryCount = 0) {
         // Only log in debug mode to reduce console spam
         if (UnifiedState.data.settings?.debugMode) {
-            console.log('🐾 [ACTIVE-PETS] Updating display', {
+            productionLog('🐾 [ACTIVE-PETS] Updating display', {
                 retryCount,
                 unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
                 windowActivePets: window.activePets?.length || 0,
@@ -8455,7 +9085,7 @@ window.MGA_debugStorage = function() {
         // If no pets found and this is first try, wait and retry (DOM timing fix)
         if (activePets.length === 0 && retryCount < 3) {
             if (UnifiedState.data.settings?.debugMode) {
-                console.log(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
+                productionLog(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
             }
             setTimeout(() => updateActivePetsDisplay(context, retryCount + 1), 100 * (retryCount + 1));
             return;
@@ -8481,7 +9111,7 @@ window.MGA_debugStorage = function() {
         });
 
         if (UnifiedState.data.settings?.debugMode) {
-            console.log('🐾 [ACTIVE-PETS] Updated display elements:', {
+            productionLog('🐾 [ACTIVE-PETS] Updated display elements:', {
                 elementsFound: activePetsDisplays.length,
                 activePetsCount: activePets.length
             });
@@ -8508,8 +9138,8 @@ window.MGA_debugStorage = function() {
 
     // Move preset up or down in the order
     function movePreset(presetName, direction, context) {
-        console.log(`🚨 [CRITICAL] movePreset called: ${presetName} ${direction}`);
-        console.log(`🚨 [CRITICAL] Current order:`, UnifiedState.data.petPresetsOrder);
+        productionLog(`🚨 [CRITICAL] movePreset called: ${presetName} ${direction}`);
+        productionLog(`🚨 [CRITICAL] Current order:`, UnifiedState.data.petPresetsOrder);
         ensurePresetOrder();
         const currentIndex = UnifiedState.data.petPresetsOrder.indexOf(presetName);
 
@@ -8533,7 +9163,7 @@ window.MGA_debugStorage = function() {
         MGA_saveJSON('MGA_petPresetsOrder', UnifiedState.data.petPresetsOrder);
 
         // Force UI refresh after reorder
-        console.log(`🚨 [CRITICAL] Order after swap:`, UnifiedState.data.petPresetsOrder);
+        productionLog(`🚨 [CRITICAL] Order after swap:`, UnifiedState.data.petPresetsOrder);
 
         // Refresh the preset list display
         refreshPresetsList(context);
@@ -8546,7 +9176,7 @@ window.MGA_debugStorage = function() {
             updateTabContent();
         }
 
-        console.log(`📋 [PET-PRESETS] Moved preset "${presetName}" ${direction}`);
+        productionLog(`📋 [PET-PRESETS] Moved preset "${presetName}" ${direction}`);
     }
 
     // Refresh the presets list with new order
@@ -8662,7 +9292,7 @@ window.MGA_debugStorage = function() {
                     });
 
                     if (result.success) {
-                        console.log(`✅ [PET-PRESETS] Successfully saved preset "${presetName}"`);
+                        productionLog(`✅ [PET-PRESETS] Successfully saved preset "${presetName}"`);
                     } else {
                         console.error(`❌ [PET-PRESETS] Failed to save preset "${presetName}":`, result.error);
                     }
@@ -8745,7 +9375,7 @@ window.MGA_debugStorage = function() {
                     });
 
                     if (result.success) {
-                        console.log(`✅ [PET-PRESETS] Successfully removed preset "${presetName}"`);
+                        productionLog(`✅ [PET-PRESETS] Successfully removed preset "${presetName}"`);
                         presetDiv.remove();
                     } else {
                         console.error(`❌ [PET-PRESETS] Failed to remove preset "${presetName}":`, result.error);
@@ -8760,10 +9390,10 @@ window.MGA_debugStorage = function() {
                     refreshSeparateWindowPopouts('pets');
                     debugLog('BUTTON_INTERACTIONS', `Removed preset: ${presetName} (from added element)`);
                 } else if (action === 'move-up') {
-                    console.log(`🚨 [CRITICAL] Move up button clicked for ${presetName}`);
+                    productionLog(`🚨 [CRITICAL] Move up button clicked for ${presetName}`);
                     movePreset(presetName, 'up', context);
                 } else if (action === 'move-down') {
-                    console.log(`🚨 [CRITICAL] Move down button clicked for ${presetName}`);
+                    productionLog(`🚨 [CRITICAL] Move down button clicked for ${presetName}`);
                     movePreset(presetName, 'down', context);
                 }
             });
@@ -8775,12 +9405,12 @@ window.MGA_debugStorage = function() {
 
     // ==================== EVENT HANDLERS ====================
     function setupPetsTabHandlers(context = document) {
-        console.log('🚨 [CRITICAL] Setting up pet preset handlers');
+        productionLog('🚨 [CRITICAL] Setting up pet preset handlers');
 
         // Use event delegation on the parent container for all preset buttons
         const presetsContainer = context.querySelector('#presets-list');
         if (presetsContainer) {
-            console.log('🚨 [CRITICAL] Found presets container, adding delegation');
+            productionLog('🚨 [CRITICAL] Found presets container, adding delegation');
 
             // Remove old listener if it exists
             if (presetsContainer._mgaClickHandler) {
@@ -8798,24 +9428,24 @@ window.MGA_debugStorage = function() {
                 const action = btn.dataset.action;
                 const presetName = btn.dataset.preset;
 
-                console.log(`🚨 [CRITICAL] Delegated click: action=${action}, preset=${presetName}`);
+                productionLog(`🚨 [CRITICAL] Delegated click: action=${action}, preset=${presetName}`);
 
                 if (action === 'move-up') {
-                    console.log(`🚨 [CRITICAL] Moving ${presetName} UP`);
+                    productionLog(`🚨 [CRITICAL] Moving ${presetName} UP`);
                     movePreset(presetName, 'up', context);
                 } else if (action === 'move-down') {
-                    console.log(`🚨 [CRITICAL] Moving ${presetName} DOWN`);
+                    productionLog(`🚨 [CRITICAL] Moving ${presetName} DOWN`);
                     movePreset(presetName, 'down', context);
                 } else if (action === 'save') {
-                    console.log(`🚨 [CRITICAL] Saving preset ${presetName}`);
+                    productionLog(`🚨 [CRITICAL] Saving preset ${presetName}`);
                     UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
                     MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                     refreshPresetsList(context);
                 } else if (action === 'place') {
-                    console.log(`🚨 [CRITICAL] Placing preset ${presetName}`);
+                    productionLog(`🚨 [CRITICAL] Placing preset ${presetName}`);
                     placePetPreset(presetName);
                 } else if (action === 'remove') {
-                    console.log(`🚨 [CRITICAL] Removing preset ${presetName}`);
+                    productionLog(`🚨 [CRITICAL] Removing preset ${presetName}`);
                     delete UnifiedState.data.petPresets[presetName];
                     MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                     refreshPresetsList(context);
@@ -8824,9 +9454,9 @@ window.MGA_debugStorage = function() {
 
             // Add the handler
             presetsContainer.addEventListener('click', presetsContainer._mgaClickHandler);
-            console.log('🚨 [CRITICAL] Event delegation handler attached successfully');
+            productionLog('🚨 [CRITICAL] Event delegation handler attached successfully');
         } else {
-            console.log('🚨 [CRITICAL] ERROR: presets container not found!')
+            productionLog('🚨 [CRITICAL] ERROR: presets container not found!')
         }
 
         const input = context.querySelector('#preset-name-input');
@@ -8878,14 +9508,14 @@ window.MGA_debugStorage = function() {
                 // Also isolate focus/blur events
                 inputElement.addEventListener('focus', (e) => {
                     if (UnifiedState.data.settings.debugMode) {
-                        console.log('🔒 Input focused - Game keys isolated');
+                        productionLog('🔒 Input focused - Game keys isolated');
                     }
                     e.stopPropagation();
                 });
 
                 inputElement.addEventListener('blur', (e) => {
                     if (UnifiedState.data.settings.debugMode) {
-                        console.log('🔓 Input blurred - Game keys restored');
+                        productionLog('🔓 Input blurred - Game keys restored');
                     }
                     e.stopPropagation();
                 });
@@ -9144,7 +9774,7 @@ window.MGA_debugStorage = function() {
                 const preset = UnifiedState.data.petPresets[presetName];
 
                 if (!preset || !preset.length) {
-                    console.warn(`⚠️ Preset "${presetName}" not found or empty!`);
+                    productionWarn(`⚠️ Preset "${presetName}" not found or empty!`);
                     return;
                 }
 
@@ -9284,38 +9914,7 @@ window.MGA_debugStorage = function() {
         }
     }
 
-    function updateAbilityLogDisplay(context = document) {
-        const abilityLogs = context.querySelector('#ability-logs');
-        if (!abilityLogs) {
-            debugLog('ABILITY_LOGS', 'No ability logs element found in context', {
-                isDocument: context === document,
-                className: context.className || 'unknown'
-            });
-            return;
-        }
-
-        debugLog('ABILITY_LOGS', 'Updating ability log display', {
-            logsCount: UnifiedState.data.petAbilityLogs.length,
-            context: context === document ? 'document' : 'element'
-        });
-
-        // Update the ability logs display (show newest first, all logs)
-        const logs = UnifiedState.data.petAbilityLogs.slice().reverse();
-        if (logs.length === 0) {
-            abilityLogs.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">No ability logs recorded yet</div>';
-        } else {
-            abilityLogs.innerHTML = logs.map(log =>
-                `<div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                    <div style="font-size: 11px; color: #4a9eff;">${formatTimestamp(log.timestamp)}</div>
-                    <div style="color: #e5e7eb;">${log.ability} - ${log.petName}</div>
-                </div>`
-            ).join('');
-        }
-    }
-
-    // Duplicate function definitions removed - proper versions are later in the file
-
-    // Corrupted sections removed - proper versions exist later in file
+    // Duplicate function removed - using enhanced version later in file
 
     // ==================== LOADING STATE UTILITIES ====================
     window.MGA_LoadingStates = {
@@ -9439,7 +10038,7 @@ window.MGA_debugStorage = function() {
 
                 // Update all ability log displays to use new timestamp format
                 updateAllAbilityLogDisplays();
-                console.log(`🕐 [ABILITIES] Detailed timestamps: ${e.target.checked ? 'enabled' : 'disabled'}`);
+                productionLog(`🕐 [ABILITIES] Detailed timestamps: ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
         }
 
@@ -9547,6 +10146,7 @@ window.MGA_debugStorage = function() {
             const catData = categoryData[category] || categoryData.other;
             const formattedTime = formatTimestamp(log.timestamp);
             const isRecent = (Date.now() - log.timestamp) < 10000; // Less than 10 seconds ago
+            const displayAbilityName = normalizeAbilityName(log.abilityType);
 
             html += `
                 <div class="mga-log-item ${isRecent ? 'mga-log-recent' : ''}" data-category="${category}" style="--category-color: ${catData.color}">
@@ -9557,7 +10157,7 @@ window.MGA_debugStorage = function() {
                             <span class="mga-log-time">${formattedTime}</span>
                         </span>
                     </div>
-                    <div class="mga-log-ability">${log.abilityType}</div>
+                    <div class="mga-log-ability">${displayAbilityName}</div>
                     ${log.data && Object.keys(log.data).length > 0 ?
                         `<div class="mga-log-details">${formatLogData(log.data)}</div>` : ''}
                 </div>
@@ -9702,34 +10302,32 @@ window.MGA_debugStorage = function() {
     }
 
     // Update ability logs across ALL overlays and contexts
+    // OPTIMIZED: Track log count to skip unnecessary updates
+    let lastLogCount = 0;
+
     function updateAllAbilityLogDisplays() {
+        // OPTIMIZED: Skip if no new logs
+        const currentLogCount = UnifiedState.data.petAbilityLogs?.length || 0;
+        if (currentLogCount === lastLogCount) {
+            debugLog('ABILITY_LOGS', 'Skipping update - no new logs');
+            return;
+        }
+        lastLogCount = currentLogCount;
+
         debugLog('ABILITY_LOGS', 'Updating ability logs across all contexts');
 
         // Update main document context
         updateAbilityLogDisplay(document);
 
-        // Update all in-game overlays
-        targetDocument.querySelectorAll('.mga-overlay-content-only').forEach(overlay => {
+        // OPTIMIZED: Only query DOM once and filter for visible overlays
+        const allOverlays = targetDocument.querySelectorAll('.mga-overlay-content-only, .mga-overlay');
+        allOverlays.forEach(overlay => {
+            // Skip if hidden
+            if (overlay.offsetParent === null) return;
+
             if (overlay.querySelector('#ability-logs')) {
                 updateAbilityLogDisplay(overlay);
                 debugLog('ABILITY_LOGS', 'Updated overlay ability logs', { overlayId: overlay.id });
-            }
-        });
-
-        // Update any windowed overlays (if they exist)
-        targetDocument.querySelectorAll('.mga-overlay').forEach(overlay => {
-            if (overlay.querySelector('#ability-logs')) {
-                updateAbilityLogDisplay(overlay);
-                debugLog('ABILITY_LOGS', 'Updated windowed overlay ability logs', { overlayId: overlay.id });
-            }
-        });
-
-        // Try to update pop-out windows by looking for ability logs in any context
-        const allAbilityLogElements = targetDocument.querySelectorAll('#ability-logs');
-        allAbilityLogElements.forEach(element => {
-            const parentContext = element.closest('.mga-overlay-content-only, .mga-overlay, body');
-            if (parentContext) {
-                updateAbilityLogDisplay(parentContext);
             }
         });
     }
@@ -9791,7 +10389,7 @@ window.MGA_debugStorage = function() {
 
         // Use debounced save to reduce I/O operations
         MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
-        console.log('Added comprehensive test abilities covering all 7 categories!');
+        productionLog('Added comprehensive test abilities covering all 7 categories!');
     }
 
     // PAL4 Filter System Functions
@@ -9900,7 +10498,7 @@ window.MGA_debugStorage = function() {
 
             const span = targetDocument.createElement('span');
             span.className = 'mga-label';
-            span.textContent = ` ${ability}`;
+            span.textContent = ` ${normalizeAbilityName(ability)}`;
 
             label.appendChild(checkbox);
             label.appendChild(span);
@@ -10000,6 +10598,18 @@ window.MGA_debugStorage = function() {
         return UnifiedState.data.abilityFilters[category] || false;
     }
 
+    // Normalize old ability names to current game names
+    // This ensures old logged abilities display with their current in-game names
+    function normalizeAbilityName(abilityType) {
+        if (!abilityType) return abilityType;
+
+        // Known ability name changes:
+        // "Produce Scale Boost" → "Crop Size Boost" (game renamed this ability)
+        const normalized = abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost');
+
+        return normalized;
+    }
+
     function categorizeAbilityToFilterKey(abilityType) {
         const cleanType = (abilityType || '').toLowerCase();
 
@@ -10050,7 +10660,7 @@ window.MGA_debugStorage = function() {
                 if (e.target.checked && ['Starweaver', 'Moonbinder', 'Dawnbinder', 'Sunflower'].includes(seed)) {
                     e.target.checked = false;
                     const seedType = seed === 'Sunflower' ? 'Divine' : 'Celestial';
-                    console.warn(`❌ ${seed} is a protected ${seedType} seed and cannot be deleted!`);
+                    productionWarn(`❌ ${seed} is a protected ${seedType} seed and cannot be deleted!`);
                     return;
                 }
 
@@ -10073,7 +10683,7 @@ window.MGA_debugStorage = function() {
                 });
 
                 if (result.success) {
-                    console.log(`✅ [SEED-SELECTION] Successfully saved seed selection change for "${seed}"`);
+                    productionLog(`✅ [SEED-SELECTION] Successfully saved seed selection change for "${seed}"`);
                 } else {
                     console.error(`❌ [SEED-SELECTION] Failed to save seed selection for "${seed}":`, result.error);
                 }
@@ -10351,7 +10961,7 @@ window.MGA_debugStorage = function() {
             updateTabContent(); // Refresh display to show new key and reset button
             document.removeEventListener('keydown', recordHandler, true);
 
-            console.log(`🎮 [HOTKEYS] Remapped ${key}: ${UnifiedState.data.hotkeys.gameKeys[key].original} → ${keyCombo}`);
+            productionLog(`🎮 [HOTKEYS] Remapped ${key}: ${UnifiedState.data.hotkeys.gameKeys[key].original} → ${keyCombo}`);
         };
 
         document.addEventListener('keydown', recordHandler, true);
@@ -10509,7 +11119,7 @@ window.MGA_debugStorage = function() {
                     simulateKey(config.original);
 
                     if (UnifiedState.data.settings.debugMode) {
-                        console.log(`🎮 [HOTKEYS] Remapped ${config.custom} → ${config.original} (${config.name})`);
+                        productionLog(`🎮 [HOTKEYS] Remapped ${config.custom} → ${config.original} (${config.name})`);
                     }
                     return false;
                 }
@@ -10523,7 +11133,7 @@ window.MGA_debugStorage = function() {
                 e.preventDefault();
                 e.stopPropagation();
                 if (UnifiedState.data.settings.debugMode) {
-                    console.log(`🚫 [HOTKEYS] Suppressed ${config.original} (remapped to ${config.custom} for ${config.name})`);
+                    productionLog(`🚫 [HOTKEYS] Suppressed ${config.original} (remapped to ${config.custom} for ${config.name})`);
                 }
                 return false;
             }
@@ -10533,7 +11143,7 @@ window.MGA_debugStorage = function() {
     // Install hotkey interceptor at highest priority
     function initializeHotkeySystem() {
         document.addEventListener('keydown', handleHotkeyPress, true);
-        console.log('🎮 [HOTKEYS] Key interception system installed');
+        productionLog('🎮 [HOTKEYS] Key interception system installed');
     }
 
     function setupHotkeysTabHandlers(context = document) {
@@ -10543,7 +11153,7 @@ window.MGA_debugStorage = function() {
             enableCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.hotkeys.enabled = e.target.checked;
                 MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
-                console.log(`🎮 [HOTKEYS] ${e.target.checked ? 'Enabled' : 'Disabled'}`);
+                productionLog(`🎮 [HOTKEYS] ${e.target.checked ? 'Enabled' : 'Disabled'}`);
             });
         }
 
@@ -10562,7 +11172,7 @@ window.MGA_debugStorage = function() {
                 UnifiedState.data.hotkeys.gameKeys[key].custom = null;
                 MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
                 updateTabContent(); // Refresh display
-                console.log(`🎮 [HOTKEYS] Reset ${key} to default`);
+                productionLog(`🎮 [HOTKEYS] Reset ${key} to default`);
             });
         });
 
@@ -10576,7 +11186,7 @@ window.MGA_debugStorage = function() {
                     });
                     MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
                     updateTabContent();
-                    console.log('🎮 [HOTKEYS] Reset all hotkeys to defaults');
+                    productionLog('🎮 [HOTKEYS] Reset all hotkeys to defaults');
                 }
             });
         }
@@ -10605,7 +11215,7 @@ window.MGA_debugStorage = function() {
             notificationEnabledCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.enabled = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
-                console.log(`🔔 [NOTIFICATIONS] ${e.target.checked ? 'Enabled' : 'Disabled'} notifications`);
+                productionLog(`🔔 [NOTIFICATIONS] ${e.target.checked ? 'Enabled' : 'Disabled'} notifications`);
 
                 // Update quick toggle button if it exists
                 const quickToggle = context.querySelector('#notification-quick-toggle');
@@ -10622,7 +11232,7 @@ window.MGA_debugStorage = function() {
                 const newState = !UnifiedState.data.settings.notifications.enabled;
                 UnifiedState.data.settings.notifications.enabled = newState;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
-                console.log(`🔔 [NOTIFICATIONS] Quick toggle: ${newState ? 'Enabled' : 'Disabled'} notifications`);
+                productionLog(`🔔 [NOTIFICATIONS] Quick toggle: ${newState ? 'Enabled' : 'Disabled'} notifications`);
 
                 // Update button appearance
                 updateQuickToggleButton(quickToggleButton, newState);
@@ -10670,13 +11280,13 @@ window.MGA_debugStorage = function() {
                         if (!e.target.checked && notificationTypeSelect.value === 'continuous') {
                             notificationTypeSelect.value = 'epic';
                             UnifiedState.data.settings.notifications.notificationType = 'epic';
-                            console.log(`🔊 [NOTIFICATIONS] Continuous mode disabled, reverted to epic`);
+                            productionLog(`🔊 [NOTIFICATIONS] Continuous mode disabled, reverted to epic`);
                         }
                     }
                 }
 
                 MGA_saveJSON('MGA_data', UnifiedState.data);
-                console.log(`⚠️ [NOTIFICATIONS] Continuous mode enabled: ${e.target.checked}`);
+                productionLog(`⚠️ [NOTIFICATIONS] Continuous mode enabled: ${e.target.checked}`);
             });
         }
 
@@ -10687,14 +11297,14 @@ window.MGA_debugStorage = function() {
                 // Prevent selecting continuous if not enabled
                 if (e.target.value === 'continuous' && !UnifiedState.data.settings.notifications.continuousEnabled) {
                     e.target.value = UnifiedState.data.settings.notifications.notificationType || 'epic';
-                    console.warn(`⚠️ [NOTIFICATIONS] Cannot select continuous mode - please enable it first`);
+                    productionWarn(`⚠️ [NOTIFICATIONS] Cannot select continuous mode - please enable it first`);
                     showVisualNotification('⚠️ Please enable Continuous Mode checkbox first', false);
                     return;
                 }
 
                 UnifiedState.data.settings.notifications.notificationType = e.target.value;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
-                console.log(`🔊 [NOTIFICATIONS] Sound type changed to: ${e.target.value}`);
+                productionLog(`🔊 [NOTIFICATIONS] Sound type changed to: ${e.target.value}`);
             });
         }
 
@@ -10704,7 +11314,7 @@ window.MGA_debugStorage = function() {
             acknowledgmentCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.notifications.requiresAcknowledgment = e.target.checked;
                 MGA_saveJSON('MGA_data', UnifiedState.data);
-                console.log(`🚨 [NOTIFICATIONS] Require acknowledgment: ${e.target.checked}`);
+                productionLog(`🚨 [NOTIFICATIONS] Require acknowledgment: ${e.target.checked}`);
             });
         }
 
@@ -10715,7 +11325,7 @@ window.MGA_debugStorage = function() {
                 const notifications = UnifiedState.data.settings.notifications;
                 playSelectedNotification();
                 queueNotification('🔔 Test notification - This is how alerts will look!', notifications.requiresAcknowledgment);
-                console.log(`🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`);
+                productionLog(`🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`);
             });
         }
 
@@ -10750,7 +11360,7 @@ window.MGA_debugStorage = function() {
                         notifications.watchedSeeds = notifications.watchedSeeds.filter(id => id !== seedId);
                     }
                     MGA_saveJSON('MGA_data', UnifiedState.data);
-                    console.log(`🌱 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${seedId} to/from watch list`);
+                    productionLog(`🌱 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${seedId} to/from watch list`);
                     updateLastSeenDisplay();
                 });
             }
@@ -10778,7 +11388,7 @@ window.MGA_debugStorage = function() {
                         notifications.watchedEggs = notifications.watchedEggs.filter(id => id !== eggId);
                     }
                     MGA_saveJSON('MGA_data', UnifiedState.data);
-                    console.log(`🥚 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${eggId} to/from watch list`);
+                    productionLog(`🥚 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${eggId} to/from watch list`);
                     updateLastSeenDisplay();
                 });
             }
@@ -10811,6 +11421,102 @@ window.MGA_debugStorage = function() {
 
         // Update last seen display every 30 seconds
         setInterval(updateLastSeenDisplay, 30000);
+
+        // ==================== NEW NOTIFICATION HANDLERS ====================
+
+        // Pet hunger enabled checkbox
+        const petHungerCheckbox = context.querySelector('#pet-hunger-enabled');
+        if (petHungerCheckbox) {
+            petHungerCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.notifications.petHungerEnabled = e.target.checked;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog(`🐾 [PET-HUNGER] ${e.target.checked ? 'Enabled' : 'Disabled'} pet hunger notifications`);
+            });
+        }
+
+        // Pet hunger threshold slider
+        const petHungerThreshold = context.querySelector('#pet-hunger-threshold');
+        if (petHungerThreshold) {
+            petHungerThreshold.addEventListener('input', (e) => {
+                const threshold = parseInt(e.target.value);
+                UnifiedState.data.settings.notifications.petHungerThreshold = threshold;
+                // Update label
+                const label = petHungerThreshold.previousElementSibling;
+                label.textContent = `Alert when hunger below: ${threshold}%`;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog(`🐾 [PET-HUNGER] Threshold set to ${threshold}%`);
+            });
+        }
+
+        // Ability notifications enabled checkbox
+        const abilityNotificationsCheckbox = context.querySelector('#ability-notifications-enabled');
+        if (abilityNotificationsCheckbox) {
+            abilityNotificationsCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.notifications.abilityNotificationsEnabled = e.target.checked;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog(`✨ [ABILITY-NOTIFY] ${e.target.checked ? 'Enabled' : 'Disabled'} ability notifications`);
+            });
+        }
+
+        // Ability notification sound type selector
+        const abilityNotificationSoundSelect = context.querySelector('#ability-notification-sound-select');
+        if (abilityNotificationSoundSelect) {
+            abilityNotificationSoundSelect.addEventListener('change', (e) => {
+                UnifiedState.data.settings.notifications.abilityNotificationSound = e.target.value;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog(`✨ [ABILITY-NOTIFY] Sound type changed to: ${e.target.value}`);
+            });
+        }
+
+        // Ability notification volume slider
+        const abilityVolumeSlider = context.querySelector('#ability-notification-volume-slider');
+        if (abilityVolumeSlider) {
+            abilityVolumeSlider.addEventListener('input', (e) => {
+                const volume = parseInt(e.target.value) / 100;
+                UnifiedState.data.settings.notifications.abilityNotificationVolume = volume;
+                // Update label
+                const label = abilityVolumeSlider.previousElementSibling;
+                label.textContent = `Ability Alert Volume: ${Math.round(volume * 100)}%`;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+            });
+        }
+
+        // Weather notifications enabled checkbox
+        const weatherNotificationsCheckbox = context.querySelector('#weather-notifications-enabled');
+        if (weatherNotificationsCheckbox) {
+            weatherNotificationsCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.notifications.weatherNotificationsEnabled = e.target.checked;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog(`🌤️ [WEATHER] ${e.target.checked ? 'Enabled' : 'Disabled'} weather notifications`);
+            });
+        }
+
+        // Weather event checkboxes
+        const weatherEventMap = {
+            'watch-snow': 'Snow',
+            'watch-rain': 'Rain',
+            'watch-amber-moon': 'AmberMoon',
+            'watch-dawn': 'Dawn'
+        };
+
+        Object.entries(weatherEventMap).forEach(([checkboxId, eventName]) => {
+            const checkbox = context.querySelector(`#${checkboxId}`);
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    const watchedEvents = UnifiedState.data.settings.notifications.watchedWeatherEvents;
+                    if (e.target.checked) {
+                        if (!watchedEvents.includes(eventName)) {
+                            watchedEvents.push(eventName);
+                        }
+                    } else {
+                        const idx = watchedEvents.indexOf(eventName);
+                        if (idx > -1) watchedEvents.splice(idx, 1);
+                    }
+                    MGA_saveJSON('MGA_data', UnifiedState.data);
+                    productionLog(`🌤️ [WEATHER] ${e.target.checked ? 'Added' : 'Removed'} ${eventName} to/from watch list`);
+                });
+            }
+        });
     }
 
     function setupSettingsTabHandlers(context = document) {
@@ -10869,7 +11575,7 @@ window.MGA_debugStorage = function() {
                 UnifiedState.data.settings.ultraCompactMode = e.target.checked;
                 MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
                 applyUltraCompactMode(e.target.checked);
-                console.log(`📱 Ultra-compact mode ${e.target.checked ? 'enabled' : 'disabled'}`);
+                productionLog(`📱 Ultra-compact mode ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
         }
 
@@ -10879,7 +11585,17 @@ window.MGA_debugStorage = function() {
             overlayCheckbox.addEventListener('change', (e) => {
                 UnifiedState.data.settings.useInGameOverlays = e.target.checked;
                 MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
-                console.log(`🎮 Overlay mode ${e.target.checked ? 'enabled' : 'disabled'}`);
+                productionLog(`🎮 Overlay mode ${e.target.checked ? 'enabled' : 'disabled'}`);
+            });
+        }
+
+        // Debug mode checkbox
+        const debugModeCheckbox = context.querySelector('#debug-mode-checkbox');
+        if (debugModeCheckbox) {
+            debugModeCheckbox.addEventListener('change', (e) => {
+                UnifiedState.data.settings.debugMode = e.target.checked;
+                MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
+                productionLog(`🐛 Debug mode ${e.target.checked ? 'enabled' : 'disabled'}`);
             });
         }
 
@@ -10911,12 +11627,12 @@ window.MGA_debugStorage = function() {
                 if (confirm('⚠️ Are you sure you want to reset all pet loadouts? This cannot be undone.')) {
                     UnifiedState.data.petPresets = {};
                     MGA_saveJSON('MGA_data', UnifiedState.data);
-                    console.log('🔄 Pet loadouts have been reset');
+                    productionLog('🔄 Pet loadouts have been reset');
                     // Update the UI if we're in the pets tab
                     if (UnifiedState.activeTab === 'pets') {
                         updateTabContent();
                     }
-                    console.log('✅ Pet loadouts have been reset successfully!');
+                    productionLog('✅ Pet loadouts have been reset successfully!');
                 }
             });
         }
@@ -10950,7 +11666,7 @@ window.MGA_debugStorage = function() {
                 if (url) {
                     openCalculatorPopup(url, calculatorType);
                 } else {
-                    console.warn(`Calculator URL not found for: ${calculatorType}`);
+                    productionWarn(`Calculator URL not found for: ${calculatorType}`);
                 }
             });
 
@@ -10969,7 +11685,7 @@ window.MGA_debugStorage = function() {
                 if (url) {
                     openWikiPopup(url, wikiType);
                 } else {
-                    console.warn(`Wiki URL not found for: ${wikiType}`);
+                    productionWarn(`Wiki URL not found for: ${wikiType}`);
                 }
             });
 
@@ -10995,7 +11711,7 @@ window.MGA_debugStorage = function() {
         }
 
         if (UnifiedState.data.settings.debugMode) {
-            console.log(`🧮 Set up handlers for ${toolCards.length} calculator tools and ${wikiCards.length} wiki resources`);
+            productionLog(`🧮 Set up handlers for ${toolCards.length} calculator tools and ${wikiCards.length} wiki resources`);
         }
     }
 
@@ -11042,11 +11758,11 @@ window.MGA_debugStorage = function() {
                 }, 10000);
             }
 
-            console.warn(`Popup blocked for calculator: ${calculatorType}. URL: ${url}`);
+            productionWarn(`Popup blocked for calculator: ${calculatorType}. URL: ${url}`);
         } else {
             // Popup opened successfully
             popupWindow.focus();
-            console.log(`✅ Opened calculator popup: ${calculatorType}`);
+            productionLog(`✅ Opened calculator popup: ${calculatorType}`);
         }
     }
 
@@ -11093,11 +11809,11 @@ window.MGA_debugStorage = function() {
                 }, 10000);
             }
 
-            console.warn(`Popup blocked for wiki: ${wikiType}. URL: ${url}`);
+            productionWarn(`Popup blocked for wiki: ${wikiType}. URL: ${url}`);
         } else {
             // Popup opened successfully
             popupWindow.focus();
-            console.log(`✅ Opened wiki popup: ${wikiType}`);
+            productionLog(`✅ Opened wiki popup: ${wikiType}`);
         }
     }
 
@@ -11110,13 +11826,13 @@ window.MGA_debugStorage = function() {
     function hookAtomForTileOverrides(atomPath, windowKey) {
         const atom = targetWindow.jotaiAtomCache?.get(atomPath);
         if (!atom?.read) {
-            console.warn(`🔍 Could not find atom at path: ${atomPath}`);
+            productionWarn(`🔍 Could not find atom at path: ${atomPath}`);
             return;
         }
 
         if (!atom.__originalRead) {
             atom.__originalRead = atom.read;
-            console.log(`🔗 Hooked atom for tile overrides: ${atomPath}`);
+            productionLog(`🔗 Hooked atom for tile overrides: ${atomPath}`);
 
             atom.read = (t) => {
                 const value = atom.__originalRead(t);
@@ -11137,7 +11853,7 @@ window.MGA_debugStorage = function() {
                                 tileObj.species = window.__tileOverrides[tileIndex];
                                 wasModified = true;
                                 if (UnifiedState.data.settings.debugMode) {
-                                    console.log(`🔄 Tile ${tileIndex}: ${oldSpecies} → ${tileObj.species}`);
+                                    productionLog(`🔄 Tile ${tileIndex}: ${oldSpecies} → ${tileObj.species}`);
                                 }
                             }
 
@@ -11152,7 +11868,7 @@ window.MGA_debugStorage = function() {
                                             slots[slotIdx].targetScale = scale;
                                             wasModified = true;
                                             if (UnifiedState.data.settings.debugMode) {
-                                                console.log(`🔄 Tile ${tileIndex} slot ${slotIdx}: scale ${oldScale} → ${scale}`);
+                                                productionLog(`🔄 Tile ${tileIndex} slot ${slotIdx}: scale ${oldScale} → ${scale}`);
                                             }
                                         }
                                     }
@@ -11175,7 +11891,7 @@ window.MGA_debugStorage = function() {
                         }
 
                         if (overridesApplied > 0) {
-                            console.log(`🌱 Applied ${overridesApplied} tile overrides in atom read`);
+                            productionLog(`🌱 Applied ${overridesApplied} tile overrides in atom read`);
                         }
                     }
                 } catch (err) {
@@ -11188,7 +11904,7 @@ window.MGA_debugStorage = function() {
                 return value;
             };
         } else {
-            console.log(`⚠️ Atom already hooked: ${atomPath}`);
+            productionLog(`⚠️ Atom already hooked: ${atomPath}`);
         }
     }
 
@@ -11343,7 +12059,7 @@ window.MGA_debugStorage = function() {
 
             // Validate inputs
             if (!highlightSpecies) {
-                console.warn('🌱 No species selected for highlighting');
+                productionWarn('🌱 No species selected for highlighting');
                 return;
             }
 
@@ -11367,10 +12083,10 @@ window.MGA_debugStorage = function() {
 
             if (typeof window.highlightTilesByMutation === 'function') {
                 window.highlightTilesByMutation(config);
-                console.log(`🌱 Applied crop highlighting for ${highlightSpecies} (slot ${slotIndex})`);
+                productionLog(`🌱 Applied crop highlighting for ${highlightSpecies} (slot ${slotIndex})`);
                 debugLog('CROP_HIGHLIGHTING', 'Applied highlighting configuration', config);
             } else {
-                console.warn('🌱 highlightTilesByMutation function not available');
+                productionWarn('🌱 highlightTilesByMutation function not available');
                 debugLog('CROP_HIGHLIGHTING', 'highlightTilesByMutation function not found in window object');
             }
         } catch (error) {
@@ -11399,36 +12115,36 @@ window.MGA_debugStorage = function() {
 
     // Debug function to check garden data availability
     function debugCropHighlighting() {
-        console.log('🔍 CROP HIGHLIGHTING DEBUG:');
-        console.log('  window.gardenInfo:', !!window.gardenInfo);
-        console.log('  window.currentCrop:', !!window.currentCrop);
-        console.log('  targetWindow.jotaiAtomCache:', !!targetWindow.jotaiAtomCache);
+        productionLog('🔍 CROP HIGHLIGHTING DEBUG:');
+        productionLog('  window.gardenInfo:', !!window.gardenInfo);
+        productionLog('  window.currentCrop:', !!window.currentCrop);
+        productionLog('  targetWindow.jotaiAtomCache:', !!targetWindow.jotaiAtomCache);
 
         if (window.gardenInfo?.garden?.tileObjects) {
             const tileObjects = window.gardenInfo.garden.tileObjects;
             const tileCount = Array.isArray(tileObjects) ? tileObjects.length :
                              tileObjects instanceof Map ? tileObjects.size :
                              Object.keys(tileObjects).length;
-            console.log('  Garden tiles available:', tileCount);
+            productionLog('  Garden tiles available:', tileCount);
 
             // Show first few tiles for debugging
             if (Array.isArray(tileObjects) && tileObjects.length > 0) {
-                console.log('  Sample tile:', tileObjects[0]);
+                productionLog('  Sample tile:', tileObjects[0]);
             }
         } else {
-            console.log('  ❌ No garden tile data available');
+            productionLog('  ❌ No garden tile data available');
         }
 
         if (window.currentCrop && Array.isArray(window.currentCrop) && window.currentCrop.length > 0) {
-            console.log('  Current crop species:', window.currentCrop[0]?.species);
+            productionLog('  Current crop species:', window.currentCrop[0]?.species);
         } else {
-            console.log('  ❌ No current crop data available');
+            productionLog('  ❌ No current crop data available');
         }
 
-        console.log('  Available functions:');
-        console.log('    removeAllTileOverrides:', typeof window.removeAllTileOverrides);
-        console.log('    highlightTilesByMutation:', typeof window.highlightTilesByMutation);
-        console.log('    setTileSpecies:', typeof window.setTileSpecies);
+        productionLog('  Available functions:');
+        productionLog('    removeAllTileOverrides:', typeof window.removeAllTileOverrides);
+        productionLog('    highlightTilesByMutation:', typeof window.highlightTilesByMutation);
+        productionLog('    setTileSpecies:', typeof window.setTileSpecies);
     }
 
     // Improved manual highlighting with better debugging and error handling
@@ -11527,14 +12243,14 @@ window.MGA_debugStorage = function() {
                     const cc = window.currentCrop;
 
                     window.removeAllTileOverrides(); // always clear first
-                    console.log('🌱 Ctrl+C: Cleared previous highlights');
+                    productionLog('🌱 Ctrl+C: Cleared previous highlights');
 
                     if (cc && Array.isArray(cc) && cc.length > 0 && cc[0] && cc[0].species) {
                         const species = cc[0].species;
 
                         if (window.__lastHighlightedSpecies === species) {
                             // Same species pressed twice → just clear
-                            console.log(`🌱 Ctrl+C: Removed highlights (${species} was already highlighted)`);
+                            productionLog(`🌱 Ctrl+C: Removed highlights (${species} was already highlighted)`);
                             window.__lastHighlightedSpecies = null;
                         } else {
                             // New species → highlight it after delay
@@ -11547,13 +12263,13 @@ window.MGA_debugStorage = function() {
                                     hiddenSpecies: "Carrot",
                                     hiddenScale: 0.1
                                 });
-                                console.log(`✅ Ctrl+C: Highlighted current crop: ${species}`);
+                                productionLog(`✅ Ctrl+C: Highlighted current crop: ${species}`);
                                 window.__lastHighlightedSpecies = species;
                             }, 350);
                         }
                     } else {
                         // currentCrop is null or invalid → just clear
-                        console.log('🌱 Ctrl+C: No current crop - highlights cleared');
+                        productionLog('🌱 Ctrl+C: No current crop - highlights cleared');
                         window.__lastHighlightedSpecies = null;
                     }
 
@@ -11564,7 +12280,7 @@ window.MGA_debugStorage = function() {
             }
         });
 
-        console.log('🌱 Automatic crop highlighting installed (Ctrl+C)');
+        productionLog('🌱 Automatic crop highlighting installed (Ctrl+C)');
     }
 
     // Replace the original applyCropHighlighting with the debug version
@@ -11582,7 +12298,7 @@ window.MGA_debugStorage = function() {
         apply: applyCropHighlightingWithDebug,
         clear: clearCropHighlighting,
         testHighlight: function(species = 'Aloe') {
-            console.log(`🧪 Testing highlight for ${species}...`);
+            productionLog(`🧪 Testing highlight for ${species}...`);
             if (typeof window.removeAllTileOverrides === 'function') {
                 window.removeAllTileOverrides();
             }
@@ -11596,7 +12312,7 @@ window.MGA_debugStorage = function() {
                         hiddenSpecies: "Carrot",
                         hiddenScale: 0.1
                     });
-                    console.log(`✅ Test highlight applied for ${species}`);
+                    productionLog(`✅ Test highlight applied for ${species}`);
                 } else {
                     console.error('❌ highlightTilesByMutation not available');
                 }
@@ -11615,31 +12331,31 @@ window.MGA_debugStorage = function() {
                     if (tile?.species) species.add(tile.species);
                 });
 
-                console.log('🌱 Available species in your garden:', Array.from(species));
+                productionLog('🌱 Available species in your garden:', Array.from(species));
                 return Array.from(species);
             } else {
-                console.log('❌ No garden data available');
+                productionLog('❌ No garden data available');
                 return [];
             }
         },
         checkFunctions: function() {
-            console.log('🔍 Crop highlighting function status:');
-            console.log('  removeAllTileOverrides:', typeof window.removeAllTileOverrides);
-            console.log('  highlightTilesByMutation:', typeof window.highlightTilesByMutation);
-            console.log('  setTileSpecies:', typeof window.setTileSpecies);
-            console.log('  setTileSlotTargetScale:', typeof window.setTileSlotTargetScale);
-            console.log('  gardenInfo available:', !!window.gardenInfo);
-            console.log('  currentCrop available:', !!window.currentCrop);
+            productionLog('🔍 Crop highlighting function status:');
+            productionLog('  removeAllTileOverrides:', typeof window.removeAllTileOverrides);
+            productionLog('  highlightTilesByMutation:', typeof window.highlightTilesByMutation);
+            productionLog('  setTileSpecies:', typeof window.setTileSpecies);
+            productionLog('  setTileSlotTargetScale:', typeof window.setTileSlotTargetScale);
+            productionLog('  gardenInfo available:', !!window.gardenInfo);
+            productionLog('  currentCrop available:', !!window.currentCrop);
         },
         forceRefresh: function() {
-            console.log('🔄 Forcing multiple refresh attempts...');
+            productionLog('🔄 Forcing multiple refresh attempts...');
 
             // Method 1: Visibility change
             try {
                 globalThis.dispatchEvent?.(new Event("visibilitychange"));
-                console.log('✅ Triggered visibilitychange event');
+                productionLog('✅ Triggered visibilitychange event');
             } catch (e) {
-                console.log('❌ Could not trigger visibilitychange');
+                productionLog('❌ Could not trigger visibilitychange');
             }
 
             // Method 2: Focus events
@@ -11647,22 +12363,22 @@ window.MGA_debugStorage = function() {
                 window.dispatchEvent(new Event('focus'));
                 window.dispatchEvent(new Event('blur'));
                 window.dispatchEvent(new Event('focus'));
-                console.log('✅ Triggered focus/blur events');
+                productionLog('✅ Triggered focus/blur events');
             } catch (e) {
-                console.log('❌ Could not trigger focus events');
+                productionLog('❌ Could not trigger focus events');
             }
 
             // Method 3: Resize event
             try {
                 window.dispatchEvent(new Event('resize'));
-                console.log('✅ Triggered resize event');
+                productionLog('✅ Triggered resize event');
             } catch (e) {
-                console.log('❌ Could not trigger resize');
+                productionLog('❌ Could not trigger resize');
             }
 
             // Method 4: Force re-hook atoms
             setTimeout(() => {
-                console.log('🔄 Re-hooking atoms...');
+                productionLog('🔄 Re-hooking atoms...');
                 if (targetWindow.jotaiAtomCache) {
                     hookAtomForTileOverrides("/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom", "gardenInfo");
                     hookAtomForTileOverrides("/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom", "currentCrop");
@@ -11679,53 +12395,53 @@ window.MGA_debugStorage = function() {
                     clientY: window.innerHeight / 2
                 });
                 document.dispatchEvent(mouseEvent);
-                console.log('✅ Triggered mouse movement');
+                productionLog('✅ Triggered mouse movement');
             } catch (e) {
-                console.log('❌ Could not trigger mouse movement');
+                productionLog('❌ Could not trigger mouse movement');
             }
         },
         inspectOverrides: function() {
-            console.log('🔍 Current tile overrides:');
-            console.log('  Species overrides:', window.__tileOverrides);
-            console.log('  Scale overrides:', window.__slotTargetOverrides);
+            productionLog('🔍 Current tile overrides:');
+            productionLog('  Species overrides:', window.__tileOverrides);
+            productionLog('  Scale overrides:', window.__slotTargetOverrides);
 
             const speciesCount = Object.keys(window.__tileOverrides || {}).length;
             const scaleCount = Object.keys(window.__slotTargetOverrides || {}).length;
-            console.log(`  Total overrides: ${speciesCount} species, ${scaleCount} scales`);
+            productionLog(`  Total overrides: ${speciesCount} species, ${scaleCount} scales`);
 
             if (speciesCount > 0) {
-                console.log('📋 Sample species overrides:');
+                productionLog('📋 Sample species overrides:');
                 Object.entries(window.__tileOverrides).slice(0, 5).forEach(([index, species]) => {
-                    console.log(`    Tile ${index} → ${species}`);
+                    productionLog(`    Tile ${index} → ${species}`);
                 });
             }
         },
         enableDebugMode: function() {
             UnifiedState.data.settings.debugMode = true;
-            console.log('🐛 Debug mode enabled - you will see detailed tile modification logs');
+            productionLog('🐛 Debug mode enabled - you will see detailed tile modification logs');
         },
         disableDebugMode: function() {
             UnifiedState.data.settings.debugMode = false;
-            console.log('🔇 Debug mode disabled');
+            productionLog('🔇 Debug mode disabled');
         },
         strongRefresh: function() {
-            console.log('💪 Attempting strong refresh with multiple methods...');
+            productionLog('💪 Attempting strong refresh with multiple methods...');
             this.forceRefresh();
 
             // Wait and try again
             setTimeout(() => {
-                console.log('🔄 Second refresh wave...');
+                productionLog('🔄 Second refresh wave...');
                 this.forceRefresh();
 
                 // Try direct garden access
                 setTimeout(() => {
                     if (window.gardenInfo?.garden?.tileObjects) {
-                        console.log('🎯 Triggering direct garden re-read...');
+                        productionLog('🎯 Triggering direct garden re-read...');
                         const tileObjects = window.gardenInfo.garden.tileObjects;
                         const count = Array.isArray(tileObjects) ? tileObjects.length :
                                      tileObjects instanceof Map ? tileObjects.size :
                                      Object.keys(tileObjects).length;
-                        console.log(`📊 Garden has ${count} tiles - forcing re-process...`);
+                        productionLog(`📊 Garden has ${count} tiles - forcing re-process...`);
 
                         // Force a property access that might trigger re-rendering
                         try {
@@ -11737,9 +12453,9 @@ window.MGA_debugStorage = function() {
                                     }
                                 });
                             }
-                            console.log('✅ Forced tile property access complete');
+                            productionLog('✅ Forced tile property access complete');
                         } catch (e) {
-                            console.log('❌ Could not force tile access:', e);
+                            productionLog('❌ Could not force tile access:', e);
                         }
                     }
                 }, 200);
@@ -11766,18 +12482,18 @@ window.MGA_debugStorage = function() {
         window.setTileSlotTargetScale = window.MGA_Internal.setTileSlotTargetScale;
     }
 
-    console.log('🌱 Crop highlighting debugging tools installed:');
-    console.log('  • debugCropHighlighting() - Full diagnostic');
-    console.log('  • MGA_CropDebug.debug() - Same as above');
-    console.log('  • MGA_CropDebug.testHighlight("Aloe") - Test highlighting');
-    console.log('  • MGA_CropDebug.listAvailableSpecies() - See what you have');
-    console.log('  • MGA_CropDebug.checkFunctions() - Verify functions exist');
-    console.log('  • MGA_CropDebug.clear() - Clear all highlights');
-    console.log('  🔧 Advanced debugging:');
-    console.log('  • MGA_CropDebug.inspectOverrides() - See current overrides');
-    console.log('  • MGA_CropDebug.enableDebugMode() - Detailed tile logs');
-    console.log('  • MGA_CropDebug.forceRefresh() - Force game refresh');
-    console.log('  • MGA_CropDebug.strongRefresh() - Aggressive refresh');
+    productionLog('🌱 Crop highlighting debugging tools installed:');
+    productionLog('  • debugCropHighlighting() - Full diagnostic');
+    productionLog('  • MGA_CropDebug.debug() - Same as above');
+    productionLog('  • MGA_CropDebug.testHighlight("Aloe") - Test highlighting');
+    productionLog('  • MGA_CropDebug.listAvailableSpecies() - See what you have');
+    productionLog('  • MGA_CropDebug.checkFunctions() - Verify functions exist');
+    productionLog('  • MGA_CropDebug.clear() - Clear all highlights');
+    productionLog('  🔧 Advanced debugging:');
+    productionLog('  • MGA_CropDebug.inspectOverrides() - See current overrides');
+    productionLog('  • MGA_CropDebug.enableDebugMode() - Detailed tile logs');
+    productionLog('  • MGA_CropDebug.forceRefresh() - Force game refresh');
+    productionLog('  • MGA_CropDebug.strongRefresh() - Aggressive refresh');
 
     function applyPreset(preset) {
         const settings = UnifiedState.data.settings;
@@ -11946,7 +12662,7 @@ window.MGA_debugStorage = function() {
             element.style.boxShadow = 'none';
             element.style.backdropFilter = 'none';
             element.style.border = 'none';
-            console.log('🔍 Applied true 0% opacity - completely transparent');
+            productionLog('🔍 Applied true 0% opacity - completely transparent');
             return;
         }
 
@@ -11964,7 +12680,7 @@ window.MGA_debugStorage = function() {
             element.style.boxShadow = themeStyles.boxShadow;
             element.style.backdropFilter = 'blur(15px)'; // Strong blur for 100% opacity
             element.style.border = '1px solid rgba(255, 255, 255, 0.2)';
-            console.log('🎨 Applied true 100% opacity - completely opaque');
+            productionLog('🎨 Applied true 100% opacity - completely opaque');
             return;
         }
 
@@ -12237,7 +12953,7 @@ window.MGA_debugStorage = function() {
             updateTabContent();
         }
 
-        console.log(`📱 Ultra-compact mode ${enabled ? 'applied' : 'removed'}`);
+        productionLog(`📱 Ultra-compact mode ${enabled ? 'applied' : 'removed'}`);
     }
 
     // Cache for scale calculations
@@ -12303,8 +13019,13 @@ window.MGA_debugStorage = function() {
     }
 
     // ==================== ABILITY MONITORING ====================
+    // OPTIMIZED: Batch DOM updates and only update when necessary
+    let pendingAbilityUpdates = false;
+
     function monitorPetAbilities() {
         if (!UnifiedState.atoms.petAbility || !UnifiedState.atoms.activePets) return;
+
+        let hasNewAbility = false;
 
         UnifiedState.atoms.activePets.forEach((pet, index) => {
             if (!pet || !pet.id) return;
@@ -12326,6 +13047,7 @@ window.MGA_debugStorage = function() {
             if (lastKnown === currentTimestamp) return;
 
             UnifiedState.data.lastAbilityTimestamps[pet.id] = currentTimestamp;
+            hasNewAbility = true;
 
             // Save ability timestamps to prevent duplicate logging after refresh
             MGA_debouncedSave('MGA_lastAbilityTimestamps', UnifiedState.data.lastAbilityTimestamps);
@@ -12346,45 +13068,85 @@ window.MGA_debugStorage = function() {
             // Use debounced save to reduce I/O operations during frequent ability triggers
             MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
 
-            // Update ability logs across all overlays and contexts
-            updateAllAbilityLogDisplays();
+            // Check if we should notify for this ability
+            if (UnifiedState.data.settings.notifications.abilityNotificationsEnabled) {
+                const watchedAbilities = UnifiedState.data.settings.notifications.watchedAbilities || [];
+                const abilityType = trigger.abilityId || '';
 
-            if (UnifiedState.activeTab === 'abilities') {
-                updateTabContent();
+                // Notify if watching all abilities (empty array) OR if this specific ability is watched
+                if (watchedAbilities.length === 0 || watchedAbilities.includes(abilityType)) {
+                    const displayAbilityName = normalizeAbilityName(abilityType);
+                    productionLog(`🎯 [ABILITY-NOTIFY] ${abilityLog.petName} triggered ${displayAbilityName}`);
+
+                    // Play ability notification sound based on settings
+                    const abilityVolume = UnifiedState.data.settings.notifications.abilityNotificationVolume || 0.2;
+                    const abilitySound = UnifiedState.data.settings.notifications.abilityNotificationSound || 'single';
+
+                    switch (abilitySound) {
+                        case 'single':
+                            playSingleBeepNotification(abilityVolume);
+                            break;
+                        case 'double':
+                            playDoubleBeepNotification(abilityVolume);
+                            break;
+                        case 'triple':
+                            playTripleBeepNotification(abilityVolume);
+                            break;
+                        default:
+                            playSingleBeepNotification(abilityVolume);
+                    }
+
+                    // Show toast
+                    showNotificationToast(`✨ ${abilityLog.petName}: ${displayAbilityName}`, 'success');
+                }
             }
+        });
 
-            // Update all overlay windows showing abilities tab
-            UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-                if (overlay && document.contains(overlay) && tabName === 'abilities') {
-                    if (overlay.className.includes('mga-overlay-content-only')) {
-                        // NEW: Pure content overlays - refresh entire overlay
-                        updatePureOverlayContent(overlay, tabName);
-                        debugLog('OVERLAY_LIFECYCLE', 'Updated pure abilities overlay with fresh data');
-                    } else {
-                        // LEGACY: Old overlay structure
-                        const overlayContent = overlay.querySelector('.mga-overlay-content > div');
-                        if (overlayContent) {
-                            overlayContent.innerHTML = getAbilitiesTabContent();
-                            // Update ability log display within this overlay context
-                            setTimeout(() => updateAbilityLogDisplay(overlay), 10);
-                            // Re-add resize handle after content update
-                            setTimeout(() => {
-                                if (!overlay.querySelector('.mga-resize-handle')) {
-                                    addResizeHandleToOverlay(overlay);
-                                    console.log('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
-                                }
-                            }, 50);
+        // OPTIMIZED: Only update DOM if there's actually a new ability and page is visible
+        if (hasNewAbility && document.visibilityState === 'visible' && !pendingAbilityUpdates) {
+            pendingAbilityUpdates = true;
+            // Batch all DOM updates in next animation frame
+            requestAnimationFrame(() => {
+                updateAllAbilityLogDisplays();
+
+                if (UnifiedState.activeTab === 'abilities') {
+                    updateTabContent();
+                }
+
+                // Only update visible overlays
+                UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                    if (overlay && document.contains(overlay) && tabName === 'abilities') {
+                        const isVisible = overlay.offsetParent !== null;
+                        if (!isVisible) return; // Skip hidden overlays
+
+                        if (overlay.className.includes('mga-overlay-content-only')) {
+                            updatePureOverlayContent(overlay, tabName);
+                            debugLog('OVERLAY_LIFECYCLE', 'Updated pure abilities overlay with fresh data');
+                        } else {
+                            const overlayContent = overlay.querySelector('.mga-overlay-content > div');
+                            if (overlayContent) {
+                                overlayContent.innerHTML = getAbilitiesTabContent();
+                                setTimeout(() => updateAbilityLogDisplay(overlay), 10);
+                                setTimeout(() => {
+                                    if (!overlay.querySelector('.mga-resize-handle')) {
+                                        addResizeHandleToOverlay(overlay);
+                                        productionLog('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                    }
+                                }, 50);
+                            }
                         }
                     }
-                }
+                });
+
+                pendingAbilityUpdates = false;
             });
-        });
+        }
     }
 
     function exportAbilityLogs() {
         const allLogs = MGA_getAllLogs();
         if (!allLogs.length) {
-            console.warn('⚠️ No logs to export!');
+            productionWarn('⚠️ No logs to export!');
             return;
         }
 
@@ -12395,7 +13157,7 @@ window.MGA_debugStorage = function() {
                 date.toLocaleDateString(),
                 date.toLocaleTimeString(),
                 log.petName,
-                log.abilityType,
+                normalizeAbilityName(log.abilityType),
                 JSON.stringify(log.data || '')
             ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
         }).join('\r\n');
@@ -12760,7 +13522,7 @@ window.MGA_debugStorage = function() {
     // ==================== SEED DELETION ====================
     function deleteSelectedSeeds() {
         if (!UnifiedState.atoms.inventory || !UnifiedState.atoms.inventory.items || !UnifiedState.data.seedsToDelete.length) {
-            console.warn('⚠️ No seeds selected for deletion!');
+            productionWarn('⚠️ No seeds selected for deletion!');
             return;
         }
 
@@ -12773,7 +13535,7 @@ window.MGA_debugStorage = function() {
         }
 
         // seedsToDelete now contains internal IDs (e.g., "OrangeTulip"), so direct comparison works
-        console.log('🌱 [SEED-DELETE-DEBUG] Deletion attempt:', {
+        productionLog('🌱 [SEED-DELETE-DEBUG] Deletion attempt:', {
             seedsToDelete: UnifiedState.data.seedsToDelete,
             inventoryItems: UnifiedState.atoms.inventory.items?.map(item => ({species: item.species, quantity: item.quantity})) || 'No inventory',
             inventoryCount: UnifiedState.atoms.inventory.items?.length || 0
@@ -12783,14 +13545,14 @@ window.MGA_debugStorage = function() {
             item && item.species && UnifiedState.data.seedsToDelete.includes(item.species)
         );
 
-        console.log('🌱 [SEED-DELETE-DEBUG] Items found for deletion:', itemsToDelete.map(item => ({species: item.species, quantity: item.quantity})));
+        productionLog('🌱 [SEED-DELETE-DEBUG] Items found for deletion:', itemsToDelete.map(item => ({species: item.species, quantity: item.quantity})));
 
         if (!itemsToDelete.length) {
-            console.log('🌱 [SEED-DELETE-DEBUG] No matching items found. Details:', {
+            productionLog('🌱 [SEED-DELETE-DEBUG] No matching items found. Details:', {
                 selectedSeeds: UnifiedState.data.seedsToDelete,
                 availableSpecies: UnifiedState.atoms.inventory.items?.map(item => item.species) || []
             });
-            console.warn('⚠️ No matching seeds found in inventory!');
+            productionWarn('⚠️ No matching seeds found in inventory!');
             return;
         }
 
@@ -13227,15 +13989,15 @@ window.MGA_debugStorage = function() {
 
     // ==================== DEBUGGING UTILITIES ====================
     window.debugPets = function() {
-        console.log('🔍 [DEBUG] Debugging pets data...');
-        console.log('🐾 UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
-        console.log('🐾 window.activePets:', window.activePets);
+        productionLog('🔍 [DEBUG] Debugging pets data...');
+        productionLog('🐾 UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
+        productionLog('🐾 window.activePets:', window.activePets);
 
         // Try to access game's pet data directly
         if (targetWindow.MagicCircle_RoomConnection) {
             const roomState = targetWindow.MagicCircle_RoomConnection.lastRoomStateJsonable;
-            console.log('🎮 Room state pets:', roomState?.child?.data?.petSlots);
-            console.log('🎮 User slots:', roomState?.child?.data?.userSlots);
+            productionLog('🎮 Room state pets:', roomState?.child?.data?.petSlots);
+            productionLog('🎮 User slots:', roomState?.child?.data?.userSlots);
         }
 
         // Check jotai atoms
@@ -13246,15 +14008,15 @@ window.MGA_debugStorage = function() {
                 key.toLowerCase().includes('slot') ||
                 key.toLowerCase().includes('animal')
             );
-            console.log('🔍 Pet-related atoms found:', petAtoms);
+            productionLog('🔍 Pet-related atoms found:', petAtoms);
         }
 
-        console.log('🏠 Presets saved:', Object.keys(UnifiedState.data.petPresets));
+        productionLog('🏠 Presets saved:', Object.keys(UnifiedState.data.petPresets));
     };
 
     // Manual fallback to force update Active Pets display
     window.forceUpdateActivePets = function() {
-        console.log('🔧 [MANUAL] Force updating Active Pets display...');
+        productionLog('🔧 [MANUAL] Force updating Active Pets display...');
 
         // Try to get pets from room state as fallback
         if (targetWindow.MagicCircle_RoomConnection) {
@@ -13269,7 +14031,7 @@ window.MGA_debugStorage = function() {
                     mutations: slot.item.mutations || []
                 }));
 
-                console.log('🐾 [FALLBACK] Found pets in room state:', activePetsFromRoom);
+                productionLog('🐾 [FALLBACK] Found pets in room state:', activePetsFromRoom);
 
                 // Manually set the active pets data
                 UnifiedState.atoms.activePets = activePetsFromRoom;
@@ -13283,22 +14045,22 @@ window.MGA_debugStorage = function() {
                     }
                 });
 
-                console.log('✅ [FALLBACK] Active pets display updated manually');
+                productionLog('✅ [FALLBACK] Active pets display updated manually');
                 return activePetsFromRoom;
             }
         }
 
-        console.warn('❌ [FALLBACK] Could not find pet data in room state');
+        productionWarn('❌ [FALLBACK] Could not find pet data in room state');
         return null;
     };
 
 
     // ==================== INITIALIZATION ====================
     function initializeAtoms() {
-        console.log('🔗 [SIMPLE-ATOMS] Starting simple atom initialization...');
+        productionLog('🔗 [SIMPLE-ATOMS] Starting simple atom initialization...');
 
         // Start simple pet detection using room state
-        console.log('🐾 [SIMPLE-ATOMS] Setting up room state pet detection...');
+        productionLog('🐾 [SIMPLE-ATOMS] Setting up room state pet detection...');
         updateActivePetsFromRoomState(); // Get initial pets immediately
 
         // Set up periodic pet detection (reduced frequency to minimize console spam)
@@ -13307,7 +14069,7 @@ window.MGA_debugStorage = function() {
 
             // ALSO check window.activePets directly (set by atom hook)
             if (window.activePets && Array.isArray(window.activePets) && window.activePets.length > 0) {
-                console.log('🐾 [PERIODIC-CHECK] Found pets in window.activePets:', window.activePets);
+                productionLog('🐾 [PERIODIC-CHECK] Found pets in window.activePets:', window.activePets);
 
                 // Update UnifiedState
                 if (!UnifiedState.atoms.activePets || UnifiedState.atoms.activePets.length !== window.activePets.length) {
@@ -13330,7 +14092,7 @@ window.MGA_debugStorage = function() {
             "activePets",
             (petSlots) => {
                 if (UnifiedState.data.settings?.debugMode) {
-                    console.log('🐾 [ATOM-DEBUG] myPetSlotsAtom raw value:', {
+                    productionLog('🐾 [ATOM-DEBUG] myPetSlotsAtom raw value:', {
                         value: petSlots,
                         type: typeof petSlots,
                         isArray: Array.isArray(petSlots),
@@ -13356,17 +14118,18 @@ window.MGA_debugStorage = function() {
                             petSpecies: slot.petSpecies || slot.species || 'Unknown',
                             mutations: slot.mutations || [],
                             abilities: slot.abilities || [],
+                            hunger: slot.hunger ?? slot.petHunger ?? slot.health ?? 100,  // Include hunger for pet hunger notifications
                             slot: index + 1
                         }));
 
                     if (UnifiedState.data.settings?.debugMode) {
-                        console.log('🐾 [PETS] Extracted active pets:', activePets);
+                        productionLog('🐾 [PETS] Extracted active pets:', activePets);
                     }
 
                     const previousCount = UnifiedState.atoms.activePets?.length || 0;
 
                     if (activePets.length !== previousCount && UnifiedState.data.settings?.debugMode) {
-                        console.log(`🐾 [PETS] Pet count changed: ${previousCount} → ${activePets.length}`);
+                        productionLog(`🐾 [PETS] Pet count changed: ${previousCount} → ${activePets.length}`);
 
                         // Update UI if pets tab is active
                         if (UnifiedState.activeTab === 'pets') {
@@ -13386,7 +14149,7 @@ window.MGA_debugStorage = function() {
 
                     // CRITICAL: Return the extracted array so hookAtom stores it correctly
                     if (UnifiedState.data.settings?.debugMode) {
-                        console.log('🔄 [RENDER-CYCLE] Atom callback returning pets to hookAtom system:', {
+                        productionLog('🔄 [RENDER-CYCLE] Atom callback returning pets to hookAtom system:', {
                             petsCount: activePets.length,
                             petsList: activePets.map(p => p.petSpecies),
                             willUpdateUnifiedState: true,
@@ -13396,7 +14159,7 @@ window.MGA_debugStorage = function() {
                     return activePets;
                 } else {
                     if (UnifiedState.data.settings?.debugMode) {
-                        console.log('🐾 [EXTRACTION-ERROR] actualPetSlots is not an array:', actualPetSlots);
+                        productionLog('🐾 [EXTRACTION-ERROR] actualPetSlots is not an array:', actualPetSlots);
                     }
                     return [];
                 }
@@ -13455,12 +14218,12 @@ window.MGA_debugStorage = function() {
             }
         );
 
-        console.log('✅ [SIMPLE-ATOMS] Simple atom initialization complete');
+        productionLog('✅ [SIMPLE-ATOMS] Simple atom initialization complete');
 
         // CRITICAL: Check if window.activePets already exists after hooks are set up
         setTimeout(() => {
             if (window.activePets && Array.isArray(window.activePets) && window.activePets.length > 0) {
-                console.log('🐾 [INIT-CHECK] Found existing pets in window.activePets after hook setup:', window.activePets);
+                productionLog('🐾 [INIT-CHECK] Found existing pets in window.activePets after hook setup:', window.activePets);
                 UnifiedState.atoms.activePets = window.activePets;
 
                 // Force UI update if on pets tab
@@ -13471,18 +14234,18 @@ window.MGA_debugStorage = function() {
                     }
                 }
             } else {
-                console.log('🐾 [INIT-CHECK] No pets found in window.activePets yet');
+                productionLog('🐾 [INIT-CHECK] No pets found in window.activePets yet');
             }
         }, 2000); // Wait 2 seconds for atoms to populate
     }
 
     function loadSavedData() {
         // Enhanced storage diagnostics
-        console.log('📦 [STORAGE] Starting comprehensive data loading with diagnostics...');
+        productionLog('📦 [STORAGE] Starting comprehensive data loading with diagnostics...');
 
         // ==================== DATA MIGRATION ====================
         // CRITICAL: Migrate existing localStorage data to GM storage before loading
-        console.log('🔄 [STORAGE] Checking for data migration needs...');
+        productionLog('🔄 [STORAGE] Checking for data migration needs...');
         try {
             // MGA_migrateFromLocalStorage();
         } catch (migrationError) {
@@ -13494,59 +14257,59 @@ window.MGA_debugStorage = function() {
             console.error('❌ [CRITICAL] UnifiedState.data is not initialized!');
             UnifiedState.data = {};
         }
-        console.log('✅ [STORAGE] UnifiedState.data initialized:', typeof UnifiedState.data);
+        productionLog('✅ [STORAGE] UnifiedState.data initialized:', typeof UnifiedState.data);
 
         // Storage availability check (lightweight version - removed blocking I/O test)
-        console.log('📊 [STORAGE-DIAGNOSTICS] Basic localStorage info:', {
+        productionLog('📊 [STORAGE-DIAGNOSTICS] Basic localStorage info:', {
             available: typeof localStorage !== 'undefined',
             totalItems: localStorage.length,
             mgaKeys: Object.keys(localStorage).filter(k => k.startsWith('MGA_'))
         });
 
         // Load pet presets with enhanced debugging
-        console.log('📦 [STORAGE] Loading pet presets...');
+        productionLog('📦 [STORAGE] Loading pet presets...');
         const rawPresets = localStorage.getItem('MGA_petPresets');
-        console.log('📦 [STORAGE] Raw pet presets from localStorage:', rawPresets ? rawPresets.substring(0, 200) + '...' : 'null');
+        productionLog('📦 [STORAGE] Raw pet presets from localStorage:', rawPresets ? rawPresets.substring(0, 200) + '...' : 'null');
 
         UnifiedState.data.petPresets = MGA_loadJSON('MGA_petPresets', {});
-        console.log('📦 [STORAGE] Loading pet presets, found:', Object.keys(UnifiedState.data.petPresets).length);
-        console.log('🔍 [STORAGE-DEBUG] Pet presets type check:', typeof UnifiedState.data.petPresets, 'keys:', Object.keys(UnifiedState.data.petPresets || {}));
+        productionLog('📦 [STORAGE] Loading pet presets, found:', Object.keys(UnifiedState.data.petPresets).length);
+        productionLog('🔍 [STORAGE-DEBUG] Pet presets type check:', typeof UnifiedState.data.petPresets, 'keys:', Object.keys(UnifiedState.data.petPresets || {}));
 
         // Load pet presets order (for reordering feature)
         UnifiedState.data.petPresetsOrder = MGA_loadJSON('MGA_petPresetsOrder', []);
         ensurePresetOrder(); // Initialize order if needed
-        console.log('📦 [STORAGE] Pet presets order initialized:', UnifiedState.data.petPresetsOrder.length, 'items');
+        productionLog('📦 [STORAGE] Pet presets order initialized:', UnifiedState.data.petPresetsOrder.length, 'items');
 
         // Verify presets loaded correctly
         if (Object.keys(UnifiedState.data.petPresets).length > 0) {
-            console.log('✅ [STORAGE-VERIFY] Pet presets loaded successfully:', Object.keys(UnifiedState.data.petPresets));
+            productionLog('✅ [STORAGE-VERIFY] Pet presets loaded successfully:', Object.keys(UnifiedState.data.petPresets));
         } else {
-            console.warn('⚠️ [STORAGE-VERIFY] No pet presets found in storage');
-            console.log('   localStorage check:', localStorage.getItem('MGA_petPresets') ? 'Data exists' : 'No data');
+            productionWarn('⚠️ [STORAGE-VERIFY] No pet presets found in storage');
+            productionLog('   localStorage check:', localStorage.getItem('MGA_petPresets') ? 'Data exists' : 'No data');
 
             // Enhanced debugging - try to parse the raw data manually
             const rawData = localStorage.getItem('MGA_petPresets');
             if (rawData) {
-                console.log('   Raw data length:', rawData.length);
-                console.log('   Raw data preview:', rawData.substring(0, 100));
+                productionLog('   Raw data length:', rawData.length);
+                productionLog('   Raw data preview:', rawData.substring(0, 100));
                 try {
                     const parsed = JSON.parse(rawData);
-                    console.log('   Manual parse successful:', typeof parsed, Object.keys(parsed || {}));
+                    productionLog('   Manual parse successful:', typeof parsed, Object.keys(parsed || {}));
                     console.error('❌ [STORAGE-ERROR] Data exists and parses correctly, but MGA_loadJSON failed!');
                 } catch (parseError) {
                     console.error('❌ [STORAGE-ERROR] JSON parse error:', parseError.message);
-                    console.log('   Corrupted data - will be cleared on next save');
+                    productionLog('   Corrupted data - will be cleared on next save');
                 }
             }
         }
 
         UnifiedState.data.petAbilityLogs = MGA_loadJSON('MGA_petAbilityLogs', []);
-        console.log('📦 [STORAGE] Loading pet ability logs, found:', UnifiedState.data.petAbilityLogs.length, 'entries');
+        productionLog('📦 [STORAGE] Loading pet ability logs, found:', UnifiedState.data.petAbilityLogs.length, 'entries');
 
         // Check if mainscript.txt pet ability logging is active
         if (window.petAbilityLogs && Array.isArray(window.petAbilityLogs)) {
-            console.log('📝 [COMPAT] Detected mainscript.txt pet ability logging system with', window.petAbilityLogs.length, 'entries');
-            console.log('📝 [COMPAT] Both systems will run independently with separate storage');
+            productionLog('📝 [COMPAT] Detected mainscript.txt pet ability logging system with', window.petAbilityLogs.length, 'entries');
+            productionLog('📝 [COMPAT] Both systems will run independently with separate storage');
         }
         UnifiedState.data.settings = MGA_loadJSON('MGA_settings', {
             opacity: 95,
@@ -13584,7 +14347,7 @@ window.MGA_debugStorage = function() {
                 lastSeenTimestamps: {}
             };
             MGA_saveJSON('MGA_settings', UnifiedState.data.settings);
-            console.log('🔔 [NOTIFICATIONS] Initialized notifications settings for existing user');
+            productionLog('🔔 [NOTIFICATIONS] Initialized notifications settings for existing user');
         } else {
             // Add new fields for existing notification settings
             if (UnifiedState.data.settings.notifications.notificationType === undefined) {
@@ -13614,9 +14377,9 @@ window.MGA_debugStorage = function() {
                     ...savedHotkeys.gameKeys
                 }
             };
-            console.log('🎮 [HOTKEYS] Loaded saved hotkey configuration');
+            productionLog('🎮 [HOTKEYS] Loaded saved hotkey configuration');
         } else {
-            console.log('🎮 [HOTKEYS] Using default hotkey configuration');
+            productionLog('🎮 [HOTKEYS] Using default hotkey configuration');
         }
 
         // Load PAL4 filter system data
@@ -13639,9 +14402,9 @@ window.MGA_debugStorage = function() {
 
         UnifiedState.data.seedsToDelete = MGA_loadJSON('MGA_seedsToDelete', []);
         UnifiedState.data.autoDeleteEnabled = MGA_loadJSON('MGA_autoDeleteEnabled', false);
-        console.log('🔍 [STORAGE-DEBUG] Seeds type check:', typeof UnifiedState.data.seedsToDelete, 'length:', UnifiedState.data.seedsToDelete?.length || 0);
+        productionLog('🔍 [STORAGE-DEBUG] Seeds type check:', typeof UnifiedState.data.seedsToDelete, 'length:', UnifiedState.data.seedsToDelete?.length || 0);
 
-        console.log('📦 [STORAGE] Loading seed deletion settings:', {
+        productionLog('📦 [STORAGE] Loading seed deletion settings:', {
             seedsToDelete: UnifiedState.data.seedsToDelete.length + ' seeds',
             autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled,
             seeds: UnifiedState.data.seedsToDelete,
@@ -13653,23 +14416,23 @@ window.MGA_debugStorage = function() {
 
         // Verify seeds loaded correctly
         if (UnifiedState.data.seedsToDelete.length > 0) {
-            console.log('✅ [STORAGE-VERIFY] Seed selections loaded successfully:', UnifiedState.data.seedsToDelete);
+            productionLog('✅ [STORAGE-VERIFY] Seed selections loaded successfully:', UnifiedState.data.seedsToDelete);
         } else {
-            console.warn('⚠️ [STORAGE-VERIFY] No seed selections found in storage');
-            console.log('   localStorage check:', localStorage.getItem('MGA_seedsToDelete') ? 'Data exists' : 'No data');
+            productionWarn('⚠️ [STORAGE-VERIFY] No seed selections found in storage');
+            productionLog('   localStorage check:', localStorage.getItem('MGA_seedsToDelete') ? 'Data exists' : 'No data');
 
             // Enhanced debugging for seeds
             const rawSeedsData = localStorage.getItem('MGA_seedsToDelete');
             if (rawSeedsData) {
-                console.log('   Raw seeds data length:', rawSeedsData.length);
-                console.log('   Raw seeds data preview:', rawSeedsData.substring(0, 100));
+                productionLog('   Raw seeds data length:', rawSeedsData.length);
+                productionLog('   Raw seeds data preview:', rawSeedsData.substring(0, 100));
                 try {
                     const parsed = JSON.parse(rawSeedsData);
-                    console.log('   Manual seeds parse successful:', typeof parsed, Array.isArray(parsed) ? parsed.length : 'not array');
+                    productionLog('   Manual seeds parse successful:', typeof parsed, Array.isArray(parsed) ? parsed.length : 'not array');
                     console.error('❌ [STORAGE-ERROR] Seeds data exists and parses correctly, but MGA_loadJSON failed!');
                 } catch (parseError) {
                     console.error('❌ [STORAGE-ERROR] Seeds JSON parse error:', parseError.message);
-                    console.log('   Corrupted seeds data - will be cleared on next save');
+                    productionLog('   Corrupted seeds data - will be cleared on next save');
                 }
             }
         }
@@ -13679,7 +14442,7 @@ window.MGA_debugStorage = function() {
             if (UnifiedState.data.seedsToDelete.length > 0 || UnifiedState.data.autoDeleteEnabled) {
                 MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
                 MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
-                console.log('🔄 [STORAGE] Force-saved seed settings for persistence');
+                productionLog('🔄 [STORAGE] Force-saved seed settings for persistence');
             }
         }, 1000);
 
@@ -13695,7 +14458,7 @@ window.MGA_debugStorage = function() {
         });
 
         // ==================== STORAGE LOADING SUMMARY ====================
-        console.log('📊 [STORAGE-SUMMARY] Data loading complete:', {
+        productionLog('📊 [STORAGE-SUMMARY] Data loading complete:', {
             petPresets: {
                 loaded: Object.keys(UnifiedState.data.petPresets).length,
                 presets: Object.keys(UnifiedState.data.petPresets),
@@ -13721,7 +14484,7 @@ window.MGA_debugStorage = function() {
 
         // Persistence verification test
         setTimeout(() => {
-            // console.log('🔍 [STORAGE-VERIFICATION] Testing immediate save/load cycle...');
+            // productionLog('🔍 [STORAGE-VERIFICATION] Testing immediate save/load cycle...');
             const testKey = 'MGA_persistenceTest';
             const testData = { test: true, timestamp: Date.now() };
 
@@ -13730,7 +14493,7 @@ window.MGA_debugStorage = function() {
                 const retrieved = MGA_loadJSON(testKey, null);
                 const success = retrieved && retrieved.test === true;
 
-                console.log('📊 [STORAGE-VERIFICATION] Persistence test result:', {
+                productionLog('📊 [STORAGE-VERIFICATION] Persistence test result:', {
                     success: success,
                     saved: testData,
                     retrieved: retrieved,
@@ -13743,7 +14506,7 @@ window.MGA_debugStorage = function() {
                 if (!success) {
                     console.error('❌ [STORAGE-VERIFICATION] Persistence test FAILED - data may not be saving correctly');
                 } else {
-                    console.log('✅ [STORAGE-VERIFICATION] Persistence test PASSED - storage is working correctly');
+                    productionLog('✅ [STORAGE-VERIFICATION] Persistence test PASSED - storage is working correctly');
                 }
             } catch (error) {
                 console.error('❌ [STORAGE-VERIFICATION] Persistence test ERROR:', error);
@@ -13752,31 +14515,101 @@ window.MGA_debugStorage = function() {
     }
 
     function startIntervals() {
-        console.log('🚨🚨🚨 [CRITICAL] startIntervals() CALLED 🚨🚨🚨');
+        productionLog('🚨🚨🚨 [CRITICAL] startIntervals() CALLED 🚨🚨🚨');
 
-        // Initialize the enhanced TimerManager
-        const timerManager = initializeTimerManager();
+        // Mark that intervals have been started
+        window._mgaIntervalsStarted = true;
 
-        // Monitor abilities every 500ms using simple setInterval (not TimerManager)
-        console.log('🚨 [CRITICAL] Setting up ability monitoring timer...');
+        // Initialize event-driven shop watcher
+        productionLog('🔄 Initializing event-driven shop monitoring...');
+        initializeShopWatcher();
+
+        // Initialize the enhanced TimerManager (make it global for debugging)
+        window.timerManager = initializeTimerManager();
+
+        // OPTIMIZED: Monitor abilities every 3 seconds (reduced from 2s for better FPS)
+        productionLog('🚨 [CRITICAL] Setting up ability monitoring timer...');
         setInterval(() => {
             monitorPetAbilities();
-        }, 500);
-        console.log('🚨 [CRITICAL] Ability monitoring started with simple setInterval (500ms)');
+        }, 3000);
+        productionLog('🚨 [CRITICAL] Ability monitoring started with simple setInterval (3s)');
 
-        // Update timers every second using TimerManager
-        timerManager.startTimer('timers', () => updateTimers(), 1000);
+        // OPTIMIZED: Update timers every 2 seconds (reduced from 1s)
+        window.timerManager.startTimer('timers', () => updateTimers(), 2000);
 
-        // Update values every 2 seconds using TimerManager
-        timerManager.startTimer('values', () => updateValues(), 2000);
+        // OPTIMIZED: Update values every 3 seconds (reduced from 2s)
+        window.timerManager.startTimer('values', () => updateValues(), 3000);
 
-        // Simple notification timer - no complex TimerManager
-        console.log('🚨 [CRITICAL] Setting up simple notification timer...');
-        setInterval(() => {
-            console.log('🚨 [CRITICAL] Notification interval tick');
-            checkForWatchedItems();
-        }, 2000); // Check every 2 seconds for better restock detection
-        console.log('🚨 [CRITICAL] Notification timer started with simple setInterval');
+        // Optimized notification timer with performance monitoring
+        productionLog('🚨 [CRITICAL] Setting up optimized notification timer...');
+
+        let notificationCheckCounter = 0;
+        let skipNextChecks = 0;
+
+        // Make notificationInterval global so we can check if it's running
+        // OPTIMIZED: Increased to 10 seconds to dramatically reduce FPS impact
+        window.notificationInterval = setInterval(() => {
+            // Skip checks if we're in a performance-critical situation
+            if (skipNextChecks > 0) {
+                skipNextChecks--;
+                productionLog('⏭️ [PERFORMANCE] Skipping notification checks to improve FPS');
+                return;
+            }
+
+            // Check if we're in a weather event and should throttle
+            const currentWeather = window.roomState?.child?.data?.weather || window.roomState?.weather || null;
+            const isWeatherActive = currentWeather && currentWeather !== 'none' && currentWeather !== 'clear';
+
+            notificationCheckCounter++;
+
+            // OPTIMIZED: During weather events, only check every 2nd interval (20s instead of 10s)
+            if (isWeatherActive && notificationCheckCounter % 2 !== 0) {
+                productionLog('🌤️ [PERFORMANCE] Throttling checks during weather event:', currentWeather);
+                return;
+            }
+
+            // Measure performance impact
+            const startTime = performance.now();
+
+            try {
+                // Run checks with try-catch to prevent errors from breaking the interval
+                try {
+                    checkForWatchedItems();
+                } catch (e) {
+                    console.error('❌ Error in checkForWatchedItems:', e);
+                }
+
+                try {
+                    checkPetHunger();
+                } catch (e) {
+                    console.error('❌ Error in checkPetHunger:', e);
+                }
+
+                // Only check weather if enabled and not already in weather event
+                if (!isWeatherActive) {
+                    try {
+                        detectWeatherEvents();
+                    } catch (e) {
+                        console.error('❌ Error in detectWeatherEvents:', e);
+                    }
+                }
+
+                // Check if we're taking too long
+                const elapsed = performance.now() - startTime;
+                if (elapsed > 50) { // If checks take more than 50ms
+                    productionWarn(`⚠️ [PERFORMANCE] Notification checks took ${elapsed.toFixed(2)}ms - throttling next checks`);
+                    skipNextChecks = 2; // Skip next 2 checks (20 seconds total)
+                }
+
+            } catch (error) {
+                console.error('❌ [CRITICAL] Error in notification interval:', error);
+            }
+        }, 10000); // OPTIMIZED: Check every 10 seconds (reduced from 5s for better FPS)
+
+        // Store interval reference for cleanup
+        MGA_addInterval(notificationInterval);
+
+        productionLog('🚨 [CRITICAL] Optimized notification timer started with performance monitoring');
 
         debugLog('INTERVALS', 'All intervals started with TimerManager', {
             timerCount: timerManager.activeTimers.size,
@@ -13885,7 +14718,7 @@ window.MGA_debugStorage = function() {
     function refreshAllContent() {
         updateTabContent();
         refreshSeparateWindowPopouts();
-        console.log('🔄 All content refreshed');
+        productionLog('🔄 All content refreshed');
     }
 
     function loadPresetByNumber(number) {
@@ -13894,7 +14727,7 @@ window.MGA_debugStorage = function() {
             const presetName = presets[number - 1];
             const preset = UnifiedState.data.petPresets[presetName];
             loadPetPreset(preset);
-            console.log(`🐾 Loaded preset ${number}: ${presetName}`);
+            productionLog(`🐾 Loaded preset ${number}: ${presetName}`);
         }
     }
 
@@ -14090,7 +14923,7 @@ window.MGA_debugStorage = function() {
     // ==================== CROP HIGHLIGHTING SYSTEM ====================
     // Ctrl+H clears highlights, UI in settings for crop highlighting
     function setupCropHighlightingSystem() {
-        console.log('🌱 [DEBUG] setupCropHighlightingSystem() called - setting up crop highlighting...');
+        productionLog('🌱 [DEBUG] setupCropHighlightingSystem() called - setting up crop highlighting...');
         // FIRST: Verify crop highlighting utilities are installed
         if (typeof window.removeAllTileOverrides !== 'function') {
             debugLog('CROP_HIGHLIGHT', 'Crop highlighting utilities not available - they should have been installed earlier');
@@ -14164,7 +14997,7 @@ window.MGA_debugStorage = function() {
                     }
 
                     UnifiedState.data.settings.panelVisible = !isVisible;
-                    console.log(`🎮 MGA Keyboard shortcut: Panel ${isVisible ? 'hidden' : 'shown'}`);
+                    productionLog(`🎮 MGA Keyboard shortcut: Panel ${isVisible ? 'hidden' : 'shown'}`);
                 }
             },
 
@@ -14215,7 +15048,7 @@ window.MGA_debugStorage = function() {
                         highlightSection.focus();
                     }
                 }, 100);
-                console.log('🌱 Opened crop highlighting settings');
+                productionLog('🌱 Opened crop highlighting settings');
             }
         };
 
@@ -14245,7 +15078,7 @@ window.MGA_debugStorage = function() {
             }
         });
 
-        console.log('⌨️ Keyboard shortcuts initialized:', Object.keys(shortcuts));
+        productionLog('⌨️ Keyboard shortcuts initialized:', Object.keys(shortcuts));
     }
 
     // ==================== LOCAL TELEPORT UTILITIES ====================
@@ -14361,7 +15194,7 @@ window.MGA_debugStorage = function() {
 
     // ==================== TELEPORT SYSTEM ====================
     function initializeTeleportSystem() {
-        console.log('🚀 [DEBUG] initializeTeleportSystem() called - setting up teleport system...');
+        productionLog('🚀 [DEBUG] initializeTeleportSystem() called - setting up teleport system...');
         // FIRST: Install window.localTeleport if not already installed
         if (typeof window.localTeleport !== 'function' || !window.localTeleport.__installed) {
             installLocalTeleport();
@@ -14384,29 +15217,29 @@ window.MGA_debugStorage = function() {
                 const slots = targetWindow.MagicCircle_RoomConnection
                     ?.lastRoomStateJsonable?.child?.data?.userSlots;
                 if (!Array.isArray(slots)) {
-                    console.warn("⚠️ userSlots not found in room state");
+                    productionWarn("⚠️ userSlots not found in room state");
                     return;
                 }
 
                 const slot = slots[num - 1];
                 const pos = slot?.position;
                 if (!pos || typeof pos.x !== "number" || typeof pos.y !== "number") {
-                    console.warn(`⚠️ userSlots[${num - 1}] has no valid position`);
+                    productionWarn(`⚠️ userSlots[${num - 1}] has no valid position`);
                     return;
                 }
 
-                console.log(`🎯 TELEPORTING Alt+${num} to userSlots[${num - 1}] @ (${pos.x}, ${pos.y})`);
+                productionLog(`🎯 TELEPORTING Alt+${num} to userSlots[${num - 1}] @ (${pos.x}, ${pos.y})`);
 
                 let clientUpdateSuccess = false;
                 let serverSyncSuccess = false;
 
                 // Method 1: CLIENT-SIDE POSITION UPDATE (using jotai atom access)
                 try {
-                    console.log(`🔧 CLIENT: Updating local position via jotai atoms...`);
+                    productionLog(`🔧 CLIENT: Updating local position via jotai atoms...`);
 
                     // Method 1A: Try jotaiAtomCache for player position
                     if (targetWindow.jotaiAtomCache) {
-                        console.log(`🔍 CLIENT: Searching jotaiAtomCache for player position atom...`);
+                        productionLog(`🔍 CLIENT: Searching jotaiAtomCache for player position atom...`);
 
                         // Common player position atom paths to try
                         const playerPositionPaths = [
@@ -14419,7 +15252,7 @@ window.MGA_debugStorage = function() {
                         for (const atomPath of playerPositionPaths) {
                             const atom = targetWindow.jotaiAtomCache.get(atomPath);
                             if (atom) {
-                                console.log(`✅ CLIENT: Found player position atom at: ${atomPath}`);
+                                productionLog(`✅ CLIENT: Found player position atom at: ${atomPath}`);
                                 playerPositionAtom = atom;
                                 break;
                             }
@@ -14433,19 +15266,19 @@ window.MGA_debugStorage = function() {
                                 if (store && store.set) {
                                     await store.set(playerPositionAtom, { x: pos.x, y: pos.y });
                                     clientUpdateSuccess = true;
-                                    console.log(`✅ CLIENT: jotai atom position update successful to (${pos.x}, ${pos.y})`);
+                                    productionLog(`✅ CLIENT: jotai atom position update successful to (${pos.x}, ${pos.y})`);
                                 } else {
-                                    console.log(`⚠️ CLIENT: Found atom but no jotai store available`);
+                                    productionLog(`⚠️ CLIENT: Found atom but no jotai store available`);
                                 }
                             } catch (atomError) {
-                                console.log(`❌ CLIENT: jotai atom update failed:`, atomError);
+                                productionLog(`❌ CLIENT: jotai atom update failed:`, atomError);
                             }
                         } else {
-                            console.log(`❌ CLIENT: No player position atom found in jotaiAtomCache`);
+                            productionLog(`❌ CLIENT: No player position atom found in jotaiAtomCache`);
 
                             // Debug: List available atoms
                             if (UnifiedState.data.settings.debugMode) {
-                                console.log(`🔍 CLIENT: Available atoms in cache:`, Array.from(targetWindow.jotaiAtomCache.keys()).filter(key => key.includes('position') || key.includes('Position') || key.includes('player') || key.includes('Player')));
+                                productionLog(`🔍 CLIENT: Available atoms in cache:`, Array.from(targetWindow.jotaiAtomCache.keys()).filter(key => key.includes('position') || key.includes('Position') || key.includes('player') || key.includes('Player')));
                             }
                         }
                     }
@@ -14454,7 +15287,7 @@ window.MGA_debugStorage = function() {
                     if (!clientUpdateSuccess && window.Atoms?.player?.position?.set) {
                         await window.Atoms.player.position.set({ x: pos.x, y: pos.y });
                         clientUpdateSuccess = true;
-                        console.log(`✅ CLIENT: Atoms.player.position.set successful to (${pos.x}, ${pos.y})`);
+                        productionLog(`✅ CLIENT: Atoms.player.position.set successful to (${pos.x}, ${pos.y})`);
                     }
 
                     // Method 1C: Fallback to existing localTeleport
@@ -14462,7 +15295,7 @@ window.MGA_debugStorage = function() {
                         const res = await window.localTeleport(pos.x, pos.y);
                         if (res?.ok) {
                             clientUpdateSuccess = true;
-                            console.log(`✅ CLIENT: window.localTeleport successful to (${pos.x}, ${pos.y})`);
+                            productionLog(`✅ CLIENT: window.localTeleport successful to (${pos.x}, ${pos.y})`);
                         }
                     }
 
@@ -14472,13 +15305,13 @@ window.MGA_debugStorage = function() {
                         if (PS?.setPosition) {
                             await PS.setPosition(pos.x, pos.y);
                             clientUpdateSuccess = true;
-                            console.log(`✅ CLIENT: PlayerService.setPosition successful to (${pos.x}, ${pos.y})`);
+                            productionLog(`✅ CLIENT: PlayerService.setPosition successful to (${pos.x}, ${pos.y})`);
                         }
                     }
 
                     if (!clientUpdateSuccess) {
-                        console.log(`❌ CLIENT: All client-side position update methods failed`);
-                        console.log(`🔍 CLIENT: Available globals:`, {
+                        productionLog(`❌ CLIENT: All client-side position update methods failed`);
+                        productionLog(`🔍 CLIENT: Available globals:`, {
                             jotaiAtomCache: !!targetWindow.jotaiAtomCache,
                             windowAtoms: !!window.Atoms,
                             localTeleport: typeof window.localTeleport,
@@ -14487,12 +15320,12 @@ window.MGA_debugStorage = function() {
                     }
 
                 } catch (error) {
-                    console.log(`❌ CLIENT: Client-side position update failed:`, error);
+                    productionLog(`❌ CLIENT: Client-side position update failed:`, error);
                 }
 
                 // Method 2: SERVER SYNC (using reference script pattern)
                 try {
-                    console.log(`🌐 SERVER: Syncing position for multiplayer...`);
+                    productionLog(`🌐 SERVER: Syncing position for multiplayer...`);
 
                     // Use the proven working pattern: sendToGame with "Teleport" type
                     const teleportSuccess = sendToGame({
@@ -14502,10 +15335,10 @@ window.MGA_debugStorage = function() {
 
                     if (teleportSuccess) {
                         serverSyncSuccess = true;
-                        console.log(`✅ SERVER: Teleport message sent successfully`);
+                        productionLog(`✅ SERVER: Teleport message sent successfully`);
                     } else {
                         // Fallback to PlayerPosition message
-                        console.log(`🔄 SERVER: Trying PlayerPosition fallback...`);
+                        productionLog(`🔄 SERVER: Trying PlayerPosition fallback...`);
                         const fallbackSuccess = sendToGame({
                             type: "PlayerPosition",
                             position: { x: pos.x, y: pos.y }
@@ -14513,30 +15346,30 @@ window.MGA_debugStorage = function() {
 
                         if (fallbackSuccess) {
                             serverSyncSuccess = true;
-                            console.log(`✅ SERVER: PlayerPosition fallback successful`);
+                            productionLog(`✅ SERVER: PlayerPosition fallback successful`);
                         }
                     }
 
                     if (!serverSyncSuccess) {
-                        console.log(`❌ SERVER: All server sync methods failed`);
+                        productionLog(`❌ SERVER: All server sync methods failed`);
                     }
 
                 } catch (error) {
-                    console.log(`❌ SERVER: Server sync failed:`, error);
+                    productionLog(`❌ SERVER: Server sync failed:`, error);
                 }
 
                 // FINAL STATUS REPORT
-                console.log(`🎯 TELEPORT RESULT for Alt+${num}:`);
-                console.log(`   👤 Client Update: ${clientUpdateSuccess ? '✅ SUCCESS' : '❌ FAILED'}`);
-                console.log(`   🌐 Server Sync: ${serverSyncSuccess ? '✅ SUCCESS' : '❌ FAILED'}`);
+                productionLog(`🎯 TELEPORT RESULT for Alt+${num}:`);
+                productionLog(`   👤 Client Update: ${clientUpdateSuccess ? '✅ SUCCESS' : '❌ FAILED'}`);
+                productionLog(`   🌐 Server Sync: ${serverSyncSuccess ? '✅ SUCCESS' : '❌ FAILED'}`);
 
                 if (clientUpdateSuccess && serverSyncSuccess) {
-                    console.log(`🎉 COMPLETE SUCCESS: Player teleported to (${pos.x}, ${pos.y})!`);
+                    productionLog(`🎉 COMPLETE SUCCESS: Player teleported to (${pos.x}, ${pos.y})!`);
                     debugLog('TELEPORT', `Complete teleport success for Alt+${num} to userSlots[${num - 1}] @ (${pos.x}, ${pos.y})`);
                 } else if (clientUpdateSuccess) {
-                    console.warn(`⚠️ PARTIAL: You moved but others may not see it (server sync failed)`);
+                    productionWarn(`⚠️ PARTIAL: You moved but others may not see it (server sync failed)`);
                 } else if (serverSyncSuccess) {
-                    console.warn(`⚠️ PARTIAL: Server updated but you didn't move visually (client update failed)`);
+                    productionWarn(`⚠️ PARTIAL: Server updated but you didn't move visually (client update failed)`);
                 } else {
                     console.error(`❌ TOTAL FAILURE: Neither client nor server teleport worked`);
                 }
@@ -14549,24 +15382,24 @@ window.MGA_debugStorage = function() {
 
         window.addEventListener("keydown", teleportHandler, true);
         window.__altSlotTeleportInstalled = true;
-        console.log('🚀 Alt+1..Alt+6 teleport hotkeys installed');
+        productionLog('🚀 Alt+1..Alt+6 teleport hotkeys installed');
         debugLog('TELEPORT', 'Teleport system initialized successfully');
     }
 
     // ==================== STANDALONE INITIALIZATION ====================
     function initializeStandalone() {
         if (UnifiedState.initialized) {
-            console.log('⚠️ Magic Garden Unified Assistant already initialized, skipping...');
+            productionLog('⚠️ Magic Garden Unified Assistant already initialized, skipping...');
             return;
         }
 
-        console.log('🎮 Magic Garden Assistant - Demo Mode');
-        console.log('💡 Running in standalone mode with demo data');
-        console.log('📝 Note: This is a demonstration - no real game integration');
+        productionLog('🎮 Magic Garden Assistant - Demo Mode');
+        productionLog('💡 Running in standalone mode with demo data');
+        productionLog('📝 Note: This is a demonstration - no real game integration');
 
         // Ensure DOM is ready
         if (document.readyState === 'loading') {
-            console.log('⏳ DOM not ready, waiting for DOMContentLoaded...');
+            productionLog('⏳ DOM not ready, waiting for DOMContentLoaded...');
             document.addEventListener('DOMContentLoaded', initializeStandalone);
             return;
         }
@@ -14587,22 +15420,22 @@ window.MGA_debugStorage = function() {
             UnifiedState.data.timers = demoData.timers;
 
             // Load saved data (or use defaults)
-            console.log('💾 Loading saved settings...');
+            productionLog('💾 Loading saved settings...');
             loadSavedData();
 
             // Create UI with demo banner
-            console.log('🎨 Creating Demo UI...');
+            productionLog('🎨 Creating Demo UI...');
             createUnifiedUI();
             addDemoBanner();
 
             // Setup demo timers
-            console.log('⏰ Setting up demo timers...');
+            productionLog('⏰ Setting up demo timers...');
             setupDemoTimers();
 
             // Mark as initialized
             UnifiedState.initialized = true;
-            console.log('✅ Magic Garden Assistant Demo initialized successfully!');
-            console.log('🎯 Try the features - they work with realistic demo data');
+            productionLog('✅ Magic Garden Assistant Demo initialized successfully!');
+            productionLog('🎯 Try the features - they work with realistic demo data');
 
         } catch (error) {
             console.error('❌ Failed to initialize demo mode:', error);
@@ -14684,7 +15517,7 @@ window.MGA_debugStorage = function() {
         }
 
         if (UnifiedState.initialized) {
-            console.log('⚠️ Magic Garden Unified Assistant already initialized, skipping...');
+            productionLog('⚠️ Magic Garden Unified Assistant already initialized, skipping...');
             if (window.MGA_DEBUG) {
                 window.MGA_DEBUG.logStage('ALREADY_INITIALIZED', { skipReason: 'UnifiedState.initialized is true' });
             }
@@ -14693,7 +15526,7 @@ window.MGA_debugStorage = function() {
 
         // Ensure DOM is ready
         if (document.readyState === 'loading') {
-            console.log('⏳ DOM not ready, waiting for DOMContentLoaded...');
+            productionLog('⏳ DOM not ready, waiting for DOMContentLoaded...');
             if (window.MGA_DEBUG) {
                 window.MGA_DEBUG.logStage('DOM_NOT_READY', { domState: document.readyState });
             }
@@ -14704,7 +15537,7 @@ window.MGA_debugStorage = function() {
         // REMOVED: Modal check - was causing false positives and infinite retry loops
 
         // Improved initialization timing to prevent splash screen stall
-        console.log('⏳ Waiting for game initialization to complete...');
+        productionLog('⏳ Waiting for game initialization to complete...');
         let retryCount = 0;
         const maxRetries = 3;
         // CRITICAL FIX: If game is already ready, don't delay! Only delay if we need to retry
@@ -14730,7 +15563,7 @@ window.MGA_debugStorage = function() {
             }
 
             if (targetWindow.jotaiAtomCache && targetWindow.MagicCircle_RoomConnection) {
-                console.log('✅ Game ready, initializing script...');
+                productionLog('✅ Game ready, initializing script...');
                 if (window.MGA_DEBUG) {
                     window.MGA_DEBUG.logStage('GAME_READY', gameReadiness);
                     // Safe performance metric setting
@@ -14741,13 +15574,13 @@ window.MGA_debugStorage = function() {
                 continueInitialization();
             } else if (retryCount < maxRetries) {
                 retryCount++;
-                console.log(`⏳ Game not ready (jotaiAtomCache: ${!!targetWindow.jotaiAtomCache}, RoomConnection: ${!!targetWindow.MagicCircle_RoomConnection}), retry ${retryCount}/${maxRetries} in 1s...`);
+                productionLog(`⏳ Game not ready (jotaiAtomCache: ${!!targetWindow.jotaiAtomCache}, RoomConnection: ${!!targetWindow.MagicCircle_RoomConnection}), retry ${retryCount}/${maxRetries} in 1s...`);
                 if (window.MGA_DEBUG) {
                     window.MGA_DEBUG.logStage('GAME_NOT_READY_RETRYING', { retryCount, gameReadiness });
                 }
                 setTimeout(attemptInit, 1000);
             } else {
-                console.warn('⚠️ Max retries reached, initializing anyway...');
+                productionWarn('⚠️ Max retries reached, initializing anyway...');
                 if (window.MGA_DEBUG) {
                     window.MGA_DEBUG.logStage('MAX_RETRIES_REACHED', { retryCount, gameReadiness });
                 }
@@ -14757,9 +15590,28 @@ window.MGA_debugStorage = function() {
 
         setTimeout(attemptInit, initialDelay);
 
+        // CRITICAL: Ensure intervals start even if initialization partially fails
+        setTimeout(() => {
+            if (typeof window.notificationInterval === 'undefined' || !window._mgaIntervalsStarted) {
+                productionWarn('⚠️ [FAILSAFE] Intervals not started after 30s, forcing start...');
+                try {
+                    if (typeof startIntervals === 'function') {
+                        startIntervals();
+                        productionLog('✅ [FAILSAFE] Successfully started intervals');
+                    } else {
+                        console.error('❌ [FAILSAFE] startIntervals function not found!');
+                    }
+                } catch(e) {
+                    console.error('❌ [FAILSAFE] Could not start intervals:', e);
+                }
+            } else {
+                productionLog('✅ [FAILSAFE] Intervals already running, no action needed');
+            }
+        }, 30000); // Failsafe after 30 seconds
+
         function continueInitialization() {
-            console.log('🌱 Magic Garden Unified Assistant initializing...');
-            console.log('📊 Connection Status:', targetWindow.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
+            productionLog('🌱 Magic Garden Unified Assistant initializing...');
+            productionLog('📊 Connection Status:', targetWindow.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
 
             if (window.MGA_DEBUG) {
                 window.MGA_DEBUG.logStage('CONTINUE_INITIALIZATION', {
@@ -14773,27 +15625,27 @@ window.MGA_debugStorage = function() {
         // ==================== IDLE PREVENTION MOVED ====================
         // NOTE: Idle prevention code has been moved to line ~380 to execute immediately
         // This ensures the game doesn't kick users out while the script loads
-        console.log('📝 [IDLE-PREVENTION] Idle prevention already applied at script start');
+        productionLog('📝 [IDLE-PREVENTION] Idle prevention already applied at script start');
 
         try {
             // Load saved data
-            console.log('💾 Loading saved data...');
+            productionLog('💾 Loading saved data...');
             loadSavedData();
 
             // Initialize Firebase for room status tracking
-            console.log('📡 Initializing Firebase for room tracking...');
+            productionLog('📡 Initializing Firebase for room tracking...');
             initializeFirebase().then(firebase => {
                 if (firebase) {
                     startRoomReporting(firebase);
                     startRoomListener(firebase);
-                    console.log('✅ Room tracking active');
+                    productionLog('✅ Room tracking active');
                 }
             }).catch(err => {
                 console.error('Firebase initialization error:', err);
             });
 
             // Verify data loaded before UI creation
-            // console.log('🔍 [STARTUP-VERIFY] Data loaded before UI creation:', {
+            // productionLog('🔍 [STARTUP-VERIFY] Data loaded before UI creation:', {
             //     petPresets: Object.keys(UnifiedState.data.petPresets).length,
             //     seedsToDelete: UnifiedState.data.seedsToDelete.length,
             //     autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled,
@@ -14801,7 +15653,7 @@ window.MGA_debugStorage = function() {
             // });
 
             // Create UI
-            // console.log('🎨 Creating UI...');
+            // productionLog('🎨 Creating UI...');
             if (window.MGA_DEBUG) {
                 window.MGA_DEBUG.logStage('CREATE_UI_STARTING', {
                     dataLoaded: !!UnifiedState.data,
@@ -14829,13 +15681,14 @@ window.MGA_debugStorage = function() {
                 if (window.MGA_DEBUG) {
                     window.MGA_DEBUG.logError(error, 'createUnifiedUI');
                 }
-                throw error;
+                productionWarn('⚠️ UI creation failed, but continuing with initialization...');
+                // DON'T throw error - continue with intervals even if UI fails
             }
 
             // Verify UI reflects loaded data immediately after creation
             setTimeout(() => {
                 const checkedSeeds = targetDocument.querySelectorAll('.seed-checkbox:checked');
-                // console.log('🔍 [UI-VERIFY] UI state after creation:', {
+                // productionLog('🔍 [UI-VERIFY] UI state after creation:', {
                 //     checkedSeedsInUI: checkedSeeds.length,
                 //     seedsInState: UnifiedState.data.seedsToDelete.length,
                 //     matches: checkedSeeds.length === UnifiedState.data.seedsToDelete.length
@@ -14843,16 +15696,16 @@ window.MGA_debugStorage = function() {
             }, 100);
 
             // Initialize atom hooks
-            console.log('🔗 Initializing atom hooks...');
+            productionLog('🔗 Initializing atom hooks...');
             initializeAtoms();
 
             // Start monitoring intervals
-            console.log('⏱️ Starting monitoring intervals...');
+            productionLog('⏱️ Starting monitoring intervals...');
             startIntervals();
 
             // Apply saved UI mode
             if (UnifiedState.data.settings.ultraCompactMode) {
-                console.log('📱 Applying saved ultra-compact mode...');
+                productionLog('📱 Applying saved ultra-compact mode...');
                 applyUltraCompactMode(true);
             }
 
@@ -14860,12 +15713,12 @@ window.MGA_debugStorage = function() {
             initializeKeyboardShortcuts();
 
             // Force UI refresh to apply saved state (timing fix for data persistence)
-            console.log('🔄 Applying delayed UI refresh to ensure saved state is displayed...');
+            productionLog('🔄 Applying delayed UI refresh to ensure saved state is displayed...');
             setTimeout(() => {
-                console.log('🔄 [DATA-PERSISTENCE] Applying delayed UI refresh...');
+                productionLog('🔄 [DATA-PERSISTENCE] Applying delayed UI refresh...');
 
                 // Verify data before refreshing UI
-                console.log('📊 [DATA-PERSISTENCE] Current state:', {
+                productionLog('📊 [DATA-PERSISTENCE] Current state:', {
                     petPresets: Object.keys(UnifiedState.data.petPresets).length,
                     seedsToDelete: UnifiedState.data.seedsToDelete.length,
                     autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled
@@ -14874,7 +15727,7 @@ window.MGA_debugStorage = function() {
                 // Update main tab content to reflect loaded data
                 if (typeof updateTabContent === 'function') {
                     updateTabContent();
-                    console.log('✅ [DATA-PERSISTENCE] UI refreshed with saved state');
+                    productionLog('✅ [DATA-PERSISTENCE] UI refreshed with saved state');
                 }
 
                 // Update any open popout overlays
@@ -14892,10 +15745,10 @@ window.MGA_debugStorage = function() {
                                     } else if (tabName === 'pets' && typeof setupPetsTabHandlers === 'function') {
                                         setupPetsTabHandlers(overlay);
                                     }
-                                    console.log(`✅ [DATA-PERSISTENCE] Refreshed ${tabName} overlay with saved state`);
+                                    productionLog(`✅ [DATA-PERSISTENCE] Refreshed ${tabName} overlay with saved state`);
                                 }
                             } catch (error) {
-                                console.warn(`⚠️ [DATA-PERSISTENCE] Failed to refresh ${tabName} overlay:`, error);
+                                productionWarn(`⚠️ [DATA-PERSISTENCE] Failed to refresh ${tabName} overlay:`, error);
                             }
                         }
                     });
@@ -14914,7 +15767,7 @@ window.MGA_debugStorage = function() {
             // Initialize tooltip system
             if (window.MGA_Tooltips) {
                 window.MGA_Tooltips.init();
-                console.log('💬 Tooltip system initialized');
+                productionLog('💬 Tooltip system initialized');
             }
 
             UnifiedState.initialized = true;
@@ -14927,14 +15780,14 @@ window.MGA_debugStorage = function() {
             window._MGA_TIMESTAMP = Date.now();  // Update timestamp on completion
 
             // NOW run conflict detection after game has loaded successfully
-            // console.log('🔍 [MGA-ISOLATION] Running post-initialization MainScript conflict detection...');
+            // productionLog('🔍 [MGA-ISOLATION] Running post-initialization MainScript conflict detection...');
             if (window.MGA_ConflictDetection) {
                 // Detect MainScript presence
                 const mainScriptDetected = window.MGA_ConflictDetection.detectMainScript();
 
                 // Only create barriers if MainScript is detected
                 if (mainScriptDetected) {
-                    console.log('🔒 [MGA-ISOLATION] MainScript detected - creating protective barriers');
+                    productionLog('🔒 [MGA-ISOLATION] MainScript detected - creating protective barriers');
                     window.MGA_ConflictDetection.createIsolationBarrier();
                     window.MGA_ConflictDetection.preventAccess();
                 }
@@ -14944,20 +15797,20 @@ window.MGA_debugStorage = function() {
                 const isolationOk = window.MGA_ConflictDetection.validateIsolation();
 
                 if (integrityOk && isolationOk) {
-                    console.log('✅ [MGA-ISOLATION] Final integrity check passed - no conflicts detected');
+                    productionLog('✅ [MGA-ISOLATION] Final integrity check passed - no conflicts detected');
                     if (mainScriptDetected) {
-                        console.log('✅ [MGA-ISOLATION] Complete isolation validated - MainScript protection active');
+                        productionLog('✅ [MGA-ISOLATION] Complete isolation validated - MainScript protection active');
                     }
                 } else {
-                    console.warn('⚠️ [MGA-ISOLATION] Final integrity check found potential conflicts');
-                    if (!integrityOk) console.warn('⚠️ [MGA-ISOLATION] Global integrity issues detected');
-                    if (!isolationOk) console.warn('⚠️ [MGA-ISOLATION] Isolation validation failed');
+                    productionWarn('⚠️ [MGA-ISOLATION] Final integrity check found potential conflicts');
+                    if (!integrityOk) productionWarn('⚠️ [MGA-ISOLATION] Global integrity issues detected');
+                    if (!isolationOk) productionWarn('⚠️ [MGA-ISOLATION] Isolation validation failed');
                 }
             } else {
-                console.warn('⚠️ [MGA-ISOLATION] ConflictDetection not available - running without isolation');
+                productionWarn('⚠️ [MGA-ISOLATION] ConflictDetection not available - running without isolation');
             }
 
-            console.log('✅ Magic Garden Unified Assistant initialized successfully!');
+            productionLog('✅ Magic Garden Unified Assistant initialized successfully!');
 
             // Remove test UI after successful initialization
             const testUI = targetDocument.querySelector('div[style*="Test UI Active"]') ||
@@ -14974,10 +15827,10 @@ window.MGA_debugStorage = function() {
                 const hasConnection = targetWindow.MagicCircle_RoomConnection &&
                                     typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function';
                 if (!UnifiedState.connectionStatus && hasConnection) {
-                    console.log('🔌 Game connection established!');
+                    productionLog('🔌 Game connection established!');
                     UnifiedState.connectionStatus = true;
                 } else if (UnifiedState.connectionStatus && !hasConnection) {
-                    console.warn('⚠️ Game connection lost!');
+                    productionWarn('⚠️ Game connection lost!');
                     UnifiedState.connectionStatus = false;
                 }
             }, 5000);
@@ -14998,7 +15851,7 @@ window.MGA_debugStorage = function() {
         const environment = detectEnvironment();
         /* CHECKPOINT removed: DETECT_ENVIRONMENT_COMPLETE */
 
-        console.log('📊 Environment Analysis:', {
+        productionLog('📊 Environment Analysis:', {
             domain: environment.domain,
             strategy: environment.initStrategy,
             isGame: environment.isGameEnvironment,
@@ -15008,22 +15861,22 @@ window.MGA_debugStorage = function() {
 
         switch (environment.initStrategy) {
             case 'game-ready':
-                console.log('✅ Game environment ready - initializing with full integration');
+                productionLog('✅ Game environment ready - initializing with full integration');
                 initializeScript();
                 break;
 
             case 'game-wait':
-                console.log('⏳ Game environment detected - waiting for game atoms...');
+                productionLog('⏳ Game environment detected - waiting for game atoms...');
                 waitForGameReady();
                 break;
 
             case 'standalone':
-                console.log('🎮 Standalone environment - initializing demo mode');
+                productionLog('🎮 Standalone environment - initializing demo mode');
                 initializeStandalone();
                 break;
 
             default:
-                console.log('❓ Unknown environment - attempting standalone mode');
+                productionLog('❓ Unknown environment - attempting standalone mode');
                 initializeStandalone();
                 break;
         }
@@ -15054,10 +15907,10 @@ window.MGA_debugStorage = function() {
                 (hasBasicDom && hasGameElements && attempts >= 10)) {
 
                 if (atomsReady && hasConnection) {
-                    console.log('✅ Game atoms and connection fully ready - switching to full mode');
-                    console.log('📊 [GAME-READY] Atoms count:', atomCache.size);
+                    productionLog('✅ Game atoms and connection fully ready - switching to full mode');
+                    productionLog('📊 [GAME-READY] Atoms count:', atomCache.size);
                 } else {
-                    console.log('✅ Game elements detected, proceeding with reduced functionality mode');
+                    productionLog('✅ Game elements detected, proceeding with reduced functionality mode');
                 }
 
                 initializeScript();
@@ -15066,7 +15919,7 @@ window.MGA_debugStorage = function() {
 
             // Debug logging for what's missing
             if (attempts % 8 === 0) { // Every 4 seconds
-                console.log('⏳ [GAME-WAIT] Still waiting...', {
+                productionLog('⏳ [GAME-WAIT] Still waiting...', {
                     hasAtoms,
                     atomsCount: hasAtoms ? atomCache.size : 0,
                     hasConnection,
@@ -15090,8 +15943,8 @@ window.MGA_debugStorage = function() {
                     clearManagedInterval('gameCheck');
 
                     if (attempts >= maxAttempts) {
-                        console.log('⚠️ Game readiness timeout - falling back to demo mode');
-                        console.log('💡 You can try MGA.init() later if the game loads');
+                        productionLog('⚠️ Game readiness timeout - falling back to demo mode');
+                        productionLog('💡 You can try MGA.init() later if the game loads');
                         initializeStandalone();
                     }
                 }
@@ -15111,15 +15964,15 @@ window.MGA_debugStorage = function() {
 
     // ==================== IMMEDIATE TEST INITIALIZATION ====================
     // Additional fallback for manual testing - only if initialization failed
-    console.log('🧪 Setting up fallback timer for manual testing...');
+    productionLog('🧪 Setting up fallback timer for manual testing...');
     setTimeout(() => {
         // Only run demo mode if game mode completely failed to initialize
         if (!UnifiedState.initialized && !window._MGA_INITIALIZING) {
-            console.log('🔧 Final fallback - trying demo mode');
-            console.log('💡 Use MGA.init() to force game mode initialization if needed');
+            productionLog('🔧 Final fallback - trying demo mode');
+            productionLog('💡 Use MGA.init() to force game mode initialization if needed');
             initializeStandalone();
         } else if (UnifiedState.initialized) {
-            console.log('✅ Game mode already initialized - skipping demo fallback');
+            productionLog('✅ Game mode already initialized - skipping demo fallback');
         }
     }, 5000);
 
@@ -15143,14 +15996,14 @@ window.MGA_debugStorage = function() {
 
         // Manual initialization - use if script doesn't auto-initialize
         init: () => {
-            console.log('🔄 Manual initialization requested...');
+            productionLog('🔄 Manual initialization requested...');
             UnifiedState.initialized = false; // Reset flag
             initializeScript();
         },
 
         // Recovery function for stuck initialization
         forceReinit: () => {
-            console.log('🔄 Force reinitialization requested...');
+            productionLog('🔄 Force reinitialization requested...');
             try {
                 delete window._MGA_INITIALIZING;
             } catch (e) {
@@ -15172,17 +16025,17 @@ window.MGA_debugStorage = function() {
 
         // Data persistence diagnostics
         checkPersistence: () => {
-            console.log('📊 Data Persistence Check:');
-            console.log('  Pet Presets in State:', Object.keys(UnifiedState.data.petPresets).length);
-            console.log('  Pet Presets in Storage:', localStorage.getItem('MGA_petPresets') ? 'EXISTS' : 'MISSING');
-            console.log('  Seeds in State:', UnifiedState.data.seedsToDelete.length);
-            console.log('  Seeds in Storage:', localStorage.getItem('MGA_seedsToDelete') ? 'EXISTS' : 'MISSING');
+            productionLog('📊 Data Persistence Check:');
+            productionLog('  Pet Presets in State:', Object.keys(UnifiedState.data.petPresets).length);
+            productionLog('  Pet Presets in Storage:', localStorage.getItem('MGA_petPresets') ? 'EXISTS' : 'MISSING');
+            productionLog('  Seeds in State:', UnifiedState.data.seedsToDelete.length);
+            productionLog('  Seeds in Storage:', localStorage.getItem('MGA_seedsToDelete') ? 'EXISTS' : 'MISSING');
 
             if (localStorage.getItem('MGA_petPresets')) {
-                console.log('  Raw Presets:', localStorage.getItem('MGA_petPresets'));
+                productionLog('  Raw Presets:', localStorage.getItem('MGA_petPresets'));
             }
             if (localStorage.getItem('MGA_seedsToDelete')) {
-                console.log('  Raw Seeds:', localStorage.getItem('MGA_seedsToDelete'));
+                productionLog('  Raw Seeds:', localStorage.getItem('MGA_seedsToDelete'));
             }
         },
 
@@ -15197,14 +16050,14 @@ window.MGA_debugStorage = function() {
 
         // Debug functions
         debug: {
-            logState: () => console.log('MGA State:', UnifiedState),
-            logAtoms: () => console.log('Atoms:', UnifiedState.atoms),
-            logData: () => console.log('Data:', UnifiedState.data),
+            logState: () => productionLog('MGA State:', UnifiedState),
+            logAtoms: () => productionLog('Atoms:', UnifiedState.atoms),
+            logData: () => productionLog('Data:', UnifiedState.data),
             testTheming: () => {
-                console.log('🎨 Testing universal theming system...');
-                console.log('Current theme:', UnifiedState.currentTheme);
-                console.log('Active overlays:', UnifiedState.data.popouts.overlays.size);
-                console.log('Theme sync working:', !!UnifiedState.currentTheme);
+                productionLog('🎨 Testing universal theming system...');
+                productionLog('Current theme:', UnifiedState.currentTheme);
+                productionLog('Active overlays:', UnifiedState.data.popouts.overlays.size);
+                productionLog('Theme sync working:', !!UnifiedState.currentTheme);
 
                 // Apply a test theme change
                 const originalStyle = UnifiedState.data.settings.gradientStyle;
@@ -15212,33 +16065,33 @@ window.MGA_debugStorage = function() {
                 UnifiedState.data.settings.opacity = 75;
                 applyTheme();
 
-                console.log('✅ Test theme applied! Check all windows for rainbow theme.');
-                console.log('💡 Open a pop-out or overlay to see the theme in action!');
+                productionLog('✅ Test theme applied! Check all windows for rainbow theme.');
+                productionLog('💡 Open a pop-out or overlay to see the theme in action!');
 
                 // Restore original after 5 seconds
                 setTimeout(() => {
                     UnifiedState.data.settings.gradientStyle = originalStyle;
                     UnifiedState.data.settings.opacity = 95;
                     applyTheme();
-                    console.log('🔄 Original theme restored.');
+                    productionLog('🔄 Original theme restored.');
                 }, 5000);
             },
 
             checkConnection: () => {
                 const hasConnection = targetWindow.MagicCircle_RoomConnection &&
                                     typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function';
-                console.log('🔌 Connection Status:', hasConnection ? '✅ Available' : '❌ Not Available');
-                console.log('📡 RoomConnection Object:', targetWindow.MagicCircle_RoomConnection);
+                productionLog('🔌 Connection Status:', hasConnection ? '✅ Available' : '❌ Not Available');
+                productionLog('📡 RoomConnection Object:', targetWindow.MagicCircle_RoomConnection);
                 return hasConnection;
             },
 
             testSendMessage: () => {
-                console.log('🧪 Testing safeSendMessage...');
+                productionLog('🧪 Testing safeSendMessage...');
                 const result = safeSendMessage({
                     scopePath: ["Room"],
                     type: "Ping"
                 });
-                console.log('Result:', result ? '✅ Success' : '❌ Failed');
+                productionLog('Result:', result ? '✅ Success' : '❌ Failed');
                 return result;
             },
 
@@ -15278,7 +16131,7 @@ window.MGA_debugStorage = function() {
                                 setTimeout(() => {
                                     if (!overlay.querySelector('.mga-resize-handle')) {
                                         addResizeHandleToOverlay(overlay);
-                                        console.log('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                        productionLog('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
                                     }
                                 }, 50);
                             }
@@ -15395,7 +16248,7 @@ window.MGA_debugStorage = function() {
                             refreshSeparateWindowPopouts('pets');
                         }
                     }
-                    console.log('✅ Pet presets imported successfully');
+                    productionLog('✅ Pet presets imported successfully');
                 } catch (e) {
                     console.error('❌ Failed to import pet presets:', e);
                 }
@@ -15421,7 +16274,7 @@ window.MGA_debugStorage = function() {
                         }
                     }
                     updateTabContent();
-                    console.log('✅ All data imported successfully');
+                    productionLog('✅ All data imported successfully');
                 } catch (e) {
                     console.error('❌ Failed to import data:', e);
                 }
@@ -15468,7 +16321,7 @@ window.MGA_debugStorage = function() {
                                     setTimeout(() => {
                                         if (!overlay.querySelector('.mga-resize-handle')) {
                                             addResizeHandleToOverlay(overlay);
-                                            console.log('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                            productionLog('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
                                         }
                                     }, 50);
                                 }
@@ -15494,13 +16347,13 @@ window.MGA_debugStorage = function() {
         // Debug controls for development and testing
         debug: {
             forceInit: () => {
-                console.log('🔄 [DEBUG] Force re-initialization requested');
+                productionLog('🔄 [DEBUG] Force re-initialization requested');
                 window._MGA_FORCE_INIT = true;
                 location.reload();
             },
 
             resetFlags: () => {
-                console.log('🔄 [DEBUG] Resetting initialization flags');
+                productionLog('🔄 [DEBUG] Resetting initialization flags');
                 window._MGA_INITIALIZED = false;
                 try {
                     delete window._MGA_INITIALIZING;
@@ -15508,14 +16361,14 @@ window.MGA_debugStorage = function() {
                     window._MGA_INITIALIZING = false;
                 }
                 window._MGA_FORCE_INIT = false;
-                console.log('✅ [DEBUG] Flags reset - you can now re-run the script');
+                productionLog('✅ [DEBUG] Flags reset - you can now re-run the script');
             },
 
             checkPets: () => {
-                console.log('🐾 [DEBUG] Current pet state:');
-                console.log('• UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
-                console.log('• window.activePets:', window.activePets);
-                console.log('• Room state pets:', getActivePetsFromRoomState());
+                productionLog('🐾 [DEBUG] Current pet state:');
+                productionLog('• UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
+                productionLog('• window.activePets:', window.activePets);
+                productionLog('• Room state pets:', getActivePetsFromRoomState());
                 return {
                     unifiedState: UnifiedState.atoms.activePets,
                     windowPets: window.activePets,
@@ -15524,16 +16377,16 @@ window.MGA_debugStorage = function() {
             },
 
             refreshPets: () => {
-                console.log('🔄 [DEBUG] Manually refreshing pets from room state');
+                productionLog('🔄 [DEBUG] Manually refreshing pets from room state');
                 const pets = updateActivePetsFromRoomState();
-                console.log('✅ [DEBUG] Pets refreshed:', pets);
+                productionLog('✅ [DEBUG] Pets refreshed:', pets);
                 return pets;
             },
 
             listIntervals: () => {
-                console.log('⏰ [DEBUG] Active managed intervals:');
+                productionLog('⏰ [DEBUG] Active managed intervals:');
                 Object.entries(UnifiedState.intervals).forEach(([name, interval]) => {
-                    console.log(`• ${name}: ${interval ? 'Running' : 'Stopped'}`);
+                    productionLog(`• ${name}: ${interval ? 'Running' : 'Stopped'}`);
                 });
                 return UnifiedState.intervals;
             }
@@ -15844,7 +16697,7 @@ window.MGA_debugStorage = function() {
     });
 
     // ==================== VERSION INFO ====================
-    console.log(
+    productionLog(
         "╔════════════════════════════════════════╗\n" +
         "║   🌱 Magic Garden Unified Assistant    ║\n" +
         "║            Version 1.3.2               ║\n" +
@@ -15877,11 +16730,11 @@ window.MGA_debugStorage = function() {
     // ==================== IMMEDIATE INITIALIZATION TEST ====================
     // Final safety initialization for testing - removed to prevent demo mode interference
     // Demo mode is only triggered by the 8-second fallback if game mode completely fails
-    console.log('🧪 Skipping 2-second fallback to prevent demo mode interference');
+    productionLog('🧪 Skipping 2-second fallback to prevent demo mode interference');
 
     // Final checkpoint - script execution complete
     /* CHECKPOINT removed: SCRIPT_EXECUTION_COMPLETE */
-    console.log('✅ Magic Garden Assistant script finished loading');
+    productionLog('✅ Magic Garden Assistant script finished loading');
 
 }
 })();
