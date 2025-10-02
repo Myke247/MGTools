@@ -1324,8 +1324,17 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     petHungerSound: 'double',  // Different sound than shop notifications
                     // Ability trigger notifications
                     abilityNotificationsEnabled: false,
-                    watchedAbilities: [],  // List of abilities to watch (empty = all abilities)
-                    abilityNotificationSound: 'single',  // 'single', 'double', 'triple'
+                    watchedAbilities: [],  // Legacy - kept for backward compatibility
+                    watchedAbilityCategories: {  // Category-based notification control
+                        xpBoost: true,
+                        cropSizeBoost: true,
+                        selling: true,
+                        harvesting: true,
+                        growthSpeed: true,
+                        specialMutations: true,
+                        other: true
+                    },
+                    abilityNotificationSound: 'single',  // 'single', 'double', 'triple', 'chime', 'alert', 'buzz', 'ding', 'chirp'
                     abilityNotificationVolume: 0.2,  // Separate volume for abilities (quieter by default)
                     // Weather event notifications
                     weatherNotificationsEnabled: false,
@@ -2268,7 +2277,23 @@ function MGA_saveJSON_localStorage_fallback(key, value) {
             return false;
         }
     } catch (error) {
-        console.error(`❌ [FALLBACK] localStorage save failed for ${key}:`, error);
+        // Check if it's a quota exceeded error
+        const isQuotaError = error.name === 'QuotaExceededError' ||
+                           error.message.includes('quota') ||
+                           error.message.includes('exceeded');
+
+        if (isQuotaError) {
+            console.error(`❌ [FALLBACK] localStorage quota exceeded for ${key}!`);
+            console.error(`💡 [FALLBACK] Try clearing browser console history or other localStorage data`);
+            console.error(`💡 [FALLBACK] In Chrome DevTools: Application > Storage > Clear site data`);
+
+            // Alert user for critical data
+            if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete' || key === 'MGA_data') {
+                alert(`⚠️ localStorage quota exceeded!\n\nYour ${key.replace('MGA_', '')} cannot be saved.\n\nFix:\n1. Open DevTools (F12)\n2. Go to Application tab\n3. Click "Clear site data"\n4. Reload the page`);
+            }
+        } else {
+            console.error(`❌ [FALLBACK] localStorage save failed for ${key}:`, error);
+        }
         return false;
     }
 }
@@ -7143,6 +7168,38 @@ window.MGA_debugStorage = function() {
         playNotificationSound(500, 150, volume);
     }
 
+    // Play chime notification - ascending notes (pleasant)
+    function playChimeNotification(volume = 0.2) {
+        playNotificationSound(500, 100, volume);
+        setTimeout(() => playNotificationSound(800, 100, volume * 0.9), 120);
+        setTimeout(() => playNotificationSound(1000, 120, volume * 0.8), 240);
+    }
+
+    // Play alert notification - urgent descending (attention-grabbing)
+    function playAlertNotification(volume = 0.2) {
+        playNotificationSound(1200, 150, volume);
+        setTimeout(() => playNotificationSound(900, 150, volume * 0.9), 160);
+    }
+
+    // Play buzz notification - rapid pulsing (energetic)
+    function playBuzzNotification(volume = 0.2) {
+        for (let i = 0; i < 8; i++) {
+            setTimeout(() => playNotificationSound(300, 40, volume * (i % 2 === 0 ? 1 : 0.6)), i * 50);
+        }
+    }
+
+    // Play ding notification - clean bell-like (clear)
+    function playDingNotification(volume = 0.2) {
+        playNotificationSound(2000, 180, volume);
+    }
+
+    // Play chirp notification - quick rising chirp (cute)
+    function playChirpNotification(volume = 0.2) {
+        playNotificationSound(400, 80, volume);
+        setTimeout(() => playNotificationSound(800, 60, volume * 0.8), 85);
+        setTimeout(() => playNotificationSound(1200, 40, volume * 0.6), 150);
+    }
+
     // Play alarm siren notification (very loud and noticeable)
     function playAlarmNotification(volume = 0.5) {
         let count = 0;
@@ -8160,13 +8217,15 @@ window.MGA_debugStorage = function() {
                 const currentHunger = Number(pet.hunger) ?? 0;
                 const petName = pet.petSpecies || 'Pet';
 
-                // Game uses standard scale: hunger value / 100 = percentage
-                // Examples: 10000 = 100%, 5000 = 50%, 2500 = 25%
-                const hungerPercent = currentHunger / 100;
+                // Game uses 100,000 as max hunger (tested with turtles at 73k-85k when well-fed)
+                // Examples: 100000 = 100%, 50000 = 50%, 25000 = 25%, 450 = ~0.45%
+                // Note: Butterflies at 450/357 hunger = nearly starving (~0.4%)
+                const MAX_HUNGER = 100000;
+                const hungerPercent = (currentHunger / MAX_HUNGER) * 100;
 
                 // Get previous hunger percentage for comparison
                 const lastHunger = lastPetHungerStates[pet.id] ?? currentHunger;
-                const lastPercent = lastHunger / 100;
+                const lastPercent = (lastHunger / MAX_HUNGER) * 100;
 
                 // Debug logging (only when enabled)
                 if (UnifiedState.data.settings?.debugMode) {
@@ -8447,6 +8506,17 @@ window.MGA_debugStorage = function() {
         }
         if (!settings.notifications.watchedAbilities) {
             settings.notifications.watchedAbilities = [];
+        }
+        if (!settings.notifications.watchedAbilityCategories) {
+            settings.notifications.watchedAbilityCategories = {
+                xpBoost: true,
+                cropSizeBoost: true,
+                selling: true,
+                harvesting: true,
+                growthSpeed: true,
+                specialMutations: true,
+                other: true
+            };
         }
         if (!settings.notifications.weatherNotificationsEnabled && settings.notifications.weatherNotificationsEnabled !== false) {
             settings.notifications.weatherNotificationsEnabled = false;
@@ -8731,6 +8801,11 @@ window.MGA_debugStorage = function() {
                         <option value="single" ${settings.notifications.abilityNotificationSound === 'single' ? 'selected' : ''}>🔊 Single Beep (Subtle)</option>
                         <option value="double" ${settings.notifications.abilityNotificationSound === 'double' ? 'selected' : ''}>🔔 Double Beep</option>
                         <option value="triple" ${settings.notifications.abilityNotificationSound === 'triple' ? 'selected' : ''}>🎵 Triple Beep</option>
+                        <option value="chime" ${settings.notifications.abilityNotificationSound === 'chime' ? 'selected' : ''}>🎐 Chime (Pleasant)</option>
+                        <option value="alert" ${settings.notifications.abilityNotificationSound === 'alert' ? 'selected' : ''}>🚨 Alert (Urgent)</option>
+                        <option value="buzz" ${settings.notifications.abilityNotificationSound === 'buzz' ? 'selected' : ''}>📳 Buzz (Energetic)</option>
+                        <option value="ding" ${settings.notifications.abilityNotificationSound === 'ding' ? 'selected' : ''}>🔔 Ding (Clear)</option>
+                        <option value="chirp" ${settings.notifications.abilityNotificationSound === 'chirp' ? 'selected' : ''}>🐦 Chirp (Cute)</option>
                     </select>
                 </div>
 
@@ -8743,13 +8818,48 @@ window.MGA_debugStorage = function() {
                            style="width: 100%; accent-color: #9f7aea;">
                 </div>
 
-                <div style="margin-bottom: 12px;">
-                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                        Watched Abilities (Optional - leave empty to watch all)
+                <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                        📋 Which Abilities to Notify For
                     </label>
-                    <p style="font-size: 11px; color: #888; margin-bottom: 8px;">
-                        Select specific abilities to watch, or leave all unchecked to be notified for every ability trigger.
+                    <p style="font-size: 11px; color: #888; margin-bottom: 12px;">
+                        Select categories of abilities that will trigger notifications. Uncheck to disable notifications for that category.
                     </p>
+
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button id="select-all-ability-categories" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select All</button>
+                        <button id="select-none-ability-categories" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select None</button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                        ${(() => {
+                            const categories = [
+                                { key: 'xpBoost', icon: '💫', label: 'XP Boosts', desc: 'XP Boost I-IV, Hatch XP Boost' },
+                                { key: 'cropSizeBoost', icon: '📈', label: 'Crop Size Boosts', desc: 'Crop Size Boost I-III' },
+                                { key: 'selling', icon: '💰', label: 'Selling Boosts', desc: 'Sell Boost I-IV, Refunds' },
+                                { key: 'harvesting', icon: '🌾', label: 'Harvesting', desc: 'Double Harvest' },
+                                { key: 'growthSpeed', icon: '🐢', label: 'Growth Speed', desc: 'Plant Growth Boost I-III' },
+                                { key: 'specialMutations', icon: '🌈', label: 'Special Mutations', desc: 'Rainbow, Gold' },
+                                { key: 'other', icon: '🔧', label: 'Other Abilities', desc: 'All other abilities' }
+                            ];
+
+                            const watchedCategories = settings.notifications.watchedAbilityCategories || {};
+
+                            return categories.map(cat => `
+                                <label class="mga-checkbox-group" style="display: flex; align-items: flex-start; gap: 8px; padding: 8px; background: rgba(255,255,255,0.02); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                                    <input type="checkbox"
+                                           class="mga-checkbox ability-category-checkbox"
+                                           data-category="${cat.key}"
+                                           ${watchedCategories[cat.key] !== false ? 'checked' : ''}
+                                           style="margin-top: 2px; accent-color: #4a9eff;">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 12px; font-weight: 500; margin-bottom: 2px;">${cat.icon} ${cat.label}</div>
+                                        <div style="font-size: 10px; color: #888;">${cat.desc}</div>
+                                    </div>
+                                </label>
+                            `).join('');
+                        })()}
+                    </div>
                 </div>
             </div>
 
@@ -11481,6 +11591,55 @@ window.MGA_debugStorage = function() {
             });
         }
 
+        // Ability category checkboxes
+        const abilityCategoryCheckboxes = context.querySelectorAll('.ability-category-checkbox');
+        abilityCategoryCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const category = e.target.dataset.category;
+                UnifiedState.data.settings.notifications.watchedAbilityCategories[category] = e.target.checked;
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog(`✨ [ABILITY-NOTIFY] ${category}: ${e.target.checked ? 'Enabled' : 'Disabled'}`);
+            });
+        });
+
+        // Select All ability categories button
+        const selectAllAbilityCategories = context.querySelector('#select-all-ability-categories');
+        if (selectAllAbilityCategories) {
+            selectAllAbilityCategories.addEventListener('click', () => {
+                const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories;
+                Object.keys(watchedCategories).forEach(category => {
+                    watchedCategories[category] = true;
+                });
+
+                // Update all checkboxes
+                context.querySelectorAll('.ability-category-checkbox').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog('✨ [ABILITY-NOTIFY] Enabled all ability categories');
+            });
+        }
+
+        // Select None ability categories button
+        const selectNoneAbilityCategories = context.querySelector('#select-none-ability-categories');
+        if (selectNoneAbilityCategories) {
+            selectNoneAbilityCategories.addEventListener('click', () => {
+                const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories;
+                Object.keys(watchedCategories).forEach(category => {
+                    watchedCategories[category] = false;
+                });
+
+                // Update all checkboxes
+                context.querySelectorAll('.ability-category-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+                productionLog('✨ [ABILITY-NOTIFY] Disabled all ability categories');
+            });
+        }
+
         // Weather notifications enabled checkbox
         const weatherNotificationsCheckbox = context.querySelector('#weather-notifications-enabled');
         if (weatherNotificationsCheckbox) {
@@ -13070,11 +13229,28 @@ window.MGA_debugStorage = function() {
 
             // Check if we should notify for this ability
             if (UnifiedState.data.settings.notifications.abilityNotificationsEnabled) {
-                const watchedAbilities = UnifiedState.data.settings.notifications.watchedAbilities || [];
                 const abilityType = trigger.abilityId || '';
 
-                // Notify if watching all abilities (empty array) OR if this specific ability is watched
-                if (watchedAbilities.length === 0 || watchedAbilities.includes(abilityType)) {
+                // Filter out ProduceMutationBoost/PetMutationBoost - these are passive and shouldn't trigger notifications
+                if (abilityType && (
+                    abilityType.includes('ProduceMutationBoost') ||
+                    abilityType.includes('PetMutationBoost')
+                )) {
+                    return; // Skip notification for mutation boosts
+                }
+
+                // Get ability category
+                const category = categorizeAbilityToFilterKey(abilityType);
+
+                // Check if this category is enabled for notifications
+                const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories || {};
+
+                // If no categories configured (empty object), notify for all (backward compatible)
+                // Otherwise, check if this specific category is enabled
+                const allCategoriesEnabled = Object.keys(watchedCategories).length === 0;
+                const shouldNotify = allCategoriesEnabled || watchedCategories[category] === true;
+
+                if (shouldNotify) {
                     const displayAbilityName = normalizeAbilityName(abilityType);
                     productionLog(`🎯 [ABILITY-NOTIFY] ${abilityLog.petName} triggered ${displayAbilityName}`);
 
@@ -13091,6 +13267,21 @@ window.MGA_debugStorage = function() {
                             break;
                         case 'triple':
                             playTripleBeepNotification(abilityVolume);
+                            break;
+                        case 'chime':
+                            playChimeNotification(abilityVolume);
+                            break;
+                        case 'alert':
+                            playAlertNotification(abilityVolume);
+                            break;
+                        case 'buzz':
+                            playBuzzNotification(abilityVolume);
+                            break;
+                        case 'ding':
+                            playDingNotification(abilityVolume);
+                            break;
+                        case 'chirp':
+                            playChirpNotification(abilityVolume);
                             break;
                         default:
                             playSingleBeepNotification(abilityVolume);
