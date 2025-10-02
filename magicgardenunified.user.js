@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.11.0
+// @version      1.10.5
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -8822,42 +8822,87 @@ window.MGA_debugStorage = function() {
                     <label class="mga-label" style="display: block; margin-bottom: 8px; font-weight: 600;">
                         📋 Which Abilities to Notify For
                     </label>
-                    <p style="font-size: 11px; color: #888; margin-bottom: 12px;">
-                        Select categories of abilities that will trigger notifications. Uncheck to disable notifications for that category.
+                    <p style="font-size: 11px; color: #888; margin-bottom: 8px;">
+                        Select individual abilities that will trigger notifications. All abilities start enabled by default.
                     </p>
 
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button id="select-all-ability-categories" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select All</button>
-                        <button id="select-none-ability-categories" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select None</button>
+                        <button id="select-all-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select All</button>
+                        <button id="select-none-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select None</button>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                    <input type="text" id="ability-search-box" placeholder="🔍 Search abilities..."
+                           style="width: 100%; padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; font-size: 12px;">
+
+                    <div id="individual-abilities-notification-list" style="display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 400px; overflow-y: auto; padding: 4px;">
                         ${(() => {
-                            const categories = [
-                                { key: 'xpBoost', icon: '💫', label: 'XP Boosts', desc: 'XP Boost I-IV, Hatch XP Boost' },
-                                { key: 'cropSizeBoost', icon: '📈', label: 'Crop Size Boosts', desc: 'Crop Size Boost I-III' },
-                                { key: 'selling', icon: '💰', label: 'Selling Boosts', desc: 'Sell Boost I-IV, Refunds' },
-                                { key: 'harvesting', icon: '🌾', label: 'Harvesting', desc: 'Double Harvest' },
-                                { key: 'growthSpeed', icon: '🐢', label: 'Growth Speed', desc: 'Plant Growth Boost I-III' },
-                                { key: 'specialMutations', icon: '🌈', label: 'Special Mutations', desc: 'Rainbow, Gold' },
-                                { key: 'other', icon: '🔧', label: 'Other Abilities', desc: 'All other abilities' }
+                            // Comprehensive list of all abilities organized by category
+                            const abilities = [
+                                // XP Boosts
+                                { name: 'XP Boost I', category: '💫 XP Boosts' },
+                                { name: 'XP Boost II', category: '💫 XP Boosts' },
+                                { name: 'XP Boost III', category: '💫 XP Boosts' },
+                                { name: 'XP Boost IV', category: '💫 XP Boosts' },
+                                { name: 'Hatch XP Boost', category: '💫 XP Boosts' },
+                                // Crop Size Boosts
+                                { name: 'Crop Size Boost I', category: '📈 Crop Size Boosts' },
+                                { name: 'Crop Size Boost II', category: '📈 Crop Size Boosts' },
+                                { name: 'Crop Size Boost III', category: '📈 Crop Size Boosts' },
+                                // Selling
+                                { name: 'Sell Boost I', category: '💰 Selling' },
+                                { name: 'Sell Boost II', category: '💰 Selling' },
+                                { name: 'Sell Boost III', category: '💰 Selling' },
+                                { name: 'Sell Boost IV', category: '💰 Selling' },
+                                { name: 'Selling Refund', category: '💰 Selling' },
+                                // Harvesting
+                                { name: 'Double Harvest', category: '🌾 Harvesting' },
+                                // Growth Speed
+                                { name: 'Plant Growth Boost I', category: '🐢 Growth Speed' },
+                                { name: 'Plant Growth Boost II', category: '🐢 Growth Speed' },
+                                { name: 'Plant Growth Boost III', category: '🐢 Growth Speed' },
+                                // Special Mutations
+                                { name: 'Rainbow Mutation', category: '🌈 Special' },
+                                { name: 'Gold Mutation', category: '🌈 Special' },
+                                // Other
+                                { name: 'Seed Finder I', category: '🔧 Other' },
+                                { name: 'Seed Finder II', category: '🔧 Other' },
+                                { name: 'Hunger Boost I', category: '🔧 Other' },
+                                { name: 'Hunger Boost II', category: '🔧 Other' },
+                                { name: 'Max Strength Boost I', category: '🔧 Other' },
+                                { name: 'Max Strength Boost II', category: '🔧 Other' },
+                                { name: 'Crop Eater', category: '🔧 Other' }
                             ];
 
-                            const watchedCategories = settings.notifications.watchedAbilityCategories || {};
+                            const watchedAbilities = settings.notifications.watchedAbilities || [];
 
-                            return categories.map(cat => `
-                                <label class="mga-checkbox-group" style="display: flex; align-items: flex-start; gap: 8px; padding: 8px; background: rgba(255,255,255,0.02); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                                    <input type="checkbox"
-                                           class="mga-checkbox ability-category-checkbox"
-                                           data-category="${cat.key}"
-                                           ${watchedCategories[cat.key] !== false ? 'checked' : ''}
-                                           style="margin-top: 2px; accent-color: #4a9eff;">
-                                    <div style="flex: 1;">
-                                        <div style="font-size: 12px; font-weight: 500; margin-bottom: 2px;">${cat.icon} ${cat.label}</div>
-                                        <div style="font-size: 10px; color: #888;">${cat.desc}</div>
-                                    </div>
-                                </label>
-                            `).join('');
+                            // Group abilities by category
+                            const grouped = {};
+                            abilities.forEach(ability => {
+                                if (!grouped[ability.category]) grouped[ability.category] = [];
+                                grouped[ability.category].push(ability.name);
+                            });
+
+                            let html = '';
+                            Object.keys(grouped).sort().forEach(category => {
+                                html += `<div class="ability-category-group" style="margin-bottom: 8px;">
+                                    <div style="font-size: 11px; font-weight: 600; color: #aaa; margin-bottom: 4px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px;">${category}</div>`;
+
+                                grouped[category].forEach(abilityName => {
+                                    const isChecked = watchedAbilities.length === 0 || watchedAbilities.includes(abilityName);
+                                    html += `
+                                        <label class="mga-checkbox-group ability-checkbox-item" data-ability="${abilityName}" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; transition: background 0.2s; border-radius: 4px;">
+                                            <input type="checkbox"
+                                                   class="mga-checkbox individual-ability-checkbox"
+                                                   data-ability-name="${abilityName}"
+                                                   ${isChecked ? 'checked' : ''}
+                                                   style="accent-color: #4a9eff;">
+                                            <span style="font-size: 11px; color: #ddd;">${abilityName}</span>
+                                        </label>`;
+                                });
+                                html += '</div>';
+                            });
+
+                            return html;
                         })()}
                     </div>
                 </div>
@@ -10111,9 +10156,9 @@ window.MGA_debugStorage = function() {
                     UnifiedState.data.abilityFilters[filterKey] = e.target.checked;
                     MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
 
-                    // Update ALL overlays with ability logs
-                    updateAllAbilityLogDisplays();
-                    debugLog('ABILITY_LOGS', `Filter ${filterKey} changed to ${e.target.checked}, updated all overlays`);
+                    // Force update ALL overlays with ability logs since filters changed
+                    updateAllAbilityLogDisplays(true);
+                    debugLog('ABILITY_LOGS', `Filter ${filterKey} changed to ${e.target.checked}, force updated all overlays`);
                 });
             }
         });
@@ -10527,7 +10572,8 @@ window.MGA_debugStorage = function() {
 
         // Populate content for the selected mode
         populateFilterModeContent(mode);
-        updateAbilityLogDisplay();
+        // Force update all displays since filters changed
+        updateAllAbilityLogDisplays(true);
     }
 
     function populateFilterModeContent(mode) {
@@ -10564,7 +10610,8 @@ window.MGA_debugStorage = function() {
             checkbox.addEventListener('change', (e) => {
                 UnifiedState.data.petFilters.selectedPets[pet] = e.target.checked;
                 MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
-                updateAbilityLogDisplay();
+                // Force update all displays since filters changed
+                updateAllAbilityLogDisplays(true);
             });
 
             const span = targetDocument.createElement('span');
@@ -10603,7 +10650,8 @@ window.MGA_debugStorage = function() {
             checkbox.addEventListener('change', (e) => {
                 UnifiedState.data.customMode.selectedAbilities[ability] = e.target.checked;
                 MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
-                updateAbilityLogDisplay();
+                // Force update all displays since filters changed
+                updateAllAbilityLogDisplays(true);
             });
 
             const span = targetDocument.createElement('span');
@@ -10659,7 +10707,8 @@ window.MGA_debugStorage = function() {
             MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
             populateIndividualAbilities();
         }
-        updateAbilityLogDisplay();
+        // Force update all displays since filters changed
+        updateAllAbilityLogDisplays(true);
     }
 
     function selectNoneFilters(mode) {
@@ -10679,7 +10728,8 @@ window.MGA_debugStorage = function() {
             MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
             populateIndividualAbilities();
         }
-        updateAbilityLogDisplay();
+        // Force update all displays since filters changed
+        updateAllAbilityLogDisplays(true);
     }
 
     // Enhanced shouldLogAbility function matching PAL4 logic
@@ -11175,7 +11225,10 @@ window.MGA_debugStorage = function() {
         );
     }
 
-    function simulateKey(keyCombo) {
+    // Track which remapped keys are currently held down
+    const heldRemappedKeys = new Map(); // customKey → originalKey
+
+    function simulateKeyDown(keyCombo) {
         const parsed = parseKeyCombo(keyCombo);
 
         // Create keydown event
@@ -11186,25 +11239,29 @@ window.MGA_debugStorage = function() {
             altKey: parsed.alt,
             shiftKey: parsed.shift,
             bubbles: true,
-            cancelable: true
+            cancelable: true,
+            repeat: false // First press
         });
 
         // Dispatch to document (where game listens)
         document.dispatchEvent(downEvent);
+    }
 
-        // Also dispatch keyup after a short delay
-        setTimeout(() => {
-            const upEvent = new KeyboardEvent('keyup', {
-                key: parsed.key,
-                code: getProperKeyCode(parsed.key),
-                ctrlKey: parsed.ctrl,
-                altKey: parsed.alt,
-                shiftKey: parsed.shift,
-                bubbles: true,
-                cancelable: true
-            });
-            document.dispatchEvent(upEvent);
-        }, 50);
+    function simulateKeyUp(keyCombo) {
+        const parsed = parseKeyCombo(keyCombo);
+
+        // Create keyup event
+        const upEvent = new KeyboardEvent('keyup', {
+            key: parsed.key,
+            code: getProperKeyCode(parsed.key),
+            ctrlKey: parsed.ctrl,
+            altKey: parsed.alt,
+            shiftKey: parsed.shift,
+            bubbles: true,
+            cancelable: true
+        });
+
+        document.dispatchEvent(upEvent);
     }
 
     function handleHotkeyPress(e) {
@@ -11217,6 +11274,9 @@ window.MGA_debugStorage = function() {
 
         if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey || isRoomSearch) return;
 
+        const isKeyDown = e.type === 'keydown';
+        const isKeyUp = e.type === 'keyup';
+
         // STEP 1: Check each remapped key (custom → original)
         for (const [action, config] of Object.entries(UnifiedState.data.hotkeys.gameKeys)) {
             if (config.custom) {
@@ -11225,11 +11285,22 @@ window.MGA_debugStorage = function() {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    // Simulate the original key
-                    simulateKey(config.original);
-
-                    if (UnifiedState.data.settings.debugMode) {
-                        productionLog(`🎮 [HOTKEYS] Remapped ${config.custom} → ${config.original} (${config.name})`);
+                    if (isKeyDown) {
+                        // Only simulate keydown once per hold (ignore repeat events)
+                        if (!e.repeat) {
+                            simulateKeyDown(config.original);
+                            heldRemappedKeys.set(config.custom, config.original);
+                            if (UnifiedState.data.settings.debugMode) {
+                                productionLog(`🎮 [HOTKEYS] Remapped keydown ${config.custom} → ${config.original} (${config.name})`);
+                            }
+                        }
+                    } else if (isKeyUp) {
+                        // Simulate keyup when released
+                        simulateKeyUp(config.original);
+                        heldRemappedKeys.delete(config.custom);
+                        if (UnifiedState.data.settings.debugMode) {
+                            productionLog(`🎮 [HOTKEYS] Remapped keyup ${config.custom} → ${config.original} (${config.name})`);
+                        }
                     }
                     return false;
                 }
@@ -11242,7 +11313,7 @@ window.MGA_debugStorage = function() {
                 // Original key has been remapped, suppress it
                 e.preventDefault();
                 e.stopPropagation();
-                if (UnifiedState.data.settings.debugMode) {
+                if (UnifiedState.data.settings.debugMode && !e.repeat) {
                     productionLog(`🚫 [HOTKEYS] Suppressed ${config.original} (remapped to ${config.custom} for ${config.name})`);
                 }
                 return false;
@@ -11250,10 +11321,16 @@ window.MGA_debugStorage = function() {
         }
     }
 
+    function handleHotkeyRelease(e) {
+        // Just call the same handler - it checks e.type
+        handleHotkeyPress(e);
+    }
+
     // Install hotkey interceptor at highest priority
     function initializeHotkeySystem() {
         document.addEventListener('keydown', handleHotkeyPress, true);
-        productionLog('🎮 [HOTKEYS] Key interception system installed');
+        document.addEventListener('keyup', handleHotkeyRelease, true);
+        productionLog('🎮 [HOTKEYS] Key interception system installed (keydown + keyup)');
     }
 
     function setupHotkeysTabHandlers(context = document) {
@@ -11605,57 +11682,92 @@ window.MGA_debugStorage = function() {
             });
         }
 
-        // Ability category checkboxes
-        const abilityCategoryCheckboxes = context.querySelectorAll('.ability-category-checkbox');
-        abilityCategoryCheckboxes.forEach(checkbox => {
+        // Individual ability checkboxes
+        const individualAbilityCheckboxes = context.querySelectorAll('.individual-ability-checkbox');
+        individualAbilityCheckboxes.forEach(checkbox => {
             if (!checkbox.hasAttribute('data-handler-setup')) {
                 checkbox.setAttribute('data-handler-setup', 'true');
                 checkbox.addEventListener('change', (e) => {
-                    const category = e.target.dataset.category;
-                    UnifiedState.data.settings.notifications.watchedAbilityCategories[category] = e.target.checked;
+                    const abilityName = e.target.dataset.abilityName;
+                    if (!UnifiedState.data.settings.notifications.watchedAbilities) {
+                        UnifiedState.data.settings.notifications.watchedAbilities = [];
+                    }
+
+                    if (e.target.checked) {
+                        // Add to watched list
+                        if (!UnifiedState.data.settings.notifications.watchedAbilities.includes(abilityName)) {
+                            UnifiedState.data.settings.notifications.watchedAbilities.push(abilityName);
+                        }
+                    } else {
+                        // Remove from watched list
+                        const index = UnifiedState.data.settings.notifications.watchedAbilities.indexOf(abilityName);
+                        if (index > -1) {
+                            UnifiedState.data.settings.notifications.watchedAbilities.splice(index, 1);
+                        }
+                    }
+
                     MGA_saveJSON('MGA_data', UnifiedState.data);
-                    productionLog(`✨ [ABILITY-NOTIFY] ${category}: ${e.target.checked ? 'Enabled' : 'Disabled'}`);
+                    productionLog(`✨ [ABILITY-NOTIFY] ${abilityName}: ${e.target.checked ? 'Enabled' : 'Disabled'}`);
                 });
             }
         });
 
-        // Select All ability categories button
-        const selectAllAbilityCategories = context.querySelector('#select-all-ability-categories');
-        if (selectAllAbilityCategories && !selectAllAbilityCategories.hasAttribute('data-handler-setup')) {
-            selectAllAbilityCategories.setAttribute('data-handler-setup', 'true');
-            selectAllAbilityCategories.addEventListener('click', () => {
-                const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories;
-                Object.keys(watchedCategories).forEach(category => {
-                    watchedCategories[category] = true;
+        // Ability search box
+        const abilitySearchBox = context.querySelector('#ability-search-box');
+        if (abilitySearchBox && !abilitySearchBox.hasAttribute('data-handler-setup')) {
+            abilitySearchBox.setAttribute('data-handler-setup', 'true');
+            abilitySearchBox.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const items = context.querySelectorAll('.ability-checkbox-item');
+                items.forEach(item => {
+                    const abilityName = item.dataset.ability.toLowerCase();
+                    item.style.display = abilityName.includes(query) ? 'flex' : 'none';
                 });
+            });
+        }
+
+        // Select All individual abilities button
+        const selectAllIndividualAbilities = context.querySelector('#select-all-individual-abilities');
+        if (selectAllIndividualAbilities && !selectAllIndividualAbilities.hasAttribute('data-handler-setup')) {
+            selectAllIndividualAbilities.setAttribute('data-handler-setup', 'true');
+            selectAllIndividualAbilities.addEventListener('click', () => {
+                // Empty array means all abilities enabled (backward compatibility)
+                UnifiedState.data.settings.notifications.watchedAbilities = [];
 
                 // Update all checkboxes
-                context.querySelectorAll('.ability-category-checkbox').forEach(checkbox => {
+                context.querySelectorAll('.individual-ability-checkbox').forEach(checkbox => {
                     checkbox.checked = true;
                 });
 
                 MGA_saveJSON('MGA_data', UnifiedState.data);
-                productionLog('✨ [ABILITY-NOTIFY] Enabled all ability categories');
+                productionLog('✨ [ABILITY-NOTIFY] Enabled all abilities');
             });
         }
 
-        // Select None ability categories button
-        const selectNoneAbilityCategories = context.querySelector('#select-none-ability-categories');
-        if (selectNoneAbilityCategories && !selectNoneAbilityCategories.hasAttribute('data-handler-setup')) {
-            selectNoneAbilityCategories.setAttribute('data-handler-setup', 'true');
-            selectNoneAbilityCategories.addEventListener('click', () => {
-                const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories;
-                Object.keys(watchedCategories).forEach(category => {
-                    watchedCategories[category] = false;
+        // Select None individual abilities button
+        const selectNoneIndividualAbilities = context.querySelector('#select-none-individual-abilities');
+        if (selectNoneIndividualAbilities && !selectNoneIndividualAbilities.hasAttribute('data-handler-setup')) {
+            selectNoneIndividualAbilities.setAttribute('data-handler-setup', 'true');
+            selectNoneIndividualAbilities.addEventListener('click', () => {
+                // Get all ability names
+                const allAbilities = [];
+                context.querySelectorAll('.individual-ability-checkbox').forEach(checkbox => {
+                    allAbilities.push(checkbox.dataset.abilityName);
                 });
 
+                // Set watchedAbilities to opposite - if we want none, we list all then check against not-in-list
+                // Actually, better approach: use a special flag or empty means all, populated means only those
+                // For "none", we need a way to indicate "empty set of abilities"
+                // Let's use: populated array with abilities = only those; empty array = all; null = none
+                UnifiedState.data.settings.notifications.watchedAbilities = ['__NONE__']; // Special marker
+
                 // Update all checkboxes
-                context.querySelectorAll('.ability-category-checkbox').forEach(checkbox => {
+                context.querySelectorAll('.individual-ability-checkbox').forEach(checkbox => {
                     checkbox.checked = false;
                 });
 
                 MGA_saveJSON('MGA_data', UnifiedState.data);
-                productionLog('✨ [ABILITY-NOTIFY] Disabled all ability categories');
+                productionLog('✨ [ABILITY-NOTIFY] Disabled all abilities');
             });
         }
 
@@ -13260,16 +13372,25 @@ window.MGA_debugStorage = function() {
                     return; // Skip notification for mutation boosts
                 }
 
-                // Get ability category
-                const category = categorizeAbilityToFilterKey(abilityType);
+                // Check individual abilities list
+                const watchedAbilities = UnifiedState.data.settings.notifications.watchedAbilities || [];
 
-                // Check if this category is enabled for notifications
-                const watchedCategories = UnifiedState.data.settings.notifications.watchedAbilityCategories || {};
+                // Logic:
+                // - Empty array = all abilities enabled (default/backward compatible)
+                // - ['__NONE__'] = no abilities enabled (user clicked "Select None")
+                // - [...abilities] = only those specific abilities enabled
+                let shouldNotify = false;
 
-                // If no categories configured (empty object), notify for all (backward compatible)
-                // Otherwise, check if this specific category is enabled
-                const allCategoriesEnabled = Object.keys(watchedCategories).length === 0;
-                const shouldNotify = allCategoriesEnabled || watchedCategories[category] === true;
+                if (watchedAbilities.length === 0) {
+                    // Empty array means all abilities
+                    shouldNotify = true;
+                } else if (watchedAbilities.includes('__NONE__')) {
+                    // Special marker means none
+                    shouldNotify = false;
+                } else {
+                    // Check if this specific ability is in the list
+                    shouldNotify = watchedAbilities.includes(abilityType);
+                }
 
                 if (shouldNotify) {
                     const displayAbilityName = normalizeAbilityName(abilityType);
