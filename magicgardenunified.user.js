@@ -1556,7 +1556,8 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     hotbar9: { name: 'Hotbar Slot 9', original: '9', custom: null },
                     teleportShop: { name: 'Teleport to Shop', original: 'shift+1', custom: null },
                     teleportGarden: { name: 'Teleport to Garden', original: 'shift+2', custom: null },
-                    teleportSell: { name: 'Teleport to Sell', original: 'shift+3', custom: null }
+                    teleportSell: { name: 'Teleport to Sell', original: 'shift+3', custom: null },
+                    toggleQuickShop: { name: 'Toggle Quick Shop', original: 'ctrl+b', custom: null }
                 }
             },
             popouts: {
@@ -13209,6 +13210,17 @@ window.MGA_debugStorage = function() {
                     e.preventDefault();
                     e.stopPropagation();
 
+                    // Special handling for script functions (not game keys)
+                    if (action === 'toggleQuickShop') {
+                        if (isKeyDown && !e.repeat) {
+                            toggleShopWindows();
+                            if (UnifiedState.data.settings.debugMode) {
+                                productionLog(`🎮 [HOTKEYS] Triggered Quick Shop toggle via ${config.custom}`);
+                            }
+                        }
+                        return false;
+                    }
+
                     if (isKeyDown) {
                         // Only simulate keydown once per hold (ignore repeat events)
                         if (!e.repeat) {
@@ -13231,7 +13243,24 @@ window.MGA_debugStorage = function() {
             }
         }
 
-        // STEP 2: Suppress original keys that have been remapped
+        // STEP 2: Check for non-remapped script functions using original key
+        for (const [action, config] of Object.entries(UnifiedState.data.hotkeys.gameKeys)) {
+            if (!config.custom && action === 'toggleQuickShop') {
+                if (matchesKeyCombo(e, config.original)) {
+                    if (isKeyDown && !e.repeat) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleShopWindows();
+                        if (UnifiedState.data.settings.debugMode) {
+                            productionLog(`🎮 [HOTKEYS] Triggered Quick Shop toggle via ${config.original}`);
+                        }
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // STEP 3: Suppress original keys that have been remapped
         for (const [action, config] of Object.entries(UnifiedState.data.hotkeys.gameKeys)) {
             if (config.custom && matchesKeyCombo(e, config.original)) {
                 // Original key has been remapped, suppress it
