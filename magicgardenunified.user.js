@@ -8257,6 +8257,11 @@ window.MGA_debugStorage = function() {
             let currentDecorQuantities = {};
 
             try {
+                // Ensure watchedDecor exists (backwards compatibility)
+                if (!notifications.watchedDecor) {
+                    notifications.watchedDecor = [];
+                }
+
                 productionLog(`🎨 [NOTIFICATIONS] === CHECKING DECOR SHOP ===`);
                 const currentDecor = targetWindow?.globalShop?.shops?.decor?.inventory || [];
                 const inStockDecor = currentDecor.filter(item => item.initialStock > 0);
@@ -9076,6 +9081,9 @@ window.MGA_debugStorage = function() {
         }
         if (!settings.notifications.weatherNotificationsEnabled && settings.notifications.weatherNotificationsEnabled !== false) {
             settings.notifications.weatherNotificationsEnabled = false;
+        }
+        if (!settings.notifications.watchedDecor) {
+            settings.notifications.watchedDecor = [];
         }
         if (!settings.notifications.watchedWeatherEvents) {
             settings.notifications.watchedWeatherEvents = ['Snow', 'Rain', 'AmberMoon', 'Dawn'];
