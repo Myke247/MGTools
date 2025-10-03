@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.12.7
+// @version      1.13.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1261,6 +1261,35 @@ function applyResponsiveTextScaling(overlay, width, height) {
     // ==================== DEFERRED CONFLICT DETECTION ====================
     // Conflict detection moved to after game initialization to prevent loading stalls
 
+    // ==================== DECOR CATALOG ====================
+    // Decor items available in the hourly decoration shop
+    const DECOR_ITEMS = [
+        // Rocks
+        { id: 'SmallRock', name: 'Small Garden Rock', category: 'Rocks' },
+        { id: 'MediumRock', name: 'Medium Garden Rock', category: 'Rocks' },
+        { id: 'LargeRock', name: 'Large Garden Rock', category: 'Rocks' },
+        // Wood Items
+        { id: 'WoodBench', name: 'Wood Bench', category: 'Wood' },
+        { id: 'WoodArch', name: 'Wood Arch', category: 'Wood' },
+        { id: 'WoodBridge', name: 'Wood Bridge', category: 'Wood' },
+        { id: 'WoodLampPost', name: 'Wood Lamp Post', category: 'Wood' },
+        { id: 'WoodOwl', name: 'Wood Owl', category: 'Wood' },
+        { id: 'Birdhouse', name: 'Birdhouse', category: 'Wood' },
+        // Stone Items
+        { id: 'StoneBench', name: 'Stone Bench', category: 'Stone' },
+        { id: 'StoneArch', name: 'Stone Arch', category: 'Stone' },
+        { id: 'StoneBridge', name: 'Stone Bridge', category: 'Stone' },
+        { id: 'StoneLampPost', name: 'Stone Lamp Post', category: 'Stone' },
+        { id: 'StoneGnome', name: 'Stone Gnome', category: 'Stone' },
+        { id: 'StoneWell', name: 'Stone Well', category: 'Stone' },
+        // Other
+        { id: 'Windmill', name: 'Windmill', category: 'Other' },
+        { id: 'Fountain', name: 'Fountain', category: 'Other' },
+        { id: 'MushroomRing', name: 'Mushroom Ring', category: 'Other' },
+        { id: 'Scarecrow', name: 'Scarecrow', category: 'Other' },
+        { id: 'Beehive', name: 'Beehive', category: 'Other' }
+    ];
+
     const UnifiedState = {
         initialized: false,
         connectionStatus: false,
@@ -1323,6 +1352,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
                     continuousEnabled: false,  // Controls whether continuous option is available
                     watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
                     watchedEggs: ["CommonEgg", "MythicalEgg"],
+                    watchedDecor: [], // Decoration/hourly shop items
                     // Pet hunger notifications
                     petHungerEnabled: false,
                     petHungerThreshold: 25,  // Notify when hunger drops below this % (percentage of observed max)
@@ -7892,16 +7922,21 @@ window.MGA_debugStorage = function() {
     // Track current shop inventory and restock state
     let previousSeedInventory = [];
     let previousEggInventory = [];
+    let previousDecorInventory = [];
     let previousSeedQuantities = {};
     let previousEggQuantities = {};
+    let previousDecorQuantities = {};
     let lastRestockCheck = 0;
     let lastNotificationTime = 0;
     let lastSeedTimer = 999;
     let lastEggTimer = 999;
+    let lastDecorTimer = 999;
     let lastSeedRestock = 0;
     let lastEggRestock = 0;
+    let lastDecorRestock = 0;
     let seedRestockNotifiedItems = new Set(); // Track items notified during current restock
     let eggRestockNotifiedItems = new Set(); // Track items notified during current restock
+    let decorRestockNotifiedItems = new Set(); // Track items notified during current restock
     let isFirstRun = true; // Track if this is the first check to notify for watched items already in stock
     const CHECK_INTERVAL = 2000; // Check every 2 seconds for better timing
 
@@ -7935,6 +7970,7 @@ window.MGA_debugStorage = function() {
             const shopData = targetWindow?.globalShop || UnifiedState.atoms.quinoaData || quinoaData;
             const seedTimer = shopData?.shops?.seed?.secondsUntilRestock || 999;
             const eggTimer = shopData?.shops?.egg?.secondsUntilRestock || 999;
+            const decorTimer = shopData?.shops?.decor?.secondsUntilRestock || 999;
 
             // Detect restock using robust edge-detection (same method as Buy UI)
             // Method 1: Timer was ≤5s and now ≥180s (actual reset moment)
@@ -7946,6 +7982,10 @@ window.MGA_debugStorage = function() {
             const eggRestocked =
                 (lastEggTimer <= SMALL_EDGE && eggTimer >= LARGE_EDGE) ||
                 (eggTimer - lastEggTimer >= BIG_JUMP_DELTA && lastEggTimer > 0);
+
+            const decorRestocked =
+                (lastDecorTimer <= SMALL_EDGE && decorTimer >= LARGE_EDGE) ||
+                (decorTimer - lastDecorTimer >= BIG_JUMP_DELTA && lastDecorTimer > 0);
 
             // Timer tracking (silent unless restock detected)
 
@@ -7965,9 +8005,18 @@ window.MGA_debugStorage = function() {
                 lastEggRestock = now;
             }
 
+            if (decorRestocked) {
+                productionLog(`🔄 [NOTIFICATIONS] DECOR SHOP RESTOCKED! (Edge detection: ${lastDecorTimer}→${decorTimer})`);
+                previousDecorInventory = []; // Clear for new cycle
+                previousDecorQuantities = {}; // Clear quantity tracking
+                decorRestockNotifiedItems.clear(); // Clear restock notification tracking
+                lastDecorRestock = now;
+            }
+
             // Update last timer values
             lastSeedTimer = seedTimer;
             lastEggTimer = eggTimer;
+            lastDecorTimer = decorTimer;
 
             // Check seed shop
             const currentSeeds = targetWindow?.globalShop?.shops?.seed?.inventory || [];
@@ -8201,6 +8250,123 @@ window.MGA_debugStorage = function() {
                 console.error(`❌ [NOTIFICATIONS] Error checking eggs:`, eggError);
             }
 
+            productionLog(`✅ [NOTIFICATIONS] Finished checking eggs, moving to decor...`);
+
+            // Check decor shop (hourly resets)
+            let currentDecorIds = [];
+            let currentDecorQuantities = {};
+
+            try {
+                productionLog(`🎨 [NOTIFICATIONS] === CHECKING DECOR SHOP ===`);
+                const currentDecor = targetWindow?.globalShop?.shops?.decor?.inventory || [];
+                const inStockDecor = currentDecor.filter(item => item.initialStock > 0);
+                currentDecorIds = inStockDecor.map(item => item.decorId);
+
+                // Always log current decor state for debugging
+                productionLog(`🎨 [NOTIFICATIONS] Current decor in shop: [${currentDecorIds.join(', ')}] | Previous: [${previousDecorInventory.join(', ')}]`);
+                productionLog(`🎨 [NOTIFICATIONS] Raw decor inventory:`, currentDecor.map(d => `${d.decorId}(stock:${d.initialStock})`));
+
+                // Debug decor shop structure
+                if (currentDecor.length === 0) {
+                    productionLog(`🎨 [NOTIFICATIONS] No decor found. Shop structure:`, {
+                        hasGlobalShop: !!targetWindow?.globalShop,
+                        hasShops: !!targetWindow?.globalShop?.shops,
+                        hasDecorShop: !!targetWindow?.globalShop?.shops?.decor,
+                        hasDecorInventory: !!targetWindow?.globalShop?.shops?.decor?.inventory,
+                        decorInventoryLength: targetWindow?.globalShop?.shops?.decor?.inventory?.length || 0
+                    });
+                }
+
+                // Track decor quantities
+                inStockDecor.forEach(item => {
+                    currentDecorQuantities[item.decorId] = item.initialStock;
+                });
+
+                // Initialize previous quantities if empty (first run)
+                if (Object.keys(previousDecorQuantities).length === 0 && !decorRestocked) {
+                    productionLog(`🔧 [NOTIFICATIONS] Initializing previous decor quantities...`);
+                    Object.keys(currentDecorQuantities).forEach(decorId => {
+                        previousDecorQuantities[decorId] = currentDecorQuantities[decorId];
+                    });
+                }
+
+                productionLog(`🎨 [NOTIFICATIONS] Current decor quantities:`, currentDecorQuantities, `| Previous:`, previousDecorQuantities);
+
+                // Find decor with increased quantities or new items (after restock)
+                Object.keys(currentDecorQuantities).forEach(decorId => {
+                    const oldQuantity = previousDecorQuantities[decorId] || 0;
+                    const newQuantity = currentDecorQuantities[decorId];
+
+                    // Always log each decor being processed for debugging
+                    productionLog(`🔍 [NOTIFICATIONS] Processing decor: ${decorId} (${oldQuantity}→${newQuantity})`);
+
+                    // Determine if we should check for notification
+                    const quantityIncreased = newQuantity > oldQuantity;
+                    const isRestockWindow = decorRestocked && (now - lastDecorRestock) < RESTOCK_COOLDOWN;
+                    const alreadyNotifiedInRestock = decorRestockNotifiedItems.has(decorId);
+
+                    productionLog(`🔍 [NOTIFICATIONS] ${decorId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+
+                    const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+
+                    productionLog(`🔍 [NOTIFICATIONS] ${decorId} shouldCheck: ${shouldCheck}`);
+
+                    if (shouldCheck) {
+                        productionLog(`🆕 [NOTIFICATIONS] Decor stock change: ${decorId} (${oldQuantity}→${newQuantity}) | Restock: ${decorRestocked} | RestockWindow: ${isRestockWindow}`);
+
+                        // Update last seen for ANY decor that appears or increases
+                        updateLastSeen(decorId);
+
+                        // Check if it's a watched decor item
+                        const isWatched = isWatchedItem(decorId, 'decor');
+                        productionLog(`🔍 [NOTIFICATIONS] Is ${decorId} watched? ${isWatched}`);
+                        productionLog(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedDecor.join(', ')}]`);
+
+                        if (isWatched) {
+                            // Check cooldown (1 minute per item)
+                            const itemKey = `decor_${decorId}`;
+                            const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
+                            const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
+
+                            if (canNotify) {
+                                productionLog(`🎉 [NOTIFICATIONS] WATCHED DECOR DETECTED: ${decorId} (${newQuantity} in stock)`);
+                                notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+
+                                // Track that we notified this item during restock
+                                if (isRestockWindow) {
+                                    decorRestockNotifiedItems.add(decorId);
+                                }
+
+                                MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                                // Collect item for batch notification
+                                detectedItems.push({
+                                    type: 'decor',
+                                    id: decorId,
+                                    quantity: newQuantity,
+                                    icon: '🎨'
+                                });
+                            } else {
+                                productionLog(`⏰ [NOTIFICATIONS] ${decorId} on cooldown, not notifying`);
+                            }
+                        } else {
+                            productionLog(`❌ [NOTIFICATIONS] ${decorId} is not watched, skipping notification`);
+                        }
+                    } else {
+                        productionLog(`⏭️ [NOTIFICATIONS] ${decorId} shouldCheck=false, skipping`);
+                    }
+                });
+
+                productionLog(`✅ [NOTIFICATIONS] Finished checking all decor`);
+
+                // Update decor inventory and quantities
+                previousDecorInventory = [...currentDecorIds];
+                previousDecorQuantities = {...currentDecorQuantities};
+
+            } catch (decorError) {
+                console.error(`❌ [NOTIFICATIONS] Error checking decor:`, decorError);
+            }
+
             // Process batch notifications if any items were detected
             if (detectedItems.length > 0) {
                 productionLog(`🎉 [NOTIFICATIONS] Batch detected: ${detectedItems.length} items`);
@@ -8265,18 +8431,19 @@ window.MGA_debugStorage = function() {
             // Store original shop data
             let lastSeedData = JSON.stringify(targetWindow.globalShop?.shops?.seed || {});
             let lastEggData = JSON.stringify(targetWindow.globalShop?.shops?.egg || {});
+            let lastDecorData = JSON.stringify(targetWindow.globalShop?.shops?.decor || {});
 
             // Create a proxy to intercept shop updates
             if (targetWindow.globalShop && targetWindow.globalShop.shops) {
                 try {
                     const originalShops = targetWindow.globalShop.shops;
 
-                    // Create proxies for seed and egg shops
+                    // Create proxies for seed, egg, and decor shops
                     const shopProxy = new Proxy(originalShops, {
                         set(target, property, value) {
                             const result = Reflect.set(target, property, value);
 
-                            // Check if seed or egg shop data changed
+                            // Check if seed, egg, or decor shop data changed
                             if (property === 'seed') {
                                 const newData = JSON.stringify(value);
                                 if (newData !== lastSeedData) {
@@ -8290,6 +8457,14 @@ window.MGA_debugStorage = function() {
                                 if (newData !== lastEggData) {
                                     productionLog('🔄 [SHOP-WATCHER] Egg shop data changed!');
                                     lastEggData = newData;
+                                    // Trigger immediate check
+                                    setTimeout(() => checkForWatchedItems(), 0);
+                                }
+                            } else if (property === 'decor') {
+                                const newData = JSON.stringify(value);
+                                if (newData !== lastDecorData) {
+                                    productionLog('🔄 [SHOP-WATCHER] Decor shop data changed!');
+                                    lastDecorData = newData;
                                     // Trigger immediate check
                                     setTimeout(() => checkForWatchedItems(), 0);
                                 }
@@ -9210,6 +9385,22 @@ window.MGA_debugStorage = function() {
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
                             <span>🥚✨ Mythical Egg</span>
                         </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                        Watched Decor (Hourly Shop)
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                        ${DECOR_ITEMS.map(decor => `
+                            <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                                <input type="checkbox" id="watch-decor-${decor.id.toLowerCase()}" class="mga-checkbox"
+                                       ${settings.notifications.watchedDecor.includes(decor.id) ? 'checked' : ''}
+                                       style="accent-color: #4a9eff; transform: scale(0.8);">
+                                <span>🎨 ${decor.name}</span>
+                            </label>
+                        `).join('')}
                     </div>
                 </div>
 
@@ -12233,13 +12424,35 @@ window.MGA_debugStorage = function() {
             }
         });
 
+        // Decor watch checkboxes
+        DECOR_ITEMS.forEach(decor => {
+            const checkboxId = `watch-decor-${decor.id.toLowerCase()}`;
+            const checkbox = context.querySelector(`#${checkboxId}`);
+            if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+                checkbox.setAttribute('data-handler-setup', 'true');
+                checkbox.addEventListener('change', (e) => {
+                    const notifications = UnifiedState.data.settings.notifications;
+                    if (e.target.checked) {
+                        if (!notifications.watchedDecor.includes(decor.id)) {
+                            notifications.watchedDecor.push(decor.id);
+                        }
+                    } else {
+                        notifications.watchedDecor = notifications.watchedDecor.filter(id => id !== decor.id);
+                    }
+                    MGA_saveJSON('MGA_data', UnifiedState.data);
+                    productionLog(`🎨 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${decor.id} to/from watch list`);
+                    updateLastSeenDisplay();
+                });
+            }
+        });
+
         // Update last seen display function
         function updateLastSeenDisplay() {
             const lastSeenDisplay = context.querySelector('#last-seen-display');
             if (!lastSeenDisplay) return;
 
             const notifications = UnifiedState.data.settings.notifications;
-            const allWatched = [...notifications.watchedSeeds, ...notifications.watchedEggs];
+            const allWatched = [...notifications.watchedSeeds, ...notifications.watchedEggs, ...notifications.watchedDecor];
 
             if (allWatched.length === 0) {
                 lastSeenDisplay.innerHTML = 'No items being watched';
