@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.13.0
+// @version      1.17.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -447,7 +447,6 @@
             min-height: 80px;
             max-width: 90vw;
             max-height: none;
-            width: 380px;
             height: 450px;
             display: flex;
             flex-direction: column;
@@ -1129,6 +1128,164 @@
             flex: 1 !important;
             overflow-y: auto !important;
             min-height: 200px !important;
+        }
+
+        /* Shop Overlay */
+        #mga-shop-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.5);
+            display: none;
+            z-index: 999998;
+            pointer-events: none;
+        }
+
+        #mga-shop-overlay.active {
+            display: block;
+            pointer-events: auto;
+        }
+
+        /* Shop Item Color Coding */
+        .shop-color-white { color: #ffffff !important; }
+        .shop-color-green { color: #2afd23ff !important; }
+        .shop-color-blue { color: #0084ffff !important; }
+        .shop-color-yellow { color: #fced19ff !important; }
+        .shop-color-purple { color: #774cb3 !important; }
+        .shop-color-orange { color: #ff7300ff !important; }
+
+        /* Rainbow text for celestial items */
+        .shop-rainbow-text {
+            background: linear-gradient(90deg,
+                #ff0000, #ff7b00, #ffd800, #3cff2a, #00b5ff, #774cb3, #ff2ab7, #ff0000);
+            background-size: 200% 100%;
+            background-repeat: repeat;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent !important;
+            animation: shopRainbowShift 3s linear infinite;
+            font-weight: 700;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        @keyframes shopRainbowShift {
+            0%   { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        /* Shop sprite styling */
+        .shop-sprite {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            object-fit: contain;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.02);
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .shop-item.in-stock .shop-sprite {
+            transform: scale(1.04);
+            box-shadow: 0 4px 10px rgba(0, 255, 42, 0.07);
+        }
+
+        /* Enhanced shop item styling */
+        .shop-item.in-stock {
+            background: rgba(76, 255, 106, 0.29) !important;
+            box-shadow: 0 6px 18px rgba(60, 180, 80, 0.06);
+            border: 1px solid rgba(9, 255, 0, 0.12) !important;
+        }
+
+        /* Enhanced shop window styling */
+        .mga-shop-window {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                        0 8px 24px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+            backdrop-filter: blur(20px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .mga-shop-window:hover {
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.6),
+                        0 10px 30px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+        }
+
+        /* Shop item hover enhancements */
+        .shop-item {
+            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .shop-item:hover {
+            transform: translateX(2px);
+        }
+
+        .shop-item.in-stock:hover {
+            background: rgba(76, 255, 106, 0.35) !important;
+            box-shadow: 0 8px 24px rgba(60, 180, 80, 0.12);
+        }
+
+        /* Responsive design for mobile */
+        @media (max-width: 768px) {
+            .mga-shop-window {
+                max-width: calc(100vw - 20px) !important;
+                max-height: calc(100vh - 60px) !important;
+                left: 10px !important;
+                top: 30px !important;
+                width: calc(100% - 20px) !important;
+            }
+
+            #mga-shop-overlay {
+                padding: 10px;
+            }
+
+            .shop-sprite {
+                width: 24px !important;
+                height: 24px !important;
+            }
+
+            .shop-item {
+                padding: 6px !important;
+                font-size: 11px !important;
+            }
+
+            .buy-btn {
+                padding: 3px 6px !important;
+                font-size: 10px !important;
+            }
+        }
+
+        /* Tablet responsive */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .mga-shop-window {
+                max-width: 400px !important;
+            }
+        }
+
+        /* Smooth overlay fade */
+        #mga-shop-overlay {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        #mga-shop-overlay.active {
+            opacity: 1;
+        }
+
+        /* Checkbox styling */
+        .show-available-only, .sort-by-value {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Close button enhancement */
+        .shop-close-btn {
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+
+        .shop-close-btn:hover {
+            transform: scale(1.2);
         }
 
     `;
@@ -3453,6 +3610,8 @@ window.MGA_debugStorage = function() {
 
         handle.addEventListener('mousedown', (e) => {
             if (e.target.tagName === 'BUTTON') return;
+            // Don't start drag if clicking resize handle
+            if (e.target.classList && e.target.classList.contains('mga-resize-handle')) return;
 
             e.preventDefault();
             e.stopPropagation();
@@ -3939,6 +4098,7 @@ window.MGA_debugStorage = function() {
         panel.style.top = '50px';
         panel.style.left = '50%';
         panel.style.transform = 'translateX(-50%)';
+        panel.style.width = '380px'; // Initial width, user can resize
 
         // Header
         const header = targetDocument.createElement('div');
@@ -3953,6 +4113,33 @@ window.MGA_debugStorage = function() {
             </div>
         `;
         panel.appendChild(header);
+
+        // Shop button (above tabs)
+        const shopButton = targetDocument.createElement('button');
+        shopButton.className = 'mga-btn mga-shop-btn';
+        shopButton.innerHTML = '🛒 Quick Shop';
+        shopButton.style.cssText = `
+            width: calc(100% - 24px);
+            margin: 8px 12px;
+            padding: 8px;
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(56, 142, 60, 0.3));
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #fff;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        `;
+        shopButton.addEventListener('mouseenter', () => {
+            shopButton.style.background = 'linear-gradient(135deg, rgba(76, 175, 80, 0.5), rgba(56, 142, 60, 0.5))';
+            shopButton.style.transform = 'translateY(-1px)';
+        });
+        shopButton.addEventListener('mouseleave', () => {
+            shopButton.style.background = 'linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(56, 142, 60, 0.3))';
+            shopButton.style.transform = 'translateY(0)';
+        });
+        shopButton.addEventListener('click', () => toggleShopWindows());
+        panel.appendChild(shopButton);
 
         // Tabs container with navigation
         const tabsContainer = targetDocument.createElement('div');
@@ -4171,10 +4358,10 @@ window.MGA_debugStorage = function() {
         // Make draggable and resizable with position restoration
         makeDraggable(panel, header);
         makeElementResizable(panel, {
-            minWidth: 350,
+            minWidth: 250,
             minHeight: 250,
-            maxWidth: window.innerWidth * 0.9,
-            maxHeight: window.innerHeight * 0.9,
+            maxWidth: window.innerWidth,
+            maxHeight: window.innerHeight,
             showHandleOnHover: false
         });
 
@@ -4267,6 +4454,9 @@ window.MGA_debugStorage = function() {
                 break;
             case 'seeds':
                 content = getSeedsTabContent();
+                break;
+            case 'shop':
+                content = getShopTabContent();
                 break;
             case 'values':
                 content = getValuesTabContent();
@@ -4389,6 +4579,9 @@ window.MGA_debugStorage = function() {
                 case 'seeds':
                     freshContent = mainWindow.MGA_Internal?.getSeedsTabContent ? mainWindow.MGA_Internal?.getSeedsTabContent() : 'Content unavailable';
                     break;
+                case 'shop':
+                    freshContent = mainWindow.MGA_Internal?.getShopTabContent ? mainWindow.MGA_Internal?.getShopTabContent() : 'Content unavailable';
+                    break;
                 case 'values':
                     freshContent = mainWindow.MGA_Internal?.getValuesTabContent ? mainWindow.MGA_Internal?.getValuesTabContent() : 'Content unavailable';
                     break;
@@ -4485,6 +4678,9 @@ window.MGA_debugStorage = function() {
                     case 'seeds':
                         setupSeedsTabHandlers(popoutWindow.document);
                         break;
+                    case 'shop':
+                        setupShopTabHandlers(popoutWindow.document);
+                        break;
                     case 'settings':
                         setupSettingsTabHandlers(popoutWindow.document);
                         break;
@@ -4546,6 +4742,8 @@ window.MGA_debugStorage = function() {
                 return getAbilitiesTabContent();
             case 'seeds':
                 return getSeedsTabContent();
+            case 'shop':
+                return getShopTabContent();
             case 'values':
                 return getValuesTabContent();
             case 'timers':
@@ -4586,6 +4784,9 @@ window.MGA_debugStorage = function() {
                     break;
                 case 'seeds':
                     setupSeedsTabHandlers(overlay);
+                    break;
+                case 'shop':
+                    setupShopTabHandlers(overlay);
                     break;
                 case 'settings':
                     setupSettingsTabHandlers();
@@ -4874,6 +5075,9 @@ window.MGA_debugStorage = function() {
             case 'seeds':
                 content = getSeedsTabContent();
                 break;
+            case 'shop':
+                content = getShopTabContent();
+                break;
             case 'values':
                 content = getValuesTabContent();
                 break;
@@ -4942,6 +5146,9 @@ window.MGA_debugStorage = function() {
                         break;
                     case 'seeds':
                         setupSeedsTabHandlers(overlay);
+                        break;
+                    case 'shop':
+                        setupShopTabHandlers(overlay);
                         break;
                     case 'settings':
                         setupSettingsTabHandlers();
@@ -5894,6 +6101,9 @@ window.MGA_debugStorage = function() {
             case 'seeds':
                 content = getSeedsTabContent();
                 break;
+            case 'shop':
+                content = getShopTabContent();
+                break;
             case 'values':
                 content = getValuesTabContent();
                 break;
@@ -6016,6 +6226,9 @@ window.MGA_debugStorage = function() {
                 case 'seeds':
                     freshContent = mainWindow.MGA_Internal?.getSeedsTabContent ? mainWindow.MGA_Internal?.getSeedsTabContent() : 'Content unavailable';
                     break;
+                case 'shop':
+                    freshContent = mainWindow.MGA_Internal?.getShopTabContent ? mainWindow.MGA_Internal?.getShopTabContent() : 'Content unavailable';
+                    break;
                 case 'values':
                     freshContent = mainWindow.MGA_Internal?.getValuesTabContent ? mainWindow.MGA_Internal?.getValuesTabContent() : 'Content unavailable';
                     break;
@@ -6092,6 +6305,9 @@ window.MGA_debugStorage = function() {
                         break;
                     case 'seeds':
                         setupSeedsTabHandlers(popoutWindow.document);
+                        break;
+                    case 'shop':
+                        setupShopTabHandlers(popoutWindow.document);
                         break;
                     case 'settings':
                         setupSettingsTabHandlers(popoutWindow.document);
@@ -6289,6 +6505,10 @@ window.MGA_debugStorage = function() {
             case 'seeds':
                 contentEl.innerHTML = getSeedsTabContent();
                 setupSeedsTabHandlers(contentEl);
+                break;
+            case 'shop':
+                contentEl.innerHTML = getShopTabContent();
+                setupShopTabHandlers(contentEl);
                 break;
             case 'values':
                 contentEl.innerHTML = getValuesTabContent();
@@ -6892,6 +7112,883 @@ window.MGA_debugStorage = function() {
         debugLog('SEEDS_TAB', 'getSeedsTabContent() returning HTML', { htmlLength: html.length });
         productionLog('🔍 [SEEDS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
         return html;
+    }
+
+    // ==================== DUAL SHOP WINDOWS ====================
+    let shopWindowsOpen = false;
+    let seedShopWindow = null;
+    let eggShopWindow = null;
+    let shopOverlay = null;
+
+    // Shop sprite image map (Discord CDN URLs)
+    const SHOP_IMAGE_MAP = {
+        // Seeds
+        "Carrot": "https://cdn.discordapp.com/emojis/1423010183574982669.webp",
+        "Strawberry": "https://cdn.discordapp.com/emojis/1423010222724874330.webp",
+        "Aloe": "https://cdn.discordapp.com/emojis/1423010259655590028.webp",
+        "Blueberry": "https://cdn.discordapp.com/emojis/1423010283126784010.webp",
+        "Apple": "https://cdn.discordapp.com/emojis/1423010302965846046.webp",
+        "OrangeTulip": "https://cdn.discordapp.com/emojis/1423010324952514621.webp",
+        "Tomato": "https://cdn.discordapp.com/emojis/1423010355109433478.webp",
+        "Daffodil": "https://cdn.discordapp.com/emojis/1423010391356866654.webp",
+        "Corn": "https://cdn.discordapp.com/emojis/1423010497648656566.webp",
+        "Watermelon": "https://cdn.discordapp.com/emojis/1423010520067346515.webp",
+        "Pumpkin": "https://cdn.discordapp.com/emojis/1423010546474549338.webp",
+        "Echeveria": "https://cdn.discordapp.com/emojis/1423010587910078614.webp",
+        "Coconut": "https://cdn.discordapp.com/emojis/1423010611721273444.webp",
+        "Banana": "https://cdn.discordapp.com/emojis/1423010652582187089.webp",
+        "Lily": "https://cdn.discordapp.com/emojis/1423010686388404407.webp",
+        "BurrosTail": "https://cdn.discordapp.com/emojis/1423010714267942912.webp",
+        "Mushroom": "https://cdn.discordapp.com/emojis/1423010734002012160.webp",
+        "Cactus": "https://cdn.discordapp.com/emojis/1423010755267133531.webp",
+        "Bamboo": "https://cdn.discordapp.com/emojis/1423010797830930552.webp",
+        "Grape": "https://cdn.discordapp.com/emojis/1423010779522666616.webp",
+        "Pepper": "https://cdn.discordapp.com/emojis/1423010818953580574.webp",
+        "Lemon": "https://cdn.discordapp.com/emojis/1423010911144120330.webp",
+        "PassionFruit": "https://cdn.discordapp.com/emojis/1423010934863171677.webp",
+        "DragonFruit": "https://cdn.discordapp.com/emojis/1423010954991370271.webp",
+        "Lychee": "https://cdn.discordapp.com/emojis/1423011007206396076.webp",
+        "Sunflower": "https://cdn.discordapp.com/emojis/1423010976499765288.webp",
+        "Starweaver": "https://cdn.discordapp.com/emojis/1423011042744729700.webp",
+        "DawnCelestial": "https://cdn.discordapp.com/emojis/1423011097883185412.webp",
+        "MoonCelestial": "https://cdn.discordapp.com/emojis/1423011077410525308.webp",
+        // Eggs
+        "CommonEgg": "https://cdn.discordapp.com/emojis/1423011628978540676.webp",
+        "UncommonEgg": "https://cdn.discordapp.com/emojis/1423011627602804856.webp",
+        "RareEgg": "https://cdn.discordapp.com/emojis/1423011625664905316.webp",
+        "LegendaryEgg": "https://cdn.discordapp.com/emojis/1423011623089737739.webp",
+        "MythicalEgg": "https://cdn.discordapp.com/emojis/1423011620828745899.webp"
+    };
+
+    // Color groups for item rarity/type
+    const SHOP_COLOR_GROUPS = {
+        white: ["CommonEgg", "Carrot", "Strawberry", "Aloe"],
+        green: ["UncommonEgg", "Apple", "OrangeTulip", "Tomato", "Blueberry"],
+        blue: ["RareEgg", "Daffodil", "Corn", "Watermelon", "Pumpkin"],
+        yellow: ["LegendaryEgg", "Echeveria", "Coconut", "Banana", "Lily", "BurrosTail"],
+        purple: ["MythicalEgg", "Mushroom", "Cactus", "Bamboo", "Grape"],
+        orange: ["Pepper", "Lemon", "PassionFruit", "DragonFruit", "Lychee", "Sunflower"]
+    };
+
+    // Rainbow items (celestial seeds)
+    const SHOP_RAINBOW_ITEMS = ["Starweaver", "DawnCelestial", "MoonCelestial"];
+
+    // Shop prices (from in-game shop screenshots)
+    const SHOP_PRICES = {
+        // Seeds - Common tier
+        "Carrot": 10,
+        "Strawberry": 50,
+        "Aloe": 125,
+        // Seeds - Uncommon tier
+        "Blueberry": 400,
+        "Apple": 500,
+        "OrangeTulip": 600,
+        "Tomato": 600,
+        // Seeds - Rare tier
+        "Daffodil": 1000,
+        "Corn": 1300,
+        "Watermelon": 2500,
+        "Pumpkin": 3600,
+        // Seeds - Legendary tier
+        "Echeveria": 4200,
+        "Coconut": 6000,
+        "Banana": 7500,
+        "Lily": 30000,
+        "BurrosTail": 93000,
+        // Seeds - Mythical tier
+        "Mushroom": 150000,
+        "Cactus": 250000,
+        "Bamboo": 400000,
+        "Grape": 850000,
+        // Seeds - Divine tier
+        "Pepper": 3000000,
+        "Lemon": 2000000,
+        "PassionFruit": 2750000,
+        "DragonFruit": 5000000,
+        "Lychee": 25000000,
+        "Sunflower": 350000000,
+        // Seeds - Celestial tier
+        "Starweaver": 3000000000,
+        "DawnCelestial": 5000000000,
+        "MoonCelestial": 50000000000,
+        // Eggs
+        "CommonEgg": 50000,
+        "UncommonEgg": 500000,
+        "RareEgg": 2500000,
+        "LegendaryEgg": 10000000,
+        "MythicalEgg": 50000000
+    };
+
+    // Format price with k/m/b notation and return color
+    function formatShopPrice(price) {
+        let formatted, color;
+        if (price >= 1000000000) {
+            formatted = (price / 1000000000).toFixed(price % 1000000000 === 0 ? 0 : 1) + 'b';
+            color = '#4a9eff'; // Blue for billions
+        } else if (price >= 1000000) {
+            formatted = (price / 1000000).toFixed(price % 1000000 === 0 ? 0 : 1) + 'm';
+            color = '#ffd700'; // Gold for millions
+        } else if (price >= 1000) {
+            formatted = (price / 1000).toFixed(price % 1000 === 0 ? 0 : 1) + 'k';
+            color = '#999'; // Grey for thousands
+        } else {
+            formatted = price.toString();
+            color = '#999'; // Grey for under 1000
+        }
+        return { formatted, color };
+    }
+
+    // Normalize string for comparison
+    function normalizeShopKey(s) {
+        return String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    // Get text color class for an item
+    function getShopItemColorClass(itemId) {
+        const normalized = normalizeShopKey(itemId);
+
+        // Check if rainbow item
+        for (const rainbowItem of SHOP_RAINBOW_ITEMS) {
+            if (normalized.includes(normalizeShopKey(rainbowItem))) {
+                return 'shop-rainbow-text';
+            }
+        }
+
+        // Check color groups
+        for (const color in SHOP_COLOR_GROUPS) {
+            const items = SHOP_COLOR_GROUPS[color];
+            for (const item of items) {
+                if (normalized === normalizeShopKey(item) || normalized.includes(normalizeShopKey(item))) {
+                    return `shop-color-${color}`;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    // Preload shop images for better performance
+    (function preloadShopImages() {
+        Object.values(SHOP_IMAGE_MAP).forEach(src => {
+            if (!src) return;
+            const img = new Image();
+            img.src = src;
+        });
+    })();
+
+    // Flash purchase feedback tooltip
+    function flashPurchaseFeedback(el, message, duration = 1500) {
+        // Clean up any stuck tooltips first
+        try {
+            const stuckTooltips = targetDocument.querySelectorAll('.mga-flash-tooltip');
+            stuckTooltips.forEach(t => {
+                if (t && t.parentNode) t.remove();
+            });
+        } catch (e) {}
+
+        try {
+            if (!el || !(el instanceof Element)) {
+                console.warn('flashPurchaseFeedback: invalid element', el);
+                showFloatingMsg(message, duration);
+                return;
+            }
+
+            const rect = el.getBoundingClientRect();
+            const msg = targetDocument.createElement('div');
+            msg.className = 'mga-flash-tooltip';
+            msg.textContent = message;
+            msg.setAttribute('role', 'status');
+            msg.style.cssText = 'position:fixed;pointer-events:none;padding:6px 10px;border-radius:8px;font-size:12px;background:rgba(0,0,0,.9);color:#fff;z-index:2147483647;transition:opacity 180ms ease,transform 220ms ease;opacity:0;transform:translateY(-6px);';
+
+            if (rect && rect.width > 0 && rect.height > 0) {
+                const left = rect.left + rect.width / 2;
+                let top = rect.top - 10;
+
+                if (top < 6) top = rect.bottom + 8;
+                msg.style.left = `${Math.round(left)}px`;
+                msg.style.top = `${Math.round(top)}px`;
+                msg.style.transform += ' translateX(-50%)';
+            } else {
+                const left = window.innerWidth / 2;
+                const top = 20;
+                msg.style.left = `${Math.round(left)}px`;
+                msg.style.top = `${Math.round(top)}px`;
+                msg.style.transform += ' translateX(-50%)';
+            }
+
+            targetDocument.body.appendChild(msg);
+
+            // Trigger animation
+            requestAnimationFrame(() => {
+                msg.style.opacity = '1';
+                msg.style.transform = msg.style.transform.replace('translateY(-6px)', 'translateY(0)');
+            });
+
+            // Ensure removal with multiple fallbacks
+            const removeMsg = () => {
+                try {
+                    if (msg && msg.parentNode) {
+                        msg.style.opacity = '0';
+                        msg.style.transform = msg.style.transform.replace('translateY(0)', 'translateY(-6px)');
+                        setTimeout(() => {
+                            try {
+                                if (msg && msg.parentNode) msg.remove();
+                            } catch (e) {}
+                        }, 220);
+                    }
+                } catch (e) {
+                    try {
+                        if (msg && msg.parentNode) msg.remove();
+                    } catch (_) {}
+                }
+            };
+
+            setTimeout(removeMsg, duration);
+        } catch (err) {
+            console.error('flashPurchaseFeedback error:', err);
+            try {
+                showFloatingMsg(message, duration);
+            } catch (e) {}
+        }
+    }
+
+    function showFloatingMsg(msg, dur = 900) {
+        const m = targetDocument.createElement('div');
+        m.textContent = msg;
+        m.style.cssText = 'position:fixed;left:50%;top:20px;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:6px 10px;border-radius:8px;z-index:2147483647;';
+        targetDocument.body.appendChild(m);
+        setTimeout(() => m.remove(), dur);
+    }
+
+    // Create shop overlay
+    function createShopOverlay() {
+        if (shopOverlay) return shopOverlay;
+
+        shopOverlay = targetDocument.createElement('div');
+        shopOverlay.id = 'mga-shop-overlay';
+        targetDocument.body.appendChild(shopOverlay);
+
+        // Click outside to close
+        shopOverlay.addEventListener('click', (e) => {
+            if (e.target === shopOverlay) {
+                toggleShopWindows();
+            }
+        });
+
+        return shopOverlay;
+    }
+
+    function toggleShopWindows() {
+        if (shopWindowsOpen) {
+            // Close windows
+            if (seedShopWindow) seedShopWindow.remove();
+            if (eggShopWindow) eggShopWindow.remove();
+            if (shopOverlay) shopOverlay.classList.remove('active');
+            seedShopWindow = null;
+            eggShopWindow = null;
+            shopWindowsOpen = false;
+        } else {
+            // Open windows
+            const overlay = createShopOverlay();
+            overlay.classList.add('active');
+            createShopWindows();
+            shopWindowsOpen = true;
+        }
+    }
+
+    function createShopWindows() {
+        // Create seed shop window
+        seedShopWindow = createShopWindow('seed', 'Seeds', 100);
+        eggShopWindow = createShopWindow('egg', 'Eggs', 430);
+
+        // Setup handlers
+        setupShopWindowHandlers(seedShopWindow, 'seed');
+        setupShopWindowHandlers(eggShopWindow, 'egg');
+    }
+
+    // Escape key handler to close shop windows
+    targetDocument.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && shopWindowsOpen) {
+            toggleShopWindows();
+        }
+    });
+
+    function createShopWindow(type, title, leftOffset) {
+        const window = targetDocument.createElement('div');
+        window.className = 'mga-shop-window';
+        window.id = `mga-shop-${type}`;
+
+        // Load saved position and size with validation
+        const savedPositions = MGA_loadJSON('MGA_shopWindowPositions', {});
+        const savedSizes = MGA_loadJSON('MGA_shopWindowSizes', {});
+        let savedPos = savedPositions[type] || { left: leftOffset, top: 120 };
+        let savedSize = savedSizes[type] || { width: 300, height: 500 };
+
+        // Validate saved position is on screen
+        if (savedPos.left < 0 || savedPos.left > window.innerWidth - 100) {
+            savedPos.left = leftOffset;
+        }
+        if (savedPos.top < 0 || savedPos.top > window.innerHeight - 100) {
+            savedPos.top = 120;
+        }
+
+        // Validate saved size is reasonable
+        if (savedSize.width < 250 || savedSize.width > 800) {
+            savedSize.width = 300;
+        }
+        if (savedSize.height < 300 || savedSize.height > 900) {
+            savedSize.height = 500;
+        }
+
+        window.style.cssText = `
+            position: fixed;
+            top: ${savedPos.top}px;
+            left: ${savedPos.left}px;
+            width: ${savedSize.width}px;
+            height: ${savedSize.height}px;
+            background: rgba(17, 24, 39, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 999999;
+            overflow-y: auto;
+            color: #fff;
+        `;
+
+        window.innerHTML = `
+            <div class="shop-window-header" style="padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: grab;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative;">
+                    <h3 style="margin: 0; font-size: 14px;">🌱 ${title}</h3>
+                    <button class="shop-close-btn" style="position: absolute; top: -4px; right: -4px; cursor: pointer; font-weight: 700; font-size: 16px; color: #cfcfcf; background: none; border: none; padding: 0 6px; transition: color 0.2s ease;">×</button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                        <input type="checkbox" class="show-available-only" style="accent-color: #2afd23;">
+                        <span>Show available only</span>
+                    </label>
+                    <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                        <input type="checkbox" class="sort-by-value" style="accent-color: #4a9eff;">
+                        <span>Sort by Value</span>
+                    </label>
+                </div>
+            </div>
+            <div class="shop-items-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+        `;
+
+        // Append to body (overlay is just a backdrop)
+        targetDocument.body.appendChild(window);
+
+        // Add close button handler
+        const closeBtn = window.querySelector('.shop-close-btn');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.remove();
+            // Update state
+            if (type === 'seed') {
+                seedShopWindow = null;
+            } else {
+                eggShopWindow = null;
+            }
+            // If both windows are closed, close overlay and update state
+            if (!seedShopWindow && !eggShopWindow) {
+                if (shopOverlay) shopOverlay.classList.remove('active');
+                shopWindowsOpen = false;
+            }
+        });
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.color = '#ff5555';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.color = '#cfcfcf';
+        });
+
+        // Make draggable with type parameter for position saving
+        makeShopWindowDraggable(window, window.querySelector('.shop-window-header'), type);
+
+        // Make resizable with size saving
+        makeElementResizable(window, {
+            minWidth: 250,
+            minHeight: 300,
+            maxWidth: 600,
+            maxHeight: 800,
+            showHandleOnHover: true
+        });
+
+        // Save size on resize
+        const resizeObserver = new ResizeObserver(() => {
+            const sizes = MGA_loadJSON('MGA_shopWindowSizes', {});
+            sizes[type] = {
+                width: window.offsetWidth,
+                height: window.offsetHeight
+            };
+            MGA_saveJSON('MGA_shopWindowSizes', sizes);
+        });
+        resizeObserver.observe(window);
+
+        return window;
+    }
+
+    function makeShopWindowDraggable(element, handle, windowType) {
+        let isDragging = false;
+        let startX, startY, startLeft, startTop;
+
+        handle.style.cursor = 'grab';
+
+        handle.addEventListener('mousedown', (e) => {
+            // Don't drag if clicking on interactive elements
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+            // Allow dragging from labels and spans, but not if they contain an input
+            if (e.target.tagName === 'LABEL' && e.target.querySelector('input')) return;
+            // Don't start drag if clicking resize handle
+            if (e.target.classList && e.target.classList.contains('mga-resize-handle')) return;
+
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startLeft = element.offsetLeft;
+            startTop = element.offsetTop;
+            handle.style.cursor = 'grabbing';
+            element.style.zIndex = '9999999'; // Bring to front while dragging
+        });
+
+        targetDocument.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            element.style.left = `${startLeft + dx}px`;
+            element.style.top = `${startTop + dy}px`;
+        });
+
+        targetDocument.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                handle.style.cursor = 'grab';
+                element.style.zIndex = '999999'; // Reset z-index
+
+                // Save position
+                const positions = MGA_loadJSON('MGA_shopWindowPositions', {});
+                positions[windowType] = {
+                    left: element.offsetLeft,
+                    top: element.offsetTop
+                };
+                MGA_saveJSON('MGA_shopWindowPositions', positions);
+            }
+        });
+    }
+
+    function setupShopWindowHandlers(window, type) {
+        const itemsList = window.querySelector('.shop-items-list');
+        const sortCheckbox = window.querySelector('.sort-by-value');
+        const showAvailableCheckbox = window.querySelector('.show-available-only');
+
+        const items = type === 'seed' ? SEED_SPECIES_SHOP : EGG_IDS_SHOP;
+
+        function renderItems(sortByValue = false, showAvailableOnly = false) {
+            itemsList.innerHTML = '';
+
+            let itemsToRender = items.map(id => ({
+                id,
+                stock: getItemStock(id, type),
+                value: getItemValue(id, type)
+            }));
+
+            // Filter by availability if checkbox is checked
+            if (showAvailableOnly) {
+                itemsToRender = itemsToRender.filter(item => item.stock > 0);
+            }
+
+            // Sort by value if checkbox is checked
+            if (sortByValue) {
+                itemsToRender.sort((a, b) => b.value - a.value);
+            }
+
+            // Render items
+            itemsToRender.forEach(({ id, stock, value }) => {
+                const itemEl = createShopItemElement(id, type, stock, value);
+                itemsList.appendChild(itemEl);
+            });
+
+            // Show empty state if no items after filtering
+            if (itemsToRender.length === 0 && showAvailableOnly) {
+                itemsList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+            }
+        }
+
+        sortCheckbox.addEventListener('change', () => {
+            renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
+        });
+
+        showAvailableCheckbox.addEventListener('change', () => {
+            renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
+        });
+
+        renderItems();
+
+        // Auto-refresh stock
+        setInterval(() => renderItems(sortCheckbox.checked, showAvailableCheckbox.checked), 2000);
+    }
+
+    function createShopItemElement(id, type, stock, value) {
+        const div = targetDocument.createElement('div');
+        div.className = 'shop-item';
+        if (stock > 0) div.classList.add('in-stock');
+
+        div.style.cssText = `
+            padding: 8px;
+            background: ${stock > 0 ? 'rgba(76, 255, 106, 0.15)' : 'rgba(255,255,255,0.03)'};
+            border: 1px solid ${stock > 0 ? 'rgba(9, 255, 0, 0.2)' : 'rgba(255,255,255,0.1)'};
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            transition: all 0.2s ease;
+        `;
+
+        const displayName = id.replace(/([A-Z])/g, ' $1').trim();
+        const spriteUrl = SHOP_IMAGE_MAP[id] || '';
+        const colorClass = getShopItemColorClass(id);
+        const price = SHOP_PRICES[id] || 0;
+        const priceData = formatShopPrice(price);
+
+        div.innerHTML = `
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;">
+                ${spriteUrl ? `<img src="${spriteUrl}" alt="${displayName}" class="shop-sprite" loading="lazy">` : ''}
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 12px; font-weight: 600; margin-bottom: 2px;" class="${colorClass}">${displayName}</div>
+                    <div style="font-size: 10px; color: #888;">Stock: ${stock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span></div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+                <button class="buy-btn" data-amount="1" ${stock === 0 ? 'disabled' : ''}
+                        style="padding: 4px 8px; font-size: 11px; background: rgba(74, 158, 255, 0.3); border: 1px solid rgba(74, 158, 255, 0.5); border-radius: 3px; color: #fff; cursor: ${stock > 0 ? 'pointer' : 'not-allowed'}; transition: all 0.15s ease;">1</button>
+                <button class="buy-btn" data-amount="all" ${stock === 0 ? 'disabled' : ''}
+                        style="padding: 4px 8px; font-size: 11px; background: rgba(76, 175, 80, 0.3); border: 1px solid rgba(76, 175, 80, 0.5); border-radius: 3px; color: #fff; cursor: ${stock > 0 ? 'pointer' : 'not-allowed'}; transition: all 0.15s ease;">All</button>
+            </div>
+        `;
+
+        div.querySelectorAll('.buy-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const amount = btn.dataset.amount === 'all' ? stock : 1;
+                buyItem(id, type, amount, div);
+            });
+
+            // Add hover effects
+            if (stock > 0) {
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.transform = 'translateY(-1px)';
+                    btn.style.background = 'rgba(9, 255, 0, 0.1)';
+                    btn.style.borderColor = 'rgba(9, 255, 0, 0.09)';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.transform = '';
+                    const isAllButton = btn.dataset.amount === 'all';
+                    btn.style.background = isAllButton ? 'rgba(76, 175, 80, 0.3)' : 'rgba(74, 158, 255, 0.3)';
+                    btn.style.borderColor = isAllButton ? 'rgba(76, 175, 80, 0.5)' : 'rgba(74, 158, 255, 0.5)';
+                });
+            }
+        });
+
+        return div;
+    }
+
+    function buyItem(id, type, amount, itemEl) {
+        const conn = targetWindow.MagicCircle_RoomConnection;
+        if (!conn?.sendMessage) {
+            alert('Connection not available');
+            return;
+        }
+
+        try {
+            for (let i = 0; i < amount; i++) {
+                conn.sendMessage({
+                    scopePath: ["Room", "Quinoa"],
+                    type: type === 'seed' ? "PurchaseSeed" : "PurchaseEgg",
+                    [type === 'seed' ? 'species' : 'eggId']: id
+                });
+            }
+
+            const displayName = id.replace(/([A-Z])/g, ' $1').trim();
+            flashPurchaseFeedback(itemEl, `Purchased x${amount} ${displayName}`);
+            productionLog(`✅ Purchased ${amount}x ${id}`);
+        } catch (e) {
+            console.error('Purchase error:', e);
+            alert('Purchase failed');
+        }
+    }
+
+    function getItemStock(id, type) {
+        try {
+            const shop = targetWindow?.globalShop?.shops;
+            if (!shop) return 0;
+
+            const inventory = type === 'seed' ? shop.seed?.inventory : shop.egg?.inventory;
+            if (!inventory) return 0;
+
+            const item = inventory.find(i => {
+                const itemId = type === 'seed' ? i.species : i.eggId;
+                return itemId === id;
+            });
+
+            if (!item) return 0;
+
+            const initial = item.initialStock || 0;
+            const purchased = type === 'seed'
+                ? (targetWindow.bought?.shopPurchases?.seed?.purchases?.[id] || 0)
+                : (targetWindow.bought?.shopPurchases?.egg?.purchases?.[id] || 0);
+
+            return Math.max(0, initial - purchased);
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    function getItemValue(id, type) {
+        // Placeholder - you can integrate with your value system
+        const valueMap = {
+            // Seeds (approximate values)
+            'MoonCelestial': 50000, 'DawnCelestial': 45000, 'Starweaver': 40000,
+            'Lychee': 8000, 'DragonFruit': 7000, 'PassionFruit': 6000,
+            'Sunflower': 5000, 'Lemon': 4000, 'Pepper': 3500,
+            'Grape': 3000, 'Bamboo': 2500, 'Cactus': 2000,
+            'Mushroom': 1800, 'BurrosTail': 1500, 'Lily': 1200,
+            'Banana': 1000, 'Coconut': 900, 'Echeveria': 800,
+            'Pumpkin': 600, 'Watermelon': 500, 'Corn': 400,
+            'Daffodil': 300, 'Tomato': 250, 'OrangeTulip': 200,
+            'Apple': 150, 'Blueberry': 100, 'Aloe': 80,
+            'Strawberry': 60, 'Carrot': 40,
+            // Eggs
+            'MythicalEgg': 10000, 'LegendaryEgg': 5000, 'RareEgg': 1000,
+            'UncommonEgg': 200, 'CommonEgg': 50
+        };
+        return valueMap[id] || 100;
+    }
+
+    function formatValue(value) {
+        if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+        return value.toString();
+    }
+
+    const SEED_SPECIES_SHOP = ['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'OrangeTulip', 'Tomato', 'Daffodil',
+                                'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail',
+                                'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit',
+                                'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
+
+    const EGG_IDS_SHOP = ['CommonEgg', 'UncommonEgg', 'RareEgg', 'LegendaryEgg', 'MythicalEgg'];
+
+    // ==================== SHOP TAB (DEPRECATED - USING DUAL WINDOWS NOW) ====================
+    function getShopTabContent() {
+        const settings = UnifiedState.data.settings;
+
+        return `
+            <div class="mga-section">
+                <div class="mga-section-title">🛒 Shop</div>
+                <p style="font-size: 12px; color: #aaa; margin-bottom: 16px;">
+                    Quick buy seeds and eggs. Stock updates automatically when shop resets.
+                </p>
+
+                <div style="margin-bottom: 20px;">
+                    <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <input type="checkbox" id="shop-in-stock-only" class="mga-checkbox">
+                        <span>Show only items in stock</span>
+                    </label>
+                </div>
+
+                <div id="shop-seed-section" style="margin-bottom: 24px;">
+                    <h3 style="font-size: 14px; margin-bottom: 12px; color: #fff;">🌱 Seeds</h3>
+                    <div id="shop-seed-list" style="display: grid; gap: 6px;"></div>
+                </div>
+
+                <div id="shop-egg-section">
+                    <h3 style="font-size: 14px; margin-bottom: 12px; color: #fff;">🥚 Eggs</h3>
+                    <div id="shop-egg-list" style="display: grid; gap: 6px;"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    function setupShopTabHandlers(context) {
+        if (!context) context = targetDocument;
+
+        const inStockCheckbox = context.querySelector('#shop-in-stock-only');
+        const seedList = context.querySelector('#shop-seed-list');
+        const eggList = context.querySelector('#shop-egg-list');
+
+        if (!seedList || !eggList) return;
+
+        // Seed/Egg item definition
+        const SEED_SPECIES = ['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'OrangeTulip', 'Tomato', 'Daffodil',
+                              'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail',
+                              'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit',
+                              'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
+
+        const EGG_IDS = ['CommonEgg', 'UncommonEgg', 'RareEgg', 'LegendaryEgg', 'MythicalEgg'];
+
+        // Create shop items
+        function createShopItem(id, type) {
+            const item = targetDocument.createElement('div');
+            item.className = 'shop-item';
+            item.dataset.itemId = id;
+            item.dataset.itemType = type;
+            item.style.cssText = `
+                padding: 10px;
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                transition: all 0.2s ease;
+            `;
+
+            const displayName = id.replace(/([A-Z])/g, ' $1').trim();
+            const stock = getItemStock(id, type);
+
+            item.innerHTML = `
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 600; font-size: 13px; color: #fff; margin-bottom: 2px;">${displayName}</div>
+                    <div class="stock-display" style="font-size: 11px; color: #888;">Stock: ${stock}</div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <button class="mga-btn mga-btn-secondary buy-one" ${stock === 0 ? 'disabled' : ''}
+                            style="padding: 6px 12px; font-size: 12px;">Buy 1</button>
+                    <button class="mga-btn mga-btn-secondary buy-all" ${stock === 0 ? 'disabled' : ''}
+                            style="padding: 6px 12px; font-size: 12px;">Buy All</button>
+                </div>
+            `;
+
+            if (stock > 0) {
+                item.style.background = 'rgba(76, 255, 106, 0.15)';
+                item.style.borderColor = 'rgba(9, 255, 0, 0.2)';
+            }
+
+            // Event handlers
+            item.querySelector('.buy-one').addEventListener('click', () => buyItem(id, type, 1, item));
+            item.querySelector('.buy-all').addEventListener('click', () => buyItem(id, type, stock, item));
+
+            return item;
+        }
+
+        function getItemStock(id, type) {
+            try {
+                const shop = targetWindow?.globalShop?.shops;
+                if (!shop) return 0;
+
+                const inventory = type === 'seed' ? shop.seed?.inventory : shop.egg?.inventory;
+                if (!inventory) return 0;
+
+                const item = inventory.find(i => {
+                    const itemId = type === 'seed' ? i.species : i.eggId;
+                    return itemId === id;
+                });
+
+                if (!item) return 0;
+
+                const initial = item.initialStock || 0;
+                const purchased = type === 'seed'
+                    ? (targetWindow.bought?.shopPurchases?.seed?.purchases?.[id] || 0)
+                    : (targetWindow.bought?.shopPurchases?.egg?.purchases?.[id] || 0);
+
+                return Math.max(0, initial - purchased);
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function buyItem(id, type, amount, itemEl) {
+            const conn = targetWindow.MagicCircle_RoomConnection;
+            if (!conn?.sendMessage) {
+                alert('Connection not available');
+                return;
+            }
+
+            try {
+                for (let i = 0; i < amount; i++) {
+                    conn.sendMessage({
+                        scopePath: ["Room", "Quinoa"],
+                        type: type === 'seed' ? "PurchaseSeed" : "PurchaseEgg",
+                        [type === 'seed' ? 'species' : 'eggId']: id
+                    });
+                }
+
+                // Update UI
+                setTimeout(() => {
+                    const newStock = getItemStock(id, type);
+                    const stockDisplay = itemEl.querySelector('.stock-display');
+                    if (stockDisplay) stockDisplay.textContent = `Stock: ${newStock}`;
+
+                    const buttons = itemEl.querySelectorAll('button');
+                    buttons.forEach(btn => btn.disabled = newStock === 0);
+
+                    if (newStock === 0) {
+                        itemEl.style.background = 'rgba(255,255,255,0.03)';
+                        itemEl.style.borderColor = 'rgba(255,255,255,0.1)';
+                    }
+
+                    applyStockFilter();
+                }, 100);
+
+                productionLog(`✅ Purchased ${amount}x ${id}`);
+            } catch (e) {
+                console.error('Purchase error:', e);
+                alert('Purchase failed');
+            }
+        }
+
+        function applyStockFilter() {
+            if (!inStockCheckbox) return;
+            const showOnlyInStock = inStockCheckbox.checked;
+
+            context.querySelectorAll('.shop-item').forEach(item => {
+                const id = item.dataset.itemId;
+                const type = item.dataset.itemType;
+                const stock = getItemStock(id, type);
+                item.style.display = (showOnlyInStock && stock === 0) ? 'none' : 'flex';
+            });
+        }
+
+        // Initialize shop
+        SEED_SPECIES.forEach(species => {
+            seedList.appendChild(createShopItem(species, 'seed'));
+        });
+
+        EGG_IDS.forEach(eggId => {
+            eggList.appendChild(createShopItem(eggId, 'egg'));
+        });
+
+        if (inStockCheckbox) {
+            inStockCheckbox.addEventListener('change', applyStockFilter);
+        }
+
+        // Auto-refresh on shop update
+        const refreshInterval = setInterval(() => {
+            if (!context.querySelector('#shop-seed-list')) {
+                clearInterval(refreshInterval);
+                return;
+            }
+
+            context.querySelectorAll('.shop-item').forEach(item => {
+                const id = item.dataset.itemId;
+                const type = item.dataset.itemType;
+                const newStock = getItemStock(id, type);
+                const stockDisplay = item.querySelector('.stock-display');
+                if (stockDisplay) stockDisplay.textContent = `Stock: ${newStock}`;
+
+                const buttons = item.querySelectorAll('button');
+                buttons.forEach(btn => btn.disabled = newStock === 0);
+
+                if (newStock > 0) {
+                    item.style.background = 'rgba(76, 255, 106, 0.15)';
+                    item.style.borderColor = 'rgba(9, 255, 0, 0.2)';
+                } else {
+                    item.style.background = 'rgba(255,255,255,0.03)';
+                    item.style.borderColor = 'rgba(255,255,255,0.1)';
+                }
+            });
+
+            applyStockFilter();
+        }, 2000);
     }
 
     function getValuesTabContent() {
@@ -12735,7 +13832,12 @@ window.MGA_debugStorage = function() {
         // Ultra-compact mode checkbox
         const ultraCompactCheckbox = context.querySelector('#ultra-compact-checkbox');
         if (ultraCompactCheckbox) {
-            ultraCompactCheckbox.addEventListener('change', (e) => {
+            // Remove any existing listeners by cloning
+            const newCheckbox = ultraCompactCheckbox.cloneNode(true);
+            ultraCompactCheckbox.parentNode.replaceChild(newCheckbox, ultraCompactCheckbox);
+
+            newCheckbox.addEventListener('change', (e) => {
+                e.stopPropagation();
                 UnifiedState.data.settings.ultraCompactMode = e.target.checked;
                 MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
                 applyUltraCompactMode(e.target.checked);
@@ -14123,7 +15225,6 @@ window.MGA_debugStorage = function() {
                 --mga-tab-height: 32px;
                 --mga-spacing: 4px;
                 min-width: 250px;
-                max-width: 350px;
                 font-size: 11px;
             `;
 
@@ -14143,9 +15244,9 @@ window.MGA_debugStorage = function() {
             // Restore normal CSS variables
             panel.style.cssText = panel.style.cssText.replace(/--mga-[^;]+;/g, '');
 
-            // Restore normal size
-            panel.style.minWidth = '600px';
-            panel.style.maxWidth = 'none';
+            // Restore normal size - remove restrictions
+            panel.style.minWidth = '250px';
+            panel.style.maxWidth = '';
             panel.style.fontSize = '13px';
         }
 
@@ -15597,6 +16698,135 @@ window.MGA_debugStorage = function() {
         }, 2000); // Wait 2 seconds for atoms to populate
     }
 
+    // ==================== TURTLE TIMER (CROP GROWTH BOOST II) ====================
+    // Calculates expected crop growth time with Turtle's Plant Growth Boost II ability
+
+    function getCropHash(crop) {
+        try {
+            return JSON.stringify(crop);
+        } catch (e) {
+            return "__ref_changed__" + Date.now();
+        }
+    }
+
+    function getTurtleExpectations(activePets) {
+        const turtles = (activePets || []).filter(p =>
+            p &&
+            p.petSpecies === "Turtle" &&
+            p.hunger > 0 &&
+            p.abilities?.some(a => a === "PlantGrowthBoostII")
+        );
+
+        let expectedMinutesRemoved = 0;
+
+        turtles.forEach(p => {
+            const base =
+                Math.min(Math.floor((p.xp || 0) / (100 * 3600) * 30), 30) +
+                Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) - 30;
+            expectedMinutesRemoved += (base / 100 * 5) * 60 * (1 - Math.pow(1 - 0.27 * base / 100, 1/60));
+        });
+
+        return {
+            expectedMinutesRemoved
+        };
+    }
+
+    function estimateUntilLatestCrop(currentCrop, activePets) {
+        if (!currentCrop || currentCrop.length === 0) return null;
+        if (!activePets || getTurtleExpectations(activePets).expectedMinutesRemoved == 0) return null;
+
+        const now = Date.now();
+        const maxEndTime = Math.max(...currentCrop.map(c => c.endTime || 0));
+
+        const remainingRealMinutes = (maxEndTime - now) / (1000 * 60);
+
+        const { expectedMinutesRemoved } = getTurtleExpectations(activePets);
+
+        const effectiveRate = expectedMinutesRemoved + 1;
+
+        const expectedRealMinutes = remainingRealMinutes / effectiveRate;
+
+        const hours = Math.floor(expectedRealMinutes / 60);
+        const minutes = Math.floor(expectedRealMinutes % 60);
+
+        return `${hours}h ${minutes}m`;
+    }
+
+    function insertTurtleEstimate() {
+        const timeElement = Array.from(targetDocument.querySelectorAll("p"))
+            .find(el => /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(el.textContent.trim()));
+
+        if (timeElement) {
+            const existing = timeElement.nextElementSibling;
+            if (existing && existing.dataset.estimate) {
+                existing.remove();
+            }
+
+            const estimate = estimateUntilLatestCrop(
+                targetWindow.currentCrop,
+                targetWindow.activePets
+            );
+
+            if (estimate) {
+                const estimateEl = targetDocument.createElement("p");
+                estimateEl.dataset.estimate = "true";
+                estimateEl.style.color = "lime";
+                estimateEl.style.fontSize = "14px";
+                estimateEl.style.fontWeight = "bold";
+                estimateEl.style.marginTop = "-8px";
+
+                estimateEl.textContent = estimate;
+
+                timeElement.insertAdjacentElement("afterend", estimateEl);
+            }
+        }
+    }
+
+    // Hook currentCrop atom for turtle timer
+    function initializeTurtleTimer() {
+        productionLog('🐢 [TURTLE-TIMER] Initializing crop growth estimate...');
+
+        // Hook currentCrop atom
+        hookAtom(
+            "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom",
+            "currentCrop",
+            (value) => {
+                const currentHash = getCropHash(value);
+
+                if (currentHash !== globalThis.prevCropHash) {
+                    globalThis.prevCropHash = currentHash;
+
+                    // Update estimate when crop changes
+                    requestAnimationFrame(() => insertTurtleEstimate());
+                }
+
+                return value;
+            }
+        );
+
+        // Set up MutationObserver for dynamic updates
+        let _observerScheduled = false;
+
+        const observer = new MutationObserver(() => {
+            if (!targetWindow.currentCrop || targetWindow.currentCrop.length === 0) return;
+
+            if (_observerScheduled) return;
+            _observerScheduled = true;
+
+            requestAnimationFrame(() => {
+                insertTurtleEstimate();
+                _observerScheduled = false;
+            });
+        });
+
+        observer.observe(targetDocument.body, {
+            childList: true,
+            subtree: true
+        });
+
+        productionLog('✅ [TURTLE-TIMER] Turtle timer initialized successfully');
+    }
+
     function loadSavedData() {
         // Enhanced storage diagnostics
         productionLog('📦 [STORAGE] Starting comprehensive data loading with diagnostics...');
@@ -16553,6 +17783,7 @@ window.MGA_debugStorage = function() {
             // Quick Actions
             'Ctrl+K': (e) => openCommandPalette(e),
             'Ctrl+F': (e) => openQuickSearch(e),
+            'Ctrl+B': () => toggleShopWindows(),
             'Enter': (e) => handleEnterKey(e),
             'Space': (e) => handleSpaceKey(e),
 
@@ -17231,6 +18462,10 @@ window.MGA_debugStorage = function() {
             // Initialize atom hooks
             productionLog('🔗 Initializing atom hooks...');
             initializeAtoms();
+
+            // Initialize turtle timer
+            productionLog('🐢 Initializing turtle timer...');
+            initializeTurtleTimer();
 
             // Start monitoring intervals
             productionLog('⏱️ Starting monitoring intervals...');
