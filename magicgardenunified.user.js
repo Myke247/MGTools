@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.11.5
+// @version      1.11.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1031,9 +1031,9 @@
         .mga-preset {
             background: rgba(30, 41, 59, 0.4);
             border: 1px solid rgba(100, 116, 139, 0.2);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
             transition: background-color 0.15s ease;
             cursor: pointer;
         }
@@ -1068,21 +1068,21 @@
         .mga-preset-header {
             display: flex;
             align-items: center;
-            margin-bottom: 8px;
-            padding-bottom: 6px;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
             border-bottom: 1px solid rgba(100, 116, 139, 0.15);
         }
 
         .mga-preset-name {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #4a9eff;
         }
 
         .mga-preset-pets {
             color: #e0e7ff;
-            font-size: 12px;
-            padding: 6px 10px;
+            font-size: 11px;
+            padding: 4px 8px;
             background: rgba(15, 23, 42, 0.3);
             border-radius: 4px;
             border-left: 2px solid #4a9eff;
@@ -8867,28 +8867,118 @@ window.MGA_debugStorage = function() {
                             <span>🥕 Carrot</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-sunflower" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Sunflower') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-strawberry" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Strawberry') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>🌻 Sunflower</span>
+                            <span>🍓 Strawberry</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-moonbinder" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Moonbinder') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-aloe" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Aloe') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>🌙 Moonbinder</span>
+                            <span>🌿 Aloe</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-dawnbinder" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Dawnbinder') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-blueberry" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Blueberry') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>🌅 Dawnbinder</span>
+                            <span>🫐 Blueberry</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-starweaver" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Starweaver') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-apple" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Apple') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>⭐ Starweaver</span>
+                            <span>🍎 Apple</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-tulip" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Tulip') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌷 Tulip</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-tomato" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Tomato') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍅 Tomato</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-daffodil" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Daffodil') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌼 Daffodil</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-corn" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Corn') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌽 Corn</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-watermelon" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Watermelon') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍉 Watermelon</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-pumpkin" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Pumpkin') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🎃 Pumpkin</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-echeveria" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Echeveria') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🪴 Echeveria</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-coconut" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Coconut') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥥 Coconut</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-banana" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Banana') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍌 Banana</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-lily" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Lily') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌺 Lily</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-burrostail" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('BurrosTail') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌱 Burro's Tail</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-mushroom" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Mushroom') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍄 Mushroom</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-cactus" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Cactus') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🌵 Cactus</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-bamboo" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Bamboo') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🎋 Bamboo</span>
+                        </label>
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-grape" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Grape') ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🍇 Grape</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
                             <input type="checkbox" id="watch-pepper" class="mga-checkbox"
@@ -8921,28 +9011,28 @@ window.MGA_debugStorage = function() {
                             <span>🍇 Lychee</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-mushroom" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Mushroom') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-sunflower" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Sunflower') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>🍄 Mushroom</span>
+                            <span>🌻 Sunflower</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-cactus" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Cactus') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-starweaver" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Starweaver') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>🌵 Cactus</span>
+                            <span>⭐ Starweaver</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-bamboo" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Bamboo') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-dawnbinder" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Dawnbinder') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>🎋 Bamboo</span>
+                            <span>🌅 Dawnbinder</span>
                         </label>
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-grape" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes('Grape') ? 'checked' : ''}
+                            <input type="checkbox" id="watch-moonbinder" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes('Moonbinder') ? 'checked' : ''}
                                    style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>🍇 Grape</span>
+                            <span>🌙 Moonbinder</span>
                         </label>
                     </div>
                 </div>
@@ -11913,19 +12003,34 @@ window.MGA_debugStorage = function() {
         // Seed watch checkboxes
         const seedWatchMap = {
             'watch-carrot': 'Carrot',
-            'watch-sunflower': 'Sunflower',
-            'watch-moonbinder': 'Moonbinder',
-            'watch-dawnbinder': 'Dawnbinder',
-            'watch-starweaver': 'Starweaver',
+            'watch-strawberry': 'Strawberry',
+            'watch-aloe': 'Aloe',
+            'watch-blueberry': 'Blueberry',
+            'watch-apple': 'Apple',
+            'watch-tulip': 'Tulip',
+            'watch-tomato': 'Tomato',
+            'watch-daffodil': 'Daffodil',
+            'watch-corn': 'Corn',
+            'watch-watermelon': 'Watermelon',
+            'watch-pumpkin': 'Pumpkin',
+            'watch-echeveria': 'Echeveria',
+            'watch-coconut': 'Coconut',
+            'watch-banana': 'Banana',
+            'watch-lily': 'Lily',
+            'watch-burrostail': 'BurrosTail',
+            'watch-mushroom': 'Mushroom',
+            'watch-cactus': 'Cactus',
+            'watch-bamboo': 'Bamboo',
+            'watch-grape': 'Grape',
             'watch-pepper': 'Pepper',
             'watch-lemon': 'Lemon',
             'watch-passionfruit': 'PassionFruit',
             'watch-dragonfruit': 'DragonFruit',
             'watch-lychee': 'Lychee',
-            'watch-mushroom': 'Mushroom',
-            'watch-cactus': 'Cactus',
-            'watch-bamboo': 'Bamboo',
-            'watch-grape': 'Grape'
+            'watch-sunflower': 'Sunflower',
+            'watch-starweaver': 'Starweaver',
+            'watch-dawnbinder': 'Dawnbinder',
+            'watch-moonbinder': 'Moonbinder'
         };
 
         Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
@@ -14003,27 +14108,77 @@ window.MGA_debugStorage = function() {
         Carrot: 20
     };
 
+    // Mutation calculation matching FriendsScript logic
+    const COLOR_MULT = {
+        Gold: 25,
+        Rainbow: 50
+    };
+
+    const WEATHER_MULT = {
+        Wet: 2,
+        Chilled: 2,
+        Frozen: 10
+    };
+
+    const TIME_MULT = {
+        Dawnlit: 2,
+        Dawnbound: 3,
+        Amberlit: 5,
+        Amberbound: 6
+    };
+
+    const WEATHER_TIME_COMBO = {
+        "Wet+Dawnlit": 3,
+        "Chilled+Dawnlit": 3,
+        "Wet+Amberlit": 6,
+        "Chilled+Amberlit": 6,
+        "Frozen+Dawnlit": 11,
+        "Frozen+Dawnbound": 12,
+        "Frozen+Amberlit": 14,
+        "Frozen+Amberbound": 15
+    };
+
     function calculateMutationMultiplier(mutations) {
         if (!mutations || !Array.isArray(mutations)) return 1;
 
-        const mutationValues = {
-            Frozen: 10, Wet: 2, Chilled: 2,
-            Ambershine: 5, Dawnlit: 2,
-            Rainbow: 50, Gold: 25
-        };
+        // Pick best color multiplier
+        let color = 1;
+        for (const m of mutations) {
+            if (m === "Rainbow" && COLOR_MULT.Rainbow > color) color = COLOR_MULT.Rainbow;
+            if (m === "Gold" && COLOR_MULT.Gold > color) color = COLOR_MULT.Gold;
+        }
 
-        let multiplier = 1;
-        let specialMultiplier = 1;
-
-        mutations.forEach(m => {
-            if (m === 'Rainbow' || m === 'Gold') {
-                specialMultiplier = mutationValues[m];
-            } else if (mutationValues[m]) {
-                multiplier += mutationValues[m] - 1;
+        // Pick best weather
+        let weather = null;
+        for (const m of mutations) {
+            if (WEATHER_MULT[m]) {
+                if (!weather || WEATHER_MULT[m] > WEATHER_MULT[weather]) {
+                    weather = m;
+                }
             }
-        });
+        }
 
-        return multiplier * specialMultiplier;
+        // Pick best time
+        let time = null;
+        for (const m of mutations) {
+            if (TIME_MULT[m]) {
+                if (!time || TIME_MULT[m] > TIME_MULT[time]) {
+                    time = m;
+                }
+            }
+        }
+
+        // Calculate weather+time multiplier
+        let wt = 1;
+        if (!weather && !time) wt = 1;
+        else if (weather && !time) wt = WEATHER_MULT[weather];
+        else if (!weather && time) wt = TIME_MULT[time];
+        else {
+            const combo = `${weather}+${time}`;
+            wt = WEATHER_TIME_COMBO[combo] || Math.max(WEATHER_MULT[weather], TIME_MULT[time]);
+        }
+
+        return Math.round(color * wt);
     }
 
     // ==================== ENHANCED VALUE MANAGER ====================
@@ -14988,15 +15143,25 @@ window.MGA_debugStorage = function() {
             () => updateValues()
         );
 
-        // Hook friend bonus
-        hookAtom(
-            "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/miscAtoms.ts/friendBonusMultiplierAtom",
-            "friendBonus",
-            (value) => {
-                UnifiedState.atoms.friendBonus = value || 1;
+        // Calculate friend bonus based on player count
+        // Formula: 1 player = 0%, 2 players = 10%, 3 = 20%, 4 = 30%, 5 = 40%, 6+ = 50% (max)
+        function calculateFriendBonus() {
+            const playerCount = getActualPlayerCount();
+            if (!playerCount || playerCount < 1) return 1.0;
+
+            // Each additional player beyond yourself adds 10%, max 50% at 6 players
+            const bonusPercent = Math.min((playerCount - 1) * 10, 50);
+            return 1 + (bonusPercent / 100);
+        }
+
+        // Update friend bonus whenever player count might change
+        setInterval(() => {
+            const newBonus = calculateFriendBonus();
+            if (UnifiedState.atoms.friendBonus !== newBonus) {
+                UnifiedState.atoms.friendBonus = newBonus;
                 updateValues();
             }
-        );
+        }, 2000); // Check every 2 seconds
 
         // Hook garden data
         hookAtom(
