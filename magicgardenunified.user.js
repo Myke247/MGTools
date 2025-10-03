@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.11.8
+// @version      1.11.9
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -1124,8 +1124,11 @@
 
         /* Presets Container */
         .mga-presets-container {
-            max-height: 300px !important;
+            max-height: none !important;
+            height: auto !important;
+            flex: 1 !important;
             overflow-y: auto !important;
+            min-height: 200px !important;
         }
 
     `;
@@ -14145,15 +14148,12 @@ window.MGA_debugStorage = function() {
     function calculateMutationMultiplier(mutations) {
         if (!mutations || !Array.isArray(mutations)) return 1;
 
-        console.log('🧮 [MUT-DEBUG] Input mutations:', mutations);
-
         // Pick best color multiplier
         let color = 1;
         for (const m of mutations) {
             if (m === "Rainbow" && COLOR_MULT.Rainbow > color) color = COLOR_MULT.Rainbow;
             if (m === "Gold" && COLOR_MULT.Gold > color) color = COLOR_MULT.Gold;
         }
-        console.log('🧮 [MUT-DEBUG] Color:', color);
 
         // Pick best weather
         let weather = null;
@@ -14164,7 +14164,6 @@ window.MGA_debugStorage = function() {
                 }
             }
         }
-        console.log('🧮 [MUT-DEBUG] Weather:', weather);
 
         // Pick best time
         let time = null;
@@ -14175,7 +14174,6 @@ window.MGA_debugStorage = function() {
                 }
             }
         }
-        console.log('🧮 [MUT-DEBUG] Time:', time);
 
         // Calculate weather+time multiplier
         let wt = 1;
@@ -14185,13 +14183,9 @@ window.MGA_debugStorage = function() {
         else {
             const combo = `${weather}+${time}`;
             wt = WEATHER_TIME_COMBO[combo] || Math.max(WEATHER_MULT[weather], TIME_MULT[time]);
-            console.log('🧮 [MUT-DEBUG] Combo:', combo, 'WT:', wt);
         }
 
-        const result = Math.round(color * wt);
-        console.log('🧮 [MUT-DEBUG] Final:', `${color} × ${wt} = ${result}`);
-
-        return result;
+        return Math.round(color * wt);
     }
 
     // ==================== ENHANCED VALUE MANAGER ====================
@@ -14304,20 +14298,7 @@ window.MGA_debugStorage = function() {
                         const multiplier = calculateMutationMultiplier(slot.mutations);
                         const speciesVal = speciesValues[slot.species] || 0;
                         const scale = slot.targetScale || 1;
-                        const value = Math.round(multiplier * speciesVal * scale * friendBonus);
-
-                        // DEBUG: Log calculation details
-                        console.log(`🔍 [TILE-VALUE] ${slot.species}:`, {
-                            mutations: slot.mutations,
-                            multiplier: multiplier,
-                            speciesVal: speciesVal,
-                            scale: scale,
-                            friendBonus: friendBonus,
-                            calculation: `${multiplier} × ${speciesVal} × ${scale} × ${friendBonus} = ${value}`,
-                            value: value.toLocaleString()
-                        });
-
-                        tileValue += value;
+                        tileValue += Math.round(multiplier * speciesVal * scale * friendBonus);
                     }
                 });
             }
@@ -15174,9 +15155,7 @@ window.MGA_debugStorage = function() {
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/miscAtoms.ts/friendBonusMultiplierAtom",
             "friendBonus",
             (value) => {
-                console.log('💰 [FRIEND-BONUS] Received from game:', value);
                 UnifiedState.atoms.friendBonus = value || 1;
-                console.log('💰 [FRIEND-BONUS] Set to:', UnifiedState.atoms.friendBonus);
                 updateValues();
             }
         );
