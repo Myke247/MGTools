@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.11.9
+// @version      1.12.7
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -6316,7 +6316,20 @@ window.MGA_debugStorage = function() {
                         ${activePets.length > 0 ? `
                             <div style="color: #93c5fd; font-size: 12px; margin-bottom: 4px;">Currently Equipped:</div>
                             <div class="mga-active-pets-list">
-                                ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                                ${activePets.map((p, index) => {
+                                    const timeUntilHungry = calculateTimeUntilHungry(p);
+                                    const timerText = formatHungerTimer(timeUntilHungry);
+                                    const timerColor = timeUntilHungry === null ? '#999' :
+                                                       timeUntilHungry <= 0 ? '#8B0000' :
+                                                       timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
+                                                       timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
+                                    return `
+                                        <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+                                            <span class="mga-pet-badge">${p.petSpecies}</span>
+                                            <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
                         ` : `
                             <div class="mga-empty-state">
@@ -6346,7 +6359,20 @@ window.MGA_debugStorage = function() {
                     ${activePets.length > 0 ? `
                         <div class="mga-active-pets-header">Currently Equipped:</div>
                         <div class="mga-active-pets-list">
-                            ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                            ${activePets.map((p, index) => {
+                                const timeUntilHungry = calculateTimeUntilHungry(p);
+                                const timerText = formatHungerTimer(timeUntilHungry);
+                                const timerColor = timeUntilHungry === null ? '#999' :
+                                                   timeUntilHungry <= 0 ? '#8B0000' :
+                                                   timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
+                                                   timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
+                                return `
+                                    <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+                                        <span class="mga-pet-badge">${p.petSpecies}</span>
+                                        <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     ` : `
                         <div class="mga-empty-state">
@@ -6562,7 +6588,20 @@ window.MGA_debugStorage = function() {
                     ${activePets.length > 0 ? `
                         <div class="mga-active-pets-header">Currently Equipped:</div>
                         <div class="mga-active-pets-list">
-                            ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                            ${activePets.map((p, index) => {
+                                const timeUntilHungry = calculateTimeUntilHungry(p);
+                                const timerText = formatHungerTimer(timeUntilHungry);
+                                const timerColor = timeUntilHungry === null ? '#999' :
+                                                   timeUntilHungry <= 0 ? '#8B0000' :
+                                                   timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
+                                                   timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
+                                return `
+                                    <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+                                        <span class="mga-pet-badge">${p.petSpecies}</span>
+                                        <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     ` : `
                         <div class="mga-empty-state">
@@ -8324,6 +8363,49 @@ window.MGA_debugStorage = function() {
 
     // ==================== PET HUNGER MONITORING ====================
 
+    // Species max hunger values from wiki
+    // Source: https://magicgarden.fandom.com/wiki/Pets
+    const SPECIES_MAX_HUNGER = {
+        'Worm': 500,
+        'Snail': 1000,
+        'Bee': 1500,
+        'Chicken': 3000,
+        'Bunny': 750,
+        'Dragonfly': 250,
+        'Pig': 50000,
+        'Cow': 25000,
+        'Turtle': 100000,
+        'Goat': 20000,
+        'Squirrel': 15000,
+        'Capybara': 150000,
+        'Butterfly': 25000,
+        'Peacock': 100000
+    };
+
+    // Per-species hunger depletion times (milliseconds from full to 0)
+    // Source: https://magicgarden.fandom.com/wiki/Pets
+    const SPECIES_HUNGER_DEPLETION_TIME = {
+        'Worm': 30 * 60 * 1000,
+        'Snail': 60 * 60 * 1000,
+        'Bee': 15 * 60 * 1000,
+        'Chicken': 60 * 60 * 1000,
+        'Bunny': 45 * 60 * 1000,
+        'Dragonfly': 15 * 60 * 1000,
+        'Pig': 60 * 60 * 1000,
+        'Cow': 75 * 60 * 1000,
+        'Turtle': 90 * 60 * 1000,
+        'Goat': 60 * 60 * 1000,
+        'Squirrel': 30 * 60 * 1000,
+        'Capybara': 60 * 60 * 1000,
+        'Butterfly': 30 * 60 * 1000,
+        'Peacock': 60 * 60 * 1000
+    };
+
+    const HUNGER_BOOST_VALUES = {
+        'Hunger Boost I': 0.12,   // 12% reduction per 100 STR
+        'Hunger Boost II': 0.16   // 16% reduction per 100 STR
+    };
+
     // Track previous hunger states for each pet
     let lastPetHungerStates = {};
     let petHungerLastAlertTime = {}; // BUGFIX: Track when we last alerted per pet (timestamp) for time-based throttle
@@ -8354,17 +8436,6 @@ window.MGA_debugStorage = function() {
                 // BUGFIX: Different species have different max hunger values
                 // Source: https://magicgarden.fandom.com/wiki/Pets
                 // Lower hunger = hungrier (inverse system!)
-                const SPECIES_MAX_HUNGER = {
-                    'Dragonfly': 250,
-                    'Worm': 500,
-                    'Snail': 1000,
-                    'Bee': 1500,
-                    'Chicken': 3000,
-                    'Capybara': 250000,
-                    'Turtle': 300000,
-                    'Butterfly': 100000,  // Estimate
-                    'Peacock': 100000     // Estimate
-                };
                 const estimatedMaxHunger = SPECIES_MAX_HUNGER[pet.petSpecies] || 100000;
 
                 // Calculate percentage based on species max
@@ -8456,17 +8527,6 @@ window.MGA_debugStorage = function() {
 
                 // BUGFIX: Different species have different max hunger values
                 // Source: https://magicgarden.fandom.com/wiki/Pets
-                const SPECIES_MAX_HUNGER = {
-                    'Dragonfly': 250,
-                    'Worm': 500,
-                    'Snail': 1000,
-                    'Bee': 1500,
-                    'Chicken': 3000,
-                    'Capybara': 250000,
-                    'Turtle': 300000,
-                    'Butterfly': 100000,  // Estimate
-                    'Peacock': 100000     // Estimate
-                };
                 const estimatedMaxHunger = SPECIES_MAX_HUNGER[pet.petSpecies] || 100000;
                 const hungerPercent = (currentHunger / estimatedMaxHunger) * 100;
                 const petName = pet.petSpecies || 'Pet';
@@ -8496,6 +8556,81 @@ window.MGA_debugStorage = function() {
         } catch (error) {
             console.error('❌ [PET-HUNGER] Error scanning for hungry pets:', error);
         }
+    }
+
+    // Calculate time until pet becomes hungry (returns milliseconds)
+    function calculateTimeUntilHungry(pet) {
+        if (!pet || typeof pet.hunger === 'undefined') return null;
+
+        const currentHunger = Number(pet.hunger) || 0;
+        const maxHunger = SPECIES_MAX_HUNGER[pet.petSpecies] || 100000;
+        const baseDepletionTime = SPECIES_HUNGER_DEPLETION_TIME[pet.petSpecies] || 60 * 60 * 1000;
+
+        // If already hungry, return 0
+        if (currentHunger <= 0) return 0;
+
+        // Calculate total hunger reduction from all pets' Hunger Boost abilities
+        let totalHungerReduction = 0;
+        const activePets = window.activePets || UnifiedState.atoms.activePets || [];
+
+        // DEBUG: Log active pets and their abilities (using console.log to bypass PRODUCTION mode)
+        if (UnifiedState.data.settings?.debugMode) {
+            console.log('🍖 [HUNGER-CALC] Calculating for pet:', pet.petSpecies);
+            console.log('🍖 [HUNGER-CALC] Active pets:', activePets.length);
+            activePets.forEach((p, i) => {
+                console.log(`🍖 [HUNGER-CALC] Pet ${i}:`, {
+                    species: p.petSpecies,
+                    abilities: p.abilities,
+                    strength: p.strength,
+                    str: p.str
+                });
+            });
+        }
+
+        activePets.forEach(p => {
+            if (p.abilities && Array.isArray(p.abilities)) {
+                p.abilities.forEach(ability => {
+                    if (UnifiedState.data.settings?.debugMode) {
+                        console.log('🍖 [HUNGER-CALC] Checking ability:', ability);
+                    }
+                    // Ability can be either a string directly or an object with properties
+                    const abilityType = typeof ability === 'string' ? ability : (ability.abilityType || ability.type || ability);
+                    if (typeof abilityType === 'string') {
+                        // Check for both "Hunger Boost" (with space) and "HungerBoost" (without space)
+                        if (abilityType.includes('HungerBoost') || abilityType.includes('Hunger Boost')) {
+                            // Hunger Boost I = 12% per 100 STR, Hunger Boost II = 16% per 100 STR
+                            const reduction = abilityType.includes('II') ? HUNGER_BOOST_VALUES['Hunger Boost II'] : HUNGER_BOOST_VALUES['Hunger Boost I'];
+                            const strength = (p.strength || p.str || 100) / 100;
+                            totalHungerReduction += reduction * strength;
+
+                            if (UnifiedState.data.settings?.debugMode) {
+                                console.log(`🍖 [HUNGER-CALC] Found ${abilityType} on ${p.petSpecies}, STR: ${p.strength || p.str}, reduction: ${reduction}, strength mult: ${strength}`);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        if (UnifiedState.data.settings?.debugMode && totalHungerReduction > 0) {
+            console.log(`🍖 [HUNGER-CALC] Total hunger reduction: ${(totalHungerReduction * 100).toFixed(1)}%`);
+        }
+
+        // Cap reduction at 90% to avoid division by zero
+        totalHungerReduction = Math.min(totalHungerReduction, 0.9);
+
+        // Calculate time remaining: baseTime / (1 - reductions) * (current/max)
+        const timeRemaining = (baseDepletionTime / Math.max(0.1, 1 - totalHungerReduction)) * (currentHunger / maxHunger);
+
+        return Math.max(0, Math.round(timeRemaining));
+    }
+
+    // Format milliseconds as readable timer string (minutes only)
+    function formatHungerTimer(milliseconds) {
+        if (!milliseconds || milliseconds <= 0) return 'Hungry!';
+
+        const totalMinutes = Math.ceil(milliseconds / (60 * 1000));
+        return `${totalMinutes}m`;
     }
 
     // Helper function to show toast notifications
@@ -9588,7 +9723,20 @@ window.MGA_debugStorage = function() {
             const innerHTML = activePets.length > 0 ? `
                 <div class="mga-active-pets-header">Currently Equipped:</div>
                 <div class="mga-active-pets-list">
-                    ${activePets.map(p => `<span class="mga-pet-badge">${p.petSpecies}</span>`).join('')}
+                    ${activePets.map((p, index) => {
+                        const timeUntilHungry = calculateTimeUntilHungry(p);
+                        const timerText = formatHungerTimer(timeUntilHungry);
+                        const timerColor = timeUntilHungry === null ? '#999' :
+                                           timeUntilHungry <= 0 ? '#8B0000' :
+                                           timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
+                                           timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
+                        return `
+                            <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+                                <span class="mga-pet-badge">${p.petSpecies}</span>
+                                <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             ` : `
                 <div class="mga-empty-state">
@@ -15070,29 +15218,55 @@ window.MGA_debugStorage = function() {
 
                 // Extract active pets with species info
                 if (Array.isArray(actualPetSlots)) {
+                    // DEBUG: Log raw slot data to understand structure
+                    if (UnifiedState.data.settings?.debugMode) {
+                        console.log('🐾 [ATOM-DEBUG] Raw pet slots:', actualPetSlots);
+                        actualPetSlots.forEach((slot, i) => {
+                            console.log(`🐾 [ATOM-DEBUG] Slot ${i}:`, slot);
+                        });
+                    }
+
                     const activePets = actualPetSlots
                         .filter(slot => {
                             // Check if slot has pet data (handle multiple possible property names)
                             const hasPet = slot && (slot.petSpecies || slot.species || slot.petId || slot.id);
                             return hasPet;
                         })
-                        .map((slot, index) => ({
-                            id: slot.id || slot.petId || `pet_${index}`,
-                            petSpecies: slot.petSpecies || slot.species || 'Unknown',
-                            mutations: slot.mutations || [],
-                            abilities: slot.abilities || [],
-                            hunger: slot.hunger ?? slot.petHunger ?? slot.health ?? 100,  // Include hunger for pet hunger notifications
-                            slot: index + 1
-                        }));
+                        .map((slot, index) => {
+                            const extracted = {
+                                id: slot.id || slot.petId || `pet_${index}`,
+                                petSpecies: slot.petSpecies || slot.species || 'Unknown',
+                                mutations: slot.mutations || [],
+                                abilities: slot.abilities || [],
+                                hunger: slot.hunger ?? slot.petHunger ?? slot.health ?? 100,  // Include hunger for pet hunger notifications
+                                strength: slot.strength || slot.str || 100,  // Include strength for Hunger Boost calculations
+                                str: slot.str || slot.strength || 100,       // Fallback property name
+                                slot: index + 1
+                            };
+
+                            if (UnifiedState.data.settings?.debugMode) {
+                                console.log(`🐾 [ATOM-DEBUG] Extracted pet ${index}:`, extracted);
+                            }
+
+                            return extracted;
+                        });
 
                     if (UnifiedState.data.settings?.debugMode) {
                         productionLog('🐾 [PETS] Extracted active pets:', activePets);
                     }
 
                     const previousCount = UnifiedState.atoms.activePets?.length || 0;
+                    const previousPets = UnifiedState.atoms.activePets || [];
 
-                    if (activePets.length !== previousCount && UnifiedState.data.settings?.debugMode) {
-                        productionLog(`🐾 [PETS] Pet count changed: ${previousCount} → ${activePets.length}`);
+                    // Check if pets changed (count OR species/abilities)
+                    const petsChanged = activePets.length !== previousCount ||
+                                       JSON.stringify(activePets.map(p => ({s: p.petSpecies, a: p.abilities}))) !==
+                                       JSON.stringify(previousPets.map(p => ({s: p.petSpecies, a: p.abilities})));
+
+                    if (petsChanged) {
+                        if (UnifiedState.data.settings?.debugMode) {
+                            console.log(`🐾 [PETS] Pets changed - updating displays`);
+                        }
 
                         // Update UI if pets tab is active
                         if (UnifiedState.activeTab === 'pets') {
@@ -15650,6 +15824,54 @@ window.MGA_debugStorage = function() {
         MGA_addInterval(notificationInterval);
 
         productionLog('🚨 [CRITICAL] Optimized notification timer started with performance monitoring');
+
+        // HUNGER TIMER: Update hunger countdown timers every second
+        productionLog('🍖 [HUNGER-TIMER] Setting up hunger timer updates...');
+        window.hungerTimerInterval = setInterval(() => {
+            try {
+                // Update all hunger timer elements
+                const timerElements = document.querySelectorAll('.mga-hunger-timer');
+                const activePets = window.activePets || UnifiedState.atoms.activePets || [];
+
+                if (UnifiedState.data.settings?.debugMode) {
+                    console.log('🍖 [TIMER-UPDATE] Timer elements found:', timerElements.length);
+                    console.log('🍖 [TIMER-UPDATE] Active pets:', activePets.length);
+                    if (activePets.length > 0) {
+                        activePets.forEach((p, i) => {
+                            console.log(`🍖 [TIMER-UPDATE] Pet ${i}:`, {
+                                species: p.petSpecies,
+                                hunger: p.hunger,
+                                abilities: p.abilities,
+                                strength: p.strength,
+                                str: p.str
+                            });
+                        });
+                    }
+                }
+
+                if (timerElements.length > 0) {
+                    timerElements.forEach(element => {
+                        const petIndex = parseInt(element.dataset.petIndex);
+                        if (petIndex >= 0 && petIndex < activePets.length) {
+                            const pet = activePets[petIndex];
+                            const timeUntilHungry = calculateTimeUntilHungry(pet);
+                            const timerText = formatHungerTimer(timeUntilHungry);
+                            const timerColor = timeUntilHungry === null ? '#999' :
+                                               timeUntilHungry <= 0 ? '#8B0000' :
+                                               timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
+                                               timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
+                            element.textContent = timerText;
+                            element.style.color = timerColor;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Error updating hunger timers:', error);
+            }
+        }, 1000); // Update every second
+
+        MGA_addInterval(window.hungerTimerInterval);
+        productionLog('🍖 [HUNGER-TIMER] Hunger timer updates started (1s interval)');
 
         debugLog('INTERVALS', 'All intervals started with TimerManager', {
             timerCount: timerManager.activeTimers.size,
