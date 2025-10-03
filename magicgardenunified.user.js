@@ -1,12 +1,15 @@
 // ==UserScript==
 // @name         Magic Garden Unified Assistant
 // @namespace    http://tampermonkey.net/
-// @version      1.11.4
-// @description  All-in-one assistant for Magic Garden with beautiful unified UI
+// @version      1.11.5
+// @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
 // @match        https://starweaver.org/r/*
+// @match        https://discord.com/channels/*
+// @match        https://canary.discord.com/channels/*
+// @match        https://ptb.discord.com/channels/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -1917,6 +1920,7 @@ function applyResponsiveTextScaling(overlay, width, height) {
         const environment = {
             isGameEnvironment: false,
             isStandalone: false,
+            isDiscordEmbed: false,
             gameReady: false,
             url: targetWindow.location.href,
             hasJotaiAtoms: !!((targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache)?.size > 0),
@@ -1924,6 +1928,35 @@ function applyResponsiveTextScaling(overlay, width, height) {
             domain: targetWindow.location.hostname,
             readyState: document.readyState
         };
+
+        // BUGFIX v1.11.5: Discord embed detection
+        const isDiscordDomain = environment.domain.includes('discord.com');
+        if (isDiscordDomain) {
+            environment.isDiscordEmbed = true;
+            productionLog('🎮 [DISCORD] Running on Discord - looking for game iframe...');
+
+            // Try to find the game iframe
+            const gameIframes = document.querySelectorAll('iframe');
+            for (const iframe of gameIframes) {
+                try {
+                    const iframeSrc = iframe.src || '';
+                    const gameHosts = ['magiccircle.gg', 'magicgarden.gg', 'starweaver.org'];
+                    if (gameHosts.some(host => iframeSrc.includes(host))) {
+                        productionLog('✅ [DISCORD] Found game iframe:', iframeSrc);
+                        // Note: We can't directly access iframe content due to cross-origin
+                        // The script needs to run inside the iframe itself
+                        environment.isGameEnvironment = false;
+                        environment.isStandalone = true; // Discord parent page is standalone
+                        return environment;
+                    }
+                } catch (e) {
+                    // Cross-origin iframe, can't access
+                }
+            }
+            productionLog('⚠️ [DISCORD] No game iframe found yet - script should run in iframe');
+            environment.isStandalone = true;
+            return environment;
+        }
 
         // Check if we're in a Magic Garden game environment
         const gameHosts = ['magiccircle.gg', 'magicgarden.gg', 'starweaver.org'];
