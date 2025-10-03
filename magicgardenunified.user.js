@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Magic Garden Unified Assistant
+// @name         MGTools
 // @namespace    http://tampermonkey.net/
 // @version      1.11.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
@@ -14123,8 +14123,10 @@ window.MGA_debugStorage = function() {
     const TIME_MULT = {
         Dawnlit: 2,
         Dawnbound: 3,
+        Dawncharged: 3,  // Same as Dawnbound
         Amberlit: 5,
-        Amberbound: 6
+        Amberbound: 6,
+        Ambercharged: 6  // Same as Amberbound
     };
 
     const WEATHER_TIME_COMBO = {
@@ -14134,12 +14136,16 @@ window.MGA_debugStorage = function() {
         "Chilled+Amberlit": 6,
         "Frozen+Dawnlit": 11,
         "Frozen+Dawnbound": 12,
+        "Frozen+Dawncharged": 12,  // Same as Dawnbound
         "Frozen+Amberlit": 14,
-        "Frozen+Amberbound": 15
+        "Frozen+Amberbound": 15,
+        "Frozen+Ambercharged": 15  // Same as Amberbound
     };
 
     function calculateMutationMultiplier(mutations) {
         if (!mutations || !Array.isArray(mutations)) return 1;
+
+        console.log('🧮 [MUT-DEBUG] Input mutations:', mutations);
 
         // Pick best color multiplier
         let color = 1;
@@ -14147,6 +14153,7 @@ window.MGA_debugStorage = function() {
             if (m === "Rainbow" && COLOR_MULT.Rainbow > color) color = COLOR_MULT.Rainbow;
             if (m === "Gold" && COLOR_MULT.Gold > color) color = COLOR_MULT.Gold;
         }
+        console.log('🧮 [MUT-DEBUG] Color:', color);
 
         // Pick best weather
         let weather = null;
@@ -14157,6 +14164,7 @@ window.MGA_debugStorage = function() {
                 }
             }
         }
+        console.log('🧮 [MUT-DEBUG] Weather:', weather);
 
         // Pick best time
         let time = null;
@@ -14167,6 +14175,7 @@ window.MGA_debugStorage = function() {
                 }
             }
         }
+        console.log('🧮 [MUT-DEBUG] Time:', time);
 
         // Calculate weather+time multiplier
         let wt = 1;
@@ -14176,9 +14185,13 @@ window.MGA_debugStorage = function() {
         else {
             const combo = `${weather}+${time}`;
             wt = WEATHER_TIME_COMBO[combo] || Math.max(WEATHER_MULT[weather], TIME_MULT[time]);
+            console.log('🧮 [MUT-DEBUG] Combo:', combo, 'WT:', wt);
         }
 
-        return Math.round(color * wt);
+        const result = Math.round(color * wt);
+        console.log('🧮 [MUT-DEBUG] Final:', `${color} × ${wt} = ${result}`);
+
+        return result;
     }
 
     // ==================== ENHANCED VALUE MANAGER ====================
@@ -14291,7 +14304,20 @@ window.MGA_debugStorage = function() {
                         const multiplier = calculateMutationMultiplier(slot.mutations);
                         const speciesVal = speciesValues[slot.species] || 0;
                         const scale = slot.targetScale || 1;
-                        tileValue += Math.round(multiplier * speciesVal * scale * friendBonus);
+                        const value = Math.round(multiplier * speciesVal * scale * friendBonus);
+
+                        // DEBUG: Log calculation details
+                        console.log(`🔍 [TILE-VALUE] ${slot.species}:`, {
+                            mutations: slot.mutations,
+                            multiplier: multiplier,
+                            speciesVal: speciesVal,
+                            scale: scale,
+                            friendBonus: friendBonus,
+                            calculation: `${multiplier} × ${speciesVal} × ${scale} × ${friendBonus} = ${value}`,
+                            value: value.toLocaleString()
+                        });
+
+                        tileValue += value;
                     }
                 });
             }
@@ -15143,25 +15169,17 @@ window.MGA_debugStorage = function() {
             () => updateValues()
         );
 
-        // Calculate friend bonus based on player count
-        // Formula: 1 player = 0%, 2 players = 10%, 3 = 20%, 4 = 30%, 5 = 40%, 6+ = 50% (max)
-        function calculateFriendBonus() {
-            const playerCount = getActualPlayerCount();
-            if (!playerCount || playerCount < 1) return 1.0;
-
-            // Each additional player beyond yourself adds 10%, max 50% at 6 players
-            const bonusPercent = Math.min((playerCount - 1) * 10, 50);
-            return 1 + (bonusPercent / 100);
-        }
-
-        // Update friend bonus whenever player count might change
-        setInterval(() => {
-            const newBonus = calculateFriendBonus();
-            if (UnifiedState.atoms.friendBonus !== newBonus) {
-                UnifiedState.atoms.friendBonus = newBonus;
+        // Hook friend bonus from game (same as Slot,Inv,Garden script)
+        hookAtom(
+            "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/miscAtoms.ts/friendBonusMultiplierAtom",
+            "friendBonus",
+            (value) => {
+                console.log('💰 [FRIEND-BONUS] Received from game:', value);
+                UnifiedState.atoms.friendBonus = value || 1;
+                console.log('💰 [FRIEND-BONUS] Set to:', UnifiedState.atoms.friendBonus);
                 updateValues();
             }
-        }, 2000); // Check every 2 seconds
+        );
 
         // Hook garden data
         hookAtom(
