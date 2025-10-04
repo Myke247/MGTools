@@ -15722,7 +15722,7 @@ window.MGA_debugStorage = function() {
         Dawnlit: 2,
         Dawnbound: 3,
         Dawncharged: 3,  // Same as Dawnbound
-        Amberlit: 5,
+        Ambershine: 5,
         Amberbound: 6,
         Ambercharged: 6  // Same as Amberbound
     };
@@ -15730,12 +15730,12 @@ window.MGA_debugStorage = function() {
     const WEATHER_TIME_COMBO = {
         "Wet+Dawnlit": 3,
         "Chilled+Dawnlit": 3,
-        "Wet+Amberlit": 6,
-        "Chilled+Amberlit": 6,
+        "Wet+Ambershine": 6,
+        "Chilled+Ambershine": 6,
         "Frozen+Dawnlit": 11,
         "Frozen+Dawnbound": 12,
         "Frozen+Dawncharged": 12,  // Same as Dawnbound
-        "Frozen+Amberlit": 14,
+        "Frozen+Ambershine": 14,
         "Frozen+Amberbound": 15,
         "Frozen+Ambercharged": 15  // Same as Amberbound
     };
