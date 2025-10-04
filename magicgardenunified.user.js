@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.17.0
+// @version      1.17.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -7615,18 +7615,64 @@ window.MGA_debugStorage = function() {
             }
         }
 
+        // Load saved checkbox states
+        const savedFilters = MGA_loadJSON('MGA_shopFilters', {});
+        const savedShowAvailable = savedFilters.showAvailableOnly ?? false;
+        const savedSortByValue = savedFilters.sortByValue ?? false;
+
+        sortCheckbox.checked = savedSortByValue;
+        showAvailableCheckbox.checked = savedShowAvailable;
+
         sortCheckbox.addEventListener('change', () => {
+            const filters = { showAvailableOnly: showAvailableCheckbox.checked, sortByValue: sortCheckbox.checked };
+            MGA_saveJSON('MGA_shopFilters', filters);
             renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
         });
 
         showAvailableCheckbox.addEventListener('change', () => {
+            const filters = { showAvailableOnly: showAvailableCheckbox.checked, sortByValue: sortCheckbox.checked };
+            MGA_saveJSON('MGA_shopFilters', filters);
             renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
         });
 
-        renderItems();
+        renderItems(savedSortByValue, savedShowAvailable);
 
-        // Auto-refresh stock
-        setInterval(() => renderItems(sortCheckbox.checked, showAvailableCheckbox.checked), 2000);
+        // Auto-refresh stock and detect restocks
+        let lastRestockCheck = {};
+        setInterval(() => {
+            // Check if shop has restocked by comparing initialStock values
+            const shop = targetWindow?.globalShop?.shops;
+            if (shop) {
+                const inventory = type === 'seed' ? shop.seed?.inventory : shop.egg?.inventory;
+                if (inventory) {
+                    let restockDetected = false;
+                    inventory.forEach(item => {
+                        const itemId = type === 'seed' ? item.species : item.eggId;
+                        const currentInitial = item.initialStock || 0;
+                        const lastInitial = lastRestockCheck[itemId] || 0;
+
+                        // If initialStock increased, shop has restocked
+                        if (lastInitial > 0 && currentInitial > lastInitial) {
+                            restockDetected = true;
+                        }
+
+                        lastRestockCheck[itemId] = currentInitial;
+                    });
+
+                    // Reset purchase tracking when restock is detected
+                    if (restockDetected) {
+                        if (UnifiedState.data.settings.debugMode) {
+                            console.log(`[SHOP DEBUG] Restock detected for ${type}! Resetting purchase tracking.`);
+                        }
+                        if (targetWindow.MGTools_shopPurchases) {
+                            targetWindow.MGTools_shopPurchases[type] = {};
+                        }
+                    }
+                }
+            }
+
+            renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
+        }, 2000);
     }
 
     function createShopItemElement(id, type, stock, value) {
@@ -7657,7 +7703,7 @@ window.MGA_debugStorage = function() {
                 ${spriteUrl ? `<img src="${spriteUrl}" alt="${displayName}" class="shop-sprite" loading="lazy">` : ''}
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 12px; font-weight: 600; margin-bottom: 2px;" class="${colorClass}">${displayName}</div>
-                    <div style="font-size: 10px; color: #888;">Stock: ${stock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span></div>
+                    <div class="stock-display" style="font-size: 10px; color: #888;">Stock: ${stock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span></div>
                 </div>
             </div>
             <div style="display: flex; gap: 4px;">
@@ -7712,6 +7758,47 @@ window.MGA_debugStorage = function() {
             const displayName = id.replace(/([A-Z])/g, ' $1').trim();
             flashPurchaseFeedback(itemEl, `Purchased x${amount} ${displayName}`);
             productionLog(`✅ Purchased ${amount}x ${id}`);
+
+            // Update stock display immediately in the item element - manual tracking
+            // Since the game doesn't expose purchase data, we'll track it ourselves
+            if (!targetWindow.MGTools_shopPurchases) {
+                targetWindow.MGTools_shopPurchases = { seed: {}, egg: {} };
+            }
+
+            // Increment our purchase counter
+            if (!targetWindow.MGTools_shopPurchases[type][id]) {
+                targetWindow.MGTools_shopPurchases[type][id] = 0;
+            }
+            targetWindow.MGTools_shopPurchases[type][id] += amount;
+
+            setTimeout(() => {
+                if (UnifiedState.data.settings.debugMode) {
+                    console.log(`[SHOP DEBUG] MGTools tracked purchases for ${id}:`, targetWindow.MGTools_shopPurchases[type][id]);
+                }
+
+                const newStock = getItemStock(id, type);
+                const stockSpan = itemEl.querySelector('.stock-display');
+                if (stockSpan) {
+                    const priceData = formatShopPrice(SHOP_PRICES[id] || 0);
+                    stockSpan.innerHTML = `Stock: ${newStock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span>`;
+                }
+
+                // Update in-stock styling
+                if (newStock === 0) {
+                    itemEl.classList.remove('in-stock');
+                    itemEl.style.background = 'rgba(255,255,255,0.03)';
+                    itemEl.style.borderColor = 'rgba(255,255,255,0.1)';
+                    // Disable buttons
+                    itemEl.querySelectorAll('.buy-btn').forEach(btn => {
+                        btn.disabled = true;
+                        btn.style.cursor = 'not-allowed';
+                    });
+                } else {
+                    itemEl.classList.add('in-stock');
+                    itemEl.style.background = 'rgba(76, 255, 106, 0.15)';
+                    itemEl.style.borderColor = 'rgba(9, 255, 0, 0.2)';
+                }
+            }, 100);
         } catch (e) {
             console.error('Purchase error:', e);
             alert('Purchase failed');
@@ -7733,12 +7820,21 @@ window.MGA_debugStorage = function() {
 
             if (!item) return 0;
 
-            const initial = item.initialStock || 0;
-            const purchased = type === 'seed'
-                ? (targetWindow.bought?.shopPurchases?.seed?.purchases?.[id] || 0)
-                : (targetWindow.bought?.shopPurchases?.egg?.purchases?.[id] || 0);
+            const initialStock = item.initialStock || 0;
 
-            return Math.max(0, initial - purchased);
+            // Use our manual purchase tracking since game doesn't expose it
+            if (!targetWindow.MGTools_shopPurchases) {
+                targetWindow.MGTools_shopPurchases = { seed: {}, egg: {} };
+            }
+
+            const purchased = targetWindow.MGTools_shopPurchases[type][id] || 0;
+            const currentStock = Math.max(0, initialStock - purchased);
+
+            if (UnifiedState.data.settings.debugMode) {
+                console.log(`[SHOP DEBUG] ${id} stock: initial=${initialStock}, purchased=${purchased}, current=${currentStock}`);
+            }
+
+            return currentStock;
         } catch (e) {
             return 0;
         }
