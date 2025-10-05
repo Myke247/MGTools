@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.17.2
+// @version      2.0.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @match        https://magiccircle.gg/r/*
@@ -14,12 +14,18 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        unsafeWindow
+// @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
 // @connect      *
 // @run-at       document-end
 // ==/UserScript==
 
 (function() {
     'use strict';
+
+    // ==================== VERSION INFO ====================
+    const CURRENT_VERSION = '2.0.0';
+    const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
 
     // ==================== PRODUCTION MODE (MUST BE FIRST) ====================
     // Set to true to disable non-critical logging for performance
@@ -434,61 +440,228 @@
 
     // ==================== GLOBAL STYLES ====================
     const UNIFIED_STYLES = `
-        .mga-panel {
-            font-family: Arial, sans-serif;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* ==================== HYBRID DOCK STYLES ==================== */
+        #mgh-dock {
+            font-family: 'Inter', sans-serif;
             position: fixed;
-            background: rgba(17, 24, 39, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 0;
-            color: #ffffff;
-            z-index: 10000;
-            min-width: 350px;
-            min-height: 80px;
-            max-width: 90vw;
-            max-height: none;
-            height: 450px;
             display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            /* Responsive text scaling via CSS variable */
-            --panel-scale: 1;
-            --base-font-size: 13px;
-            font-size: calc(var(--base-font-size) * var(--panel-scale));
-            /* Performance optimizations for smooth dragging */
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
+            gap: 6px;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 8px 12px;
+            z-index: 999999;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            /* No transition for instant drag response */
         }
 
-        .mga-header {
-            background: rgba(74, 158, 255, 0.2);
-            padding: 12px 16px;
-            border-radius: 12px 12px 0 0;
+        #mgh-dock.horizontal {
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            flex-direction: row;
+            border-radius: 16px;
+        }
+
+        #mgh-dock.vertical {
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            flex-direction: column;
+            border-radius: 16px;
+        }
+
+        .mgh-dock-item {
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .mgh-dock-item:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: scale(1.1);
+        }
+
+        .mgh-dock-item.active {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+
+        .mgh-dock-item.flip-toggle {
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 14px;
+        }
+
+        .mgh-dock-item.flip-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .mgh-tooltip {
+            position: absolute;
+            background: rgba(10, 10, 10, 0.95);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: white;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+        }
+
+        #mgh-dock.horizontal .mgh-tooltip {
+            bottom: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #mgh-dock.vertical .mgh-tooltip {
+            left: 56px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .mgh-dock-item:hover .mgh-tooltip { opacity: 1; }
+
+        .mgh-tail-group {
+            display: flex;
+            gap: 6px;
+            transition: opacity 0.3s ease;
+        }
+
+        #mgh-dock.horizontal .mgh-tail-group {
+            flex-direction: row;
+        }
+
+        #mgh-dock.vertical .mgh-tail-group {
+            flex-direction: column;
+        }
+
+        /* ==================== SIDEBAR STYLES ==================== */
+        #mgh-sidebar {
+            font-family: 'Inter', sans-serif;
+            position: fixed;
+            left: -370px;
+            top: 0;
+            width: 350px;
+            height: 100vh;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
+            z-index: 999998;
+            transition: left 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
+        }
+
+        #mgh-sidebar.open { left: 0; }
+
+        /* ==================== SHOP SIDEBAR STYLES ==================== */
+        .mga-shop-sidebar {
+            font-family: 'Inter', sans-serif;
+            position: fixed;
+            top: 0;
+            width: 350px;
+            height: 100vh;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            z-index: 999998;
+            transition: left 0.3s ease, right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+        }
+
+        .mga-shop-sidebar-left {
+            left: -370px;
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .mga-shop-sidebar-left.open {
+            left: 0;
+        }
+
+        .mga-shop-sidebar-right {
+            right: -370px;
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .mga-shop-sidebar-right.open {
+            right: 0;
+        }
+
+        .mga-shop-sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            cursor: grab;
+            background: rgba(20, 20, 20, 0.5);
+        }
+
+        .mgh-sidebar-header {
+            padding: 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* Scale all text in panel responsively */
-        .mga-panel *:not(svg):not(path) {
-            font-size: inherit;
-        }
-
-        .mga-title {
-            font-size: calc(16px * var(--panel-scale, 1));
-            font-weight: 600;
-            color: #4a9eff;
-        }
-
-        .mga-controls {
             display: flex;
-            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
         }
 
+        .mgh-sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .mgh-sidebar-close {
+            width: 32px;
+            height: 32px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .mgh-sidebar-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .mgh-sidebar-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            color: white;
+        }
+
+        .mgh-sidebar-body::-webkit-scrollbar { width: 6px; }
+        .mgh-sidebar-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        /* ==================== PRESERVE ORIGINAL MGA STYLES ==================== */
         .mga-btn {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -496,33 +669,16 @@
             padding: 6px 12px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: calc(13px * var(--panel-scale, 1));
+            font-size: 13px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateZ(0);
-            outline: none !important; /* Remove white outline/border */
+            outline: none !important;
         }
 
         .mga-btn:hover {
             background: rgba(255, 255, 255, 0.15);
             border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-1px) translateZ(0);
+            transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .mga-btn:active {
-            transform: translateY(0) translateZ(0);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .mga-btn:focus {
-            outline: none !important; /* Remove white outline on focus */
-            border-color: rgba(74, 158, 255, 0.5); /* Subtle blue border instead */
-        }
-
-        .mga-btn-sm {
-            padding: 4px 8px;
-            font-size: 12px;
-            min-width: auto;
         }
 
         .mga-input, .mga-select {
@@ -533,619 +689,20 @@
             border-radius: 6px;
             font-size: 13px;
             font-family: inherit;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .mga-input:focus, .mga-select:focus {
             outline: none;
-            border-color: #4a9eff;
+            border-color: rgba(102, 126, 234, 0.5);
             background: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
-        }
-
-        .mga-input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .mga-select {
-            cursor: pointer;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 8px center;
-            background-size: 16px;
-            padding-right: 32px;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
         }
 
         .mga-select option {
-            background: #111827;
+            background: rgba(20, 20, 20, 0.95);
             color: #ffffff;
-            padding: 8px 12px;
         }
 
-        .mga-select option:hover {
-            background: #1f2937;
-        }
-
-        .mga-input:focus, .mga-select:focus {
-            outline: none;
-            border-color: #4a9eff;
-            box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
-        }
-
-        .mga-content {
-            flex: 1 1 auto;
-            padding: 12px 16px;
-            scroll-behavior: smooth;
-            min-height: 0; /* Critical for flex scrolling */
-            max-height: calc(100% - 100px); /* Restore max-height for proper scrolling */
-            overflow-y: auto !important;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        .mga-content.mga-scrollable {
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-        }
-
-        .mga-tabs-container {
-            position: relative;
-            margin-bottom: 16px;
-        }
-
-        .mga-tabs {
-            display: flex;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE/Edge */
-        }
-
-        .mga-tabs::-webkit-scrollbar {
-            display: none; /* Chrome/Safari */
-        }
-
-        .mga-tab {
-            flex: 0 0 auto; /* Prevent shrinking and allow natural sizing */
-            min-width: fit-content; /* Allow tabs to size to their content */
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #ffffff;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 12px; /* Fixed size - responsive scaling via CSS var */
-            display: flex;
-            align-items: center;
-            justify-content: flex-start; /* Align left for better text display */
-            gap: 6px;
-            text-align: left;
-            transition: all 0.2s ease;
-            min-height: 36px;
-            white-space: nowrap;
-            /* Never hide overflow or truncate text */
-        }
-
-        /* Tabs should scroll horizontally when panel is small, not shrink text */
-        /* Font size controlled by panel scale variable for consistency */
-
-        .mga-tab-popout {
-            flex-shrink: 0; /* Prevent popout button from shrinking */
-            opacity: 0.7;
-            transition: opacity 0.2s ease;
-            margin-left: auto; /* Push to right side of tab */
-            font-size: 10px;
-            line-height: 1;
-            display: inline-block !important; /* Force visibility */
-            visibility: visible !important; /* Force visibility */
-            min-width: 16px; /* Ensure minimum clickable area */
-            text-align: center;
-        }
-
-        .mga-tab-popout:hover {
-            opacity: 1;
-        }
-
-        /* Ensure tab text spans display properly */
-        .mga-tab span[data-icon] {
-            display: inline-flex;
-            align-items: center;
-            white-space: nowrap;
-        }
-
-        .mga-tab-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            border: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            z-index: 10;
-            transition: all 0.2s ease;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .mga-tab-nav.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .mga-tab-nav:hover {
-            background: rgba(0, 0, 0, 0.8);
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        .mga-tab-nav.left {
-            left: 4px;
-        }
-
-        .mga-tab-nav.right {
-            right: 4px;
-        }
-
-        .mga-tab:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-1px) translateZ(0);
-        }
-
-        .mga-tab.active {
-            background: rgba(74, 158, 255, 0.8);
-            transform: translateZ(0);
-            box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
-        }
-
-        .mga-tab-content {
-            display: none;
-        }
-
-        .mga-tab-content.active {
-            display: block;
-        }
-
-        /* Loading States */
-        .mga-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .mga-loading-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-top: 2px solid #4a9eff;
-            border-radius: 50%;
-            animation: mga-spin 1s linear infinite;
-            margin-right: 8px;
-        }
-
-        @keyframes mga-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .mga-skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 100%);
-            background-size: 200% 100%;
-            animation: mga-skeleton-pulse 1.5s ease-in-out infinite;
-            border-radius: 4px;
-        }
-
-        @keyframes mga-skeleton-pulse {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        .mga-fade-in {
-            animation: mga-fade-in 0.3s ease-out;
-        }
-
-        @keyframes mga-fade-in {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Comprehensive Tooltip System */
-        .mga-tooltip {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.9);
-            color: #ffffff;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-            z-index: 30000;
-            pointer-events: none;
-            opacity: 0;
-            /* BUGFIX: Only transition opacity, not position (prevents "sliding" effect) */
-            transition: opacity 0.15s ease-in-out;
-            max-width: 250px;
-            word-wrap: break-word;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .mga-tooltip.show {
-            opacity: 1;
-        }
-
-        .mga-tooltip::after {
-            content: '';
-            position: absolute;
-            top: -4px;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 4px solid transparent;
-            border-bottom-color: rgba(0, 0, 0, 0.9);
-        }
-
-        .mga-tooltip.bottom::after {
-            top: auto;
-            bottom: -4px;
-            border-bottom-color: transparent;
-            border-top-color: rgba(0, 0, 0, 0.9);
-        }
-
-        .mga-tooltip.left::after {
-            top: 50%;
-            left: auto;
-            right: -4px;
-            transform: translateY(-50%);
-            border-left-color: rgba(0, 0, 0, 0.9);
-            border-bottom-color: transparent;
-        }
-
-        .mga-tooltip.right::after {
-            top: 50%;
-            left: -4px;
-            transform: translateY(-50%);
-            border-right-color: rgba(0, 0, 0, 0.9);
-            border-bottom-color: transparent;
-        }
-
-        .mga-toggle-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #4a9eff 0%, #9333ea 100%);
-            color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            cursor: grab;
-            z-index: 999998;
-            box-shadow: 0 4px 20px rgba(74, 158, 255, 0.4);
-            transition: box-shadow 0.3s ease, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            user-select: none;
-            /* Performance optimizations for smooth dragging */
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            will-change: transform;
-        }
-
-        .mga-toggle-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 30px rgba(74, 158, 255, 0.6);
-        }
-
-        .mga-dragging * {
-            cursor: grabbing !important;
-        }
-
-        /* Universal invisible scrollbars - Single source of truth */
-        .mga-scrollable {
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE/Edge */
-            scroll-behavior: smooth;
-        }
-
-        .mga-scrollable::-webkit-scrollbar {
-            width: 0;
-            height: 0;
-            display: none;
-        }
-
-        /* Vertical scrolling variant */
-        .mga-scrollable.vertical {
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        /* Horizontal scrolling variant */
-        .mga-scrollable.horizontal {
-            overflow-x: auto;
-            overflow-y: hidden;
-        }
-
-        /* Both directions (default for backwards compatibility) */
-        .mga-scrollable:not(.vertical):not(.horizontal) {
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        /* Value display refinements */
-        .mga-value-display {
-            padding: 12px;
-        }
-
-        .mga-value-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .mga-value-row:last-child {
-            border-bottom: none;
-        }
-
-        .mga-value-label {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 13px;
-        }
-
-        .mga-value-amount {
-            color: #4a9eff;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .mga-value-updated {
-            animation: mga-value-pulse 0.5s ease-in-out;
-        }
-
-        @keyframes mga-value-pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; transform: scale(1.05); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        /* Responsive Popout Styles */
-        .mga-popout-content {
-            font-size: clamp(11px, 2.5vw, 16px);
-            line-height: 1.4;
-        }
-
-        .mga-popout-content .mga-section-title {
-            font-size: clamp(12px, 3vw, 18px);
-            font-weight: 600;
-        }
-
-        .mga-popout-content .mga-btn {
-            font-size: clamp(10px, 2.2vw, 14px);
-            padding: clamp(4px, 1vw, 8px) clamp(6px, 2vw, 12px);
-            border-radius: clamp(3px, 0.8vw, 6px);
-        }
-
-        .mga-popout-content .mga-label {
-            font-size: clamp(10px, 2.3vw, 14px);
-        }
-
-        .mga-popout-content .mga-input,
-        .mga-popout-content .mga-select {
-            font-size: clamp(11px, 2.5vw, 15px);
-            padding: clamp(4px, 1vw, 8px);
-        }
-
-        /* Prevent text from getting too small on very narrow windows */
-        @media (max-width: 400px) {
-            .mga-popout-content {
-                font-size: 12px !important;
-            }
-            .mga-popout-content .mga-section-title {
-                font-size: 14px !important;
-            }
-            .mga-popout-content .mga-btn {
-                font-size: 11px !important;
-            }
-        }
-
-        /* Prevent text from getting too large on very wide windows */
-        @media (min-width: 800px) {
-            .mga-popout-content {
-                font-size: 14px !important;
-            }
-            .mga-popout-content .mga-section-title {
-                font-size: 16px !important;
-            }
-        }
-
-        /* Compact Active Pets Display for Popout Only */
-        .mga-popout-content .mga-active-pets-display {
-            padding: 6px 8px !important;
-            margin-bottom: 8px !important;
-        }
-
-        .mga-popout-content .mga-active-pets-header {
-            font-size: 10px !important;
-            margin-bottom: 4px !important;
-        }
-
-        .mga-popout-content .mga-active-pets-list {
-            gap: 3px !important;
-        }
-
-        .mga-popout-content .mga-pet-badge {
-            font-size: 10px !important;
-            padding: 2px 6px !important;
-        }
-
-        /* Compact Active Pets Display for In-Game Overlays Only */
-        .mga-overlay-content-only .mga-active-pets-display {
-            padding: 6px 8px !important;
-            margin-bottom: 8px !important;
-        }
-
-        .mga-overlay-content-only .mga-active-pets-header {
-            font-size: 10px !important;
-            margin-bottom: 4px !important;
-        }
-
-        .mga-overlay-content-only .mga-active-pets-list {
-            gap: 3px !important;
-        }
-
-        .mga-overlay-content-only .mga-pet-badge {
-            font-size: 10px !important;
-            padding: 2px 6px !important;
-        }
-
-        /* Removed problematic Pet Preset Card Styling - using clean compact version below */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        /* Removed all problematic overlay-specific CSS with !important declarations - now using clean compact styling */
-
-        /* Clean, Professional Pet Preset Styling */
-        .mga-preset {
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(100, 116, 139, 0.2);
-            border-radius: 6px;
-            padding: 8px 10px;
-            margin-bottom: 6px;
-            transition: background-color 0.15s ease;
-            cursor: pointer;
-        }
-
-        .mga-preset:hover {
-            background: rgba(30, 41, 59, 0.6);
-            border-color: rgba(74, 158, 255, 0.3);
-        }
-
-        .mga-preset-clickable {
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .mga-preset-clickable:hover {
-            background: rgba(30, 41, 59, 0.7) !important;
-            border-color: rgba(74, 158, 255, 0.5) !important;
-        }
-
-        /* Prevent hover conflicts when main HUD pets panel is open */
-        .mga-overlay-content-only .mga-preset-clickable:hover {
-            transition: none !important;
-            transform: none !important;
-        }
-
-        .mga-preset-clickable:active {
-            background: rgba(74, 158, 255, 0.3) !important;
-            border-color: rgba(74, 158, 255, 0.7) !important;
-            transform: translateY(0);
-        }
-
-        .mga-preset-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 4px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid rgba(100, 116, 139, 0.15);
-        }
-
-        .mga-preset-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: #4a9eff;
-        }
-
-        .mga-preset-pets {
-            color: #e0e7ff;
-            font-size: 11px;
-            padding: 4px 8px;
-            background: rgba(15, 23, 42, 0.3);
-            border-radius: 4px;
-            border-left: 2px solid #4a9eff;
-            line-height: 1.4;
-        }
-
-        /* Active Pets Display */
-        .mga-active-pets-display {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(74, 158, 255, 0.2);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .mga-active-pets-header {
-            color: #93c5fd;
-            font-size: 12px;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .mga-active-pets-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .mga-pet-badge {
-            background: rgba(74, 158, 255, 0.15);
-            border: 1px solid rgba(74, 158, 255, 0.3);
-            border-radius: 6px;
-            padding: 4px 10px;
-            font-size: 12px;
-            color: #93c5fd;
-            display: inline-flex;
-            align-items: center;
-        }
-
-        /* Presets Container */
-        .mga-presets-container {
-            max-height: none !important;
-            height: auto !important;
-            flex: 1 !important;
-            overflow-y: auto !important;
-            min-height: 200px !important;
-        }
-
-        /* Shop Overlay */
-        #mga-shop-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(10, 10, 10, 0.5);
-            display: none;
-            z-index: 999998;
-            pointer-events: none;
-        }
-
-        #mga-shop-overlay.active {
-            display: block;
-            pointer-events: auto;
-        }
-
-        /* Shop Item Color Coding */
+        /* Shop item name colors */
         .shop-color-white { color: #ffffff !important; }
         .shop-color-green { color: #2afd23ff !important; }
         .shop-color-blue { color: #0084ffff !important; }
@@ -1173,7 +730,7 @@
             100% { background-position: 200% 50%; }
         }
 
-        /* Shop sprite styling */
+        /* Shop sprite sizing */
         .shop-sprite {
             width: 28px;
             height: 28px;
@@ -1189,105 +746,54 @@
             box-shadow: 0 4px 10px rgba(0, 255, 42, 0.07);
         }
 
-        /* Enhanced shop item styling */
-        .shop-item.in-stock {
-            background: rgba(76, 255, 106, 0.29) !important;
-            box-shadow: 0 6px 18px rgba(60, 180, 80, 0.06);
-            border: 1px solid rgba(9, 255, 0, 0.12) !important;
+        /* Original overlay styles preserved */
+        .mga-overlay {
+            position: fixed;
+            background: rgba(17, 24, 39, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            color: #ffffff;
+            z-index: 10001;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
-        /* Enhanced shop window styling */
-        .mga-shop-window {
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
-                        0 8px 24px rgba(0, 0, 0, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+        /* Popout widget styles */
+        .mgh-popout {
+            font-family: 'Inter', sans-serif;
+            position: fixed;
+            background: rgba(10, 10, 10, 0.95);
             backdrop-filter: blur(20px);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            z-index: 1000000;
+            min-width: 320px;
+            max-width: 500px;
+            /* No transition for instant drag response */
         }
 
-        .mga-shop-window:hover {
-            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.6),
-                        0 10px 30px rgba(0, 0, 0, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+        .mgh-popout-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: grab;
+            user-select: none;
+            background: rgba(20, 20, 20, 0.5);
         }
 
-        /* Shop item hover enhancements */
-        .shop-item {
-            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        .mgh-popout-header:active {
+            cursor: grabbing;
         }
 
-        .shop-item:hover {
-            transform: translateX(2px);
+        .mgh-popout-body {
+            padding: 16px;
+            color: white;
+            max-height: 500px;
+            overflow-y: auto;
         }
-
-        .shop-item.in-stock:hover {
-            background: rgba(76, 255, 106, 0.35) !important;
-            box-shadow: 0 8px 24px rgba(60, 180, 80, 0.12);
-        }
-
-        /* Responsive design for mobile */
-        @media (max-width: 768px) {
-            .mga-shop-window {
-                max-width: calc(100vw - 20px) !important;
-                max-height: calc(100vh - 60px) !important;
-                left: 10px !important;
-                top: 30px !important;
-                width: calc(100% - 20px) !important;
-            }
-
-            #mga-shop-overlay {
-                padding: 10px;
-            }
-
-            .shop-sprite {
-                width: 24px !important;
-                height: 24px !important;
-            }
-
-            .shop-item {
-                padding: 6px !important;
-                font-size: 11px !important;
-            }
-
-            .buy-btn {
-                padding: 3px 6px !important;
-                font-size: 10px !important;
-            }
-        }
-
-        /* Tablet responsive */
-        @media (max-width: 1024px) and (min-width: 769px) {
-            .mga-shop-window {
-                max-width: 400px !important;
-            }
-        }
-
-        /* Smooth overlay fade */
-        #mga-shop-overlay {
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        #mga-shop-overlay.active {
-            opacity: 1;
-        }
-
-        /* Checkbox styling */
-        .show-available-only, .sort-by-value {
-            cursor: pointer;
-            width: 14px;
-            height: 14px;
-        }
-
-        /* Close button enhancement */
-        .shop-close-btn {
-            transition: color 0.2s ease, transform 0.2s ease;
-        }
-
-        .shop-close-btn:hover {
-            transform: scale(1.2);
-        }
-
     `;
 
     /* CHECKPOINT removed: GLOBAL_STYLES_COMPLETE */
@@ -1629,17 +1135,21 @@ function applyResponsiveTextScaling(overlay, width, height) {
         try {
             const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
             if (!roomState?.child?.data?.userSlots) {
-                productionLog('[Room Status] No userSlots data available', {
-                    hasRoomConnection: !!targetWindow.MagicCircle_RoomConnection,
-                    hasRoomState: !!roomState,
-                    hasChild: !!roomState?.child,
-                    hasData: !!roomState?.child?.data
-                });
+                if (UnifiedState.data.settings.debugMode) {
+                    console.log('[Room Status] No userSlots data available', {
+                        hasRoomConnection: !!targetWindow.MagicCircle_RoomConnection,
+                        hasRoomState: !!roomState,
+                        hasChild: !!roomState?.child,
+                        hasData: !!roomState?.child?.data
+                    });
+                }
                 return null;
             }
             const userSlots = roomState.child.data.userSlots;
             const count = userSlots.filter(slot => slot !== null && slot !== undefined).length;
-            productionLog('[Room Status] Player count:', count, 'userSlots:', userSlots);
+            if (UnifiedState.data.settings.debugMode) {
+                console.log('[Room Status] Player count:', count, 'userSlots:', userSlots);
+            }
             return count;
         } catch (err) {
             console.error('[Room Status] Failed to get player count:', err);
@@ -1737,11 +1247,24 @@ function applyResponsiveTextScaling(overlay, width, height) {
             const { ref, set, onDisconnect } = firebase;
             const currentRoomRef = ref(UnifiedState.firebase.database, `roomCounts/${roomCode}`);
 
-            // Report immediately - but only if we have actual data
-            const count = getActualPlayerCount();
+            // Try to report immediately, with retry logic
+            let count = getActualPlayerCount();
+            let retryCount = 0;
+            const maxRetries = 10;
+
+            // If no data yet, retry every 500ms for up to 5 seconds
+            while (count === null && retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                count = getActualPlayerCount();
+                retryCount++;
+                if (UnifiedState.data.settings.debugMode) {
+                    console.log(`[Room Status] Retry ${retryCount}/${maxRetries} for ${roomCode}...`);
+                }
+            }
+
             if (count === null) {
-                productionWarn(`[Room Status] No player data available yet for ${roomCode}, will retry on next interval`);
-                // Don't report or update local state with invalid data
+                console.warn(`[Room Status] No player data available after ${maxRetries} retries for ${roomCode}`);
+                // Still start the interval reporting - it will catch it later
             } else {
                 await set(currentRoomRef, {
                     count: count,
@@ -1764,33 +1287,46 @@ function applyResponsiveTextScaling(overlay, width, height) {
             // Start interval reporting
             // Debounced reporting: Only update Firebase if count actually changed
             let lastReportedCount = count !== null ? count : -1; // Initialize with actual count or -1 if no data yet
+            let lastForceReportTime = Date.now();
+            const FORCE_REPORT_INTERVAL = 60000; // Force report every 60 seconds even if no change
+
             UnifiedState.firebase.reportInterval = setInterval(async () => {
                 try {
                     const currentCount = getActualPlayerCount();
 
                     // Skip if we don't have valid data yet
                     if (currentCount === null) {
-                        productionLog('[Room Status] Skipping report - no player data available yet');
+                        if (UnifiedState.data.settings.debugMode) {
+                            console.log('[Room Status] Skipping report - no player data available yet');
+                        }
                         return;
                     }
 
-                    // Only report if count changed (80% network reduction)
-                    if (currentCount === lastReportedCount) {
+                    const now = Date.now();
+                    const timeSinceLastReport = now - lastForceReportTime;
+                    const shouldForceReport = timeSinceLastReport >= FORCE_REPORT_INTERVAL;
+
+                    // Only report if count changed OR it's time for a forced update
+                    if (currentCount === lastReportedCount && !shouldForceReport) {
                         return;
                     }
 
                     const previousCount = lastReportedCount;
                     lastReportedCount = currentCount;
+                    lastForceReportTime = now;
+
                     await set(currentRoomRef, {
                         count: currentCount,
-                        lastUpdate: Date.now(),
+                        lastUpdate: now,
                         reporter: getReporterId()
                     });
 
                     // Update local state immediately
                     UnifiedState.data.roomStatus.counts[roomCode] = currentCount;
 
-                    productionLog(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount})`);
+                    if (UnifiedState.data.settings.debugMode) {
+                        console.log(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount}, forced: ${shouldForceReport})`);
+                    }
                 } catch (err) {
                     console.error('Failed to report room count:', err);
                 }
@@ -4039,372 +3575,649 @@ window.MGA_debugStorage = function() {
         }
     }
 
+    // ==================== VERSION CHECKER ====================
+    async function checkVersion(indicatorElement) {
+        // Try multiple URLs in order
+        const urls = [
+            'https://raw.githubusercontent.com/Myke247/MGTools/main/version.json', // Preferred: lightweight JSON
+            'https://raw.githubusercontent.com/Myke247/MGTools/main/magicgardenunified.user.js',
+            'https://raw.githubusercontent.com/Myke247/MGTools/master/magicgardenunified.user.js',
+            'https://api.github.com/repos/Myke247/MGTools/contents/magicgardenunified.user.js'
+        ];
+
+        for (let i = 0; i < urls.length; i++) {
+            try {
+                const url = urls[i];
+                const isGitHubAPI = url.includes('api.github.com');
+                const isJSON = url.endsWith('.json');
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    cache: 'no-cache',
+                    headers: isGitHubAPI ? {
+                        'Accept': 'application/vnd.github.v3.raw'
+                    } : {}
+                });
+
+                if (!response.ok) {
+                    if (i === urls.length - 1) {
+                        throw new Error(`All URLs failed. Last: ${response.status}`);
+                    }
+                    continue; // Try next URL
+                }
+
+                const text = await response.text();
+                let latestVersion;
+
+                if (isJSON) {
+                    // Parse version.json format: {"version": "2.0.0"}
+                    try {
+                        const data = JSON.parse(text);
+                        latestVersion = data.version;
+                    } catch (e) {
+                        continue; // Try next URL
+                    }
+                } else {
+                    // Parse userscript @version tag
+                    const match = text.match(/@version\s+([\d.]+)/);
+                    if (match) {
+                        latestVersion = match[1];
+                    }
+                }
+
+                if (latestVersion) {
+                    const isUpToDate = latestVersion === CURRENT_VERSION;
+
+                    if (isUpToDate) {
+                        indicatorElement.style.color = '#00ff00'; // Green
+                        indicatorElement.title = `v${CURRENT_VERSION} - Up to date! ✓`;
+                    } else {
+                        indicatorElement.style.color = '#ff0000'; // Red
+                        indicatorElement.title = `v${CURRENT_VERSION} - Update available: v${latestVersion}\nClick to view on GitHub`;
+                        indicatorElement.style.cursor = 'pointer';
+                        indicatorElement.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            window.open('https://github.com/Myke247/MGTools/blob/main/magicgardenunified.user.js', '_blank');
+                        });
+                    }
+                    return; // Success, exit
+                } else {
+                    throw new Error('Version not found in response');
+                }
+            } catch (e) {
+                if (i === urls.length - 1) {
+                    // All attempts failed
+                    indicatorElement.style.color = '#ffa500'; // Orange for error
+                    indicatorElement.title = `v${CURRENT_VERSION} - Check failed (click for GitHub)`;
+                    indicatorElement.style.cursor = 'pointer';
+                    indicatorElement.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        window.open('https://github.com/Myke247/MGTools/blob/main/magicgardenunified.user.js', '_blank');
+                    });
+                    console.log('[VERSION CHECK] All methods failed:', e);
+                }
+            }
+        }
+    }
+
     // ==================== UI CREATION ====================
     function createUnifiedUI() {
-        productionLog('🎨 Creating Unified UI...');
+        productionLog('🎨 Creating Hybrid Dock UI...');
 
-        // Add styles
+        // Add hybrid styles
         const styleSheet = targetDocument.createElement('style');
         styleSheet.textContent = UNIFIED_STYLES;
         targetDocument.head.appendChild(styleSheet);
 
-        // Create toggle button with enhanced persistence
-        const toggleBtn = targetDocument.createElement('div');
-        toggleBtn.className = 'mga-toggle-btn';
-        toggleBtn.innerHTML = '🌱';
-        toggleBtn.setAttribute('data-tooltip', 'MGTools - Click to toggle panel (Alt+M)');
+        // Create hybrid dock
+        const dock = targetDocument.createElement('div');
+        dock.id = 'mgh-dock';
+        dock.className = 'horizontal';
 
-        // Click/drag functionality is now handled by makeToggleButtonDraggable
+        // Primary tabs
+        const primaryTabs = ['pets', 'abilities', 'seeds', 'values', 'timers', 'rooms', 'shop'];
 
-        targetDocument.body.appendChild(toggleBtn);
+        // Tail group tabs (Tools, Settings, Hotkeys, Notifications, Help)
+        const tailTabs = ['tools', 'settings', 'hotkeys', 'notifications', 'help'];
 
-        // Verify toggle button attachment
-        productionLog('🔧 [UI-VERIFICATION] Toggle button attached to body:', !!targetDocument.querySelector('.mga-toggle-btn'));
-        UnifiedState.panels.toggle = toggleBtn;
+        // Icon mapping
+        const icons = {
+            pets: '🐾',
+            abilities: '✨',
+            seeds: '🌱',
+            values: '💎',
+            timers: '⏱️',
+            rooms: '🏠',
+            shop: '🛒',
+            tools: '🔧',
+            settings: '⚙️',
+            hotkeys: '⌨️',
+            notifications: '🔔',
+            help: '❓'
+        };
 
-        // Load toggle button position
-        loadToggleButtonPosition(toggleBtn);
+        // Tooltip text with hotkey info
+        const tooltipText = {
+            pets: 'Pets',
+            abilities: 'Abilities',
+            seeds: 'Seeds',
+            values: 'Values',
+            timers: 'Timers',
+            rooms: 'Rooms',
+            shop: 'Shop • Alt+B',
+            tools: 'Tools',
+            settings: 'Settings',
+            hotkeys: 'Hotkeys',
+            notifications: 'Notifications',
+            help: 'Help'
+        };
 
-        // Make toggle button draggable with special handling
-        makeToggleButtonDraggable(toggleBtn);
+        // Create primary dock items
+        primaryTabs.forEach(tabName => {
+            const item = targetDocument.createElement('div');
+            item.className = 'mgh-dock-item';
+            item.dataset.tab = tabName;
+            item.innerHTML = icons[tabName] || '📌';
 
-        // Add window focus/blur handlers to maintain UI persistence
-        window.addEventListener('focus', () => {
-            // Restore panel visibility state when window regains focus
-            const panel = UnifiedState.panels.main;
-            const savedVisibility = UnifiedState.data.settings.panelVisible !== false; // Default to true
-            panel.style.display = savedVisibility ? 'block' : 'none';
+            const tooltip = targetDocument.createElement('div');
+            tooltip.className = 'mgh-tooltip';
+            tooltip.innerHTML = tooltipText[tabName] || tabName.charAt(0).toUpperCase() + tabName.slice(1);
 
-            if (UnifiedState.data.settings.debugMode) {
-                productionLog(`🔄 Window focused - Panel restored to: ${savedVisibility ? 'visible' : 'hidden'}`);
-            }
-        });
+            item.appendChild(tooltip);
 
-        window.addEventListener('blur', () => {
-            // Save current panel state before losing focus
-            const panel = UnifiedState.panels.main;
-            const currentVisibility = panel.style.display !== 'none';
-            UnifiedState.data.settings.panelVisible = currentVisibility;
-            MGA_debouncedSave('MGA_settings', UnifiedState.data.settings);
-
-            if (UnifiedState.data.settings.debugMode) {
-                productionLog(`💾 Window blurred - Panel state saved: ${currentVisibility ? 'visible' : 'hidden'}`);
-            }
-        });
-
-        // Create main panel
-        const panel = targetDocument.createElement('div');
-        panel.className = 'mga-panel';
-        panel.style.display = 'block'; // Show panel by default
-        panel.style.top = '50px';
-        panel.style.left = '50%';
-        panel.style.transform = 'translateX(-50%)';
-        panel.style.width = '380px'; // Initial width, user can resize
-
-        // Header
-        const header = targetDocument.createElement('div');
-        header.className = 'mga-header';
-        header.innerHTML = `
-            <div class="mga-title">
-                <span>🌱</span>
-                MGTools
-            </div>
-            <div class="mga-controls">
-                <button class="mga-btn mga-btn-icon" onclick="this.closest('.mga-panel').style.display='none'; if(window.MGA_Tooltips && window.MGA_Tooltips.hide) window.MGA_Tooltips.hide();">✕</button>
-            </div>
-        `;
-        panel.appendChild(header);
-
-        // Shop button (above tabs)
-        const shopButton = targetDocument.createElement('button');
-        shopButton.className = 'mga-btn mga-shop-btn';
-        shopButton.innerHTML = '🛒 Quick Shop';
-        shopButton.style.cssText = `
-            width: calc(100% - 24px);
-            margin: 8px 12px;
-            padding: 8px;
-            background: linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(56, 142, 60, 0.3));
-            border: 1px solid rgba(76, 175, 80, 0.5);
-            color: #fff;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        `;
-        shopButton.addEventListener('mouseenter', () => {
-            shopButton.style.background = 'linear-gradient(135deg, rgba(76, 175, 80, 0.5), rgba(56, 142, 60, 0.5))';
-            shopButton.style.transform = 'translateY(-1px)';
-        });
-        shopButton.addEventListener('mouseleave', () => {
-            shopButton.style.background = 'linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(56, 142, 60, 0.3))';
-            shopButton.style.transform = 'translateY(0)';
-        });
-        shopButton.addEventListener('click', () => toggleShopWindows());
-        panel.appendChild(shopButton);
-
-        // Tabs container with navigation
-        const tabsContainer = targetDocument.createElement('div');
-        tabsContainer.className = 'mga-tabs-container';
-
-        // Navigation buttons
-        const leftNav = targetDocument.createElement('button');
-        leftNav.className = 'mga-tab-nav left';
-        leftNav.innerHTML = '‹';
-        leftNav.title = 'Scroll tabs left';
-
-        const rightNav = targetDocument.createElement('button');
-        rightNav.className = 'mga-tab-nav right';
-        rightNav.innerHTML = '›';
-        rightNav.title = 'Scroll tabs right';
-
-        // Tabs
-        const tabs = targetDocument.createElement('div');
-        tabs.className = 'mga-tabs mga-scrollable horizontal';
-        tabs.innerHTML = `
-            <div class="mga-tab active" data-tab="pets" data-tooltip="Manage pet loadouts and analyze optimal combinations">
-                <span data-icon="🐾">🐾 Pets</span>
-                <span class="mga-tab-popout" data-popout="pets" data-tooltip="Open pets in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="abilities" data-tooltip="Track pet abilities and performance logs">
-                <span data-icon="⚡">⚡ Abilities</span>
-                <span class="mga-tab-popout" data-popout="abilities" data-tooltip="Open abilities in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="seeds" data-tooltip="Mass seed deletion and inventory management">
-                <span data-icon="S">Seeds</span>
-                <span class="mga-tab-popout" data-popout="seeds" data-tooltip="Open seeds in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="values" data-tooltip="Resource dashboard with analytics and tracking">
-                <span data-icon="💰">💰 Values</span>
-                <span class="mga-tab-popout" data-popout="values" data-tooltip="Open values in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="timers" data-tooltip="Event timers and restock countdowns">
-                <span data-icon="⏰">⏰ Timers</span>
-                <span class="mga-tab-popout" data-popout="timers" data-tooltip="Open timers in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="rooms" data-tooltip="Live room player counts and quick join">
-                <span data-icon="🎮">🎮 Rooms</span>
-                <span class="mga-tab-popout" data-popout="rooms" data-tooltip="Open rooms in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="hotkeys" data-tooltip="Customize keyboard shortcuts">
-                <span data-icon="⌨️">⌨️ Hotkeys</span>
-                <span class="mga-tab-popout" data-popout="hotkeys" data-tooltip="Open hotkeys in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="notifications" data-tooltip="Configure alerts and sounds">
-                <span data-icon="🔔">🔔 Alerts</span>
-                <span class="mga-tab-popout" data-popout="notifications" data-tooltip="Open notifications in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="tools" data-tooltip="Crop highlighting and utilities">
-                <span data-icon="🔧">🔧 Tools</span>
-                <span class="mga-tab-popout" data-popout="tools" data-tooltip="Open tools in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="settings" data-tooltip="Appearance and general settings">
-                <span data-icon="⚙️">⚙️ Settings</span>
-                <span class="mga-tab-popout" data-popout="settings" data-tooltip="Open settings in separate window">↗️</span>
-            </div>
-            <div class="mga-tab" data-tab="help" data-tooltip="Keyboard shortcuts and user guide">
-                <span data-icon="❓">❓ Help</span>
-                <span class="mga-tab-popout" data-popout="help" data-tooltip="Open help in separate window">↗️</span>
-            </div>
-        `;
-
-        // Assemble the structure
-        tabsContainer.appendChild(leftNav);
-        tabsContainer.appendChild(tabs);
-        tabsContainer.appendChild(rightNav);
-        panel.appendChild(tabsContainer);
-
-        // Content area
-        const content = targetDocument.createElement('div');
-        content.className = 'mga-content mga-scrollable';
-        content.innerHTML = '<div id="mga-tab-content"></div>';
-        panel.appendChild(content);
-
-        // Add MutationObserver to handle React re-renders (pets flash issue fix)
-        const tabContentEl = content.querySelector('#mga-tab-content');
-        if (tabContentEl) {
-            let debounceTimer = null;
-            let isUpdating = false;
-
-            const observer = new MutationObserver((mutations) => {
-                // Prevent infinite loops - ignore mutations we're causing
-                if (isUpdating) return;
-
-                // Check if this is a relevant mutation for pets tab
-                const isRelevantMutation = mutations.some(mutation => {
-                    return mutation.type === 'childList' &&
-                           UnifiedState.activeTab === 'pets' &&
-                           !mutation.target.classList?.contains('mga-active-pets-display') && // Ignore our own updates
-                           (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0);
-                });
-
-                if (isRelevantMutation) {
-                    // Clear existing debounce timer
-                    if (debounceTimer) {
-                        clearTimeout(debounceTimer);
+            item.addEventListener('click', (e) => {
+                if (e.shiftKey) {
+                    openPopoutWidget(tabName);
+                } else {
+                    // Special handling for shop - open slide-out windows instead of sidebar
+                    if (tabName === 'shop') {
+                        toggleShopWindows();
+                    } else {
+                        openSidebarTab(tabName);
                     }
-
-                    // Debounce to prevent spam - only update after mutations stop for 100ms
-                    debounceTimer = setTimeout(() => {
-                        if (UnifiedState.data.settings?.debugMode) {
-                            productionLog('🔄 [REACT-INTERFERENCE] Detected React re-render, updating pets display');
-                        }
-
-                        isUpdating = true;
-                        updateActivePetsDisplay(tabContentEl);
-
-                        // Reset flag after update completes
-                        setTimeout(() => {
-                            isUpdating = false;
-                        }, 100);
-                    }, 100);
                 }
             });
 
-            observer.observe(tabContentEl, {
-                childList: true,
-                subtree: true
-            });
+            dock.appendChild(item);
+        });
 
-            // Store observer for cleanup
-            UnifiedState.mutationObserver = observer;
-        }
+        // Create tail group container
+        const tailGroup = targetDocument.createElement('div');
+        tailGroup.className = 'mgh-tail-group';
+        tailGroup.style.display = 'none';
 
-        // Resize functionality will be added by makeElementResizable
+        tailTabs.forEach(tabName => {
+            const item = targetDocument.createElement('div');
+            item.className = 'mgh-dock-item';
+            item.dataset.tab = tabName;
+            item.innerHTML = icons[tabName] || '📌';
 
-        targetDocument.body.appendChild(panel);
-        UnifiedState.panels.main = panel;
+            const tooltip = targetDocument.createElement('div');
+            tooltip.className = 'mgh-tooltip';
+            tooltip.innerHTML = tooltipText[tabName] || tabName.charAt(0).toUpperCase() + tabName.slice(1);
 
-        // Verify UI attachment for debugging
-        const uiElements = targetDocument.querySelectorAll('.mga-panel');
-        productionLog('🔧 [UI-VERIFICATION] UI elements attached:', uiElements.length);
-        productionLog('🔧 [UI-VERIFICATION] Panel in DOM:', !!targetDocument.querySelector('.mga-panel'));
-        productionLog('🔧 [UI-VERIFICATION] Toggle button in DOM:', !!targetDocument.querySelector('.mga-toggle-btn'));
+            item.appendChild(tooltip);
 
-        if (uiElements.length === 0) {
-            console.error('❌ [UI-VERIFICATION] CRITICAL: No UI elements found in DOM after attachment!');
-            console.error('❌ [UI-VERIFICATION] Target body exists:', !!targetDocument.body);
-            console.error('❌ [UI-VERIFICATION] Panel element exists:', !!panel);
-        } else {
-            productionLog('✅ [UI-VERIFICATION] UI successfully attached to DOM');
-        }
-
-        // Setup tab switching
-        tabs.querySelectorAll('.mga-tab').forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                // Don't switch tabs if clicking on pop-out button
-                if (e.target.classList.contains('mga-tab-popout')) {
-                    e.stopPropagation();
-                    return;
+            item.addEventListener('click', (e) => {
+                if (e.shiftKey) {
+                    openPopoutWidget(tabName);
+                } else {
+                    openSidebarTab(tabName);
                 }
+            });
 
-                tabs.querySelectorAll('.mga-tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                UnifiedState.activeTab = tab.dataset.tab;
-                updateTabContent();
+            tailGroup.appendChild(item);
+        });
+
+        // Version indicator (added to tail group)
+        const versionIndicator = targetDocument.createElement('div');
+        versionIndicator.className = 'mgh-dock-item version-indicator';
+        versionIndicator.innerHTML = '●';
+        versionIndicator.style.fontSize = '12px';
+        versionIndicator.style.color = '#888'; // Gray while checking
+        versionIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
+        tailGroup.appendChild(versionIndicator);
+
+        // Tail trigger
+        const tailTrigger = targetDocument.createElement('div');
+        tailTrigger.className = 'mgh-dock-item tail-trigger';
+        tailTrigger.innerHTML = '⋯';
+        tailTrigger.addEventListener('mouseenter', () => tailGroup.style.display = 'flex');
+
+        // Close tail group when mouse leaves the dock entirely
+        dock.addEventListener('mouseleave', () => {
+            tailGroup.style.display = 'none';
+        });
+
+        // Orientation toggle
+        const flipToggle = targetDocument.createElement('div');
+        flipToggle.className = 'mgh-dock-item flip-toggle';
+        flipToggle.innerHTML = '↔';
+        flipToggle.title = 'Toggle orientation';
+        flipToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dock.classList.contains('horizontal')) {
+                dock.classList.remove('horizontal');
+                dock.classList.add('vertical');
+                // In vertical mode: flip toggle at top, then tabs, tail trigger at bottom
+                dock.insertBefore(flipToggle, dock.firstChild);
+                saveDockOrientation('vertical');
+            } else {
+                dock.classList.remove('vertical');
+                dock.classList.add('horizontal');
+                // In horizontal mode: tabs first, tail trigger, then flip toggle at end
+                dock.appendChild(flipToggle);
+                saveDockOrientation('horizontal');
+            }
+        });
+
+        // Add in horizontal order: tabs -> tailTrigger -> tailGroup -> flipToggle
+        dock.appendChild(tailTrigger);
+        dock.appendChild(tailGroup);
+        dock.appendChild(flipToggle);
+
+        // Check version after UI is created
+        checkVersion(versionIndicator);
+
+        // Make entire dock draggable (except when clicking icons)
+        makeDockDraggable(dock);
+
+        // Create sidebar
+        const sidebar = targetDocument.createElement('div');
+        sidebar.id = 'mgh-sidebar';
+
+        const sidebarHeader = targetDocument.createElement('div');
+        sidebarHeader.className = 'mgh-sidebar-header';
+
+        const sidebarTitle = targetDocument.createElement('div');
+        sidebarTitle.className = 'mgh-sidebar-title';
+        sidebarTitle.textContent = 'MGTools';
+
+        const sidebarClose = targetDocument.createElement('div');
+        sidebarClose.className = 'mgh-sidebar-close';
+        sidebarClose.innerHTML = '×';
+        sidebarClose.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            targetDocument.querySelectorAll('.mgh-dock-item').forEach(item => {
+                item.classList.remove('active');
             });
         });
 
-        // Setup pop-out functionality with TOGGLE behavior
-        tabs.querySelectorAll('.mga-tab-popout').forEach(popoutBtn => {
-            popoutBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const tabName = popoutBtn.dataset.popout;
-                toggleTabPopout(tabName, popoutBtn);
-            });
+        sidebarHeader.appendChild(sidebarTitle);
+        sidebarHeader.appendChild(sidebarClose);
+
+        const sidebarBody = targetDocument.createElement('div');
+        sidebarBody.className = 'mgh-sidebar-body';
+
+        sidebar.appendChild(sidebarHeader);
+        sidebar.appendChild(sidebarBody);
+
+        // Append to DOM
+        targetDocument.body.appendChild(dock);
+        targetDocument.body.appendChild(sidebar);
+
+        // Restore saved orientation
+        const savedOrientation = loadDockOrientation();
+        if (savedOrientation === 'vertical') {
+            dock.classList.remove('horizontal');
+            dock.classList.add('vertical');
+            dock.insertBefore(flipToggle, dock.firstChild);
+        }
+
+        // Restore saved position
+        const savedPosition = loadDockPosition();
+        if (savedPosition) {
+            dock.style.left = savedPosition.left + 'px';
+            dock.style.top = savedPosition.top + 'px';
+            dock.style.transform = 'none';
+            dock.style.bottom = 'auto';
+            dock.style.right = 'auto';
+        }
+
+        // Store references
+        UnifiedState.panels.dock = dock;
+        UnifiedState.panels.sidebar = sidebar;
+        UnifiedState.panels.sidebarBody = sidebarBody;
+
+        productionLog('✅ Hybrid Dock UI created successfully');
+    }
+
+    function saveDockPosition(position) {
+        try {
+            localStorage.setItem('mgh_dock_position', JSON.stringify(position));
+        } catch (e) {
+            console.warn('[DOCK] Failed to save position:', e);
+        }
+    }
+
+    function loadDockPosition() {
+        try {
+            const saved = localStorage.getItem('mgh_dock_position');
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            console.warn('[DOCK] Failed to load position:', e);
+            return null;
+        }
+    }
+
+    function saveDockOrientation(orientation) {
+        try {
+            localStorage.setItem('mgh_dock_orientation', orientation);
+        } catch (e) {
+            console.warn('[DOCK] Failed to save orientation:', e);
+        }
+    }
+
+    function loadDockOrientation() {
+        try {
+            return localStorage.getItem('mgh_dock_orientation') || 'horizontal';
+        } catch (e) {
+            console.warn('[DOCK] Failed to load orientation:', e);
+            return 'horizontal';
+        }
+    }
+
+    function makeDockDraggable(dock) {
+        let isDragging = false;
+        let startX, startY, startLeft, startTop;
+
+        // Show grab cursor on edges
+        dock.addEventListener('mousemove', (e) => {
+            if (isDragging) return;
+
+            // Don't show grab cursor on dock items
+            if (e.target.classList.contains('mgh-dock-item') ||
+                e.target.closest('.mgh-dock-item')) {
+                dock.style.cursor = '';
+                return;
+            }
+
+            const rect = dock.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const edgeThreshold = 12;
+
+            // Check if near edges
+            const nearEdge = x < edgeThreshold || x > rect.width - edgeThreshold ||
+                           y < edgeThreshold || y > rect.height - edgeThreshold;
+
+            dock.style.cursor = nearEdge ? 'grab' : '';
         });
 
-        // Setup tab navigation buttons
-        leftNav.addEventListener('click', () => {
-            tabs.scrollBy({ left: -100, behavior: 'smooth' });
+        dock.addEventListener('mousedown', (e) => {
+            // Don't start drag if clicking on a dock item
+            if (e.target.classList.contains('mgh-dock-item') ||
+                e.target.closest('.mgh-dock-item')) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = dock.getBoundingClientRect();
+            startLeft = rect.left;
+            startTop = rect.top;
+            dock.style.cursor = 'grabbing';
         });
 
-        rightNav.addEventListener('click', () => {
-            tabs.scrollBy({ left: 100, behavior: 'smooth' });
+        targetDocument.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            dock.style.left = (startLeft + deltaX) + 'px';
+            dock.style.top = (startTop + deltaY) + 'px';
+            dock.style.transform = 'none';
+            dock.style.bottom = 'auto';
+            dock.style.right = 'auto';
         });
 
-        // Setup responsive tab behavior with navigation
-        function checkTabOverflow() {
-            const isOverflowing = tabs.scrollWidth > tabs.clientWidth;
+        targetDocument.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                dock.style.cursor = '';
 
-            // Show/hide navigation buttons based on overflow
-            leftNav.classList.toggle('visible', isOverflowing);
-            rightNav.classList.toggle('visible', isOverflowing);
-
-            // Ensure active tab is visible when overflowing
-            const activeTab = tabs.querySelector('.mga-tab.active');
-            if (activeTab && isOverflowing) {
-                activeTab.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'nearest',
-                    inline: 'center'
+                // Save dock position to localStorage
+                const rect = dock.getBoundingClientRect();
+                saveDockPosition({
+                    left: rect.left,
+                    top: rect.top
                 });
             }
-        }
-
-        // Listen for custom resize events
-        tabs.addEventListener('checkTabOverflow', checkTabOverflow);
-
-        // Initial check and setup resize observer
-        checkTabOverflow();
-
-        // Use ResizeObserver if available, otherwise fallback to window resize
-        if (window.ResizeObserver) {
-            const resizeObserver = new ResizeObserver(checkTabOverflow);
-            resizeObserver.observe(tabs);
-            resizeObserver.observe(panel);
-        } else {
-            window.addEventListener('resize', checkTabOverflow);
-        }
-
-        // Make draggable and resizable with position restoration
-        makeDraggable(panel, header);
-        makeElementResizable(panel, {
-            minWidth: 250,
-            minHeight: 250,
-            maxWidth: window.innerWidth,
-            maxHeight: window.innerHeight,
-            showHandleOnHover: false
         });
+    }
 
-        // Load saved main HUD position
-        setTimeout(() => loadMainHUDPosition(panel), 100);
+    function openSidebarTab(tabName) {
+        const sidebar = UnifiedState.panels.sidebar;
+        const sidebarBody = UnifiedState.panels.sidebarBody;
 
-        // Initial content
+        // Check if clicking the same tab that's already open
+        const isAlreadyOpen = sidebar.classList.contains('open') && UnifiedState.activeTab === tabName;
+
+        if (isAlreadyOpen) {
+            // Close sidebar
+            sidebar.classList.remove('open');
+            targetDocument.querySelectorAll('.mgh-dock-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            return;
+        }
+
+        // Update title
+        sidebar.querySelector('.mgh-sidebar-title').textContent = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+
+        // Update UnifiedState FIRST (required for updateTabContent)
+        UnifiedState.activeTab = tabName;
+
+        // Create content container if it doesn't exist
+        let contentEl = sidebarBody.querySelector('#mga-tab-content');
+        if (!contentEl) {
+            contentEl = targetDocument.createElement('div');
+            contentEl.id = 'mga-tab-content';
+            sidebarBody.innerHTML = '';
+            sidebarBody.appendChild(contentEl);
+        }
+
+        // Call existing updateTabContent which handles all rendering
         updateTabContent();
 
-        // Apply saved theme and ensure consistency
-        applyTheme();
-        ensureThemeConsistency();
+        // Reset scroll position to top when opening a tab
+        sidebarBody.scrollTop = 0;
 
-        // Setup modal spam prevention
-        setupModalSpamPrevention();
+        // Show sidebar
+        sidebar.classList.add('open');
 
-        // Show panel by default (override any saved hidden state for demo)
-        panel.style.display = 'block';
-        UnifiedState.data.settings.panelVisible = true;
-        productionLog(`🔄 Panel initialized as visible for demo mode`);
+        // Update active state on dock items
+        targetDocument.querySelectorAll('.mgh-dock-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.tab === tabName);
+        });
 
-        // Initialize dynamic scaling
-        applyDynamicScaling(panel, panel.offsetWidth);
+        // Mark shift hint as shown
+        localStorage.setItem('mga_shift_hint_shown', 'true');
+    }
 
-        // Add responsive scaling observer with throttling
-        if (window.ResizeObserver) {
-            let observerTimeout;
-            const scalingObserver = new ResizeObserver(entries => {
-                // Throttle observer to reduce frequent calls
-                clearTimeout(observerTimeout);
-                observerTimeout = setTimeout(() => {
-                    for (let entry of entries) {
-                        const width = entry.contentRect.width;
-                        applyDynamicScaling(panel, width);
-                    }
-                }, 100); // Only update every 100ms
-            });
-            scalingObserver.observe(panel);
+    function openPopoutWidget(tabName) {
+        // Check if this widget is already open - if so, close it
+        const existingPopout = targetDocument.querySelector(`.mgh-popout[data-tab="${tabName}"]`);
+        if (existingPopout) {
+            existingPopout.remove();
+            return;
         }
 
-        productionLog('✅ Unified UI created successfully!');
+        const popout = targetDocument.createElement('div');
+        popout.className = 'mgh-popout';
+        popout.dataset.tab = tabName; // Store tab name for toggle detection
+        popout.style.top = '100px';
+        popout.style.left = '100px';
+
+        const header = targetDocument.createElement('div');
+        header.className = 'mgh-popout-header';
+        header.innerHTML = `
+            <span>${tabName.charAt(0).toUpperCase() + tabName.slice(1)}</span>
+            <span style="cursor: pointer; margin-left: auto; padding: 0 8px; font-size: 20px;">×</span>
+        `;
+
+        const closeBtn = header.querySelector('span:last-child');
+        closeBtn.addEventListener('click', () => popout.remove());
+
+        const body = targetDocument.createElement('div');
+        body.className = 'mgh-popout-body';
+
+        // Create content container
+        const contentEl = targetDocument.createElement('div');
+        contentEl.id = 'mga-tab-content';
+        body.appendChild(contentEl);
+
+        popout.appendChild(header);
+        popout.appendChild(body);
+
+        // Make draggable
+        makePopoutDraggable(popout, header);
+
+        targetDocument.body.appendChild(popout);
+
+        // Render content directly into the popout
+        const prevTab = UnifiedState.activeTab;
+        UnifiedState.activeTab = tabName;
+
+        // Get the content element we just created
+        const popoutContent = popout.querySelector('#mga-tab-content');
+
+        // Generate content based on tab
+        switch(tabName) {
+            case 'pets':
+                popoutContent.innerHTML = getPetsTabContent();
+                setupPetsTabHandlers();
+                break;
+            case 'abilities':
+                popoutContent.innerHTML = getAbilitiesTabContent();
+                setupAbilitiesTabHandlers(popout);
+                updateAbilityLogDisplay(popout);
+                break;
+            case 'seeds':
+                popoutContent.innerHTML = getSeedsTabContent();
+                setupSeedsTabHandlers(popoutContent);
+                break;
+            case 'shop':
+                popoutContent.innerHTML = getShopTabContent();
+                setupShopTabHandlers(popoutContent);
+                break;
+            case 'values':
+                popoutContent.innerHTML = getValuesTabContent();
+                setupValuesTabHandlers(popoutContent);
+                break;
+            case 'timers':
+                popoutContent.innerHTML = getTimersTabContent();
+                break;
+            case 'rooms':
+                popoutContent.innerHTML = getRoomStatusTabContent();
+                setupRoomJoinButtons();
+                break;
+            case 'tools':
+                popoutContent.innerHTML = getCachedTabContent('tools', getToolsTabContent);
+                break;
+            case 'settings':
+                popoutContent.innerHTML = getCachedTabContent('settings', getSettingsTabContent);
+                setupSettingsTabHandlers(popoutContent);
+                break;
+            case 'hotkeys':
+                popoutContent.innerHTML = getCachedTabContent('hotkeys', getHotkeysTabContent);
+                setupHotkeysTabHandlers(popoutContent);
+                break;
+            case 'notifications':
+                popoutContent.innerHTML = getCachedTabContent('notifications', getNotificationsTabContent);
+                setupNotificationSettingsHandlers(popoutContent);
+                break;
+            case 'help':
+                popoutContent.innerHTML = getCachedTabContent('help', getHelpTabContent);
+                break;
+        }
+
+        UnifiedState.activeTab = prevTab; // Restore previous tab
     }
+
+    function makePopoutDraggable(popout, handle) {
+        let isDragging = false;
+        let startX, startY, startLeft, startTop;
+
+        handle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = popout.getBoundingClientRect();
+            startLeft = rect.left;
+            startTop = rect.top;
+            handle.style.cursor = 'grabbing';
+            e.preventDefault(); // Prevent text selection during drag
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            popout.style.left = (startLeft + deltaX) + 'px';
+            popout.style.top = (startTop + deltaY) + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                handle.style.cursor = 'grab';
+            }
+        });
+    }
+
+    // Register Alt+B hotkey to toggle shop windows
+    targetDocument.addEventListener('keydown', (e) => {
+        // Alt+B for shop
+        if (e.altKey && e.key.toLowerCase() === 'b') {
+            e.preventDefault();
+            toggleShopWindows();
+            return;
+        }
+
+        // Ctrl+1-7 for tabs (with Shift for widgets)
+        const tabHotkeys = {
+            '1': 'pets',
+            '2': 'abilities',
+            '3': 'seeds',
+            '4': 'values',
+            '5': 'timers',
+            '6': 'rooms',
+            '7': 'shop'
+        };
+
+        if (e.ctrlKey && tabHotkeys[e.key]) {
+            e.preventDefault();
+            const tabName = tabHotkeys[e.key];
+
+            if (e.shiftKey) {
+                // Shift+Ctrl+Number = Open/close widget
+                openPopoutWidget(tabName);
+            } else {
+                // Ctrl+Number = Open/close sidebar
+                const sidebar = UnifiedState.panels.sidebar;
+                const isAlreadyOpen = sidebar.classList.contains('open') && UnifiedState.activeTab === tabName;
+
+                if (isAlreadyOpen) {
+                    // Close if same tab
+                    sidebar.classList.remove('open');
+                    targetDocument.querySelectorAll('.mgh-dock-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                } else {
+                    // Open the tab
+                    if (tabName === 'shop') {
+                        toggleShopWindows();
+                    } else {
+                        openSidebarTab(tabName);
+                    }
+                }
+            }
+        }
+    });
 
     // Pop-out window functionality
     function openTabInPopout(tabName) {
@@ -6427,6 +6240,12 @@ window.MGA_debugStorage = function() {
     function updateTabContent() {
         const contentEl = getCachedElement('#mga-tab-content') || document.getElementById('mga-tab-content');
 
+        // Safety check - if content element doesn't exist, bail out
+        if (!contentEl) {
+            console.warn('[UPDATE-TAB] Content element not found, skipping update');
+            return;
+        }
+
         // Preserve input state for pets tab to prevent typing interruption
         let preservedInputValue = '';
         let preservedInputFocused = false;
@@ -6928,51 +6747,51 @@ window.MGA_debugStorage = function() {
         let html = `
             <div class="mga-section">
                 <div class="mga-section-title">Filter Mode</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="display: flex; gap: 2px;">
-                        <button class="mga-btn mga-btn-sm ${filterMode === 'categories' ? 'active' : ''}" id="filter-mode-categories">Categories</button>
-                        <button class="mga-btn mga-btn-sm ${filterMode === 'byPet' ? 'active' : ''}" id="filter-mode-bypet">By Pet</button>
-                        <button class="mga-btn mga-btn-sm ${filterMode === 'custom' ? 'active' : ''}" id="filter-mode-custom">Custom</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+                    <div style="display: flex; gap: 6px;">
+                        <button class="mga-btn mga-btn-sm ${filterMode === 'categories' ? 'active' : ''}" id="filter-mode-categories" style="padding: 6px 12px; font-size: 12px;">Categories</button>
+                        <button class="mga-btn mga-btn-sm ${filterMode === 'byPet' ? 'active' : ''}" id="filter-mode-bypet" style="padding: 6px 12px; font-size: 12px;">By Pet</button>
+                        <button class="mga-btn mga-btn-sm ${filterMode === 'custom' ? 'active' : ''}" id="filter-mode-custom" style="padding: 6px 12px; font-size: 12px;">Custom</button>
                     </div>
-                    <div style="display: flex; gap: 4px;">
-                        <button class="mga-btn mga-btn-sm" id="select-all-filters">All</button>
-                        <button class="mga-btn mga-btn-sm" id="select-none-filters">None</button>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="mga-btn mga-btn-sm" id="select-all-filters" style="padding: 6px 10px; font-size: 11px;">All</button>
+                        <button class="mga-btn mga-btn-sm" id="select-none-filters" style="padding: 6px 10px; font-size: 11px;">None</button>
                     </div>
                 </div>
-                <div id="filter-mode-description" style="font-size: 11px; color: #aaa; margin-bottom: 8px;">
-                    ${filterMode === 'categories' ? 'Filter by ability categories' :
-                      filterMode === 'byPet' ? 'Filter by pet species' : 'Filter by individual abilities'}
+                <div id="filter-mode-description" style="font-size: 11px; color: #aaa; margin-bottom: 12px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px;">
+                    ${filterMode === 'categories' ? '📂 Filter by ability categories' :
+                      filterMode === 'byPet' ? '🐾 Filter by pet species' : '⚙️ Filter by individual abilities'}
                 </div>
 
                 <!-- Categories Mode -->
-                <div id="category-filters" style="display: ${filterMode === 'categories' ? 'grid' : 'none'}; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.xpBoost ? 'checked' : ''} data-filter="xpBoost">
-                        <span class="mga-label">💫 XP Boost</span>
+                <div id="category-filters" style="display: ${filterMode === 'categories' ? 'grid' : 'none'}; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.xpBoost ? 'checked' : ''} data-filter="xpBoost" style="accent-color: #4a9eff;">
+                        <span class="mga-label" style="font-size: 12px;">💫 XP Boost</span>
                     </label>
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.cropSizeBoost ? 'checked' : ''} data-filter="cropSizeBoost">
-                        <span class="mga-label">📈 Crop Size Boost</span>
+                    <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.cropSizeBoost ? 'checked' : ''} data-filter="cropSizeBoost" style="accent-color: #4a9eff;">
+                        <span class="mga-label" style="font-size: 12px;">📈 Crop Size Boost</span>
                     </label>
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.selling ? 'checked' : ''} data-filter="selling">
-                        <span class="mga-label">💰 Selling</span>
+                    <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.selling ? 'checked' : ''} data-filter="selling" style="accent-color: #4a9eff;">
+                        <span class="mga-label" style="font-size: 12px;">💰 Selling</span>
                     </label>
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.harvesting ? 'checked' : ''} data-filter="harvesting">
-                        <span class="mga-label">🌾 Harvesting</span>
+                    <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.harvesting ? 'checked' : ''} data-filter="harvesting" style="accent-color: #4a9eff;">
+                        <span class="mga-label" style="font-size: 12px;">🌾 Harvesting</span>
                     </label>
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.growthSpeed ? 'checked' : ''} data-filter="growthSpeed">
-                        <span class="mga-label">🐢 Growth Speed</span>
+                    <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.growthSpeed ? 'checked' : ''} data-filter="growthSpeed" style="accent-color: #4a9eff;">
+                        <span class="mga-label" style="font-size: 12px;">🐢 Growth Speed</span>
                     </label>
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.specialMutations ? 'checked' : ''} data-filter="specialMutations">
-                        <span class="mga-label">🌈✨ Special Mutations</span>
+                    <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.specialMutations ? 'checked' : ''} data-filter="specialMutations" style="accent-color: #4a9eff;">
+                        <span class="mga-label" style="font-size: 12px;">🌈✨ Special Mutations</span>
                     </label>
-                    <label class="mga-checkbox-group">
-                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.other ? 'checked' : ''} data-filter="other">
-                        <span class="mga-label">🔧 Other</span>
+                    <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                        <input type="checkbox" class="mga-checkbox" ${UnifiedState.data.abilityFilters.other ? 'checked' : ''} data-filter="other" style="accent-color: #4a9eff;">
+                        <span class="mga-label" style="font-size: 12px;">🔧 Other</span>
                     </label>
                 </div>
 
@@ -7213,11 +7032,11 @@ window.MGA_debugStorage = function() {
         "DawnCelestial": 5000000000,
         "MoonCelestial": 50000000000,
         // Eggs
-        "CommonEgg": 50000,
-        "UncommonEgg": 500000,
-        "RareEgg": 2500000,
-        "LegendaryEgg": 10000000,
-        "MythicalEgg": 50000000
+        "CommonEgg": 100000,
+        "UncommonEgg": 1000000,
+        "RareEgg": 10000000,
+        "LegendaryEgg": 150000000,
+        "MythicalEgg": 5000000000
     };
 
     // Format price with k/m/b notation and return color
@@ -7379,28 +7198,71 @@ window.MGA_debugStorage = function() {
         return shopOverlay;
     }
 
+    function createShopSidebar(type, title, side) {
+        const sidebar = targetDocument.createElement('div');
+        sidebar.className = `mga-shop-sidebar mga-shop-sidebar-${side}`;
+        sidebar.id = `mga-shop-${type}`;
+
+        sidebar.innerHTML = `
+            <div class="mga-shop-sidebar-header">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🌱 ${title}</h3>
+                <button class="shop-close-btn" style="cursor: pointer; font-weight: 700; font-size: 20px; color: #cfcfcf; background: none; border: none; padding: 0 8px; transition: color 0.2s ease;">×</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" class="show-available-only" style="accent-color: #2afd23;">
+                    <span>Show available only</span>
+                </label>
+                <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" class="sort-by-value" style="accent-color: #4a9eff;">
+                    <span>Sort by Value</span>
+                </label>
+            </div>
+            <div class="shop-items-list" style="display: flex; flex-direction: column; gap: 6px; padding: 12px; overflow-y: auto; flex: 1;"></div>
+        `;
+
+        targetDocument.body.appendChild(sidebar);
+
+        // Close button handler
+        const closeBtn = sidebar.querySelector('.shop-close-btn');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleShopWindows();
+        });
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.color = '#ff5555';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.color = '#cfcfcf';
+        });
+
+        return sidebar;
+    }
+
     function toggleShopWindows() {
         if (shopWindowsOpen) {
-            // Close windows
-            if (seedShopWindow) seedShopWindow.remove();
-            if (eggShopWindow) eggShopWindow.remove();
-            if (shopOverlay) shopOverlay.classList.remove('active');
-            seedShopWindow = null;
-            eggShopWindow = null;
+            // Close both sidebars
+            if (seedShopWindow) {
+                seedShopWindow.classList.remove('open');
+            }
+            if (eggShopWindow) {
+                eggShopWindow.classList.remove('open');
+            }
             shopWindowsOpen = false;
         } else {
-            // Open windows
-            const overlay = createShopOverlay();
-            overlay.classList.add('active');
-            createShopWindows();
+            // Open both sidebars
+            if (!seedShopWindow) createShopSidebars();
+            seedShopWindow.classList.add('open');
+            eggShopWindow.classList.add('open');
             shopWindowsOpen = true;
         }
     }
 
-    function createShopWindows() {
-        // Create seed shop window
-        seedShopWindow = createShopWindow('seed', 'Seeds', 100);
-        eggShopWindow = createShopWindow('egg', 'Eggs', 430);
+    function createShopSidebars() {
+        // Create seed shop sidebar (left)
+        seedShopWindow = createShopSidebar('seed', 'Seeds', 'left');
+        // Create egg shop sidebar (right)
+        eggShopWindow = createShopSidebar('egg', 'Eggs', 'right');
 
         // Setup handlers
         setupShopWindowHandlers(seedShopWindow, 'seed');
@@ -7454,6 +7316,7 @@ window.MGA_debugStorage = function() {
             z-index: 999999;
             overflow-y: auto;
             color: #fff;
+            transition: transform 0.3s ease, opacity 0.3s ease;
         `;
 
         window.innerHTML = `
@@ -7692,7 +7555,7 @@ window.MGA_debugStorage = function() {
             transition: all 0.2s ease;
         `;
 
-        const displayName = id.replace(/([A-Z])/g, ' $1').trim();
+        const displayName = SHOP_DISPLAY_NAMES[id] || id.replace(/([A-Z])/g, ' $1').trim();
         const spriteUrl = SHOP_IMAGE_MAP[id] || '';
         const colorClass = getShopItemColorClass(id);
         const price = SHOP_PRICES[id] || 0;
@@ -7873,6 +7736,12 @@ window.MGA_debugStorage = function() {
 
     const EGG_IDS_SHOP = ['CommonEgg', 'UncommonEgg', 'RareEgg', 'LegendaryEgg', 'MythicalEgg'];
 
+    // Display name overrides for shop (keeps internal names intact)
+    const SHOP_DISPLAY_NAMES = {
+        'OrangeTulip': 'Tulip'
+        // Add more overrides here if needed
+    };
+
     // ==================== SHOP TAB (DEPRECATED - USING DUAL WINDOWS NOW) ====================
     function getShopTabContent() {
         const settings = UnifiedState.data.settings;
@@ -7939,7 +7808,7 @@ window.MGA_debugStorage = function() {
                 transition: all 0.2s ease;
             `;
 
-            const displayName = id.replace(/([A-Z])/g, ' $1').trim();
+            const displayName = SHOP_DISPLAY_NAMES[id] || id.replace(/([A-Z])/g, ' $1').trim();
             const stock = getItemStock(id, type);
 
             item.innerHTML = `
@@ -10091,22 +9960,58 @@ window.MGA_debugStorage = function() {
             <div class="mga-section">
                 <div class="mga-section-title">🚀 Getting Started</div>
                 <div style="margin-bottom: 16px;">
-                    <p style="margin-bottom: 8px;"><strong>Magic Garden Assistant</strong> is a comprehensive tool to help you manage your pets, track abilities, automate seed management, and monitor resources.</p>
-                    <p style="margin-bottom: 8px;">Each tab provides different functionality - explore them using the navigation above or keyboard shortcuts below.</p>
+                    <p style="margin-bottom: 8px;"><strong>Magic Garden Unified</strong> provides a hybrid dock interface with powerful tools for managing pets, tracking abilities, shop automation, and resource monitoring.</p>
+                    <p style="margin-bottom: 8px;">Click dock icons to open sidebars, or Shift+Click to open floating widgets. Drag the dock from its edges to reposition.</p>
                 </div>
             </div>
 
             <div class="mga-section">
+                <div class="mga-section-title">🎛️ Dock Controls</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Click Icon:</strong> Opens slide-out sidebar</li>
+                    <li style="margin-bottom: 4px;"><strong>Shift+Click Icon:</strong> Opens floating popout widget</li>
+                    <li style="margin-bottom: 4px;"><strong>Drag from edges:</strong> Reposition the dock (grab cursor appears near edges)</li>
+                    <li style="margin-bottom: 4px;"><strong>↔ Icon:</strong> Toggle horizontal/vertical orientation</li>
+                    <li style="margin-bottom: 4px;"><strong>⋯ Icon:</strong> Hover to reveal Tools, Settings, Hotkeys, Notifications, Help</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
                 <div class="mga-section-title">⌨️ Keyboard Shortcuts</div>
-                <div class="mga-help-grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-bottom: 16px;">
-                    <div style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                        <strong>Panel Control:</strong>
-                    </div>
-                    <div style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                        <code>Ctrl+M</code> - Toggle panel open/close<br>
-                        <span style="opacity: 0.8;">💡 Tip: The blue icon is draggable</span>
-                    </div>
+                <div class="mga-help-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin-bottom: 16px;">
+                    <code style="background: rgba(74,158,255,0.2); padding: 2px 6px; border-radius: 3px;">Ctrl+1-7</code>
+                    <span>Open/close tabs (1=Pets, 2=Abilities, 3=Seeds, 4=Values, 5=Timers, 6=Rooms, 7=Shop)</span>
+                    <code style="background: rgba(74,158,255,0.2); padding: 2px 6px; border-radius: 3px;">Shift+Ctrl+1-7</code>
+                    <span>Open/close widgets (floating popouts for each tab)</span>
+                    <code style="background: rgba(74,158,255,0.2); padding: 2px 6px; border-radius: 3px;">Alt+B</code>
+                    <span>Toggle Shop (opens both seed and egg sidebars)</span>
+                    <code style="background: rgba(74,158,255,0.2); padding: 2px 6px; border-radius: 3px;">Escape</code>
+                    <span>Close shop sidebars</span>
                 </div>
+                <p style="font-size: 11px; color: #aaa; margin-top: 8px;">
+                    💡 All hotkeys are customizable in the Hotkeys tab (⌨️ icon in tail group)
+                </p>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">📊 Turtle Timer & Slot Value</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Slot Value:</strong> Always shows when standing on crops (💰 gold text)</li>
+                    <li style="margin-bottom: 4px;"><strong>Turtle Timer:</strong> Green countdown shown when turtle pet is active</li>
+                    <li style="margin-bottom: 4px;"><strong>Display Location:</strong> Appears below crop growth timer in-game</li>
+                    <li style="margin-bottom: 4px;"><strong>Values:</strong> Calculated from species value × scale × hybrid multiplier × friend bonus</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🔴🟢 Version Indicator</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Green Dot (●):</strong> You're up to date! ✓</li>
+                    <li style="margin-bottom: 4px;"><strong>Red Dot (●):</strong> Update available - click to open GitHub</li>
+                    <li style="margin-bottom: 4px;"><strong>Orange Dot (●):</strong> Version check failed - click to view script on GitHub</li>
+                    <li style="margin-bottom: 4px;"><strong>Location:</strong> Hover ⋯ icon in dock to reveal version dot</li>
+                    <li style="margin-bottom: 4px;"><strong>How it works:</strong> Checks GitHub for version.json or MGTools.user.js (tries main/master branches)</li>
+                </ul>
             </div>
 
             <div class="mga-section">
@@ -10136,6 +10041,17 @@ window.MGA_debugStorage = function() {
                     <li style="margin-bottom: 4px;"><strong>Auto-Delete:</strong> Automatically remove unwanted seeds as they appear</li>
                     <li style="margin-bottom: 4px;"><strong>Value Calculation:</strong> See total value of selected seeds before deletion</li>
                     <li style="margin-bottom: 4px;"><strong>Quick Selection:</strong> Use preset buttons for common seed types</li>
+                </ul>
+            </div>
+
+            <div class="mga-section">
+                <div class="mga-section-title">🛒 Shop Interface</div>
+                <ul style="margin-left: 16px; margin-bottom: 16px;">
+                    <li style="margin-bottom: 4px;"><strong>Dual Sidebars:</strong> Seeds on left, eggs on right (both open together)</li>
+                    <li style="margin-bottom: 4px;"><strong>Color-Coded Names:</strong> Item rarity shown by text color (rainbow for celestial)</li>
+                    <li style="margin-bottom: 4px;"><strong>Auto-Restock Detection:</strong> Purchase tracking resets when shop restocks</li>
+                    <li style="margin-bottom: 4px;"><strong>Sort & Filter:</strong> Show available only, sort by value</li>
+                    <li style="margin-bottom: 4px;"><strong>Quick Purchase:</strong> Buy 1 or All buttons for each item</li>
                 </ul>
             </div>
 
@@ -12391,15 +12307,15 @@ window.MGA_debugStorage = function() {
         // Update main document context
         updateAbilityLogDisplay(document);
 
-        // OPTIMIZED: Only query DOM once and filter for visible overlays
-        const allOverlays = targetDocument.querySelectorAll('.mga-overlay-content-only, .mga-overlay');
+        // OPTIMIZED: Only query DOM once and filter for visible overlays and widgets
+        const allOverlays = targetDocument.querySelectorAll('.mga-overlay-content-only, .mga-overlay, .mgh-popout');
         allOverlays.forEach(overlay => {
             // Skip if hidden
             if (overlay.offsetParent === null) return;
 
             if (overlay.querySelector('#ability-logs')) {
                 updateAbilityLogDisplay(overlay);
-                debugLog('ABILITY_LOGS', 'Updated overlay ability logs', { overlayId: overlay.id });
+                debugLog('ABILITY_LOGS', 'Updated overlay/widget ability logs', { overlayId: overlay.id || overlay.className });
             }
         });
 
@@ -15722,7 +15638,7 @@ window.MGA_debugStorage = function() {
         Dawnlit: 2,
         Dawnbound: 3,
         Dawncharged: 3,  // Same as Dawnbound
-        Ambershine: 5,
+        Amberlit: 5,
         Amberbound: 6,
         Ambercharged: 6  // Same as Amberbound
     };
@@ -15730,12 +15646,12 @@ window.MGA_debugStorage = function() {
     const WEATHER_TIME_COMBO = {
         "Wet+Dawnlit": 3,
         "Chilled+Dawnlit": 3,
-        "Wet+Ambershine": 6,
-        "Chilled+Ambershine": 6,
+        "Wet+Amberlit": 6,
+        "Chilled+Amberlit": 6,
         "Frozen+Dawnlit": 11,
         "Frozen+Dawnbound": 12,
         "Frozen+Dawncharged": 12,  // Same as Dawnbound
-        "Frozen+Ambershine": 14,
+        "Frozen+Amberlit": 14,
         "Frozen+Amberbound": 15,
         "Frozen+Ambercharged": 15  // Same as Amberbound
     };
@@ -16878,33 +16794,92 @@ window.MGA_debugStorage = function() {
     }
 
     function insertTurtleEstimate() {
+        // Remove ALL existing turtle estimates and slot values (prevent duplication)
+        targetDocument.querySelectorAll('[data-estimate="true"]').forEach(el => el.remove());
+        targetDocument.querySelectorAll('[data-slot-value="true"]').forEach(el => el.remove());
+
+        // Find time element (for growing crops)
         const timeElement = Array.from(targetDocument.querySelectorAll("p"))
             .find(el => /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(el.textContent.trim()));
 
-        if (timeElement) {
-            const existing = timeElement.nextElementSibling;
-            if (existing && existing.dataset.estimate) {
-                existing.remove();
+        // Find mutation element (appears on mature crops - contains mutation keywords)
+        const mutationElement = !timeElement ? Array.from(targetDocument.querySelectorAll("p"))
+            .find(el => {
+                const text = el.textContent.trim();
+                // Look for mutation keywords (Rainbow, Gold, Frozen, etc.) or weight (kg)
+                return text && (
+                    text.includes('Rainbow') || text.includes('Gold') ||
+                    text.includes('Frozen') || text.includes('Wet') ||
+                    text.includes('Chilled') || text.includes('Dawnlit') ||
+                    text.includes('Amberlit') || text.includes('kg')
+                );
+            }) : null;
+
+        // Determine where to insert our elements
+        const insertAfter = timeElement || mutationElement;
+
+        if (insertAfter) {
+            let lastInsertedElement = insertAfter;
+
+            // Always show slot value if we have crops (works for both growing and mature)
+            const currentCrop = targetWindow.currentCrop;
+            if (currentCrop && currentCrop.length > 0) {
+                const slotValue = calculateCurrentSlotValue(currentCrop);
+                if (slotValue > 0) {
+                    const slotValueEl = targetDocument.createElement("p");
+                    slotValueEl.dataset.slotValue = "true";
+                    slotValueEl.style.color = "#ffd700";
+                    slotValueEl.style.fontSize = "13px";
+                    slotValueEl.style.fontWeight = "600";
+                    slotValueEl.style.marginTop = "-6px";
+                    slotValueEl.textContent = `💰 ${slotValue.toLocaleString()}`;
+
+                    lastInsertedElement.insertAdjacentElement("afterend", slotValueEl);
+                    lastInsertedElement = slotValueEl;
+                }
             }
 
-            const estimate = estimateUntilLatestCrop(
-                targetWindow.currentCrop,
-                targetWindow.activePets
-            );
+            // Only show turtle timer if there's a time element and turtle is active
+            if (timeElement) {
+                const estimate = estimateUntilLatestCrop(
+                    targetWindow.currentCrop,
+                    targetWindow.activePets
+                );
 
-            if (estimate) {
-                const estimateEl = targetDocument.createElement("p");
-                estimateEl.dataset.estimate = "true";
-                estimateEl.style.color = "lime";
-                estimateEl.style.fontSize = "14px";
-                estimateEl.style.fontWeight = "bold";
-                estimateEl.style.marginTop = "-8px";
+                if (estimate) {
+                    const estimateEl = targetDocument.createElement("p");
+                    estimateEl.dataset.estimate = "true";
+                    estimateEl.style.color = "lime";
+                    estimateEl.style.fontSize = "14px";
+                    estimateEl.style.fontWeight = "bold";
+                    estimateEl.style.marginTop = "-6px";
 
-                estimateEl.textContent = estimate;
+                    estimateEl.textContent = estimate;
 
-                timeElement.insertAdjacentElement("afterend", estimateEl);
+                    lastInsertedElement.insertAdjacentElement("afterend", estimateEl);
+                }
             }
         }
+    }
+
+    function calculateCurrentSlotValue(currentCrop) {
+        if (!currentCrop || currentCrop.length === 0) return 0;
+
+        const friendBonus = UnifiedState.atoms.friendBonus || 1;
+        let totalValue = 0;
+
+        currentCrop.forEach(slot => {
+            if (!slot || !slot.species) return;
+
+            // Use same calculation as ValueManager.calculateTileValue()
+            const multiplier = calculateMutationMultiplier(slot.mutations);
+            const speciesVal = speciesValues[slot.species] || 0;
+            const scale = slot.targetScale || 1;
+
+            totalValue += Math.round(multiplier * speciesVal * scale * friendBonus);
+        });
+
+        return totalValue;
     }
 
     // Hook currentCrop atom for turtle timer
