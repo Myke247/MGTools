@@ -53,7 +53,7 @@
     'use strict';
 
     // ==================== VERSION INFO ====================
-    const CURRENT_VERSION = '2.1.8';  // Your local development version
+    const CURRENT_VERSION = '2.2.3';  // Your local development version
     const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
 
     // Semantic version comparison function
