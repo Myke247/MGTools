@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      2.2.1
+// @version      2.2.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -3960,7 +3960,7 @@ window.MGA_debugStorage = function() {
             indicatorElement.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (e.shiftKey) {
-                    window.open('https://github.com/Myke247/MGTools/blob/main/MGTools.user.js', '_blank');
+                    window.open('https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js', '_blank');
                 }
             });
             return;
@@ -4042,7 +4042,7 @@ window.MGA_debugStorage = function() {
                         newIndicator.addEventListener('click', (e) => {
                             e.stopPropagation();
                             if (e.shiftKey) {
-                                window.open('https://github.com/Myke247/MGTools/blob/main/MGTools.user.js', '_blank');
+                                window.open('https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js', '_blank');
                             } else {
                                 newIndicator.style.color = '#888';
                                 newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
@@ -4068,7 +4068,7 @@ window.MGA_debugStorage = function() {
                     newIndicator.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (e.shiftKey) {
-                            window.open('https://github.com/Myke247/MGTools/blob/main/MGTools.user.js', '_blank');
+                            window.open('https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js', '_blank');
                         } else {
                             newIndicator.style.color = '#888';
                             newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
@@ -8325,7 +8325,6 @@ window.MGA_debugStorage = function() {
                     if (restockDetected) {
                         // Reset local purchase tracking for this shop type
                         resetLocalPurchases(type);
-                        console.log(`[SHOP-SYNC] Reset purchase tracking for ${type} shop on restock`);
 
                         // Short delay to ensure stock data is stable
                         setTimeout(() => {
@@ -8483,8 +8482,6 @@ window.MGA_debugStorage = function() {
             const purchased = getLocalPurchaseCount(id, type);
             const stock = Math.max(0, initial - purchased);
 
-            console.log(`[SHOP] ${id}: initial=${initial}, purchased=${purchased}, stock=${stock}`);
-
             return stock;
         } catch (e) {
             productionError('[SHOP] getItemStock error:', e);
@@ -8540,7 +8537,6 @@ window.MGA_debugStorage = function() {
                     seed: saved.seed || {},
                     egg: saved.egg || {}
                 };
-                console.log('[LOCAL-TRACK] Loaded purchase tracker from storage:', localPurchaseTracker);
             }
         } catch (e) {
             console.error('[LOCAL-TRACK] Error loading purchase tracker:', e);
@@ -14655,12 +14651,10 @@ window.MGA_debugStorage = function() {
 
                     // Detect in-game shop purchases
                     if (msgType === "PurchaseSeed" && message.species) {
-                        console.log(`[PURCHASE-INTERCEPT] In-game seed purchase: ${message.species}`);
                         if (typeof trackLocalPurchase === 'function') {
                             trackLocalPurchase(message.species, 'seed', 1);
                         }
                     } else if (msgType === "PurchaseEgg" && message.eggId) {
-                        console.log(`[PURCHASE-INTERCEPT] In-game egg purchase: ${message.eggId}`);
                         if (typeof trackLocalPurchase === 'function') {
                             trackLocalPurchase(message.eggId, 'egg', 1);
                         }
@@ -18459,55 +18453,37 @@ window.MGA_debugStorage = function() {
         );
 
         // Hook REAL-TIME shop atoms for purchase tracking
-        console.log('🔗 [SHOP-ATOM] Attempting to hook seedShopAtom...');
-        const seedHookSuccess = hookAtom(
+        hookAtom(
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/shopAtoms.ts/seedShopAtom",
             "seedShop",
             (value) => {
-                console.log('🛒 [SHOP-ATOM] *** SEED SHOP UPDATED ***');
-                console.log('🛒 [SHOP-ATOM] Seed value:', value);
-                console.log('🛒 [SHOP-ATOM] Seed inventory:', value?.inventory);
-
                 // Update globalShop.shops.seed with real-time data
                 if (!targetWindow.globalShop) targetWindow.globalShop = {};
                 if (!targetWindow.globalShop.shops) targetWindow.globalShop.shops = {};
                 targetWindow.globalShop.shops.seed = value;
 
-                // Trigger shop UI refresh if open (check if function exists)
+                // Trigger shop UI refresh if open
                 if (typeof targetWindow.refreshAllShopWindows === 'function') {
-                    console.log('🛒 [SHOP-ATOM] Calling refreshAllShopWindows...');
                     targetWindow.refreshAllShopWindows();
-                } else {
-                    console.log('🛒 [SHOP-ATOM] refreshAllShopWindows not available');
                 }
             }
         );
-        console.log('🔗 [SHOP-ATOM] Seed hook result:', seedHookSuccess);
 
-        console.log('🔗 [SHOP-ATOM] Attempting to hook eggShopAtom...');
-        const eggHookSuccess = hookAtom(
+        hookAtom(
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/shopAtoms.ts/eggShopAtom",
             "eggShop",
             (value) => {
-                console.log('🛒 [SHOP-ATOM] *** EGG SHOP UPDATED ***');
-                console.log('🛒 [SHOP-ATOM] Egg value:', value);
-                console.log('🛒 [SHOP-ATOM] Egg inventory:', value?.inventory);
-
                 // Update globalShop.shops.egg with real-time data
                 if (!targetWindow.globalShop) targetWindow.globalShop = {};
                 if (!targetWindow.globalShop.shops) targetWindow.globalShop.shops = {};
                 targetWindow.globalShop.shops.egg = value;
 
-                // Trigger shop UI refresh if open (check if function exists)
+                // Trigger shop UI refresh if open
                 if (typeof targetWindow.refreshAllShopWindows === 'function') {
-                    console.log('🛒 [SHOP-ATOM] Calling refreshAllShopWindows...');
                     targetWindow.refreshAllShopWindows();
-                } else {
-                    console.log('🛒 [SHOP-ATOM] refreshAllShopWindows not available');
                 }
             }
         );
-        console.log('🔗 [SHOP-ATOM] Egg hook result:', eggHookSuccess);
 
         productionLog('✅ [SIMPLE-ATOMS] Simple atom initialization complete (including shop atoms)');
 
