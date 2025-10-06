@@ -1,5 +1,36 @@
 # Changelog - MGTools
 
+## Version 2.2.4 (2025-10-06)
+
+### 🐛 **Bug Fixes**
+- **Fixed slot tile value positioning** - Values now display properly centered in crop tooltips
+  - Changed from CSS attribute selectors to inline styles for reliable positioning
+  - Added explicit styles: display:block, marginTop:2px, fontWeight:600, fontSize:12px
+  - Color: #FFD700 (gold) for slot values, lime for turtle timer
+  - Fixed both slot value and turtle timer estimate positioning
+- **Enhanced turtle timer debugging** - Better error handling and diagnostic logging
+  - Added try-catch error handling with detailed logging
+  - Added validation checks for crops, pets, and turtle expectations
+  - Debug mode logging for troubleshooting timer display issues
+  - Handles edge cases where crops are mature (returns null correctly)
+- **Fixed ability trigger false positives** - Reduced duplicate ability logs on page refresh
+  - Added 10-second time buffer to prevent rapid duplicate triggers
+  - Better validation to prevent false triggers on page reload
+  - Improved timestamp comparison logic with debug logging
+- **Fixed theme color initialization** - All theme presets now apply correctly on page load
+  - Fixed bug where non-black themes weren't applied to dock on creation
+  - Added gradient theme application for all theme types (not just black themes)
+  - Themes now properly applied 100ms after dock creation
+  - All gradient presets (blue-purple, red-orange, etc.) work correctly
+
+### ✨ **Improvements**
+- **Better positioning consistency** - Inline styles ensure tooltips render correctly across all scenarios
+- **Enhanced error handling** - Turtle timer won't break if data is missing
+- **Reduced false triggers** - Ability notifications more accurate with time-based validation
+- **Complete theme support** - All 30+ theme options now work properly
+
+---
+
 ## Version 2.2.1 (2025-10-06)
 
 ### 🐛 **Critical Bug Fixes**

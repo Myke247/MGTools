@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      2.2.3
+// @version      2.2.4
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
     'use strict';
 
     // ==================== VERSION INFO ====================
-    const CURRENT_VERSION = '2.2.3';  // Your local development version
+    const CURRENT_VERSION = '2.2.4';  // Your local development version
     const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
 
     // Semantic version comparison function
@@ -4326,6 +4326,10 @@ window.MGA_debugStorage = function() {
             if (isBlackTheme && currentTheme.accentColor) {
                 applyAccentToDock(currentTheme);
                 applyAccentToSidebar(currentTheme);
+            } else {
+                // Apply gradient theme for non-black themes
+                applyThemeToDock(currentTheme);
+                applyThemeToSidebar(currentTheme);
             }
         }, 100);
 
@@ -17146,7 +17150,20 @@ window.MGA_debugStorage = function() {
             }
 
             const lastKnown = UnifiedState.data.lastAbilityTimestamps[pet.id];
-            if (lastKnown === currentTimestamp) return;
+
+            // Exact match - definitely already logged
+            if (lastKnown === currentTimestamp) {
+                return;
+            }
+
+            // Additional validation: If timestamp is very recent (within 10 seconds), skip
+            // This prevents false triggers on page refresh when same ability state reloads
+            if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 10000) {
+                if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${Math.abs(currentTimestamp - lastKnown)}ms)`);
+                }
+                return;
+            }
 
             UnifiedState.data.lastAbilityTimestamps[pet.id] = currentTimestamp;
             hasNewAbility = true;
@@ -18540,24 +18557,53 @@ window.MGA_debugStorage = function() {
     }
 
     function estimateUntilLatestCrop(currentCrop, activePets) {
-        if (!currentCrop || currentCrop.length === 0) return null;
-        if (!activePets || getTurtleExpectations(activePets).expectedMinutesRemoved == 0) return null;
+        try {
+            if (!currentCrop || currentCrop.length === 0) {
+                if (UnifiedState.data.settings?.debugMode) {
+                    productionLog('[TURTLE-TIMER] No current crop');
+                }
+                return null;
+            }
 
-        const now = Date.now();
-        const maxEndTime = Math.max(...currentCrop.map(c => c.endTime || 0));
+            if (!activePets || activePets.length === 0) {
+                if (UnifiedState.data.settings?.debugMode) {
+                    productionLog('[TURTLE-TIMER] No active pets');
+                }
+                return null;
+            }
 
-        const remainingRealMinutes = (maxEndTime - now) / (1000 * 60);
+            const turtleExpectations = getTurtleExpectations(activePets);
+            if (!turtleExpectations || turtleExpectations.expectedMinutesRemoved == 0) {
+                if (UnifiedState.data.settings?.debugMode) {
+                    productionLog('[TURTLE-TIMER] No turtle boost active', {
+                        petsCount: activePets.length,
+                        expectedMinutesRemoved: turtleExpectations?.expectedMinutesRemoved
+                    });
+                }
+                return null;
+            }
 
-        const { expectedMinutesRemoved } = getTurtleExpectations(activePets);
+            const now = Date.now();
+            const maxEndTime = Math.max(...currentCrop.map(c => c.endTime || 0));
 
-        const effectiveRate = expectedMinutesRemoved + 1;
+            if (maxEndTime <= now) {
+                // Crop is already mature
+                return null;
+            }
 
-        const expectedRealMinutes = remainingRealMinutes / effectiveRate;
+            const remainingRealMinutes = (maxEndTime - now) / (1000 * 60);
+            const { expectedMinutesRemoved } = turtleExpectations;
+            const effectiveRate = expectedMinutesRemoved + 1;
+            const expectedRealMinutes = remainingRealMinutes / effectiveRate;
 
-        const hours = Math.floor(expectedRealMinutes / 60);
-        const minutes = Math.floor(expectedRealMinutes % 60);
+            const hours = Math.floor(expectedRealMinutes / 60);
+            const minutes = Math.floor(expectedRealMinutes % 60);
 
-        return `${hours}h ${minutes}m`;
+            return `${hours}h ${minutes}m`;
+        } catch (error) {
+            productionError('[TURTLE-TIMER] Error calculating estimate:', error);
+            return null;
+        }
     }
 
     function insertTurtleEstimate() {
@@ -18591,6 +18637,16 @@ window.MGA_debugStorage = function() {
                     estimateEl.dataset.estimate = "true";
                     estimateEl.textContent = estimate;
 
+                    // Apply inline styles for correct positioning (matching game tooltip style)
+                    estimateEl.style.display = "block";
+                    estimateEl.style.marginTop = "2px";
+                    estimateEl.style.marginBottom = "0";
+                    estimateEl.style.fontWeight = "bold";
+                    estimateEl.style.color = "lime";
+                    estimateEl.style.fontSize = "14px";
+                    estimateEl.style.textAlign = "center";
+                    estimateEl.style.padding = "0";
+
                     lastInsertedElement.insertAdjacentElement("afterend", estimateEl);
                     lastInsertedElement = estimateEl;
                 }
@@ -18604,6 +18660,16 @@ window.MGA_debugStorage = function() {
                     const slotValueEl = targetDocument.createElement("p");
                     slotValueEl.dataset.slotValue = "true";
                     slotValueEl.textContent = slotValue.toLocaleString();
+
+                    // Apply inline styles for correct positioning (matching game tooltip style)
+                    slotValueEl.style.display = "block";
+                    slotValueEl.style.marginTop = "2px";
+                    slotValueEl.style.marginBottom = "0";
+                    slotValueEl.style.fontWeight = "600";
+                    slotValueEl.style.color = "#FFD700";
+                    slotValueEl.style.fontSize = "12px";
+                    slotValueEl.style.textAlign = "center";
+                    slotValueEl.style.padding = "0";
 
                     lastInsertedElement.insertAdjacentElement("afterend", slotValueEl);
                 }
