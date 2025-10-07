@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.0.1
+// @version      3.1.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
     'use strict';
 
     // ==================== VERSION INFO ====================
-    const CURRENT_VERSION = '3.0.1';  // Your local development version
+    const CURRENT_VERSION = '3.1.8';  // Your local development version
     const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
 
     // Semantic version comparison function
@@ -86,6 +86,8 @@
         INFO: 3,     // Info, warnings, and errors
         DEBUG: 4     // Everything including debug messages
     };
+
+    let tooltipContainer = null;
 
     // Set current log level based on production mode
     const CURRENT_LOG_LEVEL = PRODUCTION ? LogLevel.WARN : LogLevel.DEBUG;
@@ -660,6 +662,7 @@
         }
 
         #mgh-dock.vertical .mgh-dock-item img {
+            /* FIX: Match scriptwithicons sizing exactly */
             width: 24px;
             height: 24px;
         }
@@ -4499,6 +4502,7 @@ window.MGA_debugStorage = function() {
 
             const img = document.createElement('img');
             img.src = icons[tabName];
+            // FIX: Match scriptwithicons sizing exactly
             img.style.height = '70%';
             item.appendChild(img);
 
@@ -4536,6 +4540,7 @@ window.MGA_debugStorage = function() {
 
             const img = document.createElement('img');
             img.src = icons[tabName];
+            // FIX: Match scriptwithicons sizing exactly
             img.style.height = '70%';
             item.appendChild(img);
 
@@ -9347,6 +9352,11 @@ window.MGA_debugStorage = function() {
                         <div class="mga-tool-icon">⏱️</div>
                         <div class="mga-tool-name">Ability Trigger Time Calculator</div>
                         <div class="mga-tool-desc">Calculate optimal timing for pet ability triggers</div>
+                    </div>
+                    <div class="mga-tool-card" data-calculator="import-garden">
+                        <div class="mga-tool-icon">📥</div>
+                        <div class="mga-tool-name">Import Your Garden</div>
+                        <div class="mga-tool-desc">Import and analyze your garden layout</div>
                     </div>
                 </div>
                 <div class="mga-section-note" style="margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
@@ -14932,7 +14942,7 @@ window.MGA_debugStorage = function() {
     function setupProtectTabHandlers(context = document) {
         // Actual game crop species (from shop)
         const cropSpecies = ['Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
-        const cropMutations = ['Rainbow', 'Frozen'];
+        const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chill'];
 
         // Initialize locked crops if not exists
         if (!UnifiedState.data.lockedCrops) {
@@ -15857,7 +15867,8 @@ window.MGA_debugStorage = function() {
             'sell-price': 'https://daserix.github.io/magic-garden-calculator/#/sell-price-calculator',
             'weight-probability': 'https://daserix.github.io/magic-garden-calculator/#/weight-probability-calculator',
             'pet-appearance-probability': 'https://daserix.github.io/magic-garden-calculator/#/pet-appearance-probability-calculator',
-            'ability-trigger-time': 'https://daserix.github.io/magic-garden-calculator/#/ability-trigger-time-calculator'
+            'ability-trigger-time': 'https://daserix.github.io/magic-garden-calculator/#/ability-trigger-time-calculator',
+            'import-garden': 'https://daserix.github.io/magic-garden-calculator/#/garden'
         };
 
         // Wiki mapping
@@ -19188,306 +19199,95 @@ window.MGA_debugStorage = function() {
         }
     }
 
-    function insertTurtleEstimate() {
-        if (UnifiedState.data.settings?.debugMode) {
-            logDebug('TURTLE', 'insertTurtleEstimate() CALLED');
-        }
+    // REPLACE the entire existing insertTurtleEstimate function with this complete robust version:
+// ---------- FULL REPLACEMENT: insertTurtleEstimate() ----------
 
-        // Remove ALL existing turtle estimates and slot values (prevent duplication)
-        targetDocument.querySelectorAll('[data-estimate="true"]').forEach(el => el.remove());
-        targetDocument.querySelectorAll('[data-slot-value="true"]').forEach(el => el.remove());
+// ---------- REPLACEMENT: insertTurtleEstimate() with spatial matching ----------
+function insertTurtleEstimate() {
+    // COMPLETE REWRITE: Simplified to match working script exactly
+    // Removed 300+ lines of complex tooltipHost scoring logic
+    const doc = targetDocument || document;
 
-        // CRITICAL FIX v2.2.9: Scope to tooltip container, not entire page
-        // The game's crop tooltip uses Chakra UI with "chakra-text" class for tooltip paragraphs
-        // This prevents querying ALL paragraphs on page (MGTools UI, stats, etc.)
+    // CRITICAL: Find and filter out pet tooltips BEFORE searching for elements
+    // This prevents finding kg elements from pet tooltips (pets have weight too!)
+    const allParagraphs = Array.from(doc.querySelectorAll("p"));
+    const cropOnlyParagraphs = allParagraphs.filter(p => {
+        // Check if this paragraph is inside a pet tooltip
+        const container = p.closest('[role="tooltip"], .chakra-popover__content, .chakra-tooltip') || p.parentElement;
+        if (!container) return true; // Keep if no container found
 
-        let tooltipContainer = null;
-        let scopeMethod = 'unknown';
+        const containerText = container.textContent?.toLowerCase() || '';
+        // Pet-exclusive keywords (crops never have these)
+        // Note: "str" alone is too generic, use " str " with spaces or "max str"
+        const petKeywords = ['hunger', 'pick up', 'feed', 'age:', ' str ', 'max str'];
+        const isPetTooltip = petKeywords.some(kw => containerText.includes(kw));
 
-        // Helper function to check if element is inside MGTools UI
-        const isInsideMGToolsUI = (el) => {
-            let parent = el;
-            while (parent) {
-                if (parent.id === 'mgh-dock' ||
-                    parent.classList?.contains('mga-panel') ||
-                    parent.classList?.contains('mga-overlay') ||
-                    parent.id === 'mga-panel-root') {
-                    return true;
-                }
-                parent = parent.parentElement;
-            }
-            return false;
-        };
+        return !isPetTooltip; // Keep only non-pet paragraphs
+    });
 
-        // Method 1: Find tooltip by Chakra UI classes, EXCLUDING MGTools UI
-        // The tooltip paragraphs have classes like "chakra-text css-1my2mh"
-        const allChakraParagraphs = Array.from(targetDocument.querySelectorAll("p.chakra-text, p[class*='chakra-text']"));
+    // Remove ALL existing turtle estimates and slot values (prevent duplication)
+    doc.querySelectorAll('[data-estimate="true"]').forEach(el => el.remove());
+    doc.querySelectorAll('[data-slot-value="true"]').forEach(el => el.remove());
 
-        // Filter OUT paragraphs from MGTools UI
-        const gameChakraParagraphs = allChakraParagraphs.filter(p => !isInsideMGToolsUI(p));
+    // SIMPLIFIED APPROACH: Find time element (for growing crops) from filtered paragraphs
+    const timeElement = cropOnlyParagraphs
+        .find(el => /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(el.textContent.trim()));
 
-        if (gameChakraParagraphs.length > 0 && gameChakraParagraphs.length < 15) {
-            // Found Chakra paragraphs from GAME (not MGTools), with reasonable count
-            // Find the SMALLEST common ancestor container (not body/html)
-            let commonAncestor = gameChakraParagraphs[0];
-            for (let i = 0; i < 10; i++) {  // Max 10 levels up
-                if (!commonAncestor.parentElement) break;
-                if (commonAncestor.tagName === 'BODY' || commonAncestor.tagName === 'HTML') break;
+    // Find the kg element (weight - appears on mature crops) from filtered paragraphs
+    const kgElement = !timeElement ? cropOnlyParagraphs
+        .find(el => el.textContent.trim().includes('kg')) : null;
 
-                // Check if this ancestor contains ALL the game chakra paragraphs
-                const containsAll = gameChakraParagraphs.every(p => commonAncestor.contains(p));
-                if (containsAll) {
-                    const descendantParagraphs = commonAncestor.querySelectorAll('p');
-                    // If this container has a small number of paragraphs (tooltip size), use it
-                    if (descendantParagraphs.length >= gameChakraParagraphs.length &&
-                        descendantParagraphs.length <= 10) {  // Tooltips have max ~8 paragraphs
-                        tooltipContainer = commonAncestor;
-                        scopeMethod = 'chakra-ui-container';
-                        break;
-                    }
-                }
-                commonAncestor = commonAncestor.parentElement;
-            }
-        }
+    // Determine where to insert our elements (EXACT copy of working script)
+    let insertAfter = timeElement || kgElement;
 
-        // Method 2: Find tooltip by looking for visible "kg" text (mature crops have this)
-        if (!tooltipContainer) {
-            const allParagraphs = Array.from(targetDocument.querySelectorAll('p'));
-            const kgParagraphs = allParagraphs.filter(p => {
-                return p.textContent.trim().includes('kg') &&
-                       p.offsetParent !== null &&  // Visible
-                       !isInsideMGToolsUI(p);  // Not in MGTools UI
-            });
+    if (!insertAfter) {
+        // No tooltip found, exit early
+        return;
+    }
 
-            if (kgParagraphs.length > 0) {
-                // Find container of kg element
-                let parent = kgParagraphs[0].parentElement;
-                for (let i = 0; i < 8; i++) {
-                    if (!parent || parent.tagName === 'BODY' || parent.tagName === 'HTML') break;
-                    const childParagraphs = parent.querySelectorAll('p');
-                    if (childParagraphs.length >= 2 && childParagraphs.length <= 15) {
-                        tooltipContainer = parent;
-                        scopeMethod = 'kg-element-search';
-                        break;
-                    }
-                    parent = parent.parentElement;
-                }
-            }
-        }
+    // CRITICAL FIX: If insertAfter is inside a span.css-1baulvz (inline-block container),
+    // we need to insert AFTER the span, not inside it!
+    // This prevents misalignment when pet panel opens
+    const parentSpan = insertAfter.closest('span.css-1baulvz');
+    if (parentSpan) {
+        // Insert after the span container, not inside it
+        insertAfter = parentSpan;
+    }
 
-        // Method 3: Find tooltip by current crop name (fallback)
-        if (!tooltipContainer) {
-            const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
-            if (currentCrop && currentCrop.length > 0 && currentCrop[0]?.species) {
-                const cropName = currentCrop[0].species.toUpperCase();
+    // Now insert elements (matching working script logic)
+    // CRITICAL: Do NOT use inline styles - let CSS handle it (lines 22182-22193)
+    let lastInsertedElement = insertAfter;
 
-                // Find element containing crop name
-                const allElements = Array.from(targetDocument.querySelectorAll('div, p'));
-                const cropElement = allElements.find(el => {
-                    const text = el.textContent?.trim().toUpperCase();
-                    return text === cropName &&
-                           el.offsetParent !== null &&  // Visible
-                           !isInsideMGToolsUI(el);  // Not in MGTools UI
-                });
+    // Show turtle estimate if there's a time element
+    if (timeElement) {
+        const currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
+        const activePets = targetWindow.activePets || UnifiedState.atoms.activePets;
+        const estimate = estimateUntilLatestCrop(currentCrop, activePets);
 
-                if (cropElement) {
-                    // Go up DOM tree to find tooltip container
-                    let parent = cropElement.parentElement;
-                    for (let i = 0; i < 8; i++) {
-                        if (!parent || parent.tagName === 'BODY' || parent.tagName === 'HTML') break;
-                        const childParagraphs = parent.querySelectorAll('p');
-                        if (childParagraphs.length >= 2 && childParagraphs.length <= 15) {
-                            tooltipContainer = parent;
-                            scopeMethod = 'crop-name-search';
-                            break;
-                        }
-                        parent = parent.parentElement;
-                    }
-                }
-            }
-        }
-
-        // Method 4: Use entire document (last resort - will log warning)
-        if (!tooltipContainer) {
-            tooltipContainer = targetDocument;
-            scopeMethod = 'entire-document';
-            logWarn('TURTLE', '⚠️ Could not find tooltip container, using entire document (this may cause issues)');
-        }
-
-        // NOW query paragraphs ONLY within the tooltip container (not entire page!)
-        const allParagraphs = Array.from(tooltipContainer.querySelectorAll("p"));
-
-        // Filter to get only NATIVE game elements (exclude our inserted elements)
-        const nativeElements = allParagraphs.filter(el =>
-            !el.hasAttribute('data-estimate') &&
-            !el.hasAttribute('data-slot-value')
-        );
-
-        if (UnifiedState.data.settings?.debugMode) {
-            logDebug('TURTLE', 'Tooltip structure analysis:', {
-                scopeMethod,
-                tooltipContainerTag: tooltipContainer.tagName,
-                tooltipContainerClass: tooltipContainer.className?.substring(0, 50) || 'none',
-                totalParagraphs: allParagraphs.length,
-                nativeElements: nativeElements.length,
-                nativeContent: nativeElements.map(el => el.textContent.trim())
-            });
-        }
-
-        // Find time element (for growing crops)
-        const timeElement = nativeElements.find(el =>
-            /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(el.textContent.trim())
-        );
-
-        // Find the kg element (weight - appears on mature crops)
-        const kgElement = nativeElements.find(el =>
-            el.textContent.trim().includes('kg')
-        );
-
-        // IMPROVED LOGIC: Find the LAST native element in the tooltip
-        // This ensures we insert after ALL game content (including mutations that appear after kg)
-        let insertAfter = null;
-
-        if (timeElement) {
-            // For growing crops: use time element as base
-            insertAfter = timeElement;
-        } else if (kgElement) {
-            // For mature crops: find the LAST element after kg (handles mutations appearing after kg)
-            const kgIndex = nativeElements.indexOf(kgElement);
-
-            // Get all elements after kg
-            const elementsAfterKg = nativeElements.slice(kgIndex + 1);
-
-            if (UnifiedState.data.settings?.debugMode) {
-                logDebug('TURTLE', 'Mature crop analysis:', {
-                    kgIndex,
-                    elementsAfterKg: elementsAfterKg.map(el => el.textContent.trim()),
-                    willInsertAfter: elementsAfterKg.length > 0 ? 'last-element-after-kg' : 'kg-element'
-                });
-            }
-
-            // If there are elements after kg (e.g., mutation names like "Amberbound"),
-            // insert after the LAST one. Otherwise, insert after kg.
-            if (elementsAfterKg.length > 0) {
-                insertAfter = elementsAfterKg[elementsAfterKg.length - 1];
-            } else {
-                insertAfter = kgElement;
-            }
-        }
-
-        // FALLBACK: If neither time nor kg element found, use last native element
-        if (!insertAfter && nativeElements.length > 0) {
-            insertAfter = nativeElements[nativeElements.length - 1];
-            logWarn('TURTLE', '⚠️ No time/kg element found, using last element as fallback:', {
-                elementContent: insertAfter.textContent.trim(),
-                nativeElementCount: nativeElements.length
-            });
-        }
-
-        // SAFETY CHECK: If still no insertion point, log error and exit
-        if (!insertAfter) {
-            logError('TURTLE', '❌ Cannot insert slot value: No insertion point found!', {
-                totalParagraphs: allParagraphs.length,
-                nativeElements: nativeElements.length,
-                nativeContent: nativeElements.map(el => el.textContent.trim()),
-                hasTimeElement: !!timeElement,
-                hasKgElement: !!kgElement
-            });
-            return; // Early exit - cannot insert without insertion point
-        }
-
-        // SAFETY CHECK: Verify we have crops and value
-        const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
-        if (!currentCrop || currentCrop.length === 0) {
-            if (UnifiedState.data.settings?.debugMode) {
-                logDebug('TURTLE', 'No crops to display value for');
-            }
-            return;
-        }
-
-        // Try to insert slot value (with error handling)
-        try {
-            let lastInsertedElement = insertAfter;
-
-            // Get computed styles from the reference element to match native game styling
-            const computedStyles = window.getComputedStyle(insertAfter);
-
-            // Always show slot value if we have crops (works for both growing and mature)
-            const slotValue = calculateCurrentSlotValue(currentCrop);
-            if (slotValue > 0) {
-                const slotValueEl = targetDocument.createElement("p");
-                slotValueEl.dataset.slotValue = "true";
-                slotValueEl.textContent = slotValue.toLocaleString();
-
-                // Use cssText for absolute control - matches native game tooltip styling
-                // Extra top margin when inserting after mutations to ensure clear visual separation
-                slotValueEl.style.cssText = `
-                    display: block !important;
-                    width: 100% !important;
-                    margin: 12px 0 0 0 !important;
-                    padding: 0 !important;
-                    font-weight: 600 !important;
-                    color: #FFD700 !important;
-                    font-size: 13px !important;
-                    text-align: center !important;
-                    line-height: 1.4 !important;
-                `;
-
-                if (UnifiedState.data.settings?.debugMode) {
-                    logDebug('TURTLE', 'Inserting slot value:', {
-                        value: slotValue.toLocaleString(),
-                        insertingAfter: insertAfter.textContent.trim(),
-                        isAfterKg: insertAfter === kgElement,
-                        isAfterMutation: insertAfter !== kgElement && insertAfter !== timeElement
-                    });
-                }
-
-                lastInsertedElement.insertAdjacentElement("afterend", slotValueEl);
-                lastInsertedElement = slotValueEl;
-            }
-
-            // Only show turtle timer if there's a time element and turtle is active (appears BELOW slot value)
-            if (timeElement) {
-                if (UnifiedState.data.settings?.debugMode) {
-                    logDebug('TURTLE', 'Time element found, calling estimateUntilLatestCrop');
-                }
-                const estimate = estimateUntilLatestCrop(
-                    UnifiedState.atoms.currentCrop || window.currentCrop || [],
-                    UnifiedState.atoms.activePets || window.activePets || []
-                );
-
-                if (UnifiedState.data.settings?.debugMode) {
-                    logDebug('TURTLE', 'Estimate result:', estimate);
-                }
-
-                if (estimate) {
-                    const estimateEl = targetDocument.createElement("p");
-                    estimateEl.dataset.estimate = "true";
-                    estimateEl.textContent = estimate;
-
-                    // Apply inline styles for correct positioning (matching game tooltip style)
-                    estimateEl.style.display = "block";
-                    estimateEl.style.marginTop = "2px";
-                    estimateEl.style.marginBottom = "0";
-                    estimateEl.style.fontWeight = "bold";
-                    estimateEl.style.color = "lime";
-                    estimateEl.style.fontSize = "14px";
-                    estimateEl.style.textAlign = "center";
-                    estimateEl.style.padding = "0";
-
-                    lastInsertedElement.insertAdjacentElement("afterend", estimateEl);
-                    lastInsertedElement = estimateEl;
-                }
-            }
-        } catch (error) {
-            logError('TURTLE', '❌ Error inserting slot value/estimate:', {
-                error: error.message,
-                stack: error.stack,
-                hasInsertAfter: !!insertAfter,
-                cropCount: currentCrop?.length || 0
-            });
+        if (estimate) {
+            const estimateEl = doc.createElement("p");
+            estimateEl.dataset.estimate = "true";
+            estimateEl.textContent = estimate;
+            // CSS at line 22235 handles styling
+            lastInsertedElement.insertAdjacentElement("afterend", estimateEl);
+            lastInsertedElement = estimateEl;
         }
     }
+
+    // Always show slot value if we have crops (works for both growing and mature)
+    const currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
+    if (currentCrop && currentCrop.length > 0) {
+        const slotValue = calculateCurrentSlotValue(currentCrop);
+        if (slotValue > 0) {
+            const slotValueEl = doc.createElement("p");
+            slotValueEl.dataset.slotValue = "true";
+            slotValueEl.textContent = slotValue.toLocaleString();
+            // CSS at line 22248 handles styling
+            lastInsertedElement.insertAdjacentElement("afterend", slotValueEl);
+        }
+    }
+}
+
 
     function calculateCurrentSlotValue(currentCrop) {
         if (!currentCrop || currentCrop.length === 0) return 0;
@@ -19532,19 +19332,34 @@ window.MGA_debugStorage = function() {
         );
 
         // Set up MutationObserver for dynamic updates
+        // FIX: Aggressive throttling + debouncing to prevent FPS drops when walking over crops
         let _observerScheduled = false;
+        let _lastUpdateTime = 0;
+        let _debounceTimeout = null;
+        const THROTTLE_DELAY = 250; // milliseconds (increased from 150ms)
+        const DEBOUNCE_DELAY = 100;  // milliseconds (wait for movement to stop)
 
         const observer = new MutationObserver(() => {
-            const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
-            if (!currentCrop || currentCrop.length === 0) return;
+            // FIX: REMOVED early exit check - let insertTurtleEstimate() handle missing crop data
+            // This allows mature crops to be processed via fallback logic (garden tiles, tooltip parsing)
 
-            if (_observerScheduled) return;
-            _observerScheduled = true;
+            // FIX: Time-based throttling to prevent excessive calls
+            const now = Date.now();
+            if (_observerScheduled || (now - _lastUpdateTime) < THROTTLE_DELAY) return;
 
-            requestAnimationFrame(() => {
-                insertTurtleEstimate();
-                _observerScheduled = false;
-            });
+            // FIX: Clear existing debounce timer
+            if (_debounceTimeout) clearTimeout(_debounceTimeout);
+
+            // FIX: Debounce - wait for movement to stop before updating
+            _debounceTimeout = setTimeout(() => {
+                _observerScheduled = true;
+                _lastUpdateTime = Date.now();
+
+                requestAnimationFrame(() => {
+                    insertTurtleEstimate();
+                    _observerScheduled = false;
+                });
+            }, DEBOUNCE_DELAY);
         });
 
         observer.observe(targetDocument.body, {
@@ -22360,32 +22175,39 @@ window.MGA_debugStorage = function() {
 
     // Add fade-out animation for error toasts and slot value centering
     const additionalStyles = `
-        @keyframes mga-fade-out {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(-10px); }
-        }
+  @keyframes mga-fade-out {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+  }
 
-        /* Tooltip element styling - matches game's native tooltip paragraphs */
-        [data-estimate="true"] {
-            color: lime !important;
-            font-weight: bold !important;
-            font-size: 14px !important;
-            text-align: center !important;
-            margin: 2px 0 !important;
-            padding: 0 !important;
-            display: block !important;
-        }
+  /* Ensure our estimate/slot-value paragraphs behave as full-width, centered lines
+     so they appear centered inside the game's tooltip textbox regardless of container quirks. */
+  [data-estimate="true"] {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    text-align: center !important;       /* centers text inside the tooltip textbox */
+    margin: 2px 0 !important;
+    padding: 0 !important;
+    color: lime !important;
+    font-weight: bold !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+  }
 
-        [data-slot-value="true"] {
-            color: #ffd700 !important;
-            font-weight: 600 !important;
-            font-size: 12px !important;
-            text-align: center !important;
-            margin: 2px 0 !important;
-            padding: 0 !important;
-            display: block !important;
-        }
-    `;
+  [data-slot-value="true"] {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    text-align: center !important;       /* centers text inside the tooltip textbox */
+    margin: 2px 0 !important;
+    padding: 0 !important;
+    color: #FFD700 !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+`;
     const styleSheet = targetDocument.createElement('style');
     styleSheet.textContent = additionalStyles;
     targetDocument.head.appendChild(styleSheet);
