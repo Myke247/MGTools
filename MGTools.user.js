@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      2.2.4
+// @version      2.2.9
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
     'use strict';
 
     // ==================== VERSION INFO ====================
-    const CURRENT_VERSION = '2.2.4';  // Your local development version
+    const CURRENT_VERSION = '2.2.9';  // Your local development version
     const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
 
     // Semantic version comparison function
@@ -77,11 +77,58 @@
     // Set to true to disable non-critical logging for performance
     const PRODUCTION = true; // OPTIMIZED: Enabled to dramatically improve FPS
 
-    // Production-aware console logging - optimized as no-ops for performance
-    const productionLog = PRODUCTION ? () => {} : console.log.bind(console);
-    const productionWarn = PRODUCTION ? () => {} : console.warn.bind(console);
-    // Keep errors enabled for critical issues
-    const productionError = console.error.bind(console);
+    // ==================== UNIFIED LOGGING SYSTEM ====================
+    // Leveled logging with categories for better debugging
+    const LogLevel = {
+        NONE: 0,     // No logging
+        ERROR: 1,    // Critical errors only
+        WARN: 2,     // Warnings and errors
+        INFO: 3,     // Info, warnings, and errors
+        DEBUG: 4     // Everything including debug messages
+    };
+
+    // Set current log level based on production mode
+    const CURRENT_LOG_LEVEL = PRODUCTION ? LogLevel.WARN : LogLevel.DEBUG;
+
+    // Unified logging function with categories
+    function log(level, category, message, data) {
+        if (level > CURRENT_LOG_LEVEL) return;
+
+        const prefix = `[${category}]`;
+        const args = data !== undefined ? [prefix, message, data] : [prefix, message];
+
+        if (level === LogLevel.ERROR) console.error(...args);
+        else if (level === LogLevel.WARN) console.warn(...args);
+        else console.log(...args);
+    }
+
+    // Convenience functions for each level
+    const logError = (cat, msg, data) => log(LogLevel.ERROR, cat, msg, data);
+    const logWarn = (cat, msg, data) => log(LogLevel.WARN, cat, msg, data);
+    const logInfo = (cat, msg, data) => log(LogLevel.INFO, cat, msg, data);
+    const logDebug = (cat, msg, data) => log(LogLevel.DEBUG, cat, msg, data);
+
+    // Legacy compatibility - redirect to new unified logging system
+    // These automatically extract categories from [CATEGORY] tags in messages
+    const productionLog = (...args) => {
+        // Extract category from message if possible (e.g., "[INIT] Starting..." -> category: "INIT")
+        const message = String(args[0] || '');
+        const categoryMatch = message.match(/^\[([A-Z][A-Z-]*)\]/);
+        const category = categoryMatch ? categoryMatch[1] : 'LEGACY';
+        logDebug(category, ...args);
+    };
+    const productionWarn = (...args) => {
+        const message = String(args[0] || '');
+        const categoryMatch = message.match(/^\[([A-Z][A-Z-]*)\]/);
+        const category = categoryMatch ? categoryMatch[1] : 'LEGACY';
+        logWarn(category, ...args);
+    };
+    const productionError = (...args) => {
+        const message = String(args[0] || '');
+        const categoryMatch = message.match(/^\[([A-Z][A-Z-]*)\]/);
+        const category = categoryMatch ? categoryMatch[1] : 'LEGACY';
+        logError(category, ...args);
+    };
 
     // ==================== SELECTIVE CONTEXT ISOLATION ====================
     // Detect execution context and set up selective window/document references
@@ -157,13 +204,13 @@
 
             // Log drag overlay exclusion
             if (dragOverlays.length > 0) {
-                productionLog(`✅ [MODAL-CHECK] Excluding ${dragOverlays.length} game drag overlays (normal game UI, not blocking modals)`);
+                logInfo('INIT', `Excluding ${dragOverlays.length} game drag overlays (normal game UI, not blocking modals)`);
             }
 
             // DISABLED: False positive detection - game naturally has modal/overlay elements
             // This was blocking initialization and causing infinite retry loops
             if (false && totalModalElements > 0) {
-                productionLog('⏳ [MODAL-CHECK] Game modal system active - deferring MGA interactions', modalDetails);
+                logInfo('INIT', 'Game modal system active - deferring MGA interactions', modalDetails);
                 if (window.MGA_DEBUG) {
                     window.MGA_DEBUG.logModalEvent('MODAL_SYSTEM_ACTIVE', modalDetails);
                 }
@@ -172,7 +219,7 @@
 
             // SIMPLIFIED: Only block for actual modal/dialog containers, not individual buttons
             // If there are no modals/dialogs detected above, allow initialization
-            productionLog(`✅ [MODAL-CHECK] No blocking modals detected - MGA initialization allowed`);
+            logInfo('INIT', 'No blocking modals detected - MGA initialization allowed');
 
             return true;
         } catch (error) {
@@ -187,30 +234,30 @@
     // ==================== SCRIPT IDENTIFICATION ====================
     // DO NOT override console - causes issues in Tampermonkey sandbox
 
-    productionLog('🔧 [CONTEXT] Script context:', window.MGA_CONTEXT);
-    productionLog('🔧 [CONTEXT] GM API available:', isGMApiAvailable());
-    productionLog('🔧 [CONTEXT] unsafeWindow available:', isUserscript);
-    productionLog('🔧 [CONTEXT] Selective isolation enabled - game modals preserved');
+    logInfo('CONTEXT', 'Script context:', window.MGA_CONTEXT);
+    logInfo('CONTEXT', 'GM API available:', isGMApiAvailable());
+    logInfo('CONTEXT', 'unsafeWindow available:', isUserscript);
+    logInfo('CONTEXT', 'Selective isolation enabled - game modals preserved');
 
     // Add manual debug export command
-    productionLog('🛠️ [DEBUG] Manual debug export: Run "MGA_DEBUG.exportDebug()" in console anytime');
-    productionLog('🛠️ [DEBUG] Auto-export will trigger in 30s if issues are detected');
+    logInfo('DEBUG', 'Manual debug export: Run "MGA_DEBUG.exportDebug()" in console anytime');
+    logInfo('DEBUG', 'Auto-export will trigger in 30s if issues are detected');
 
     // Verify debug system is working
     setTimeout(() => {
         if (typeof window.MGA_DEBUG === 'undefined') {
             console.error('❌ [DEBUG-VERIFY] MGA_DEBUG is not defined! Debug system failed to initialize');
-            productionLog('🔧 [FALLBACK] Basic logging will continue without full debug system');
+            logWarn('DEBUG', 'Basic logging will continue without full debug system');
         } else {
-            productionLog('✅ [DEBUG-VERIFY] MGA_DEBUG is available and working');
-            productionLog('🔧 [DEBUG-VERIFY] Available methods:', Object.keys(window.MGA_DEBUG));
+            logInfo('DEBUG', 'MGA_DEBUG is available and working');
+            logDebug('DEBUG', 'Available methods:', Object.keys(window.MGA_DEBUG));
         }
     }, 100);
 
     // Add modal system verification logging
     function logModalSystemStatus() {
         const initialModalCheck = checkForGameModals();
-        productionLog('✅ [MODAL-SYSTEM] Modal isolation verification:', {
+        logInfo('INIT', 'Modal isolation verification:', {
             gameModalsActive: !initialModalCheck,
             eventIsolationActive: typeof isMGAEvent === 'function',
             contextIsolationActive: typeof createMGAElement === 'function',
@@ -221,7 +268,7 @@
         // Test event isolation function
         const testEvent = { target: document.body };
         const testMGAEvent = { target: { closest: () => null } };
-        productionLog('🧪 [MODAL-SYSTEM] Event isolation test:', {
+        logDebug('INIT', 'Event isolation test:', {
             gameEventBlocked: !isMGAEvent(testEvent),
             mgaEventAllowed: !isMGAEvent(testMGAEvent) // Should be false since closest returns null
         });
@@ -263,7 +310,7 @@
                 }
             };
             debugData.loadingStages.push(entry);
-            productionLog(`🐛 [DEBUG-STAGE] ${stage}:`, entry);
+            logDebug('DEBUG-SYSTEM', `Stage: ${stage}`, entry);
         }
 
         function logModalEvent(event, details = {}) {
@@ -275,7 +322,7 @@
                 mgaElements: targetDocument.querySelectorAll('.mga-panel, .mga-toggle-btn').length
             };
             debugData.modalEvents.push(entry);
-            productionLog(`🐛 [DEBUG-MODAL] ${event}:`, entry);
+            logDebug('DEBUG-SYSTEM', `Modal Event: ${event}`, entry);
         }
 
         function logContextIssue(issue, details = {}) {
@@ -291,7 +338,7 @@
                 }
             };
             debugData.contextIssues.push(entry);
-            productionLog(`🐛 [DEBUG-CONTEXT] ${issue}:`, entry);
+            logDebug('DEBUG-SYSTEM', `Context Issue: ${issue}`, entry);
         }
 
         function logError(error, context = '') {
@@ -313,7 +360,7 @@
             logError,
             getData: () => debugData,
             exportDebug: () => {
-                productionLog('🐛 [DEBUG-EXPORT] Complete debug data:', JSON.stringify(debugData, null, 2));
+                logInfo('DEBUG-SYSTEM', 'Complete debug data:', JSON.stringify(debugData, null, 2));
                 return debugData;
             }
         };
@@ -331,17 +378,17 @@
     let DEBUG;
     try {
         DEBUG = createDebugLogger();
-        productionLog('✅ [DEBUG-INIT] Debug system initialized successfully');
+        logInfo('DEBUG-SYSTEM', 'Debug system initialized successfully');
     } catch (error) {
-        console.error('❌ [DEBUG-INIT] Failed to initialize debug system:', error);
+        logError('DEBUG-SYSTEM', 'Failed to initialize debug system:', error);
         // Create a minimal debug fallback
         window.MGA_DEBUG = {
-            logStage: (stage, details) => productionLog(`🐛 [DEBUG-STAGE] ${stage}:`, details),
-            logModalEvent: (event, details) => productionLog(`🐛 [DEBUG-MODAL] ${event}:`, details),
-            logContextIssue: (issue, details) => productionLog(`🐛 [DEBUG-CONTEXT] ${issue}:`, details),
-            logError: (error, context) => console.error(`🐛 [DEBUG-ERROR] ${context}:`, error),
+            logStage: (stage, details) => logDebug('DEBUG-SYSTEM', `Stage: ${stage}`, details),
+            logModalEvent: (event, details) => logDebug('DEBUG-SYSTEM', `Modal Event: ${event}`, details),
+            logContextIssue: (issue, details) => logDebug('DEBUG-SYSTEM', `Context Issue: ${issue}`, details),
+            logError: (error, context) => logError('DEBUG-SYSTEM', `Error in ${context}:`, error),
             getData: () => ({ error: 'Debug system failed to initialize', fallback: true }),
-            exportDebug: () => productionLog('🐛 [DEBUG-EXPORT] Debug system failed to initialize properly')
+            exportDebug: () => logWarn('DEBUG-SYSTEM', 'Debug system failed to initialize properly')
         };
         DEBUG = window.MGA_DEBUG;
     }
@@ -2422,6 +2469,315 @@ function MGA_saveJSON_localStorage_fallback(key, value) {
         }
         return false;
     }
+}
+
+// ==================== ABILITY NAME NORMALIZATION ====================
+// Fix malformed ability names (e.g., "Seed FinderII" → "Seed Finder II")
+
+function normalizeAbilityName(name) {
+    if (!name || typeof name !== 'string') return name;
+
+    // Fix missing spaces before roman numerals
+    let normalized = name
+        .replace(/([a-z])III$/i, '$1 III')   // "FinderIII" → "Finder III"
+        .replace(/([a-z])II$/i, '$1 II')     // "FinderII" → "Finder II"
+        .replace(/([a-z])I$/i, '$1 I')       // "FinderI" → "Finder I"
+        .trim();
+
+    // Log normalization if name was changed
+    if (normalized !== name && UnifiedState.data.settings?.debugMode) {
+        logDebug('ABILITY-LOGS', `📝 Normalized ability name: "${name}" → "${normalized}"`);
+    }
+
+    return normalized;
+}
+
+// List of all known ability types for validation
+const KNOWN_ABILITY_TYPES = [
+    // XP Boosts
+    'XP Boost I', 'XP Boost II', 'XP Boost III',
+    'Hatch XP Boost I', 'Hatch XP Boost II',
+
+    // Crop Size Boosts
+    'Crop Size Boost I', 'Crop Size Boost II',
+
+    // Selling
+    'Sell Boost I', 'Sell Boost II', 'Sell Boost III',
+    'Coin Finder I', 'Coin Finder II',
+
+    // Harvesting
+    'Harvesting', 'Auto Harvest',
+
+    // Growth Speed
+    'Plant Growth Boost I', 'Plant Growth Boost II', 'Plant Growth Boost III',
+    'Egg Growth Boost I', 'Egg Growth Boost II',
+
+    // Seeds
+    'Seed Finder I', 'Seed Finder II',
+    'Special Mutations',
+
+    // Other
+    'Hunger Boost I', 'Hunger Boost II',
+    'Max Strength Boost I', 'Max Strength Boost II'
+];
+
+function isKnownAbilityType(abilityType) {
+    if (!abilityType) return false;
+    return KNOWN_ABILITY_TYPES.includes(abilityType);
+}
+
+// ==================== ABILITY LOGS DIAGNOSTIC SYSTEM ====================
+// Comprehensive diagnostic function to identify persistent ability log sources
+
+function MGA_diagnoseAbilityLogStorage() {
+    logDebug('ABILITY-LOGS', '🔍 Starting comprehensive ability log storage diagnostic...');
+
+    const report = {
+        timestamp: new Date().toISOString(),
+        sources: {}
+    };
+
+    // Helper to safely get storage
+    const safeGet = (fn, label) => {
+        try {
+            return fn();
+        } catch (e) {
+            logDebug('ABILITY-LOGS', `  ❌ ${label}: Error - ${e.message}`);
+            return null;
+        }
+    };
+
+    // Helper to parse and count logs with detailed fingerprinting
+    const parseAndCount = (raw, label) => {
+        if (!raw) return { exists: false, count: 0, logs: [] };
+        try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            const count = Array.isArray(parsed) ? parsed.length : 0;
+
+            if (Array.isArray(parsed)) {
+                // Create detailed log fingerprints for identification
+                const logs = parsed.map(l => {
+                    const abilityType = l.abilityType || 'unknown';
+                    const normalizedAbility = normalizeAbilityName(abilityType);
+                    const isKnown = isKnownAbilityType(normalizedAbility);
+                    const isMalformed = abilityType !== normalizedAbility;
+
+                    return {
+                        ability: abilityType,
+                        normalizedAbility: isMalformed ? normalizedAbility : null,
+                        isKnown,
+                        isMalformed,
+                        pet: l.petName || l.petSpecies || 'unknown',
+                        timestamp: l.timestamp,
+                        time: new Date(l.timestamp).toLocaleString(),
+                        // Create a unique fingerprint for this log
+                        fingerprint: `${abilityType}_${l.petName}_${l.timestamp}`.substring(0, 50)
+                    };
+                });
+
+                const malformedCount = logs.filter(l => l.isMalformed).length;
+                const unknownCount = logs.filter(l => !l.isKnown).length;
+
+                return {
+                    exists: true,
+                    count,
+                    logs,
+                    malformedCount,
+                    unknownCount
+                };
+            } else {
+                return { exists: true, count: 'not-an-array', logs: [] };
+            }
+        } catch (e) {
+            return { exists: true, count: 'parse-error', logs: [], error: e.message };
+        }
+    };
+
+    // 1. GM Storage (Tampermonkey)
+    const gmMain = safeGet(() => GM_getValue('MGA_petAbilityLogs', null), 'GM Main');
+    const gmArchive = safeGet(() => GM_getValue('MGA_petAbilityLogs_archive', null), 'GM Archive');
+    report.sources.gmStorage = {
+        main: parseAndCount(gmMain, 'GM Main'),
+        archive: parseAndCount(gmArchive, 'GM Archive')
+    };
+
+    // 2. Window localStorage
+    const lsMain = safeGet(() => window.localStorage?.getItem('MGA_petAbilityLogs'), 'LS Main');
+    const lsArchive = safeGet(() => window.localStorage?.getItem('MGA_petAbilityLogs_archive'), 'LS Archive');
+    const lsClearFlag = safeGet(() => window.localStorage?.getItem('MGA_logs_manually_cleared'), 'LS Clear Flag');
+    report.sources.windowLocalStorage = {
+        main: parseAndCount(lsMain, 'LS Main'),
+        archive: parseAndCount(lsArchive, 'LS Archive'),
+        clearFlag: lsClearFlag
+    };
+
+    // 3. TargetWindow localStorage (if different from window)
+    if (typeof targetWindow !== 'undefined' && targetWindow && targetWindow !== window) {
+        const tgMain = safeGet(() => targetWindow.localStorage?.getItem('MGA_petAbilityLogs'), 'TG Main');
+        const tgArchive = safeGet(() => targetWindow.localStorage?.getItem('MGA_petAbilityLogs_archive'), 'TG Archive');
+        report.sources.targetWindowLocalStorage = {
+            main: parseAndCount(tgMain, 'TG Main'),
+            archive: parseAndCount(tgArchive, 'TG Archive')
+        };
+    }
+
+    // 4. MGA_data nested logs
+    const mgaData = safeGet(() => GM_getValue('MGA_data', null), 'MGA_data');
+    if (mgaData) {
+        try {
+            const parsed = typeof mgaData === 'string' ? JSON.parse(mgaData) : mgaData;
+            const nestedLogs = parsed?.petAbilityLogs;
+            report.sources.mgaDataNested = {
+                logs: parseAndCount(nestedLogs, 'MGA_data nested')
+            };
+        } catch (e) {
+            report.sources.mgaDataNested = { error: e.message };
+        }
+    }
+
+    // 5. Window compatibility array (old mainscript.txt)
+    if (typeof window.petAbilityLogs !== 'undefined') {
+        report.sources.compatibilityArray = {
+            count: Array.isArray(window.petAbilityLogs) ? window.petAbilityLogs.length : 'not-an-array',
+            sample: Array.isArray(window.petAbilityLogs) ? window.petAbilityLogs.slice(0, 3) : null
+        };
+    }
+
+    // 6. Current memory state
+    const memoryLogs = (UnifiedState.data?.petAbilityLogs || []).map(l => {
+        const abilityType = l.abilityType || 'unknown';
+        const normalizedAbility = normalizeAbilityName(abilityType);
+        const isKnown = isKnownAbilityType(normalizedAbility);
+        const isMalformed = abilityType !== normalizedAbility;
+
+        return {
+            ability: abilityType,
+            normalizedAbility: isMalformed ? normalizedAbility : null,
+            isKnown,
+            isMalformed,
+            pet: l.petName || l.petSpecies || 'unknown',
+            timestamp: l.timestamp,
+            time: new Date(l.timestamp).toLocaleString(),
+            fingerprint: `${abilityType}_${l.petName}_${l.timestamp}`.substring(0, 50)
+        };
+    });
+
+    report.sources.memory = {
+        unifiedState: {
+            count: memoryLogs.length,
+            sample: memoryLogs  // Now includes all logs with fingerprints
+        }
+    };
+
+    // Calculate total across all sources
+    const totals = {
+        gmMain: report.sources.gmStorage.main.count || 0,
+        gmArchive: report.sources.gmStorage.archive.count || 0,
+        lsMain: report.sources.windowLocalStorage.main.count || 0,
+        lsArchive: report.sources.windowLocalStorage.archive.count || 0,
+        memory: report.sources.memory.unifiedState.count
+    };
+
+    report.summary = {
+        totalLocationsWithLogs: Object.values(totals).filter(c => c > 0).length,
+        totals,
+        suspectSources: Object.entries(totals).filter(([k, v]) => v > 0).map(([k]) => k)
+    };
+
+    // Output report
+    console.log('🔍 ========== ABILITY LOGS STORAGE DIAGNOSTIC ==========');
+    console.log('📊 Summary:', report.summary);
+    console.log('');
+
+    // Show counts for each storage location
+    console.log('📁 GM Storage:');
+    console.log('  Main:', report.sources.gmStorage.main.count, 'logs');
+    console.log('  Archive:', report.sources.gmStorage.archive.count, 'logs');
+
+    console.log('📁 Window localStorage:');
+    console.log('  Main:', report.sources.windowLocalStorage.main.count, 'logs');
+    console.log('  Archive:', report.sources.windowLocalStorage.archive.count, 'logs');
+    console.log('  Clear flag:', report.sources.windowLocalStorage.clearFlag);
+
+    if (report.sources.targetWindowLocalStorage) {
+        console.log('📁 Target Window localStorage:');
+        console.log('  Main:', report.sources.targetWindowLocalStorage.main.count, 'logs');
+        console.log('  Archive:', report.sources.targetWindowLocalStorage.archive.count, 'logs');
+    }
+
+    if (report.sources.mgaDataNested) {
+        console.log('📁 MGA_data nested:', report.sources.mgaDataNested);
+    }
+
+    if (report.sources.compatibilityArray) {
+        console.log('📁 Compatibility array:', report.sources.compatibilityArray);
+    }
+
+    console.log('💾 Memory:', report.sources.memory.unifiedState.count, 'logs');
+    console.log('');
+
+    // DETAILED LOG LISTING - Show individual logs from each source
+    console.log('📋 ========== DETAILED LOG LISTING ==========');
+
+    const showLogs = (title, logs) => {
+        if (logs && logs.length > 0) {
+            console.log(`\n${title}:`);
+            logs.forEach((log, i) => {
+                const prefix = log.isMalformed ? '⚠️ MALFORMED' : (log.isKnown ? '✅' : '❓ UNKNOWN');
+                console.log(`  ${i + 1}. ${prefix} [${log.fingerprint}]`);
+                console.log(`     ${log.ability} - ${log.pet}`);
+                if (log.isMalformed) {
+                    console.log(`     → Should be: "${log.normalizedAbility}"`);
+                }
+                console.log(`     ${log.time}`);
+            });
+        }
+    };
+
+    showLogs('GM Storage (Main)', report.sources.gmStorage.main.logs);
+    showLogs('GM Storage (Archive)', report.sources.gmStorage.archive.logs);
+    showLogs('Window localStorage (Main)', report.sources.windowLocalStorage.main.logs);
+    showLogs('Window localStorage (Archive)', report.sources.windowLocalStorage.archive.logs);
+    if (report.sources.targetWindowLocalStorage) {
+        showLogs('TargetWindow localStorage (Main)', report.sources.targetWindowLocalStorage.main.logs);
+        showLogs('TargetWindow localStorage (Archive)', report.sources.targetWindowLocalStorage.archive.logs);
+    }
+    if (report.sources.mgaDataNested?.logs?.logs) {
+        showLogs('MGA_data nested', report.sources.mgaDataNested.logs.logs);
+    }
+    showLogs('Memory (UnifiedState)', report.sources.memory.unifiedState.sample);
+
+    // Count total malformed and unknown logs
+    const allSources = [
+        report.sources.gmStorage.main,
+        report.sources.gmStorage.archive,
+        report.sources.windowLocalStorage.main,
+        report.sources.windowLocalStorage.archive
+    ];
+    if (report.sources.targetWindowLocalStorage) {
+        allSources.push(report.sources.targetWindowLocalStorage.main);
+        allSources.push(report.sources.targetWindowLocalStorage.archive);
+    }
+
+    const totalMalformed = allSources.reduce((sum, src) => sum + (src.malformedCount || 0), 0);
+    const totalUnknown = allSources.reduce((sum, src) => sum + (src.unknownCount || 0), 0);
+
+    console.log('\n=======================================================');
+    console.log('💡 TIPS:');
+    console.log('  • Look for logs with identical fingerprints across multiple storage locations');
+    console.log('  • If a log persists after clear, check which storage still contains it');
+    if (totalMalformed > 0) {
+        console.log(`  • ⚠️ Found ${totalMalformed} MALFORMED ability name(s) - missing spaces before roman numerals`);
+        console.log('  • Malformed logs may not clear properly. Enable Debug Mode and click "Clear Logs".');
+    }
+    if (totalUnknown > 0) {
+        console.log(`  • ❓ Found ${totalUnknown} UNKNOWN ability type(s) - not in known abilities list`);
+    }
+    console.log('=======================================================');
+
+    logDebug('ABILITY-LOGS', '✅ Diagnostic complete - see console for full report');
+
+    return report;
 }
 
 // ==================== DATA MIGRATION SYSTEM ====================
@@ -7559,6 +7915,7 @@ window.MGA_debugStorage = function() {
                 <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
                     <button class="mga-btn mga-btn-sm" id="clear-logs-btn">Clear Logs</button>
                     <button class="mga-btn mga-btn-sm" id="export-logs-btn">Export CSV</button>
+                    ${UnifiedState.data.settings?.debugMode ? '<button class="mga-btn mga-btn-sm" id="diagnose-logs-btn" style="background: #ff6b35;">🔍 Diagnose Storage</button>' : ''}
                 </div>
             </div>
 
@@ -13051,14 +13408,116 @@ window.MGA_debugStorage = function() {
         if (clearLogsBtn && !clearLogsBtn.hasAttribute('data-handler-setup')) {
             clearLogsBtn.setAttribute('data-handler-setup', 'true');
             clearLogsBtn.addEventListener('click', () => {
-                // Clear both memory and archived logs
+                logDebug('ABILITY-LOGS', 'Starting comprehensive ability log clear...');
+
+                // BEFORE CLEAR: Show what exists in each storage
+                const beforeClear = {
+                    memory: UnifiedState.data.petAbilityLogs?.length || 0,
+                    gmMain: (() => { try { const v = GM_getValue('MGA_petAbilityLogs', null); return v ? JSON.parse(v).length : 0; } catch(e) { return 0; }})(),
+                    gmArchive: (() => { try { const v = GM_getValue('MGA_petAbilityLogs_archive', null); return v ? JSON.parse(v).length : 0; } catch(e) { return 0; }})(),
+                    lsMain: (() => { try { const v = window.localStorage?.getItem('MGA_petAbilityLogs'); return v ? JSON.parse(v).length : 0; } catch(e) { return 0; }})(),
+                    lsArchive: (() => { try { const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive'); return v ? JSON.parse(v).length : 0; } catch(e) { return 0; }})()
+                };
+
+                logDebug('ABILITY-LOGS', '📊 BEFORE CLEAR - Log counts:', beforeClear);
+
+                // Show individual logs from memory (to identify which one won't delete)
+                if (UnifiedState.data.petAbilityLogs?.length > 0) {
+                    logDebug('ABILITY-LOGS', '📋 Current logs in memory:');
+                    UnifiedState.data.petAbilityLogs.forEach((log, i) => {
+                        logDebug('ABILITY-LOGS', `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`);
+                    });
+                }
+
+                // 1. Clear memory
                 UnifiedState.data.petAbilityLogs = [];
+                logDebug('ABILITY-LOGS', '  ✓ Cleared UnifiedState memory');
+
+                // 2. Clear GM storage (Tampermonkey)
                 MGA_saveJSON('MGA_petAbilityLogs', []);
                 MGA_saveJSON('MGA_petAbilityLogs_archive', []);
+                logDebug('ABILITY-LOGS', '  ✓ Cleared GM storage (main + archive)');
+
+                // 3. Clear window.localStorage directly (bypass sync logic)
+                try {
+                    window.localStorage?.removeItem('MGA_petAbilityLogs');
+                    window.localStorage?.removeItem('MGA_petAbilityLogs_archive');
+                    logDebug('ABILITY-LOGS', '  ✓ Cleared window.localStorage');
+                } catch (e) {
+                    logWarn('ABILITY-LOGS', '  ⚠️ Could not clear window.localStorage:', e.message);
+                }
+
+                // 4. Clear targetWindow.localStorage (if different from window)
+                try {
+                    if (typeof targetWindow !== 'undefined' && targetWindow && targetWindow !== window) {
+                        targetWindow.localStorage?.removeItem('MGA_petAbilityLogs');
+                        targetWindow.localStorage?.removeItem('MGA_petAbilityLogs_archive');
+                        logDebug('ABILITY-LOGS', '  ✓ Cleared targetWindow.localStorage');
+                    }
+                } catch (e) {
+                    logWarn('ABILITY-LOGS', '  ⚠️ Could not clear targetWindow.localStorage:', e.message);
+                }
+
+                // 5. Clear compatibility array (old mainscript.txt)
+                try {
+                    if (typeof window.petAbilityLogs !== 'undefined') {
+                        window.petAbilityLogs = [];
+                        logDebug('ABILITY-LOGS', '  ✓ Cleared window.petAbilityLogs compatibility array');
+                    }
+                } catch (e) {
+                    logWarn('ABILITY-LOGS', '  ⚠️ Could not clear compatibility array:', e.message);
+                }
+
+                // 6. Set flag to prevent reload from archive
+                localStorage.setItem('MGA_logs_manually_cleared', 'true');
+                logDebug('ABILITY-LOGS', '  ✓ Set manual clear flag');
+
+                // 7. AFTER CLEAR: Comprehensive verification
+                const verifyMain = MGA_loadJSON('MGA_petAbilityLogs', null);
+                const verifyArchive = MGA_loadJSON('MGA_petAbilityLogs_archive', null);
+                const verifyLS = window.localStorage?.getItem('MGA_petAbilityLogs');
+                const verifyCompat = typeof window.petAbilityLogs !== 'undefined' ? window.petAbilityLogs?.length : 'N/A';
+
+                // Recount all sources after clear
+                const afterClear = {
+                    memory: UnifiedState.data.petAbilityLogs?.length || 0,
+                    gmMain: verifyMain?.length || 0,
+                    gmArchive: verifyArchive?.length || 0,
+                    lsMain: verifyLS ? (() => { try { return JSON.parse(verifyLS).length; } catch(e) { return 'parse-error'; }})() : 0,
+                    lsArchive: (() => { try { const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive'); return v ? JSON.parse(v).length : 0; } catch(e) { return 0; }})(),
+                    compatArray: verifyCompat
+                };
+
+                logDebug('ABILITY-LOGS', '📊 AFTER CLEAR - Log counts:', afterClear);
+                logDebug('ABILITY-LOGS', '📊 COMPARISON:', {
+                    before: beforeClear,
+                    after: afterClear,
+                    clearedFlag: localStorage.getItem('MGA_logs_manually_cleared')
+                });
+
+                // If ANY logs remain, show which ones
+                const totalRemaining = Object.values(afterClear).reduce((sum, val) =>
+                    sum + (typeof val === 'number' ? val : 0), 0
+                );
+
+                if (totalRemaining > 0) {
+                    productionWarn(`⚠️ [ABILITIES] ${totalRemaining} log(s) persist after clear!`);
+                    logDebug('ABILITY-LOGS', '🔍 Logs that persisted - check these sources:', afterClear);
+
+                    // Show which specific logs remain (if any)
+                    if (verifyMain && verifyMain.length > 0) {
+                        logDebug('ABILITY-LOGS', '❌ PERSISTENT LOGS IN GM STORAGE:');
+                        verifyMain.forEach((log, i) => {
+                            logDebug('ABILITY-LOGS', `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`);
+                        });
+                    }
+                } else {
+                    productionLog('✅ [ABILITIES] Successfully cleared all ability logs from all storage locations');
+                }
+
                 lastLogCount = 0; // Reset log count tracker
                 updateTabContent();
                 updateAllAbilityLogDisplays();
-                productionLog('🗑️ [ABILITIES] Cleared all ability logs (memory + archive)');
             });
         }
 
@@ -13067,6 +13526,24 @@ window.MGA_debugStorage = function() {
             exportLogsBtn.setAttribute('data-handler-setup', 'true');
             exportLogsBtn.addEventListener('click', () => {
                 exportAbilityLogs();
+            });
+        }
+
+        // Diagnose logs button (only visible when debug mode is enabled)
+        const diagnoseLogsBtn = context.querySelector('#diagnose-logs-btn');
+        if (diagnoseLogsBtn && !diagnoseLogsBtn.hasAttribute('data-handler-setup')) {
+            diagnoseLogsBtn.setAttribute('data-handler-setup', 'true');
+            diagnoseLogsBtn.addEventListener('click', () => {
+                console.log('🔍 Running ability logs storage diagnostic...');
+                const report = MGA_diagnoseAbilityLogStorage();
+
+                // Show a user-friendly notification
+                const totalWithLogs = report.summary.totalLocationsWithLogs;
+                if (totalWithLogs === 0) {
+                    showNotificationToast('✅ No ability logs found in any storage location', 'success');
+                } else {
+                    showNotificationToast(`📊 Found logs in ${totalWithLogs} storage location(s). Check console for details.`, 'info');
+                }
             });
         }
 
@@ -16353,17 +16830,10 @@ window.MGA_debugStorage = function() {
             (settings.popoutOpacity / 100) :
             (settings.opacity / 100);
 
-        // Apply opacity boost for high levels to ensure true 100% opacity
-        // This compensates for theme gradient multipliers and weak RGB values
+        // Apply opacity boost only at 100% to ensure truly solid panels
         let effectiveOpacity = opacity;
-        if (opacity > 0.8) {
-            if (opacity === 1.0) {
-                // Special overboost for true 100% opacity - creates truly solid panels
-                effectiveOpacity = 1.8; // 80% overboost for solid appearance
-            } else {
-                // Regular boost for 80-99% range
-                effectiveOpacity = Math.min(1.5, opacity * 1.5); // 50% boost, max 150%
-            }
+        if (opacity === 1.0) {
+            effectiveOpacity = 1.8; // Overboost for solid appearance
         }
 
         // Define gradient styles - ALL themes now use effectiveOpacity for true 100% support
@@ -17165,6 +17635,18 @@ window.MGA_debugStorage = function() {
                 return;
             }
 
+            // Check if this exact log already exists in recent entries (prevents race condition duplicates)
+            const isDuplicate = UnifiedState.data.petAbilityLogs
+                .slice(0, 10)
+                .some(log => log.timestamp === currentTimestamp && log.petName && log.petName.includes(pet.petSpecies));
+
+            if (isDuplicate) {
+                if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`🚫 [ABILITY-SKIP] ${pet.petSpecies} - Already in recent logs (duplicate prevention)`);
+                }
+                return;
+            }
+
             UnifiedState.data.lastAbilityTimestamps[pet.id] = currentTimestamp;
             hasNewAbility = true;
 
@@ -17199,13 +17681,24 @@ window.MGA_debugStorage = function() {
                 displayName = `${pet.name} (${pet.petSpecies || 'Pet'})`;
             }
 
+            // Normalize ability name to fix potential typos (e.g., "Seed FinderII" → "Seed Finder II")
+            const rawAbilityType = trigger.abilityId || 'Unknown Ability';
+            const normalizedAbilityType = normalizeAbilityName(rawAbilityType);
+
             const abilityLog = {
                 petName: displayName,
-                abilityType: trigger.abilityId || 'Unknown Ability',
+                abilityType: normalizedAbilityType,
                 timestamp: currentTimestamp,
                 timeString: formatTimestamp(currentTimestamp),
                 data: Object.keys(enrichedData).length > 0 ? enrichedData : null
             };
+
+            logDebug('ABILITY-LOGS', 'Adding NEW ability log:', {
+                ability: abilityLog.abilityType,
+                pet: abilityLog.petName,
+                time: abilityLog.timeString,
+                currentLogCount: UnifiedState.data.petAbilityLogs.length
+            });
 
             UnifiedState.data.petAbilityLogs.unshift(abilityLog);
 
@@ -18349,6 +18842,8 @@ window.MGA_debugStorage = function() {
                                 mutations: slot.mutations || [],
                                 abilities: slot.abilities || [],
                                 hunger: slot.hunger ?? slot.petHunger ?? slot.health ?? 100,  // Include hunger for pet hunger notifications
+                                xp: slot.xp || 0,  // CRITICAL: Required for turtle timer experience calculation
+                                targetScale: slot.targetScale || slot.scale || 1,  // CRITICAL: Required for turtle timer scale bonus calculation
                                 strength: slot.strength || slot.str || 100,  // Include strength for Hunger Boost calculations
                                 str: slot.str || slot.strength || 100,       // Fallback property name
                                 slot: index + 1
@@ -18535,21 +19030,68 @@ window.MGA_debugStorage = function() {
     }
 
     function getTurtleExpectations(activePets) {
+        // Debug: Only log when debug mode is enabled
+        if (UnifiedState.data.settings?.debugMode) {
+            logDebug('TURTLE', 'Checking active pets:', {
+                petsCount: activePets?.length || 0,
+                pets: (activePets || []).map(p => ({
+                    species: p?.petSpecies,
+                    hunger: p?.hunger,
+                    abilities: p?.abilities
+                }))
+            });
+        }
+
         const turtles = (activePets || []).filter(p =>
             p &&
             p.petSpecies === "Turtle" &&
             p.hunger > 0 &&
-            p.abilities?.some(a => a === "PlantGrowthBoostII")
+            p.abilities?.some(a =>
+                a === "Plant Growth Boost II" ||
+                a === "PlantGrowthBoostII" ||
+                a === "Plant Growth Boost 2" ||
+                (typeof a === 'string' && a.toLowerCase().includes("plant") && a.toLowerCase().includes("growth") && (a.includes("II") || a.includes("2")))
+            )
         );
+
+        if (UnifiedState.data.settings?.debugMode) {
+            logDebug('TURTLE', 'Filtered turtles:', {
+                turtleCount: turtles.length,
+                turtles: turtles.map(t => ({
+                    species: t.petSpecies,
+                    hunger: t.hunger,
+                    abilities: t.abilities,
+                    xp: t.xp,
+                    targetScale: t.targetScale
+                }))
+            });
+        }
 
         let expectedMinutesRemoved = 0;
 
         turtles.forEach(p => {
-            const base =
-                Math.min(Math.floor((p.xp || 0) / (100 * 3600) * 30), 30) +
-                Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) - 30;
-            expectedMinutesRemoved += (base / 100 * 5) * 60 * (1 - Math.pow(1 - 0.27 * base / 100, 1/60));
+            const xpComponent = Math.min(Math.floor((p.xp || 0) / (100 * 3600) * 30), 30);
+            const scaleComponent = Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) - 30;
+            const base = xpComponent + scaleComponent;
+            const minutesRemoved = (base / 100 * 5) * 60 * (1 - Math.pow(1 - 0.27 * base / 100, 1/60));
+
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'Turtle calculation:', {
+                    xp: p.xp,
+                    targetScale: p.targetScale,
+                    xpComponent,
+                    scaleComponent,
+                    base,
+                    minutesRemoved
+                });
+            }
+
+            expectedMinutesRemoved += minutesRemoved;
         });
+
+        if (UnifiedState.data.settings?.debugMode) {
+            logDebug('TURTLE', 'Total expected minutes removed:', expectedMinutesRemoved);
+        }
 
         return {
             expectedMinutesRemoved
@@ -18558,24 +19100,42 @@ window.MGA_debugStorage = function() {
 
     function estimateUntilLatestCrop(currentCrop, activePets) {
         try {
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'estimateUntilLatestCrop called with:', {
+                    currentCropLength: currentCrop?.length || 0,
+                    activePetsLength: activePets?.length || 0
+                });
+            }
+
             if (!currentCrop || currentCrop.length === 0) {
                 if (UnifiedState.data.settings?.debugMode) {
-                    productionLog('[TURTLE-TIMER] No current crop');
+                    logDebug('TURTLE', 'RETURNING NULL: No current crop');
                 }
                 return null;
             }
 
             if (!activePets || activePets.length === 0) {
                 if (UnifiedState.data.settings?.debugMode) {
-                    productionLog('[TURTLE-TIMER] No active pets');
+                    logDebug('TURTLE', 'RETURNING NULL: No active pets');
                 }
                 return null;
             }
 
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'Calling getTurtleExpectations...');
+            }
             const turtleExpectations = getTurtleExpectations(activePets);
+
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'getTurtleExpectations returned:', {
+                    hasResult: !!turtleExpectations,
+                    expectedMinutesRemoved: turtleExpectations?.expectedMinutesRemoved
+                });
+            }
+
             if (!turtleExpectations || turtleExpectations.expectedMinutesRemoved == 0) {
                 if (UnifiedState.data.settings?.debugMode) {
-                    productionLog('[TURTLE-TIMER] No turtle boost active', {
+                    logDebug('TURTLE', 'RETURNING NULL: No turtle boost active', {
                         petsCount: activePets.length,
                         expectedMinutesRemoved: turtleExpectations?.expectedMinutesRemoved
                     });
@@ -18586,8 +19146,18 @@ window.MGA_debugStorage = function() {
             const now = Date.now();
             const maxEndTime = Math.max(...currentCrop.map(c => c.endTime || 0));
 
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'Crop timing:', {
+                    now,
+                    maxEndTime,
+                    isMature: maxEndTime <= now
+                });
+            }
+
             if (maxEndTime <= now) {
-                // Crop is already mature
+                if (UnifiedState.data.settings?.debugMode) {
+                    logDebug('TURTLE', 'RETURNING NULL: Crop already mature');
+                }
                 return null;
             }
 
@@ -18599,38 +19169,295 @@ window.MGA_debugStorage = function() {
             const hours = Math.floor(expectedRealMinutes / 60);
             const minutes = Math.floor(expectedRealMinutes % 60);
 
-            return `${hours}h ${minutes}m`;
+            const result = `${hours}h ${minutes}m`;
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'SUCCESS! Returning estimate:', {
+                    result,
+                    remainingRealMinutes,
+                    expectedMinutesRemoved,
+                    effectiveRate,
+                    expectedRealMinutes
+                });
+            }
+
+            return result;
         } catch (error) {
-            productionError('[TURTLE-TIMER] Error calculating estimate:', error);
+            logError('TURTLE', 'ERROR in estimateUntilLatestCrop:', error);
             return null;
         }
     }
 
     function insertTurtleEstimate() {
+        if (UnifiedState.data.settings?.debugMode) {
+            logDebug('TURTLE', 'insertTurtleEstimate() CALLED');
+        }
+
         // Remove ALL existing turtle estimates and slot values (prevent duplication)
         targetDocument.querySelectorAll('[data-estimate="true"]').forEach(el => el.remove());
         targetDocument.querySelectorAll('[data-slot-value="true"]').forEach(el => el.remove());
 
+        // CRITICAL FIX v2.2.9: Scope to tooltip container, not entire page
+        // The game's crop tooltip uses Chakra UI with "chakra-text" class for tooltip paragraphs
+        // This prevents querying ALL paragraphs on page (MGTools UI, stats, etc.)
+
+        let tooltipContainer = null;
+        let scopeMethod = 'unknown';
+
+        // Helper function to check if element is inside MGTools UI
+        const isInsideMGToolsUI = (el) => {
+            let parent = el;
+            while (parent) {
+                if (parent.id === 'mgh-dock' ||
+                    parent.classList?.contains('mga-panel') ||
+                    parent.classList?.contains('mga-overlay') ||
+                    parent.id === 'mga-panel-root') {
+                    return true;
+                }
+                parent = parent.parentElement;
+            }
+            return false;
+        };
+
+        // Method 1: Find tooltip by Chakra UI classes, EXCLUDING MGTools UI
+        // The tooltip paragraphs have classes like "chakra-text css-1my2mh"
+        const allChakraParagraphs = Array.from(targetDocument.querySelectorAll("p.chakra-text, p[class*='chakra-text']"));
+
+        // Filter OUT paragraphs from MGTools UI
+        const gameChakraParagraphs = allChakraParagraphs.filter(p => !isInsideMGToolsUI(p));
+
+        if (gameChakraParagraphs.length > 0 && gameChakraParagraphs.length < 15) {
+            // Found Chakra paragraphs from GAME (not MGTools), with reasonable count
+            // Find the SMALLEST common ancestor container (not body/html)
+            let commonAncestor = gameChakraParagraphs[0];
+            for (let i = 0; i < 10; i++) {  // Max 10 levels up
+                if (!commonAncestor.parentElement) break;
+                if (commonAncestor.tagName === 'BODY' || commonAncestor.tagName === 'HTML') break;
+
+                // Check if this ancestor contains ALL the game chakra paragraphs
+                const containsAll = gameChakraParagraphs.every(p => commonAncestor.contains(p));
+                if (containsAll) {
+                    const descendantParagraphs = commonAncestor.querySelectorAll('p');
+                    // If this container has a small number of paragraphs (tooltip size), use it
+                    if (descendantParagraphs.length >= gameChakraParagraphs.length &&
+                        descendantParagraphs.length <= 10) {  // Tooltips have max ~8 paragraphs
+                        tooltipContainer = commonAncestor;
+                        scopeMethod = 'chakra-ui-container';
+                        break;
+                    }
+                }
+                commonAncestor = commonAncestor.parentElement;
+            }
+        }
+
+        // Method 2: Find tooltip by looking for visible "kg" text (mature crops have this)
+        if (!tooltipContainer) {
+            const allParagraphs = Array.from(targetDocument.querySelectorAll('p'));
+            const kgParagraphs = allParagraphs.filter(p => {
+                return p.textContent.trim().includes('kg') &&
+                       p.offsetParent !== null &&  // Visible
+                       !isInsideMGToolsUI(p);  // Not in MGTools UI
+            });
+
+            if (kgParagraphs.length > 0) {
+                // Find container of kg element
+                let parent = kgParagraphs[0].parentElement;
+                for (let i = 0; i < 8; i++) {
+                    if (!parent || parent.tagName === 'BODY' || parent.tagName === 'HTML') break;
+                    const childParagraphs = parent.querySelectorAll('p');
+                    if (childParagraphs.length >= 2 && childParagraphs.length <= 15) {
+                        tooltipContainer = parent;
+                        scopeMethod = 'kg-element-search';
+                        break;
+                    }
+                    parent = parent.parentElement;
+                }
+            }
+        }
+
+        // Method 3: Find tooltip by current crop name (fallback)
+        if (!tooltipContainer) {
+            const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
+            if (currentCrop && currentCrop.length > 0 && currentCrop[0]?.species) {
+                const cropName = currentCrop[0].species.toUpperCase();
+
+                // Find element containing crop name
+                const allElements = Array.from(targetDocument.querySelectorAll('div, p'));
+                const cropElement = allElements.find(el => {
+                    const text = el.textContent?.trim().toUpperCase();
+                    return text === cropName &&
+                           el.offsetParent !== null &&  // Visible
+                           !isInsideMGToolsUI(el);  // Not in MGTools UI
+                });
+
+                if (cropElement) {
+                    // Go up DOM tree to find tooltip container
+                    let parent = cropElement.parentElement;
+                    for (let i = 0; i < 8; i++) {
+                        if (!parent || parent.tagName === 'BODY' || parent.tagName === 'HTML') break;
+                        const childParagraphs = parent.querySelectorAll('p');
+                        if (childParagraphs.length >= 2 && childParagraphs.length <= 15) {
+                            tooltipContainer = parent;
+                            scopeMethod = 'crop-name-search';
+                            break;
+                        }
+                        parent = parent.parentElement;
+                    }
+                }
+            }
+        }
+
+        // Method 4: Use entire document (last resort - will log warning)
+        if (!tooltipContainer) {
+            tooltipContainer = targetDocument;
+            scopeMethod = 'entire-document';
+            logWarn('TURTLE', '⚠️ Could not find tooltip container, using entire document (this may cause issues)');
+        }
+
+        // NOW query paragraphs ONLY within the tooltip container (not entire page!)
+        const allParagraphs = Array.from(tooltipContainer.querySelectorAll("p"));
+
+        // Filter to get only NATIVE game elements (exclude our inserted elements)
+        const nativeElements = allParagraphs.filter(el =>
+            !el.hasAttribute('data-estimate') &&
+            !el.hasAttribute('data-slot-value')
+        );
+
+        if (UnifiedState.data.settings?.debugMode) {
+            logDebug('TURTLE', 'Tooltip structure analysis:', {
+                scopeMethod,
+                tooltipContainerTag: tooltipContainer.tagName,
+                tooltipContainerClass: tooltipContainer.className?.substring(0, 50) || 'none',
+                totalParagraphs: allParagraphs.length,
+                nativeElements: nativeElements.length,
+                nativeContent: nativeElements.map(el => el.textContent.trim())
+            });
+        }
+
         // Find time element (for growing crops)
-        const timeElement = Array.from(targetDocument.querySelectorAll("p"))
-            .find(el => /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(el.textContent.trim()));
+        const timeElement = nativeElements.find(el =>
+            /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(el.textContent.trim())
+        );
 
-        // Find the kg element (weight - appears on mature crops, should be last in tooltip)
-        const kgElement = !timeElement ? Array.from(targetDocument.querySelectorAll("p"))
-            .find(el => el.textContent.trim().includes('kg')) : null;
+        // Find the kg element (weight - appears on mature crops)
+        const kgElement = nativeElements.find(el =>
+            el.textContent.trim().includes('kg')
+        );
 
-        // Determine where to insert our elements
-        const insertAfter = timeElement || kgElement;
+        // IMPROVED LOGIC: Find the LAST native element in the tooltip
+        // This ensures we insert after ALL game content (including mutations that appear after kg)
+        let insertAfter = null;
 
-        if (insertAfter) {
+        if (timeElement) {
+            // For growing crops: use time element as base
+            insertAfter = timeElement;
+        } else if (kgElement) {
+            // For mature crops: find the LAST element after kg (handles mutations appearing after kg)
+            const kgIndex = nativeElements.indexOf(kgElement);
+
+            // Get all elements after kg
+            const elementsAfterKg = nativeElements.slice(kgIndex + 1);
+
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'Mature crop analysis:', {
+                    kgIndex,
+                    elementsAfterKg: elementsAfterKg.map(el => el.textContent.trim()),
+                    willInsertAfter: elementsAfterKg.length > 0 ? 'last-element-after-kg' : 'kg-element'
+                });
+            }
+
+            // If there are elements after kg (e.g., mutation names like "Amberbound"),
+            // insert after the LAST one. Otherwise, insert after kg.
+            if (elementsAfterKg.length > 0) {
+                insertAfter = elementsAfterKg[elementsAfterKg.length - 1];
+            } else {
+                insertAfter = kgElement;
+            }
+        }
+
+        // FALLBACK: If neither time nor kg element found, use last native element
+        if (!insertAfter && nativeElements.length > 0) {
+            insertAfter = nativeElements[nativeElements.length - 1];
+            logWarn('TURTLE', '⚠️ No time/kg element found, using last element as fallback:', {
+                elementContent: insertAfter.textContent.trim(),
+                nativeElementCount: nativeElements.length
+            });
+        }
+
+        // SAFETY CHECK: If still no insertion point, log error and exit
+        if (!insertAfter) {
+            logError('TURTLE', '❌ Cannot insert slot value: No insertion point found!', {
+                totalParagraphs: allParagraphs.length,
+                nativeElements: nativeElements.length,
+                nativeContent: nativeElements.map(el => el.textContent.trim()),
+                hasTimeElement: !!timeElement,
+                hasKgElement: !!kgElement
+            });
+            return; // Early exit - cannot insert without insertion point
+        }
+
+        // SAFETY CHECK: Verify we have crops and value
+        const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
+        if (!currentCrop || currentCrop.length === 0) {
+            if (UnifiedState.data.settings?.debugMode) {
+                logDebug('TURTLE', 'No crops to display value for');
+            }
+            return;
+        }
+
+        // Try to insert slot value (with error handling)
+        try {
             let lastInsertedElement = insertAfter;
 
-            // Only show turtle timer if there's a time element and turtle is active
+            // Get computed styles from the reference element to match native game styling
+            const computedStyles = window.getComputedStyle(insertAfter);
+
+            // Always show slot value if we have crops (works for both growing and mature)
+            const slotValue = calculateCurrentSlotValue(currentCrop);
+            if (slotValue > 0) {
+                const slotValueEl = targetDocument.createElement("p");
+                slotValueEl.dataset.slotValue = "true";
+                slotValueEl.textContent = slotValue.toLocaleString();
+
+                // Use cssText for absolute control - matches native game tooltip styling
+                // Extra top margin when inserting after mutations to ensure clear visual separation
+                slotValueEl.style.cssText = `
+                    display: block !important;
+                    width: 100% !important;
+                    margin: 12px 0 0 0 !important;
+                    padding: 0 !important;
+                    font-weight: 600 !important;
+                    color: #FFD700 !important;
+                    font-size: 13px !important;
+                    text-align: center !important;
+                    line-height: 1.4 !important;
+                `;
+
+                if (UnifiedState.data.settings?.debugMode) {
+                    logDebug('TURTLE', 'Inserting slot value:', {
+                        value: slotValue.toLocaleString(),
+                        insertingAfter: insertAfter.textContent.trim(),
+                        isAfterKg: insertAfter === kgElement,
+                        isAfterMutation: insertAfter !== kgElement && insertAfter !== timeElement
+                    });
+                }
+
+                lastInsertedElement.insertAdjacentElement("afterend", slotValueEl);
+                lastInsertedElement = slotValueEl;
+            }
+
+            // Only show turtle timer if there's a time element and turtle is active (appears BELOW slot value)
             if (timeElement) {
+                if (UnifiedState.data.settings?.debugMode) {
+                    logDebug('TURTLE', 'Time element found, calling estimateUntilLatestCrop');
+                }
                 const estimate = estimateUntilLatestCrop(
-                    targetWindow.currentCrop,
-                    targetWindow.activePets
+                    UnifiedState.atoms.currentCrop || window.currentCrop || [],
+                    UnifiedState.atoms.activePets || window.activePets || []
                 );
+
+                if (UnifiedState.data.settings?.debugMode) {
+                    logDebug('TURTLE', 'Estimate result:', estimate);
+                }
 
                 if (estimate) {
                     const estimateEl = targetDocument.createElement("p");
@@ -18651,29 +19478,13 @@ window.MGA_debugStorage = function() {
                     lastInsertedElement = estimateEl;
                 }
             }
-
-            // Always show slot value if we have crops (works for both growing and mature)
-            const currentCrop = targetWindow.currentCrop;
-            if (currentCrop && currentCrop.length > 0) {
-                const slotValue = calculateCurrentSlotValue(currentCrop);
-                if (slotValue > 0) {
-                    const slotValueEl = targetDocument.createElement("p");
-                    slotValueEl.dataset.slotValue = "true";
-                    slotValueEl.textContent = slotValue.toLocaleString();
-
-                    // Apply inline styles for correct positioning (matching game tooltip style)
-                    slotValueEl.style.display = "block";
-                    slotValueEl.style.marginTop = "2px";
-                    slotValueEl.style.marginBottom = "0";
-                    slotValueEl.style.fontWeight = "600";
-                    slotValueEl.style.color = "#FFD700";
-                    slotValueEl.style.fontSize = "12px";
-                    slotValueEl.style.textAlign = "center";
-                    slotValueEl.style.padding = "0";
-
-                    lastInsertedElement.insertAdjacentElement("afterend", slotValueEl);
-                }
-            }
+        } catch (error) {
+            logError('TURTLE', '❌ Error inserting slot value/estimate:', {
+                error: error.message,
+                stack: error.stack,
+                hasInsertAfter: !!insertAfter,
+                cropCount: currentCrop?.length || 0
+            });
         }
     }
 
@@ -18723,7 +19534,8 @@ window.MGA_debugStorage = function() {
         let _observerScheduled = false;
 
         const observer = new MutationObserver(() => {
-            if (!targetWindow.currentCrop || targetWindow.currentCrop.length === 0) return;
+            const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
+            if (!currentCrop || currentCrop.length === 0) return;
 
             if (_observerScheduled) return;
             _observerScheduled = true;
@@ -18806,44 +19618,156 @@ window.MGA_debugStorage = function() {
             }
         }
 
-        UnifiedState.data.petAbilityLogs = MGA_loadJSON('MGA_petAbilityLogs', []);
-
-        // BUGFIX: One-time migration - normalize old "Produce Scale Boost" ability names to "Crop Size Boost"
-        // This fixes "lost logs" issue when game renamed the ability
-        let migrationNeeded = false;
-        UnifiedState.data.petAbilityLogs = UnifiedState.data.petAbilityLogs.map(log => {
-            if (log.abilityType && /produce\s*scale\s*boost/i.test(log.abilityType)) {
-                migrationNeeded = true;
-                return {
-                    ...log,
-                    abilityType: log.abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost')
-                };
-            }
-            return log;
+        // Check if logs were manually cleared - if so, keep them empty
+        const wasManuallyCleared = localStorage.getItem('MGA_logs_manually_cleared') === 'true';
+        logDebug('STORAGE', 'Loading ability logs:', {
+            wasManuallyCleared,
+            flagValue: localStorage.getItem('MGA_logs_manually_cleared')
         });
 
-        // Also migrate archived logs
-        const archivedLogs = MGA_loadJSON('MGA_petAbilityLogs_archive', []);
-        let archivedMigrationNeeded = false;
-        const migratedArchive = archivedLogs.map(log => {
-            if (log.abilityType && /produce\s*scale\s*boost/i.test(log.abilityType)) {
-                archivedMigrationNeeded = true;
-                return {
-                    ...log,
-                    abilityType: log.abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost')
-                };
-            }
-            return log;
-        });
+        if (wasManuallyCleared) {
+            UnifiedState.data.petAbilityLogs = [];
+            logDebug('STORAGE', 'Logs were manually cleared - keeping empty');
+            // DON'T clear the flag yet - we need it for archive loading below
+        } else {
+            // ENHANCED: Check all storage sources to see where logs will come from
+            const gmRaw = typeof GM_getValue !== 'undefined' ? GM_getValue('MGA_petAbilityLogs', null) : null;
+            const lsRaw = window.localStorage?.getItem('MGA_petAbilityLogs');
+            const tgRaw = (typeof targetWindow !== 'undefined' && targetWindow && targetWindow !== window)
+                ? targetWindow.localStorage?.getItem('MGA_petAbilityLogs')
+                : null;
 
-        if (migrationNeeded) {
-            MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
-            productionLog('✅ [MIGRATION] Migrated old "Produce Scale Boost" logs to "Crop Size Boost"');
+            // Count logs in each source
+            const countLogs = (raw) => {
+                if (!raw) return 0;
+                try {
+                    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    return Array.isArray(parsed) ? parsed.length : 0;
+                } catch (e) {
+                    return 0;
+                }
+            };
+
+            const gmCount = countLogs(gmRaw);
+            const lsCount = countLogs(lsRaw);
+            const tgCount = countLogs(tgRaw);
+
+            logDebug('STORAGE', '🔍 Ability log source analysis:', {
+                gmStorage: gmCount > 0 ? `${gmCount} logs` : 'empty',
+                windowLocalStorage: lsCount > 0 ? `${lsCount} logs` : 'empty',
+                targetLocalStorage: tgCount > 0 ? `${tgCount} logs` : 'empty',
+                willChoose: gmCount >= lsCount && gmCount >= tgCount ? 'GM' : (lsCount >= tgCount ? 'window.localStorage' : 'targetWindow.localStorage')
+            });
+
+            const loadedLogs = MGA_loadJSON('MGA_petAbilityLogs', []);
+            UnifiedState.data.petAbilityLogs = loadedLogs;
+
+            logDebug('STORAGE', '✅ Loaded main logs:', {
+                count: loadedLogs.length,
+                sample: loadedLogs.slice(0, 3).map(l => ({ ability: l.abilityType, time: new Date(l.timestamp).toLocaleTimeString() }))
+            });
+
+            // DIAGNOSTIC: If logs appeared from nowhere after clear, log a warning
+            if (loadedLogs.length > 0 && (gmCount > 0 || lsCount > 0 || tgCount > 0)) {
+                const sources = [];
+                if (gmCount > 0) sources.push(`GM:${gmCount}`);
+                if (lsCount > 0) sources.push(`LS:${lsCount}`);
+                if (tgCount > 0) sources.push(`TG:${tgCount}`);
+                logDebug('STORAGE', `📍 Logs restored from: ${sources.join(', ')}`);
+            }
         }
 
-        if (archivedMigrationNeeded) {
+        // BUGFIX: One-time migration - normalize old "Produce Scale Boost" ability names to "Crop Size Boost"
+        // BUGFIX: Normalize malformed ability names (e.g., "Seed FinderII" → "Seed Finder II")
+        // This fixes "lost logs" issue when game renamed the ability or had typos
+        let migrationNeeded = false;
+        let normalizationNeeded = false;
+        UnifiedState.data.petAbilityLogs = UnifiedState.data.petAbilityLogs.map(log => {
+            let updatedLog = { ...log };
+            let wasUpdated = false;
+
+            // Migration 1: Produce Scale Boost → Crop Size Boost
+            if (updatedLog.abilityType && /produce\s*scale\s*boost/i.test(updatedLog.abilityType)) {
+                migrationNeeded = true;
+                wasUpdated = true;
+                updatedLog.abilityType = updatedLog.abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost');
+            }
+
+            // Migration 2: Normalize ability names (fix missing spaces before roman numerals)
+            if (updatedLog.abilityType) {
+                const normalized = normalizeAbilityName(updatedLog.abilityType);
+                if (normalized !== updatedLog.abilityType) {
+                    normalizationNeeded = true;
+                    wasUpdated = true;
+                    logDebug('STORAGE', `📝 Normalizing ability name: "${updatedLog.abilityType}" → "${normalized}"`);
+                    updatedLog.abilityType = normalized;
+                }
+            }
+
+            return updatedLog;
+        });
+
+        // Also migrate archived logs (BUT skip if logs were manually cleared)
+        const archivedLogs = wasManuallyCleared ? [] : MGA_loadJSON('MGA_petAbilityLogs_archive', []);
+        logDebug('STORAGE', 'Archive logs:', {
+            skippedDueToClear: wasManuallyCleared,
+            count: archivedLogs.length,
+            logs: archivedLogs.slice(0, 5).map(l => ({ ability: l.abilityType, time: new Date(l.timestamp).toLocaleTimeString() }))
+        });
+
+        let archivedMigrationNeeded = false;
+        let archivedNormalizationNeeded = false;
+        const migratedArchive = archivedLogs.map(log => {
+            let updatedLog = { ...log };
+            let wasUpdated = false;
+
+            // Migration 1: Produce Scale Boost → Crop Size Boost
+            if (updatedLog.abilityType && /produce\s*scale\s*boost/i.test(updatedLog.abilityType)) {
+                archivedMigrationNeeded = true;
+                wasUpdated = true;
+                updatedLog.abilityType = updatedLog.abilityType.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost');
+            }
+
+            // Migration 2: Normalize ability names
+            if (updatedLog.abilityType) {
+                const normalized = normalizeAbilityName(updatedLog.abilityType);
+                if (normalized !== updatedLog.abilityType) {
+                    archivedNormalizationNeeded = true;
+                    wasUpdated = true;
+                    updatedLog.abilityType = normalized;
+                }
+            }
+
+            return updatedLog;
+        });
+
+        // Save if any migrations/normalizations occurred
+        if (migrationNeeded || normalizationNeeded) {
+            MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+            if (migrationNeeded && normalizationNeeded) {
+                productionLog('✅ [MIGRATION] Migrated "Produce Scale Boost" and normalized malformed ability names');
+            } else if (migrationNeeded) {
+                productionLog('✅ [MIGRATION] Migrated old "Produce Scale Boost" logs to "Crop Size Boost"');
+            } else if (normalizationNeeded) {
+                productionLog('✅ [MIGRATION] Normalized malformed ability names (fixed missing spaces before roman numerals)');
+            }
+        }
+
+        if (archivedMigrationNeeded || archivedNormalizationNeeded) {
             MGA_saveJSON('MGA_petAbilityLogs_archive', migratedArchive);
-            productionLog('✅ [MIGRATION] Migrated archived "Produce Scale Boost" logs to "Crop Size Boost"');
+            if (archivedMigrationNeeded && archivedNormalizationNeeded) {
+                productionLog('✅ [MIGRATION] Migrated and normalized archived ability logs');
+            } else if (archivedMigrationNeeded) {
+                productionLog('✅ [MIGRATION] Migrated archived "Produce Scale Boost" logs to "Crop Size Boost"');
+            } else if (archivedNormalizationNeeded) {
+                productionLog('✅ [MIGRATION] Normalized archived malformed ability names');
+            }
+        }
+
+        // NOW clear the manual clear flag (after we've used it for both main and archive)
+        if (wasManuallyCleared) {
+            localStorage.removeItem('MGA_logs_manually_cleared');
+            console.log('📭 [STORAGE] Manual clear flag removed after processing');
         }
 
         productionLog('📦 [STORAGE] Loading pet ability logs, found:', UnifiedState.data.petAbilityLogs.length, 'entries');

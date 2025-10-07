@@ -1,5 +1,26 @@
 # Changelog - MGTools
 
+## Version 2.2.9 (2025-10-06)
+
+### 🐛 Bug Fixes
+- Fixed turtle timers displaying incorrectly
+- Fixed tile value display not showing on crop tooltips
+- Fixed double ability logging creating duplicate entries
+- Fixed unable to clear ability logs completely
+- Fixed tooltip scope detection to exclude MGTools UI elements
+- Fixed other misc. issues and improved overall stability
+
+---
+
+## Version 2.2.5 (2025-10-06)
+
+### 🐛 Bug Fixes
+- Fixed color presets appearing too dark/black at 95% opacity
+- Fixed tile value positioning - now left-aligned instead of centered
+- Fixed turtle timer not displaying when turtles equipped
+
+---
+
 ## Version 2.2.4 (2025-10-06)
 
 ### 🐛 **Bug Fixes**
