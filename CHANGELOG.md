@@ -1,5 +1,12 @@
 # Changelog - MGTools
 
+## Version 3.0.1 (2025-10-07)
+
+### ✨ Improvements
+- Icons are now revamped and HD
+
+---
+
 ## Version 2.2.9 (2025-10-06)
 
 ### 🐛 Bug Fixes
