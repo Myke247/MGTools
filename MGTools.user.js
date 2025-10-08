@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.5
+// @version      3.2.51
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -21568,4 +21568,1539 @@ function initializeTurtleTimer() {
                   }
               }, 500);
           }
-      
+      }
+  
+      // Start environment-based initialization
+      /* CHECKPOINT removed: CALLING_MAIN_INITIALIZATION */
+      try {
+          initializeBasedOnEnvironment();
+          /* CHECKPOINT removed: MAIN_INITIALIZATION_COMPLETE */
+  
+          // Initialize crop protection hooks
+          setTimeout(() => {
+              initializeProtectionHooks();
+          }, 3000);
+      } catch (error) {
+          console.error('❌ MAIN_INITIALIZATION_FAILED:', error);
+          console.error('🔧 This error caused the script to stop working');
+      }
+  
+      // ==================== IMMEDIATE TEST INITIALIZATION ====================
+      // Additional fallback for manual testing - only if initialization failed
+      productionLog('🧪 Setting up fallback timer for manual testing...');
+      setTimeout(() => {
+          // Only run demo mode if game mode completely failed to initialize
+          if (!UnifiedState.initialized && !window._MGA_INITIALIZING) {
+              productionLog('🔧 Final fallback - trying demo mode');
+              productionLog('💡 Use MGA.init() to force game mode initialization if needed');
+              initializeStandalone();
+          } else if (UnifiedState.initialized) {
+              productionLog('✅ Game mode already initialized - skipping demo fallback');
+          }
+      }, 5000);
+  
+      // ==================== PUBLIC API ====================
+      // Expose unified state for debugging
+      window.MGA = {
+          state: UnifiedState,
+  
+          // Manual controls
+          showPanel: () => {
+              if (UnifiedState.panels.main) {
+                  UnifiedState.panels.main.style.display = 'block';
+              }
+          },
+  
+          hidePanel: () => {
+              if (UnifiedState.panels.main) {
+                  UnifiedState.panels.main.style.display = 'none';
+              }
+          },
+  
+          // Manual initialization - use if script doesn't auto-initialize
+          init: () => {
+              productionLog('🔄 Manual initialization requested...');
+              UnifiedState.initialized = false; // Reset flag
+              initializeScript();
+          },
+  
+          // Recovery function for stuck initialization
+          forceReinit: () => {
+              productionLog('🔄 Force reinitialization requested...');
+              try {
+                  delete window._MGA_INITIALIZING;
+              } catch (e) {
+                  window._MGA_INITIALIZING = undefined;
+              }
+              try {
+                  delete window._MGA_INITIALIZED;
+              } catch (e) {
+                  window._MGA_INITIALIZED = undefined;
+              }
+              try {
+                  delete window._MGA_TIMESTAMP;
+              } catch (e) {
+                  window._MGA_TIMESTAMP = undefined;
+              }
+              window._MGA_FORCE_INIT = true;
+              location.reload();
+          },
+  
+          // Data persistence diagnostics
+          checkPersistence: () => {
+              productionLog('📊 Data Persistence Check:');
+              productionLog('  Pet Presets in State:', Object.keys(UnifiedState.data.petPresets).length);
+              productionLog('  Pet Presets in Storage:', localStorage.getItem('MGA_petPresets') ? 'EXISTS' : 'MISSING');
+              productionLog('  Seeds in State:', UnifiedState.data.seedsToDelete.length);
+              productionLog('  Seeds in Storage:', localStorage.getItem('MGA_seedsToDelete') ? 'EXISTS' : 'MISSING');
+  
+              if (localStorage.getItem('MGA_petPresets')) {
+                  productionLog('  Raw Presets:', localStorage.getItem('MGA_petPresets'));
+              }
+              if (localStorage.getItem('MGA_seedsToDelete')) {
+                  productionLog('  Raw Seeds:', localStorage.getItem('MGA_seedsToDelete'));
+              }
+          },
+  
+          // Pop-out functionality
+          popout: {
+              openTab: (tabName) => openTabInPopout(tabName),
+              openSeparateWindow: (tabName) => openTabInSeparateWindow(tabName),
+              createOverlay: (tabName) => createInGameOverlay(tabName),
+              closeOverlay: (tabName) => closeInGameOverlay(tabName),
+              refreshOverlay: (tabName) => refreshOverlayContent(tabName)
+          },
+  
+          // Debug functions
+          debug: {
+              logState: () => productionLog('MGA State:', UnifiedState),
+              logAtoms: () => productionLog('Atoms:', UnifiedState.atoms),
+              logData: () => productionLog('Data:', UnifiedState.data),
+              testTheming: () => {
+                  productionLog('🎨 Testing universal theming system...');
+                  productionLog('Current theme:', UnifiedState.currentTheme);
+                  productionLog('Active overlays:', UnifiedState.data.popouts.overlays.size);
+                  productionLog('Theme sync working:', !!UnifiedState.currentTheme);
+  
+                  // Apply a test theme change
+                  const originalStyle = UnifiedState.data.settings.gradientStyle;
+                  UnifiedState.data.settings.gradientStyle = 'rainbow-burst';
+                  UnifiedState.data.settings.opacity = 75;
+                  applyTheme();
+  
+                  productionLog('✅ Test theme applied! Check all windows for rainbow theme.');
+                  productionLog('💡 Open a pop-out or overlay to see the theme in action!');
+  
+                  // Restore original after 5 seconds
+                  setTimeout(() => {
+                      UnifiedState.data.settings.gradientStyle = originalStyle;
+                      UnifiedState.data.settings.opacity = 95;
+                      applyTheme();
+                      productionLog('🔄 Original theme restored.');
+                  }, 5000);
+              },
+  
+              checkConnection: () => {
+                  const hasConnection = targetWindow.MagicCircle_RoomConnection &&
+                                      typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function';
+                  productionLog('🔌 Connection Status:', hasConnection ? '✅ Available' : '❌ Not Available');
+                  productionLog('📡 RoomConnection Object:', targetWindow.MagicCircle_RoomConnection);
+                  return hasConnection;
+              },
+  
+              testSendMessage: () => {
+                  productionLog('🧪 Testing safeSendMessage...');
+                  const result = safeSendMessage({
+                      scopePath: ["Room"],
+                      type: "Ping"
+                  });
+                  productionLog('Result:', result ? '✅ Success' : '❌ Failed');
+                  return result;
+              },
+  
+              debugStorage: () => window.MGA_debugStorage(),
+  
+              // Test functions
+              testAbilityLog: () => {
+                  UnifiedState.data.petAbilityLogs.unshift({
+                      petName: 'Test Pet',
+                      abilityType: 'Test Ability',
+                      timestamp: Date.now(),
+                      timeString: new Date().toLocaleTimeString(),
+                      data: { test: true }
+                  });
+  
+                  // Apply memory management for test logs too
+                  UnifiedState.data.petAbilityLogs = MGA_manageLogMemory(UnifiedState.data.petAbilityLogs);
+                  MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+                  if (UnifiedState.activeTab === 'abilities') {
+                      updateTabContent();
+                  }
+                  // Update all overlay windows showing abilities tab
+                  UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                      if (overlay && document.contains(overlay) && tabName === 'abilities') {
+                          if (overlay.className.includes('mga-overlay-content-only')) {
+                              // NEW: Pure content overlays - refresh entire overlay
+                              updatePureOverlayContent(overlay, tabName);
+                              debugLog('OVERLAY_LIFECYCLE', 'Updated pure abilities overlay after test ability');
+                          } else {
+                              // LEGACY: Old overlay structure
+                              const overlayContent = overlay.querySelector('.mga-overlay-content > div');
+                              if (overlayContent) {
+                                  overlayContent.innerHTML = getAbilitiesTabContent();
+                                  // Update ability log display within this overlay context
+                                  setTimeout(() => updateAbilityLogDisplay(overlay), 10);
+                                  // Re-add resize handle after content update
+                                  setTimeout(() => {
+                                      if (!overlay.querySelector('.mga-resize-handle')) {
+                                          addResizeHandleToOverlay(overlay);
+                                          productionLog('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                      }
+                                  }, 50);
+                              }
+                          }
+                      }
+                  });
+              },
+  
+              testTimer: () => {
+                  UnifiedState.data.timers = {
+                      seed: 120,
+                      egg: 240,
+                      tool: 180,
+                      lunar: 3600
+                  };
+                  if (UnifiedState.activeTab === 'timers') {
+                      updateTimerDisplay();
+                  }
+              },
+  
+              testValues: () => {
+                  UnifiedState.data.inventoryValue = 123456;
+                  UnifiedState.data.tileValue = 78900;
+                  UnifiedState.data.gardenValue = 456789;
+                  if (UnifiedState.activeTab === 'values') {
+                      updateTabContent();
+                  }
+              }
+          },
+  
+          // Manual refresh functions
+          refresh: {
+              pets: () => {
+                  if (UnifiedState.activeTab === 'pets') {
+                      // Use targeted updates instead of full DOM rebuild to prevent UI interruption
+                      const context = document.getElementById('mga-tab-content');
+                      if (context) {
+                          updatePetPresetDropdown(context);
+                          // Update popouts without touching main tab
+                          refreshSeparateWindowPopouts('pets');
+                          UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                              if (overlay && document.contains(overlay) && tabName === 'pets') {
+                                  if (overlay.className.includes('mga-overlay-content-only')) {
+                                      updatePureOverlayContent(overlay, tabName);
+                                  }
+                              }
+                          });
+                      }
+                  }
+              },
+              abilities: () => {
+                  if (UnifiedState.activeTab === 'abilities') updateTabContent();
+              },
+              seeds: () => {
+                  if (UnifiedState.activeTab === 'seeds') updateTabContent();
+              },
+              values: () => {
+                  updateValues();
+                  if (UnifiedState.activeTab === 'values') updateTabContent();
+              },
+              timers: () => {
+                  updateTimers();
+                  if (UnifiedState.activeTab === 'timers') updateTimerDisplay();
+              },
+              all: () => {
+                  updateTabContent();
+                  updateValues();
+                  updateTimers();
+              }
+          },
+  
+          // Export functions
+          export: {
+              petPresets: () => {
+                  const data = JSON.stringify(UnifiedState.data.petPresets, null, 2);
+                  const blob = new Blob([data], { type: 'application/json' });
+                  const link = targetDocument.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.download = 'MGA_PetPresets.json';
+                  link.click();
+              },
+  
+              abilityLogs: () => exportAbilityLogs(),
+  
+              allData: () => {
+                  const data = JSON.stringify({
+                      petPresets: UnifiedState.data.petPresets,
+                      petAbilityLogs: UnifiedState.data.petAbilityLogs,
+                      settings: {
+                          seedsToDelete: UnifiedState.data.seedsToDelete,
+                          autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled
+                      }
+                  }, null, 2);
+                  const blob = new Blob([data], { type: 'application/json' });
+                  const link = targetDocument.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.download = `MGA_AllData_${new Date().toISOString().split('T')[0]}.json`;
+                  link.click();
+              }
+          },
+  
+          // Import functions
+          import: {
+              petPresets: (jsonString) => {
+                  try {
+                      const data = JSON.parse(jsonString);
+                      UnifiedState.data.petPresets = data;
+                      MGA_saveJSON('MGA_petPresets', data);
+                      if (UnifiedState.activeTab === 'pets') {
+                          // Use targeted update to prevent UI interruption
+                          const context = document.getElementById('mga-tab-content');
+                          if (context) {
+                              updatePetPresetDropdown(context);
+                              refreshSeparateWindowPopouts('pets');
+                          }
+                      }
+                      productionLog('✅ Pet presets imported successfully');
+                  } catch (e) {
+                      console.error('❌ Failed to import pet presets:', e);
+                  }
+              },
+  
+              allData: (jsonString) => {
+                  try {
+                      const data = JSON.parse(jsonString);
+                      if (data.petPresets) {
+                          UnifiedState.data.petPresets = data.petPresets;
+                          MGA_saveJSON('MGA_petPresets', data.petPresets);
+                      }
+                      if (data.petAbilityLogs) {
+                          UnifiedState.data.petAbilityLogs = data.petAbilityLogs;
+                          MGA_saveJSON('MGA_petAbilityLogs', data.petAbilityLogs);
+                      }
+                      if (data.settings) {
+                          if (data.settings.seedsToDelete) {
+                              UnifiedState.data.seedsToDelete = data.settings.seedsToDelete;
+                          }
+                          if (typeof data.settings.autoDeleteEnabled === 'boolean') {
+                              UnifiedState.data.autoDeleteEnabled = data.settings.autoDeleteEnabled;
+                          }
+                      }
+                      updateTabContent();
+                      productionLog('✅ All data imported successfully');
+                  } catch (e) {
+                      console.error('❌ Failed to import data:', e);
+                  }
+              }
+          },
+  
+          // Clear functions
+          clear: {
+              petPresets: () => {
+                  if (confirm('Clear all pet presets?')) {
+                      UnifiedState.data.petPresets = {};
+                      MGA_saveJSON('MGA_petPresets', {});
+                      if (UnifiedState.activeTab === 'pets') {
+                          // Use targeted update to prevent UI interruption
+                          const context = document.getElementById('mga-tab-content');
+                          if (context) {
+                              updatePetPresetDropdown(context);
+                              refreshSeparateWindowPopouts('pets');
+                          }
+                      }
+                  }
+              },
+  
+              abilityLogs: () => {
+                  if (confirm('Clear all ability logs?')) {
+                      UnifiedState.data.petAbilityLogs = [];
+                      MGA_saveJSON('MGA_petAbilityLogs', []);
+                      if (UnifiedState.activeTab === 'abilities') updateTabContent();
+  
+                      // Also update ability overlays
+                      UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                          if (overlay && document.contains(overlay) && tabName === 'abilities') {
+                              if (overlay.className.includes('mga-overlay-content-only')) {
+                                  // NEW: Pure content overlays - refresh entire overlay
+                                  updatePureOverlayContent(overlay, tabName);
+                                  debugLog('OVERLAY_LIFECYCLE', 'Updated pure abilities overlay after clearing logs');
+                              } else {
+                                  // LEGACY: Old overlay structure
+                                  const overlayContent = overlay.querySelector('.mga-overlay-content > div');
+                                  if (overlayContent) {
+                                      overlayContent.innerHTML = getAbilitiesTabContent();
+                                      setTimeout(() => updateAbilityLogDisplay(overlay), 10);
+                                      // Re-add resize handle after content update
+                                      setTimeout(() => {
+                                          if (!overlay.querySelector('.mga-resize-handle')) {
+                                              addResizeHandleToOverlay(overlay);
+                                              productionLog('🔧 [RESIZE] Re-added missing resize handle to ability logs overlay');
+                                          }
+                                      }, 50);
+                                  }
+                              }
+                          }
+                      });
+                  }
+              },
+  
+              allData: () => {
+                  if (confirm('Clear ALL saved data? This cannot be undone!')) {
+                      UnifiedState.data.petPresets = {};
+                      UnifiedState.data.petAbilityLogs = [];
+                      UnifiedState.data.seedsToDelete = [];
+                      UnifiedState.data.autoDeleteEnabled = false;
+                      MGA_saveJSON('MGA_petPresets', {});
+                      MGA_saveJSON('MGA_petAbilityLogs', []);
+                      updateTabContent();
+                  }
+              }
+          },
+  
+          // Debug controls for development and testing
+          debug: {
+              forceInit: () => {
+                  productionLog('🔄 [DEBUG] Force re-initialization requested');
+                  window._MGA_FORCE_INIT = true;
+                  location.reload();
+              },
+  
+              resetFlags: () => {
+                  productionLog('🔄 [DEBUG] Resetting initialization flags');
+                  window._MGA_INITIALIZED = false;
+                  try {
+                      delete window._MGA_INITIALIZING;
+                  } catch (e) {
+                      window._MGA_INITIALIZING = false;
+                  }
+                  window._MGA_FORCE_INIT = false;
+                  productionLog('✅ [DEBUG] Flags reset - you can now re-run the script');
+              },
+  
+              checkPets: () => {
+                  productionLog('🐾 [DEBUG] Current pet state:');
+                  productionLog('• UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
+                  productionLog('• window.activePets:', window.activePets);
+                  productionLog('• Room state pets:', getActivePetsFromRoomState());
+                  return {
+                      unifiedState: UnifiedState.atoms.activePets,
+                      windowPets: window.activePets,
+                      roomState: getActivePetsFromRoomState()
+                  };
+              },
+  
+              refreshPets: () => {
+                  productionLog('🔄 [DEBUG] Manually refreshing pets from room state');
+                  const pets = updateActivePetsFromRoomState();
+                  productionLog('✅ [DEBUG] Pets refreshed:', pets);
+                  return pets;
+              },
+  
+              listIntervals: () => {
+                  productionLog('⏰ [DEBUG] Active managed intervals:');
+                  Object.entries(UnifiedState.intervals).forEach(([name, interval]) => {
+                      productionLog(`• ${name}: ${interval ? 'Running' : 'Stopped'}`);
+                  });
+                  return UnifiedState.intervals;
+              }
+          }
+      };
+  
+      // ==================== LOADING STATE UTILITIES ====================
+      window.MGA_LoadingStates = {
+          show: (element, text = 'Loading...') => {
+              if (!element) return;
+              const loadingHtml = `
+                  <div class="mga-loading">
+                      <div class="mga-loading-spinner"></div>
+                      <span>${text}</span>
+                  </div>
+              `;
+              element.innerHTML = loadingHtml;
+          },
+  
+          showSkeleton: (element, lines = 3) => {
+              if (!element) return;
+              const skeletonLines = Array(lines).fill(0).map(() =>
+                  `<div class="mga-skeleton" style="height: 20px; margin-bottom: 8px; width: ${Math.floor(Math.random() * 40 + 60)}%;"></div>`
+              ).join('');
+              element.innerHTML = `<div style="padding: 20px;">${skeletonLines}</div>`;
+          },
+  
+          hide: (element, content, fadeIn = true) => {
+              if (!element) return;
+              element.innerHTML = content;
+              if (fadeIn) {
+                  element.classList.add('mga-fade-in');
+                  setTimeout(() => element.classList.remove('mga-fade-in'), 300);
+              }
+          },
+  
+          addToButton: (button, originalText) => {
+              if (!button) return;
+              button.disabled = true;
+              button.innerHTML = `<div class="mga-loading-spinner" style="margin-right: 4px; width: 16px; height: 16px;"></div>Loading...`;
+          },
+  
+          removeFromButton: (button, originalText) => {
+              if (!button) return;
+              button.disabled = false;
+              button.innerHTML = originalText;
+          }
+      };
+  
+      // ==================== ERROR RECOVERY MECHANISMS ====================
+      window.MGA_ErrorRecovery = {
+          wrapFunction: (fn, fallback = null, context = 'Unknown') => {
+              return function(...args) {
+                  try {
+                      return fn.apply(this, args);
+                  } catch (error) {
+                      debugError('ERROR_RECOVERY', `Error in ${context}`, error);
+  
+                      // Show user-friendly error message
+                      const errorToast = targetDocument.createElement('div');
+                      errorToast.style.cssText = `
+                          position: fixed; top: 20px; right: 20px; z-index: 20000;
+                          background: rgba(220, 38, 38, 0.95); color: white;
+                          padding: 12px 20px; border-radius: 8px;
+                          font-family: Arial, sans-serif; font-size: 13px;
+                          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                          animation: mga-fade-in 0.3s ease-out;
+                      `;
+                      errorToast.innerHTML = `⚠️ Something went wrong in ${context}. Please try again.`;
+                      targetDocument.body.appendChild(errorToast);
+  
+                      setTimeout(() => {
+                          errorToast.style.animation = 'mga-fade-out 0.3s ease-in forwards';
+                          setTimeout(() => targetDocument.body.removeChild(errorToast), 300);
+                      }, 4000);
+  
+                      return fallback ? fallback.apply(this, args) : null;
+                  }
+              };
+          },
+  
+          safeAsync: async (asyncFn, fallback = null, context = 'Async Operation') => {
+              try {
+                  return await asyncFn();
+              } catch (error) {
+                  debugError('ERROR_RECOVERY', `Async error in ${context}`, error);
+                  return fallback;
+              }
+          },
+  
+          retryOperation: async (operation, maxRetries = 3, delay = 1000, context = 'Operation') => {
+              for (let i = 0; i < maxRetries; i++) {
+                  try {
+                      return await operation();
+                  } catch (error) {
+                      if (i === maxRetries - 1) {
+                          debugError('ERROR_RECOVERY', `Final retry failed for ${context}`, error);
+                          throw error;
+                      }
+                      debugLog('ERROR_RECOVERY', `Retry ${i + 1}/${maxRetries} for ${context}`);
+                      await new Promise(resolve => setTimeout(resolve, delay));
+                  }
+              }
+          }
+      };
+  
+      // ==================== PERFORMANCE OPTIMIZATIONS ====================
+      window.MGA_Performance = {
+          debounce: (func, wait) => {
+              let timeout;
+              return function executedFunction(...args) {
+                  const later = () => {
+                      clearTimeout(timeout);
+                      func(...args);
+                  };
+                  clearTimeout(timeout);
+                  timeout = setTimeout(later, wait);
+              };
+          },
+  
+          throttle: (func, limit) => {
+              let inThrottle;
+              return function() {
+                  const args = arguments;
+                  const context = this;
+                  if (!inThrottle) {
+                      func.apply(context, args);
+                      inThrottle = true;
+                      setTimeout(() => inThrottle = false, limit);
+                  }
+              };
+          },
+  
+          batchDOMUpdates: (updates) => {
+              requestAnimationFrame(() => {
+                  const fragment = document.createDocumentFragment();
+                  updates.forEach(update => {
+                      if (typeof update === 'function') {
+                          update(fragment);
+                      }
+                  });
+              });
+          },
+  
+          optimizeScrolling: (element) => {
+              if (!element) return;
+              element.style.willChange = 'scroll-position';
+              element.style.transform = 'translateZ(0)';
+          }
+      };
+  
+      // ==================== COMPREHENSIVE TOOLTIP SYSTEM ====================
+      window.MGA_Tooltips = {
+          tooltip: null,
+          showTimeout: null,
+          hideTimeout: null,
+          currentEvent: null, // Store current mouse event for positioning
+  
+          init: () => {
+              // Create tooltip element
+              if (!window.MGA_Tooltips.tooltip) {
+                  window.MGA_Tooltips.tooltip = targetDocument.createElement('div');
+                  window.MGA_Tooltips.tooltip.className = 'mga-tooltip';
+                  targetDocument.body.appendChild(window.MGA_Tooltips.tooltip);
+              }
+  
+              // Add event listeners to all elements with tooltip data
+              document.addEventListener('mouseenter', window.MGA_Tooltips.handleMouseEnter, true);
+              document.addEventListener('mouseleave', window.MGA_Tooltips.handleMouseLeave, true);
+              document.addEventListener('mousemove', window.MGA_Tooltips.handleMouseMove, true);
+          },
+  
+          handleMouseEnter: (e) => {
+              const element = e.target?.closest?.('[data-tooltip]');
+              if (!element) return;
+  
+              // Don't interfere with button interactions - check if target is a button or interactive element
+              if (e.target && typeof e.target.matches === 'function' &&
+                  (e.target.matches('button, input, select, .mga-btn') || e.target.closest('button, .mga-btn'))) {
+                  return; // Skip tooltip for interactive elements to prevent hover interference
+              }
+  
+              const text = element.dataset.tooltip;
+              const delay = element.dataset.tooltipDelay || 500;
+  
+              // Store the event for positioning
+              window.MGA_Tooltips.currentEvent = e;
+  
+              window.MGA_Tooltips.showTimeout = setTimeout(() => {
+                  window.MGA_Tooltips.show(element, text);
+              }, parseInt(delay));
+          },
+  
+          handleMouseLeave: (e) => {
+              const element = e.target?.closest?.('[data-tooltip]');
+              if (!element) return;
+  
+              clearTimeout(window.MGA_Tooltips.showTimeout);
+              window.MGA_Tooltips.hide();
+          },
+  
+          handleMouseMove: (e) => {
+              // CRITICAL: Only handle MGA-related tooltip events
+              if (!isMGAEvent(e)) {
+                  return;
+              }
+  
+              // Don't interfere with button hover states
+              if (e.target && typeof e.target.matches === 'function' &&
+                  (e.target.matches('button, input, select, .mga-btn') || e.target.closest('button, .mga-btn'))) {
+                  return;
+              }
+  
+              // Update current event for positioning
+              window.MGA_Tooltips.currentEvent = e;
+  
+              if (window.MGA_Tooltips.tooltip && window.MGA_Tooltips.tooltip.classList.contains('show')) {
+                  // Check if we're still over a tooltip element
+                  const tooltipElement = e.target?.closest?.('[data-tooltip]');
+                  if (!tooltipElement) {
+                      window.MGA_Tooltips.hide();
+                      return;
+                  }
+                  window.MGA_Tooltips.position(e);
+              }
+          },
+  
+          show: (element, text) => {
+              const tooltip = window.MGA_Tooltips.tooltip;
+              tooltip.textContent = text;
+  
+              // BUGFIX: Position immediately before showing to prevent flash at (0,0)
+              if (window.MGA_Tooltips.currentEvent) {
+                  window.MGA_Tooltips.position(window.MGA_Tooltips.currentEvent);
+              }
+  
+              tooltip.classList.add('show');
+          },
+  
+          hide: () => {
+              const tooltip = window.MGA_Tooltips.tooltip;
+              tooltip.classList.remove('show');
+  
+              // BUGFIX: Reset position to prevent stuck tooltips
+              tooltip.style.left = '-9999px';
+              tooltip.style.top = '-9999px';
+              window.MGA_Tooltips.currentEvent = null;
+          },
+  
+          position: (e) => {
+              const tooltip = window.MGA_Tooltips.tooltip;
+              const rect = tooltip.getBoundingClientRect();
+              const padding = 10;
+  
+              let x = e.clientX + padding;
+              let y = e.clientY - rect.height - padding;
+  
+              // Adjust if tooltip goes off screen
+              if (x + rect.width > window.innerWidth) {
+                  x = e.clientX - rect.width - padding;
+              }
+              if (y < 0) {
+                  y = e.clientY + padding;
+              }
+  
+              tooltip.style.left = x + 'px';
+              tooltip.style.top = y + 'px';
+          },
+  
+          addToElement: (element, text, options = {}) => {
+              if (!element) return;
+              element.setAttribute('data-tooltip', text);
+              if (options.delay) element.setAttribute('data-tooltip-delay', options.delay);
+          },
+  
+          removeFromElement: (element) => {
+              if (!element) return;
+              element.removeAttribute('data-tooltip');
+              element.removeAttribute('data-tooltip-delay');
+          }
+      };
+  
+      // Add fade-out animation for error toasts and slot value centering
+      const additionalStyles = `
+    @keyframes mga-fade-out {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+  
+    /* Ensure our estimate/slot-value paragraphs behave as full-width, centered lines
+       so they appear centered inside the game's tooltip textbox regardless of container quirks. */
+    [data-turtletimer-estimate="true"] {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      text-align: center !important;       /* centers text inside the tooltip textbox */
+      margin: 2px 0 !important;
+      padding: 0 !important;
+      color: lime !important;
+      font-weight: bold !important;
+      font-size: 14px !important;
+      line-height: 1.25 !important;
+    }
+  
+    [data-turtletimer-slot-value="true"] {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      text-align: center !important;       /* centers text inside the tooltip textbox */
+      margin: 2px 0 !important;
+      padding: 0 !important;
+      color: #FFD700 !important;
+      font-weight: 600 !important;
+      font-size: 13px !important;
+      line-height: 1.25 !important;
+    }
+  `;
+      const styleSheet = targetDocument.createElement('style');
+      styleSheet.textContent = additionalStyles;
+      targetDocument.head.appendChild(styleSheet);
+  
+  
+  
+  
+      // ==================== AUTO-SAVE ====================
+      // Auto-save data every 30 seconds using managed interval
+      setManagedInterval('autoSave', () => {
+          MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+          // Only save ability logs if not in clear session
+          const clearSession = localStorage.getItem('MGA_logs_clear_session');
+          if (!clearSession || (Date.now() - parseInt(clearSession, 10)) > 86400000) {
+              MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+          }
+          MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
+          MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
+  
+          // Update resource tracking
+          if (window.resourceDashboard) {
+              window.resourceDashboard.updateResourceHistory();
+          }
+      }, 30000);
+  
+      // ==================== CLEANUP ====================
+      window.addEventListener('beforeunload', () => {
+          // Save all data before leaving - CRITICAL: Use immediate saves, not debounced!
+          MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+          // Only save ability logs if not in clear session
+          const clearSession = localStorage.getItem('MGA_logs_clear_session');
+          if (!clearSession || (Date.now() - parseInt(clearSession, 10)) > 86400000) {
+              MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+          }
+          MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
+          MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
+  
+          // Clean up all managed intervals
+          clearAllManagedIntervals();
+  
+          // Close all popout windows
+          closeAllPopoutWindows();
+  
+          debugLog('PERFORMANCE', 'Cleanup completed on window unload');
+      });
+  
+      // ==================== VERSION INFO ====================
+      productionLog(
+          "╔════════════════════════════════════════╗\n" +
+          "║   🌱 Magic Garden Unified Assistant    ║\n" +
+          "║            Version 1.3.2               ║\n" +
+          "║                                        ║\n" +
+          "║  🎮 Works in ANY browser console!     ║\n" +
+          "║  • Game Mode: Full integration        ║\n" +
+          "║  • Demo Mode: Standalone with samples ║\n" +
+          "║                                        ║\n" +
+          "║  Features:                             ║\n" +
+          "║  • Pet Loadout Management             ║\n" +
+          "║  • Ability Log Tracking               ║\n" +
+          "║  • Seed Deletion & Auto-Delete        ║\n" +
+          "║  • Value Calculations                 ║\n" +
+          "║  • Restock & Event Timers            ║\n" +
+          "║  • Theme Customization                ║\n" +
+          "║  • Pop-out Windows                    ║\n" +
+          "║                                        ║\n" +
+          "║  Controls:                            ║\n" +
+          "║  • window.MGA - Full API              ║\n" +
+          "║  • MGA.showPanel() - Show UI          ║\n" +
+          "║  • MGA.init() - Manual start          ║\n" +
+          "║  • Alt+M - Toggle apanel               ║\n" +
+          "║                                        ║\n" +
+          "║  Debugging (if issues occur):         ║\n" +
+          "║  • MGA.debug.debugStorage() - Storage ║\n" +
+          "║  • MGA_debugStorage() - Same as above ║\n" +
+          "╚════════════════════════════════════════╝"
+      );
+  
+      // ==================== IMMEDIATE INITIALIZATION TEST ====================
+      // Final safety initialization for testing - removed to prevent demo mode interference
+      // Demo mode is only triggered by the 8-second fallback if game mode completely fails
+      productionLog('🧪 Skipping 2-second fallback to prevent demo mode interference');
+  
+      // Final checkpoint - script execution complete
+      /* CHECKPOINT removed: SCRIPT_EXECUTION_COMPLETE */
+      productionLog('✅ Magic Garden Assistant script finished loading');
+  
+  }
+  })();
+  
+  
+  /* ==== MGTP Overlay + Ability Logs Proxy + Rooms /info + WS Watcher (2025-10-07) ==== */
+  (function(){
+    'use strict';
+    const d=document;
+  
+    // ---------- Slot/Estimate Overlay ----------
+    const rootHost = d.createElement('div');
+    rootHost.id = 'mgtp-overlay-root';
+    rootHost.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
+    const shadow = rootHost.attachShadow({mode:'open'});
+    const style = d.createElement('style');
+    style.textContent = `
+      .wrap{position:absolute;transform:translate(-50%,-100%); background:transparent; pointer-events:none; font-family: system-ui, sans-serif;}
+      .line{display:block; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.6); font-weight:700; text-align:center;}
+      .estimate{font-size:13px; color:#70ff70;}
+      .slot{font-size:14px; color:#ffd24d;}
+      .hidden{display:none;}
+    `;
+    const wrap = d.createElement('div'); wrap.className='wrap hidden';
+    const est = d.createElement('div'); est.className='line estimate';
+    const slot = d.createElement('div'); slot.className='line slot';
+    wrap.appendChild(est); wrap.appendChild(slot);
+    shadow.appendChild(style); shadow.appendChild(wrap);
+    d.documentElement.appendChild(rootHost);
+  
+    function placeAtRect(rect){
+      wrap.style.left = (rect.left + rect.width/2) + 'px';
+      wrap.style.top = (rect.top + 2) + 'px';
+    }
+    function visible(v){ wrap.classList.toggle('hidden', !v); }
+  
+    function bestAnchorFrom(el){
+      try{
+        if (el && el.getBoundingClientRect) return el.getBoundingClientRect();
+      }catch{}
+      // fallback: any visible tooltip-like container
+      const cand = d.querySelectorAll('[role="tooltip"], [data-popper-placement], .chakra-tooltip, .chakra-tooltip__popper');
+      let best=null, bestArea=-1;
+      cand.forEach(e=>{
+        const r=e.getBoundingClientRect();
+        if (r.width>0&&r.height>0){
+          // avoid pet panel/sidebar
+          if (e.closest('[data-panel="pet-stats"], .pet-panel, [data-sidebar]')) return;
+          const area = r.width*r.height;
+          if (area>bestArea){ bestArea=area; best=r; }
+        }
+      });
+      if (best) return best;
+      // viewport fallback
+      return {left: innerWidth/2-1, top: innerHeight/2-1, width:2, height:2};
+    }
+  
+    window.MGTP_slotOverlay = {
+      update({estimateText, slotValueText, anchorElement}={}){
+        const hasEst = !!(estimateText && String(estimateText).trim());
+        const hasSlot = !!(slotValueText && String(slotValueText).trim());
+        est.textContent = hasEst ? String(estimateText) : '';
+        slot.textContent = hasSlot ? String(slotValueText) : '';
+        if (!hasEst && !hasSlot){ visible(false); return; }
+        const r = bestAnchorFrom(anchorElement);
+        placeAtRect(r);
+        visible(true);
+      },
+      hide(){ visible(false); }
+    };
+  
+    // ---------- Ability Logs: Sticky Clear + Proxy dedupe ----------
+    const CLEAR_FLAG = 'MGA_logs_manually_cleared';
+    function clearFlagIfNeededOnAdd(){
+      if (localStorage.getItem(CLEAR_FLAG)==='true'){
+        try{ localStorage.removeItem(CLEAR_FLAG);}catch{}
+      }
+    }
+    function wrapLogsArray(arr){
+      if (!Array.isArray(arr)) arr = [];
+      const seen = new Set();
+      const fp = (l)=> {
+        const t=(l&&l.abilityType)||'', p=(l&&l.petName)||'';
+        const ts= String((l&&l.timestamp)||0);
+        let h=2166136261>>>0, s = (t+'|'+p+'|'+ts);
+        for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+        return (h>>>0).toString(36);
+      };
+      const dedupePush = (item)=>{
+        const id = item.id || fp(item);
+        if (seen.has(id)) return 0;
+        seen.add(id); arr.push({...item, id}); return 1;
+      };
+      // seed seen
+      for (const it of arr){ seen.add(it.id||fp(it)); }
+      return new Proxy(arr, {
+        get(target, prop, recv){
+          if (['push','unshift','splice','concat'].includes(prop)) {
+            return function(...args){
+              let added = 0;
+              if (prop==='push' || prop==='unshift'){
+                for (const it of args){ added += dedupePush(it); }
+                if (added>0) clearFlagIfNeededOnAdd();
+                return target.length;
+              }
+              if (prop==='splice'){
+                // if items provided after start/deleteCount, dedupe them
+                if (args.length>2){
+                  const start=args[0]>>>0, del=args[1]>>>0, newItems=args.slice(2);
+                  const before = target.slice(0,start);
+                  const after = target.slice(start+del);
+                  const rebuilt = wrapLogsArray(before);
+                  for (const it of newItems){ dedupePush.call({arr:rebuilt}, it); }
+                  for (const it of after){ dedupePush.call({arr:rebuilt}, it); }
+                  while (target.length) target.pop();
+                  for (const it of rebuilt) target.push(it);
+                  clearFlagIfNeededOnAdd();
+                  return [];
+                }
+              }
+              return Array.prototype[prop].apply(target, args);
+            };
+          }
+          return Reflect.get(target, prop, recv);
+        },
+        set(target, key, val){
+          // direct index sets count as add
+          if (!isNaN(key)){
+            const added = dedupePush(val);
+            if (added>0) clearFlagIfNeededOnAdd();
+            return true;
+          }
+          return Reflect.set(target, key, val);
+        }
+      });
+    }
+  
+    // Install proxy once UnifiedState is ready
+    (function waitUnified(){
+      const us = window.UnifiedState && UnifiedState.data;
+      if (us){
+        if (!us.petAbilityLogs || !us.petAbilityLogs.__proxied){
+          us.petAbilityLogs = wrapLogsArray(us.petAbilityLogs||[]);
+          Object.defineProperty(us.petAbilityLogs, '__proxied', {value:true});
+        }
+        // Intercept clear button globally to ensure sticky clear + full purge
+        d.addEventListener('click', function(e){
+          const tgt = e.target;
+          if (tgt && tgt.id === 'clear-ability-logs'){
+            e.preventDefault(); e.stopImmediatePropagation();
+            try{
+              us.petAbilityLogs.length = 0;
+              if (typeof GM_setValue !== 'undefined'){ GM_setValue('MGA_petAbilityLogs', JSON.stringify([])); }
+              localStorage.setItem('MGA_petAbilityLogs', JSON.stringify([]));
+              localStorage.setItem(CLEAR_FLAG, 'true'); // keep sticky until next new log
+              const archKeys = ['MGA_petAbilityLogs_archive'];
+              archKeys.forEach(k=>{
+                try{ if (typeof GM_setValue !== 'undefined') GM_setValue(k, JSON.stringify([])); }catch{}
+                try{ localStorage.removeItem(k);}catch{}
+              });
+              if (window.updateAbilityLogDisplay){
+                try{ window.updateAbilityLogDisplay(document);}catch{}
+              }
+            }catch(err){ console.error('[MGTP] clear logs failed', err); }
+          }
+        }, true);
+        return;
+      }
+      setTimeout(waitUnified, 200);
+    })();
+  
+  
+    function rerenderRoomsUI(){
+      try{
+        // BUGFIX: Use getRoomStatusTabContent directly (not window.getRoomStatusTabContent) - same scope
+        if (typeof getRoomStatusTabContent !== 'function') {
+          return;
+        }
+
+        // Find any active rooms tab content areas (main or overlays)
+        const candidates = document.querySelectorAll('[data-tab="rooms"], .mga-tab-content, .mga-overlay-content');
+        let updated = false;
+
+        candidates.forEach((c, idx) => {
+          // Check if this element contains or is a rooms UI
+          const list = c.querySelector('#room-status-list');
+          const isRoomsTab = c.getAttribute && c.getAttribute('data-tab') === 'rooms';
+
+          if (list || isRoomsTab) {
+            const html = getRoomStatusTabContent();
+            c.innerHTML = html;
+            if (typeof setupRoomJoinButtons === 'function') {
+              setupRoomJoinButtons();
+            }
+            updated = true;
+          }
+        });
+      }catch(e){
+        if (typeof logDebug === 'function') {
+            logDebug('ROOMS-UI', '❌ Render error:', e);
+        }
+      }
+    }
+  
+    // ---------- Rooms via /api/rooms/{code}/info with Fallbacks ----------
+    (function roomsInfo(){
+      const API_V1 = (name)=> `${location.origin}/api/rooms/${encodeURIComponent(name)}/info`;
+      const API_V2 = (name)=> `${location.origin}/info?room=${encodeURIComponent(name)}`;
+      const TRACKED = (window.TRACKED_ROOMS || ['MG1','MG2','MG3','MG4','MG5','MG6','MG7','MG8','MG9','MG10','SLAY']);
+      let extra = new Set();
+      const counts = {};
+
+      // Parse player count from various API response formats
+      function parsePlayerCount(data) {
+        if (!data) return 0;
+
+        // Try multiple field names
+        const count = data?.numPlayers ??
+                     data?.players?.online ??
+                     data?.players?.count ??
+                     data?.online ??
+                     data?.count ??
+                     data?.playerCount ??
+                     0;
+
+        return Math.max(0, Number(count) || 0);
+      }
+
+      // Fetch using standard fetch API
+      async function fetchWithFetch(url, name) {
+        const r = await fetch(url, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {'Accept':'application/json'},
+          signal: AbortSignal.timeout(10000)
+        });
+
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}`);
+        }
+
+        const data = await r.json();
+        return data;
+      }
+
+      // Fallback: Fetch using GM_xmlhttpRequest (bypasses CORS)
+      async function fetchWithGM(url, name) {
+        return new Promise((resolve, reject) => {
+          if (typeof GM_xmlhttpRequest !== 'function') {
+            reject(new Error('GM_xmlhttpRequest not available'));
+            return;
+          }
+
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            headers: {'Accept': 'application/json'},
+            timeout: 10000,
+            onload: (response) => {
+              if (response.status >= 200 && response.status < 300) {
+                try {
+                  const data = JSON.parse(response.responseText);
+                  resolve(data);
+                } catch (e) {
+                  reject(new Error(`Parse error: ${e.message}`));
+                }
+              } else {
+                reject(new Error(`HTTP ${response.status}`));
+              }
+            },
+            onerror: (error) => reject(new Error('Network error')),
+            ontimeout: () => reject(new Error('Timeout'))
+          });
+        });
+      }
+
+      async function fetchOne(name){
+        try {
+          let data = null;
+
+          // Try API v1: /api/rooms/{code}/info
+          try {
+            const url1 = API_V1(name);
+            data = await fetchWithFetch(url1, name);
+          } catch (e1) {
+            // Try API v2: /info?room={code}
+            try {
+              const url2 = API_V2(name);
+              data = await fetchWithFetch(url2, name);
+            } catch (e2) {
+              // Try GM_xmlhttpRequest fallback
+              try {
+                const url1 = API_V1(name);
+                data = await fetchWithGM(url1, name);
+              } catch (e3) {
+                throw new Error(`All methods failed`);
+              }
+            }
+          }
+
+          // Parse the count from whichever API succeeded
+          const online = parsePlayerCount(data);
+          counts[name.toUpperCase()] = online;
+        } catch(e) {
+          counts[name.toUpperCase()] = 0;
+        }
+      }
+
+      async function tick(){
+        const names = [...TRACKED, ...extra];
+        await Promise.all(names.map(fetchOne));
+
+        // write into UnifiedState so UI updates
+        // BUGFIX: Use UnifiedState directly (not window.UnifiedState) since it's defined in same scope
+        if (typeof UnifiedState !== 'undefined' && UnifiedState?.data){
+          UnifiedState.data.roomStatus = UnifiedState.data.roomStatus || {};
+          // CRITICAL: Directly replace counts to ensure fresh data
+          UnifiedState.data.roomStatus.counts = {...counts};
+
+          // refresh any open rooms views
+          if (typeof window.refreshSeparateWindowPopouts === 'function'){
+            try{ window.refreshSeparateWindowPopouts('rooms'); }catch{}
+          }
+          try{
+            rerenderRoomsUI();
+            // Force update room counts in any visible room UI
+            document.querySelectorAll('.mga-tab-item[data-tab="rooms"]').forEach(tab => tab.click());
+          }catch{}
+          // Inline rooms lists
+          const list = document.getElementById('room-status-list');
+          if (list){
+            // trigger the existing re-render path if available
+            if (typeof window.updateRoomStatusUI === 'function'){ window.updateRoomStatusUI(); }
+            else {
+              // minimal DOM update: replace counts in .room-count els
+              list.querySelectorAll('.room-row').forEach(row=>{
+                const code = (row.getAttribute('data-room')||'').toUpperCase();
+                const span = row.querySelector('.room-count');
+                if (span && code){ span.textContent = String(counts[code] ?? UnifiedState.data.roomStatus.counts[code] ?? 0); }
+              });
+            }
+          }
+        }
+      }
+      // Watch the search input to include searched room
+      const obs = new MutationObserver(()=>{
+        const inp = document.getElementById('room-search-input');
+        if (inp && !inp.__mgtpBound){
+          inp.__mgtpBound = true;
+          inp.addEventListener('input', ()=>{
+            const q = (inp.value||'').trim().toUpperCase();
+            extra = new Set(q ? q.split(',').map(s=>s.trim()).filter(Boolean) : []);
+          });
+        }
+      });
+      obs.observe(document.documentElement, {subtree:true, childList:true});
+
+      // Start fetching
+      setTimeout(tick, 1000); // First tick after 1 second
+      setInterval(tick, 5000); // Then every 5 seconds
+    })();
+  
+    // ==================== ENHANCED WEBSOCKET AUTO-RECONNECT SYSTEM ====================
+    (function enhancedSocketReconnect() {
+        const Native = window.WebSocket;
+        if (!Native || Native.__mgtoolsPatched) return; // Prevent double-patching
+
+        let attempts = 0;
+        const MAX_ATTEMPTS = 6;
+        let reconnectTimer = null;
+        let userNotified = false;
+
+        // Platform detection for context-aware reconnection
+        const isDiscord = /discord|overlay|electron/i.test(navigator.userAgent) ||
+                          !!(window.DiscordNative || window.__discordApp);
+        const isIframe = window !== window.top;
+        const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // User feedback: Visual toast notification
+        function showReconnectToast(attemptNum, maxAttempts, nextWait) {
+            let toast = document.getElementById('mga-reconnect-toast');
+
+            const toastHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="font-size: 24px;">🔄</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Connection Lost</div>
+                        <div style="font-size: 12px; opacity: 0.9;">
+                            Reconnecting... (${attemptNum}/${maxAttempts})
+                            <br>Next attempt in ${Math.round(nextWait/1000)}s
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'mga-reconnect-toast';
+                toast.style.cssText = `
+                    position: fixed; top: 20px; right: 20px; z-index: 2147483647;
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
+                    color: white; padding: 16px 24px; border-radius: 12px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    font-size: 14px; font-weight: 500; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                    animation: slideInRight 0.3s ease-out; max-width: 320px; pointer-events: auto;
+                `;
+                document.body.appendChild(toast);
+            }
+
+            toast.innerHTML = toastHTML;
+            userNotified = true;
+
+            setTimeout(() => {
+                if (toast && toast.parentNode) {
+                    toast.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 5000);
+        }
+
+        // Show max attempts failure with manual reload button
+        function showFailureToast() {
+            const failToast = document.createElement('div');
+            failToast.id = 'mga-reconnect-fail-toast';
+            failToast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 2147483647;
+                background: linear-gradient(135deg, rgba(220, 38, 38, 0.95), rgba(185, 28, 28, 0.95));
+                color: white; padding: 16px 24px; border-radius: 12px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); max-width: 320px;
+            `;
+
+            failToast.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px;">⚠️ Connection Failed</div>
+                <div style="font-size: 12px; opacity: 0.9; margin-bottom: 12px;">
+                    Unable to reconnect after ${MAX_ATTEMPTS} attempts
+                </div>
+                <button onclick="location.reload()" style="
+                    background: white; color: #dc2626; border: none; padding: 8px 16px;
+                    border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; font-size: 13px;
+                ">Reload Page</button>
+            `;
+
+            document.body.appendChild(failToast);
+        }
+
+        // Schedule reconnect with exponential backoff
+        function scheduleReload(code, wasClean, reason) {
+            // Only reconnect for 4710 (server update), 1006 (abnormal), or if reason mentions update
+            if (wasClean && code !== 4710 && code !== 1006 && !/update/i.test(reason || '')) {
+                if (typeof productionLog === 'function') {
+                    productionLog('[WebSocket] Clean close detected - no reconnect needed');
+                }
+                return;
+            }
+
+            // Clear any existing timer
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+
+            // Check if max attempts exceeded
+            if (attempts >= MAX_ATTEMPTS) {
+                if (typeof productionWarn === 'function') {
+                    productionWarn(`[WebSocket] Max reconnect attempts (${MAX_ATTEMPTS}) reached - manual refresh required`);
+                }
+                showFailureToast();
+                return;
+            }
+
+            // Exponential backoff: 1s, 2s, 4s, 8s, 15s, 15s
+            const wait = Math.min(1000 * Math.pow(2, attempts), 15000);
+            attempts++;
+
+            if (typeof productionLog === 'function') {
+                productionLog(`[WebSocket] Reconnect attempt ${attempts}/${MAX_ATTEMPTS} in ${wait}ms (code: ${code}, reason: "${reason || 'none'}")`);
+            }
+
+            // Show user feedback
+            showReconnectToast(attempts, MAX_ATTEMPTS, wait);
+
+            reconnectTimer = setTimeout(() => {
+                try {
+                    // Add timestamp to force reload and bypass cache
+                    const u = new URL(location.href);
+                    u.searchParams.set('_mgtp', Date.now().toString());
+
+                    // Platform-specific reload strategy
+                    if (isDiscord && isIframe) {
+                        // Discord iframe: try parent reload first
+                        try {
+                            window.parent.location.reload();
+                        } catch (e) {
+                            // Fallback to self reload if parent is inaccessible
+                            location.replace(u.toString());
+                        }
+                    } else if (isMobile) {
+                        // Mobile: hard reload to clear any cached state
+                        location.href = u.toString();
+                    } else {
+                        // Desktop: use replace to avoid back button issues
+                        location.replace(u.toString());
+                    }
+                } catch (e) {
+                    if (typeof productionError === 'function') {
+                        productionError('[WebSocket] Reload failed:', e);
+                    }
+                    // Last resort: simple reload
+                    location.href = location.href + '?_t=' + Date.now();
+                }
+            }, wait);
+        }
+
+        // Patch WebSocket constructor
+        window.WebSocket = function(url, protocols) {
+            const ws = new Native(url, protocols);
+
+            // Reset attempts on successful connection
+            ws.addEventListener('open', () => {
+                if (typeof productionLog === 'function') {
+                    productionLog('[WebSocket] Connection established successfully');
+                }
+                attempts = 0;
+                userNotified = false;
+
+                // Remove any reconnect toasts
+                const toast = document.getElementById('mga-reconnect-toast');
+                if (toast) toast.remove();
+            });
+
+            // Handle close events
+            ws.addEventListener('close', (e) => {
+                if (typeof productionLog === 'function') {
+                    productionLog(`[WebSocket] Closed - Code: ${e.code}, Clean: ${e.wasClean}, Reason: "${e.reason || 'none'}"`);
+                }
+                scheduleReload(e.code, e.wasClean, e.reason);
+            });
+
+            // Handle errors
+            ws.addEventListener('error', (e) => {
+                if (typeof productionError === 'function') {
+                    productionError('[WebSocket] Error detected:', e);
+                }
+            });
+
+            return ws;
+        };
+
+        // Preserve prototype and mark as patched
+        window.WebSocket.prototype = Native.prototype;
+        window.WebSocket.__mgtoolsPatched = true;
+
+        // Network state listeners for smarter reconnection
+        window.addEventListener('online', () => {
+            if (typeof productionLog === 'function') {
+                productionLog('[Network] Back online - reducing reconnect attempt counter');
+            }
+            attempts = Math.max(0, attempts - 2); // Give extra chances when network returns
+
+            // If we have a toast, update it
+            const toast = document.getElementById('mga-reconnect-toast');
+            if (toast) toast.remove();
+        });
+
+        window.addEventListener('offline', () => {
+            if (typeof productionWarn === 'function') {
+                productionWarn('[Network] Offline detected - pausing reconnection attempts');
+            }
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+
+            // Update toast if visible
+            const toast = document.getElementById('mga-reconnect-toast');
+            if (toast) {
+                toast.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">📡</div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">Network Offline</div>
+                            <div style="font-size: 12px; opacity: 0.9;">
+                                Reconnection paused<br>Waiting for network...
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        if (typeof productionLog === 'function') {
+            productionLog('✅ [WebSocket] Enhanced auto-reconnect system initialized (max attempts: ' + MAX_ATTEMPTS + ')');
+        }
+    })();
+  
+  })();
+
+
+/* MGTOOLS_MERGE_BLOCK_v1 */
+
+/* 1) Ability Logs: ghost-free hard clear with tombstone and writers lifting the flag */
+(function(){
+  const LOG_MAIN = 'MGA_petAbilityLogs';
+  const LOG_ARCH = 'MGA_petAbilityLogs_archive';
+  const FLAG = 'MGA_logs_manually_cleared';
+
+  function gmGet(k, d=null){ try{ const raw = typeof GM_getValue==='function'?GM_getValue(k, null):null; if(raw==null) return d; return typeof raw==='string'?JSON.parse(raw):raw; }catch{return d;} }
+  function gmSet(k, v){ try{ if(typeof GM_setValue==='function') GM_setValue(k, JSON.stringify(v)); }catch{} }
+
+  // Enforce tombstone on read paths (localStorage + GM)
+  try{
+    const _get = Storage.prototype.getItem;
+    if(!_get.__mgtoolsPatched){
+      Storage.prototype.getItem = function(k){
+        if ((k===LOG_MAIN || k===LOG_ARCH) && localStorage.getItem(FLAG)==='true') return '[]';
+        return _get.apply(this, arguments);
+      };
+      Storage.prototype.getItem.__mgtoolsPatched = true;
+    }
+  }catch{}
+
+  try{
+    if (typeof GM_getValue==='function' && !GM_getValue.__mgtoolsPatched){
+      const _gm = GM_getValue;
+      window.GM_getValue = function(k, d){
+        if ((k===LOG_MAIN || k===LOG_ARCH) && localStorage.getItem(FLAG)==='true') return '[]';
+        return _gm.apply(this, arguments);
+      };
+      window.GM_getValue.__mgtoolsPatched = true;
+    }
+  }catch{}
+
+  try{
+    if (typeof GM_setValue==='function' && !GM_setValue.__mgtoolsPatched){
+      const _gm = GM_setValue;
+      window.GM_setValue = function(k, v){
+        if (k===LOG_MAIN){
+          try{
+            const arr = Array.isArray(v)?v:(typeof v==='string'?JSON.parse(v):[]);
+            if (arr && arr.length) localStorage.removeItem(FLAG);
+          }catch{}
+        }
+        return _gm.apply(this, arguments);
+      };
+      window.GM_setValue.__mgtoolsPatched = true;
+    }
+  }catch{}
+
+  function hardClear(){
+    try{
+      localStorage.setItem(FLAG, 'true');
+      gmSet(LOG_MAIN, []);
+      gmSet(LOG_ARCH, []);
+      try{ localStorage.removeItem(LOG_MAIN); localStorage.removeItem(LOG_ARCH); }catch{}
+      if (window.UnifiedState?.data) window.UnifiedState.data.petAbilityLogs = [];
+      if (Array.isArray(window.petAbilityLogs)) window.petAbilityLogs.length = 0;
+    }catch(e){ console.error('[MGTools] hardClear logs failed', e); }
+  }
+  window.MGTOOLS_hardClearAbilityLogs = hardClear;
+
+  document.addEventListener('click', (ev)=>{
+    const t = ev.target && ev.target.closest('#clear-ability-logs,[data-role="clear-ability-logs"],[data-action="clear-ability-logs"],[data-mga-clear-logs],#mga-clear-logs');
+    if (t){ hardClear(); }
+  }, true);
+
+  // Startup sanitizer (short burst to defeat late rehydrations)
+  let n=0; const iv=setInterval(()=>{
+    if (localStorage.getItem(FLAG)==='true'){
+      try{ localStorage.setItem(LOG_MAIN,'[]'); localStorage.setItem(LOG_ARCH,'[]'); }catch{}
+      if (window.UnifiedState?.data) window.UnifiedState.data.petAbilityLogs = [];
+    }
+    if (++n>80) clearInterval(iv);
+  }, 200);
+})();
+
+
+/* WebSocket reconnect handled by enhanced implementation above (lines 22603+) */
