@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.3
+// @version      3.2.4
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
       'use strict';
   
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.2.3';  // Your local development version
+      const CURRENT_VERSION = '3.2.4';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -15187,38 +15187,27 @@ async function initializeFirebase() {
   
       // ==================== HARVEST & SELL PROTECTION ====================
       function applyHarvestRule() {
-          const lockedCrops = UnifiedState.data.lockedCrops || { species: [], mutations: [] };
-  
-          console.log('🔄 [applyHarvestRule] Setting up harvest rule with locked crops:', lockedCrops);
-  
           targetWindow.currentHarvestRule = ({ species, mutations } = {}) => {
+              // CRITICAL FIX: Read fresh locked crops from UnifiedState each time harvest is attempted
+              // This ensures unlocking crops takes effect immediately without requiring page refresh
+              const freshLockedCrops = UnifiedState.data.lockedCrops || { species: [], mutations: [] };
               mutations = Array.isArray(mutations) ? mutations : [];
-  
-              console.log(`[HarvestRule] Checking: species="${species}", mutations=[${mutations.join(', ')}]`);
-              console.log(`[HarvestRule] Locked species:`, lockedCrops.species);
-              console.log(`[HarvestRule] Locked mutations:`, lockedCrops.mutations);
-  
+
               // If species is locked, block harvest
-              if (lockedCrops.species && lockedCrops.species.includes(species)) {
-                  console.log(`🔒 [HarvestRule] BLOCKING: ${species} is in locked species list`);
+              if (freshLockedCrops.species && freshLockedCrops.species.includes(species)) {
                   return false;
               }
-  
+
               // If any locked mutation is present, block harvest
-              if (lockedCrops.mutations && lockedCrops.mutations.length > 0) {
-                  const hasLockedMutation = lockedCrops.mutations.some(m => mutations.includes(m));
+              if (freshLockedCrops.mutations && freshLockedCrops.mutations.length > 0) {
+                  const hasLockedMutation = freshLockedCrops.mutations.some(m => mutations.includes(m));
                   if (hasLockedMutation) {
-                      console.log(`🔒 [HarvestRule] BLOCKING: crop has locked mutation (${mutations.join(', ')})`);
                       return false;
                   }
               }
-  
-              console.log(`✅ [HarvestRule] ALLOWING harvest`);
+
               return true;
           };
-  
-          console.log('✅ [applyHarvestRule] Harvest rule function installed on targetWindow');
-          console.log('✅ [applyHarvestRule] targetWindow.currentHarvestRule exists:', !!targetWindow.currentHarvestRule);
       }
   
       function applySellBlockThreshold() {
