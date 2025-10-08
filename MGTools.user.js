@@ -19321,7 +19321,7 @@ function insertTurtleEstimate() {
         .forEach((el) => el.remove());
 
     const currentPlantTooltipFlexbox = doc.querySelector(
-        'div.QuinoaUI > div.McFlex:nth-of-type(2) > div.McGrid > div.McFlex:nth-of-type(3) > :first-child p'
+      'div.QuinoaUI > div.McFlex:nth-of-type(2) > div.McGrid > div.McFlex:nth-of-type(3) > :first-child > :last-child p'
     )?.parentElement;
 
     if (!currentPlantTooltipFlexbox) return; // No tooltip found, exit early
