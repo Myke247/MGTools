@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.1
+// @version      3.2.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
       'use strict';
   
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.2.1';  // Your local development version
+      const CURRENT_VERSION = '3.2.2';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -19366,7 +19366,8 @@ function insertTurtleEstimate() {
         if (slotValue > 0) {
             const slotValueEl = doc.createElement("p");
             slotValueEl.dataset.turtletimerSlotValue = "true";
-            slotValueEl.textContent = '🪙' + Number(slotValue).toLocaleString();
+            // Use Discord CDN image for universal emoji support across all platforms
+            slotValueEl.innerHTML = `<img src="https://cdn.discordapp.com/emojis/1395255393172721815.png" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 2px; display: inline-block;">` + Number(slotValue).toLocaleString();
             // CSS at line 22248 handles styling
             currentPlantTooltipFlexbox.appendChild(slotValueEl);
         }
