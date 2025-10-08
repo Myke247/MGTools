@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.0
+// @version      3.2.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
       'use strict';
   
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.2.0';  // Your local development version
+      const CURRENT_VERSION = '3.2.1';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -9339,10 +9339,6 @@ async function initializeFirebase() {
       function getRoomStatusTabContent() {
           const currentRoom = getCurrentRoomCode();
           const roomCounts = UnifiedState.data.roomStatus?.counts || {};
-
-          console.log('[ROOMS-RENDER] getRoomStatusTabContent called');
-          console.log('[ROOMS-RENDER] roomCounts:', roomCounts);
-          console.log('[ROOMS-RENDER] UnifiedState.data.roomStatus:', UnifiedState.data.roomStatus);
 
           return `
               <div class="mga-section">
@@ -22602,17 +22598,12 @@ function initializeTurtleTimer() {
       try{
         // BUGFIX: Use getRoomStatusTabContent directly (not window.getRoomStatusTabContent) - same scope
         if (typeof getRoomStatusTabContent !== 'function') {
-          console.log('[ROOMS-UI] ⚠️ getRoomStatusTabContent not available');
           return;
         }
-
-        console.log('[ROOMS-UI] Starting rerender, checking for active rooms UI...');
 
         // Find any active rooms tab content areas (main or overlays)
         const candidates = document.querySelectorAll('[data-tab="rooms"], .mga-tab-content, .mga-overlay-content');
         let updated = false;
-
-        console.log('[ROOMS-UI] Found', candidates.length, 'candidate elements');
 
         candidates.forEach((c, idx) => {
           // Check if this element contains or is a rooms UI
@@ -22620,7 +22611,6 @@ function initializeTurtleTimer() {
           const isRoomsTab = c.getAttribute && c.getAttribute('data-tab') === 'rooms';
 
           if (list || isRoomsTab) {
-            console.log(`[ROOMS-UI] Updating candidate ${idx} (has list: ${!!list}, is rooms tab: ${isRoomsTab})`);
             const html = getRoomStatusTabContent();
             c.innerHTML = html;
             if (typeof setupRoomJoinButtons === 'function') {
@@ -22629,12 +22619,6 @@ function initializeTurtleTimer() {
             updated = true;
           }
         });
-
-        if (updated) {
-          console.log('[ROOMS-UI] ✅ Successfully updated rooms UI');
-        } else {
-          console.log('[ROOMS-UI] ⏸️ No active rooms UI found to update (tab may not be open)');
-        }
       }catch(e){
         if (typeof logDebug === 'function') {
             logDebug('ROOMS-UI', '❌ Render error:', e);
@@ -22680,7 +22664,6 @@ function initializeTurtleTimer() {
         }
 
         const data = await r.json();
-        console.log(`[ROOMS] ${name} API response:`, data);
         return data;
       }
 
@@ -22701,7 +22684,6 @@ function initializeTurtleTimer() {
               if (response.status >= 200 && response.status < 300) {
                 try {
                   const data = JSON.parse(response.responseText);
-                  console.log(`[ROOMS-GM] ${name} API response:`, data);
                   resolve(data);
                 } catch (e) {
                   reject(new Error(`Parse error: ${e.message}`));
@@ -22718,33 +22700,24 @@ function initializeTurtleTimer() {
 
       async function fetchOne(name){
         try {
-          console.log(`[ROOMS] Fetching ${name}...`);
           let data = null;
 
           // Try API v1: /api/rooms/{code}/info
           try {
             const url1 = API_V1(name);
-            console.log(`[ROOMS] Trying ${url1}`);
             data = await fetchWithFetch(url1, name);
           } catch (e1) {
-            console.log(`[ROOMS] API v1 failed for ${name}:`, e1.message);
-
             // Try API v2: /info?room={code}
             try {
               const url2 = API_V2(name);
-              console.log(`[ROOMS] Trying fallback ${url2}`);
               data = await fetchWithFetch(url2, name);
             } catch (e2) {
-              console.log(`[ROOMS] API v2 failed for ${name}:`, e2.message);
-
               // Try GM_xmlhttpRequest fallback
               try {
                 const url1 = API_V1(name);
-                console.log(`[ROOMS] Trying GM fallback ${url1}`);
                 data = await fetchWithGM(url1, name);
               } catch (e3) {
-                console.log(`[ROOMS] GM fallback failed for ${name}:`, e3.message);
-                throw new Error(`All methods failed: ${e1.message}, ${e2.message}, ${e3.message}`);
+                throw new Error(`All methods failed`);
               }
             }
           }
@@ -22752,46 +22725,21 @@ function initializeTurtleTimer() {
           // Parse the count from whichever API succeeded
           const online = parsePlayerCount(data);
           counts[name.toUpperCase()] = online;
-
-          console.log(`✅ [ROOMS] ${name}: ${online} players online`);
-
-          if (typeof productionLog === 'function') {
-            productionLog(`[ROOMS] ${name}: ${online} players online`);
-          }
         } catch(e) {
-          console.error(`❌ [ROOMS] Failed to fetch ${name}:`, e.message);
-
-          if (typeof logDebug === 'function') {
-            logDebug('ROOMS-API', `⚠️ Failed to fetch ${name}:`, e.message);
-          }
-
           counts[name.toUpperCase()] = 0;
         }
       }
 
       async function tick(){
-        console.log('[ROOMS] Starting tick, fetching all rooms...');
         const names = [...TRACKED, ...extra];
         await Promise.all(names.map(fetchOne));
-
-        console.log('[ROOMS] Counts after fetch:', counts);
 
         // write into UnifiedState so UI updates
         // BUGFIX: Use UnifiedState directly (not window.UnifiedState) since it's defined in same scope
         if (typeof UnifiedState !== 'undefined' && UnifiedState?.data){
-          console.log('[ROOMS] ✅ UnifiedState is available');
-          console.log('[ROOMS] Before write - UnifiedState.data.roomStatus:', UnifiedState.data.roomStatus);
-          console.log('[ROOMS] Local counts to write:', counts);
-
           UnifiedState.data.roomStatus = UnifiedState.data.roomStatus || {};
           // CRITICAL: Directly replace counts to ensure fresh data
           UnifiedState.data.roomStatus.counts = {...counts};
-
-          console.log('[ROOMS] After write - UnifiedState.data.roomStatus.counts:', UnifiedState.data.roomStatus.counts);
-          console.log('[ROOMS] ✅ Verify write successful:', JSON.stringify(UnifiedState.data.roomStatus.counts));
-
-          // BUGFIX: Expose as global for debugging
-          window.ROOM_COUNTS_DEBUG = counts;
 
           // refresh any open rooms views
           if (typeof window.refreshSeparateWindowPopouts === 'function'){
@@ -22816,10 +22764,6 @@ function initializeTurtleTimer() {
               });
             }
           }
-        } else {
-          console.error('[ROOMS] ❌ UnifiedState not available! Cannot write room counts.');
-          console.log('[ROOMS] typeof UnifiedState:', typeof UnifiedState);
-          console.log('[ROOMS] window.UnifiedState:', window.UnifiedState);
         }
       }
       // Watch the search input to include searched room
@@ -22834,22 +22778,6 @@ function initializeTurtleTimer() {
         }
       });
       obs.observe(document.documentElement, {subtree:true, childList:true});
-
-      console.log('[ROOMS] Initialization complete. First tick in 1 second, then every 5 seconds.');
-
-      // Expose debug helper
-      window.MGT_DEBUG_ROOMS = function() {
-        console.log('=== ROOMS DEBUG INFO ===');
-        console.log('Local counts object:', counts);
-        console.log('UnifiedState.data.roomStatus.counts:', window.UnifiedState?.data?.roomStatus?.counts);
-        console.log('ROOM_COUNTS_DEBUG:', window.ROOM_COUNTS_DEBUG);
-        console.log('To manually trigger UI update, run: rerenderRoomsUI()');
-        return {
-          localCounts: counts,
-          unifiedStateCounts: window.UnifiedState?.data?.roomStatus?.counts,
-          debugCounts: window.ROOM_COUNTS_DEBUG
-        };
-      };
 
       // Start fetching
       setTimeout(tick, 1000); // First tick after 1 second
