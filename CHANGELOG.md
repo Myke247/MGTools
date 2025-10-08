@@ -5,6 +5,8 @@
 ### 🐛 Critical Bug Fixes
 - **Ability Logs**: Fixed ghost logs reappearing after clear/refresh
   - Logs now stay cleared after refresh for 24 hours
+  - Tile Value no longer displayed on the pets status
+  - Gold added back as crop lock option
   - Clear action persists across page reloads
 
 - **WebSocket Disconnects (Error 4710)**: Auto-reconnect with visual feedback
@@ -14,7 +16,6 @@
   - Network status detection (online/offline awareness)
 
 - **Room Player Counts**: Fixed rooms showing "0/6" instead of actual counts
-  - Room counts now display correctly on all platforms
   - Removed duplicate room panel appearing outside Rooms tab
   - Automatic updates every 5 seconds
 
