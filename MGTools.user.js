@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.5
+// @version      3.2.51
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
