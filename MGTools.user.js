@@ -22301,7 +22301,7 @@ function initializeTurtleTimer() {
   
     /* Ensure our estimate/slot-value paragraphs behave as full-width, centered lines
        so they appear centered inside the game's tooltip textbox regardless of container quirks. */
-    [data-estimate="true"] {
+    [data-turtletimer-estimate="true"] {
       display: block !important;
       width: 100% !important;
       box-sizing: border-box !important;
@@ -22314,7 +22314,7 @@ function initializeTurtleTimer() {
       line-height: 1.25 !important;
     }
   
-    [data-slot-value="true"] {
+    [data-turtletimer-slot-value="true"] {
       display: block !important;
       width: 100% !important;
       box-sizing: border-box !important;
