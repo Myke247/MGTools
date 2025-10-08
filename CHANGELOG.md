@@ -1,5 +1,36 @@
 # Changelog - MGTools
 
+## Version 3.1.9 (2025-10-07)
+
+### 🐛 Critical Bug Fixes
+- **Ability Logs**: Fixed ghost logs reappearing after clear/refresh
+  - Logs now stay cleared after refresh for 24 hours
+  - Clear action persists across page reloads
+
+- **WebSocket Disconnects (Error 4710)**: Auto-reconnect with visual feedback
+  - Automatic reconnection with exponential backoff
+  - Toast notifications showing reconnection progress
+  - Manual reload button after max retry attempts
+  - Network status detection (online/offline awareness)
+
+- **Room Player Counts**: Fixed rooms showing "0/6" instead of actual counts
+  - Room counts now display correctly on all platforms
+  - Removed duplicate room panel appearing outside Rooms tab
+  - Automatic updates every 5 seconds
+
+### ✨ New Features
+- **Enhanced Room System**: Improved reliability and performance
+  - Multiple fallback methods for fetching room data
+  - CORS bypass for compatibility
+  - Better error handling and timeout management
+
+### 🎨 UI/UX Improvements
+- Touch-optimized buttons on mobile devices
+- Smooth scrolling with overscroll prevention
+- Accessibility: Reduced motion support
+
+---
+
 ## Version 3.1.8 (2025-10-07)
 
 ### ✨ New Features
