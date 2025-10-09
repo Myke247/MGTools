@@ -1,5 +1,49 @@
 # Changelog - MGTools
 
+## Version 3.2.6 (2025-10-08)
+
+### 🐛 Bug Fixes
+- Fixed crop cycling values - turtle timers and crop values now display correctly when cycling through multiple crops on same tile
+- Fixed slot index tracking for multi-harvest crops
+- Improved X/C key detection for crop cycling
+
+---
+
+## Version 3.2.5 (2025-10-08)
+
+### ✨ Improvements
+- Updated slot value tile icon
+
+---
+
+## Version 3.2.4 (2025-10-08)
+
+### 🐛 Bug Fixes
+- Fixed crop protection unlock not releasing crops
+
+---
+
+## Version 3.2.3 (2025-10-08)
+
+### 🐛 Bug Fixes
+- Fixed tooltip coin icon visibility
+
+---
+
+## Version 3.2.2 (2025-10-08)
+
+### 🐛 Bug Fixes
+- Fixed coin emoji visibility using Discord CDN image
+
+---
+
+## Version 3.2.1 (2025-10-08)
+
+### 🐛 Bug Fixes
+- Removed debug console spam from rooms system
+
+---
+
 ## Version 3.1.9 (2025-10-07)
 
 ### 🐛 Critical Bug Fixes

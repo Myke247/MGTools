@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.1.8** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.2.6** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.1.8-blue) ![Status](https://img.shields.io/badge/status-stable-green)
+![MGTools](https://img.shields.io/badge/version-3.2.6-blue) ![Status](https://img.shields.io/badge/status-stable-green)
 
 ---
 
@@ -408,12 +408,12 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.1.8)
-- **v3.1.8**: Added Wet and Chill mutations to crop locking
-- **v3.1.7**: Added "Import Your Garden" tool to Tools section
-- **v3.1.6**: Fixed mature crop slot value centering issue (span.css-1baulvz fix)
-- **v3.1.5**: Improved pet tooltip filtering with better keyword detection
-- **v3.0.1**: Upgraded all icons to HD cartoon-style versions
+### Latest Updates (v3.2.6)
+- **v3.2.6**: Fixed crop cycling values - turtle timers and crop values now display correctly when cycling through multiple crops on same tile
+- **v3.2.5**: Updated slot value tile icon
+- **v3.2.4**: Fixed crop protection unlock not releasing crops
+- **v3.2.3**: Fixed tooltip coin icon visibility
+- **v3.2.2**: Fixed coin emoji visibility using Discord CDN image
 
 ---
 
