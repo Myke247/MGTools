@@ -1,5 +1,20 @@
 # Changelog - MGTools
 
+## Version 3.2.8 (2025-10-08)
+
+### 🐛 Bug Fixes
+- Fixed Chilled mutation crop protection - crops with Chilled mutation now properly protected from harvesting
+- Corrected mutation name from "Chill" to "Chilled" to match game data
+
+---
+
+## Version 3.2.7 (2025-10-08)
+
+### 🐛 Bug Fixes
+- Internal version bump (skipped)
+
+---
+
 ## Version 3.2.6 (2025-10-08)
 
 ### 🐛 Bug Fixes
