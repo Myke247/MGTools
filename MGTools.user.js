@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.5
+// @version      3.2.6
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
       'use strict';
   
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.2.5';  // Your local development version
+      const CURRENT_VERSION = '3.2.6';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -3923,7 +3923,200 @@ async function initializeFirebase() {
               console.error(`❌ Error hooking ${atomPath}:`, error);
           }
       }
-  
+
+      // ==================== SLOT INDEX TRACKING - ADVANCED ====================
+      // Hook directly into the atom cache to track slot changes
+      function listenToSlotIndexAtom() {
+          productionLog('🔍 [SLOT-ATOM] Starting slot index atom listener...');
+
+          // Initialize the slot index
+          if (typeof window._mgtools_currentSlotIndex === 'undefined') {
+              window._mgtools_currentSlotIndex = 0;
+              console.log('🎯 [SLOT-ATOM] Initialized slot index to 0');
+          }
+
+          // Method 1: Try to hook via jotaiAtomCache
+          const tryHookingViaCache = () => {
+              const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
+              if (!atomCache || !atomCache.get) {
+                  productionLog('⏳ [SLOT-ATOM] Waiting for jotaiAtomCache...');
+                  return false;
+              }
+
+              // Look for the slot index atom path
+              const possiblePaths = [
+                  '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotIndexAtom',
+                  'myCurrentGrowSlotIndexAtom',
+                  'myCurrentGrowSlotIndex'
+              ];
+
+              for (const path of possiblePaths) {
+                  const atom = atomCache.get(path);
+                  if (atom && atom.read) {
+                      productionLog(`✅ [SLOT-ATOM] Found slot atom at: ${path}`);
+
+                      // Hook the read function
+                      const originalRead = atom.read;
+                      atom.read = function(get) {
+                          const value = originalRead.call(this, get);
+                          const idx = Number.isFinite(value) ? value : 0;
+
+                          // Only update if changed
+                          if (window._mgtools_currentSlotIndex !== idx) {
+                              window._mgtools_currentSlotIndex = idx;
+                              console.log(`🎯 [SLOT-ATOM-CACHE] Slot index changed to: ${idx}`);
+
+                              // Update display
+                              if (typeof insertTurtleEstimate === 'function') {
+                                  requestAnimationFrame(() => insertTurtleEstimate());
+                              }
+                          }
+
+                          return value;
+                      };
+
+                      return true;
+                  }
+              }
+
+              // List all atoms to find the right one
+              const allAtoms = Array.from(atomCache.keys());
+              const slotAtoms = allAtoms.filter(key =>
+                  key.includes('Slot') ||
+                  key.includes('slot') ||
+                  key.includes('Index') ||
+                  key.includes('index')
+              );
+
+              productionLog('🔍 [SLOT-ATOM] Slot-related atoms found:', slotAtoms);
+
+              // Try to find it in the list
+              const slotIndexAtom = slotAtoms.find(key =>
+                  key.includes('GrowSlotIndex') ||
+                  key.includes('CurrentGrowSlotIndex')
+              );
+
+              if (slotIndexAtom) {
+                  productionLog(`🎯 [SLOT-ATOM] Found potential slot atom: ${slotIndexAtom}`);
+                  return tryHookingViaCache(); // Retry with the found path
+              }
+
+              return false;
+          };
+
+          // Method 2: Watch for X/C keypresses and arrow clicks
+          const setupKeyWatcher = () => {
+              productionLog('🎮 [SLOT-ATOM] Setting up X/C key and arrow click watcher as fallback...');
+
+              let lastCropCount = 0;
+              let lastCropHash = '';
+
+              // Helper to get crop hash for change detection
+              const getCropHashSimple = (crops) => {
+                  if (!crops || !crops.length) return '';
+                  return crops.map(c => `${c.species}_${c.endTime}`).join('|');
+              };
+
+              // Update function
+              const updateSlotIndex = (direction) => {
+                  const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
+                  const sortedIndices = UnifiedState.atoms.sortedSlotIndices || window.sortedSlotIndices;
+
+                  if (!currentCrop || currentCrop.length <= 1) return;
+
+                  // Get the max valid index based on sorted indices or crop length
+                  const maxIndex = sortedIndices?.length || currentCrop.length;
+
+                  if (direction === 'forward') {
+                      window._mgtools_currentSlotIndex = (window._mgtools_currentSlotIndex + 1) % maxIndex;
+                  } else if (direction === 'backward') {
+                      window._mgtools_currentSlotIndex = (window._mgtools_currentSlotIndex - 1 + maxIndex) % maxIndex;
+                  }
+
+                  console.log(`🎯 [SLOT-KEY] Cycled ${direction} - slot index: ${window._mgtools_currentSlotIndex}/${maxIndex}`);
+
+                  // Update display immediately
+                  setTimeout(() => {
+                      if (typeof insertTurtleEstimate === 'function') {
+                          insertTurtleEstimate();
+                      }
+                  }, 100);
+              };
+
+              // Key listener
+              targetDocument.addEventListener('keydown', (e) => {
+                  // Skip if typing in input
+                  const active = targetDocument.activeElement;
+                  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+                  const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
+                  if (!currentCrop || currentCrop.length <= 1) return;
+
+                  // Check if crop changed (new tile)
+                  const currentHash = getCropHashSimple(currentCrop);
+                  if (currentHash !== lastCropHash) {
+                      window._mgtools_currentSlotIndex = 0;
+                      lastCropHash = currentHash;
+                      lastCropCount = currentCrop.length;
+                      console.log(`🔄 [SLOT-KEY] New crop detected, reset index to 0`);
+                  }
+
+                  if (e.key.toLowerCase() === 'x') {
+                      updateSlotIndex('forward');
+                  } else if (e.key.toLowerCase() === 'c') {
+                      updateSlotIndex('backward');
+                  }
+              }, true);
+
+              // Arrow button click detection
+              targetDocument.addEventListener('click', (e) => {
+                  const target = e.target;
+                  if (!target) return;
+
+                  // Check for arrow buttons in the tooltip
+                  const button = target.closest('button');
+                  if (!button) return;
+
+                  // Look for chevron icons or arrow text
+                  const hasLeftArrow = button.querySelector('svg[data-icon="chevron-left"]') ||
+                                       button.innerHTML.includes('chevron-left') ||
+                                       button.getAttribute('aria-label')?.includes('Previous');
+
+                  const hasRightArrow = button.querySelector('svg[data-icon="chevron-right"]') ||
+                                        button.innerHTML.includes('chevron-right') ||
+                                        button.getAttribute('aria-label')?.includes('Next');
+
+                  if (hasLeftArrow) {
+                      console.log('⬅️ [SLOT-ARROW] Left arrow clicked');
+                      updateSlotIndex('backward');
+                  } else if (hasRightArrow) {
+                      console.log('➡️ [SLOT-ARROW] Right arrow clicked');
+                      updateSlotIndex('forward');
+                  }
+              }, true);
+
+              console.log('✅ [SLOT-ATOM] Key and arrow watchers installed');
+          };
+
+          // Install key watcher immediately as backup
+          setupKeyWatcher();
+
+          // Also try cache hooking for better integration
+          let attempts = 0;
+          const checkInterval = setInterval(() => {
+              attempts++;
+
+              if (tryHookingViaCache()) {
+                  clearInterval(checkInterval);
+                  productionLog('✅ [SLOT-ATOM] Successfully hooked slot index atom via cache!');
+                  // Key watcher remains as backup
+              } else if (attempts >= 10) {
+                  clearInterval(checkInterval);
+                  productionLog('ℹ️ [SLOT-ATOM] Using key watcher for slot tracking');
+              }
+          }, 1000);
+      }
+
       // ==================== DRAGGABLE & RESIZABLE ====================
       // OPTIMIZED MAIN HUD DRAGGING SYSTEM - Professional and smooth
       function makeDraggable(element, handle) {
@@ -19214,89 +19407,38 @@ async function initializeFirebase() {
           };
       }
   
-      function estimateUntilLatestCrop(currentCrop, activePets) {
+      function estimateUntilLatestCrop(currentCrop, activePets, slotIndex = null) {
           try {
-              if (UnifiedState.data.settings?.debugMode) {
-                  logDebug('TURTLE', 'estimateUntilLatestCrop called with:', {
-                      currentCropLength: currentCrop?.length || 0,
-                      activePetsLength: activePets?.length || 0
-                  });
-              }
-  
-              if (!currentCrop || currentCrop.length === 0) {
-                  if (UnifiedState.data.settings?.debugMode) {
-                      logDebug('TURTLE', 'RETURNING NULL: No current crop');
-                  }
-                  return null;
-              }
-  
-              if (!activePets || activePets.length === 0) {
-                  if (UnifiedState.data.settings?.debugMode) {
-                      logDebug('TURTLE', 'RETURNING NULL: No active pets');
-                  }
-                  return null;
-              }
-  
-              if (UnifiedState.data.settings?.debugMode) {
-                  logDebug('TURTLE', 'Calling getTurtleExpectations...');
-              }
+              if (!currentCrop || currentCrop.length === 0) return null;
+              if (!activePets || activePets.length === 0) return null;
+
               const turtleExpectations = getTurtleExpectations(activePets);
-  
-              if (UnifiedState.data.settings?.debugMode) {
-                  logDebug('TURTLE', 'getTurtleExpectations returned:', {
-                      hasResult: !!turtleExpectations,
-                      expectedMinutesRemoved: turtleExpectations?.expectedMinutesRemoved
-                  });
-              }
-  
               if (!turtleExpectations || turtleExpectations.expectedMinutesRemoved == 0) {
-                  if (UnifiedState.data.settings?.debugMode) {
-                      logDebug('TURTLE', 'RETURNING NULL: No turtle boost active', {
-                          petsCount: activePets.length,
-                          expectedMinutesRemoved: turtleExpectations?.expectedMinutesRemoved
-                      });
-                  }
                   return null;
               }
-  
+
               const now = Date.now();
-              const maxEndTime = Math.max(...currentCrop.map(c => c.endTime || 0));
-  
-              if (UnifiedState.data.settings?.debugMode) {
-                  logDebug('TURTLE', 'Crop timing:', {
-                      now,
-                      maxEndTime,
-                      isMature: maxEndTime <= now
-                  });
+
+              // If slotIndex provided and valid, use that slot's endTime
+              // Otherwise use the latest crop's endTime
+              let targetEndTime;
+              if (slotIndex !== null && slotIndex >= 0 && slotIndex < currentCrop.length) {
+                  targetEndTime = currentCrop[slotIndex]?.endTime || 0;
+              } else {
+                  targetEndTime = Math.max(...currentCrop.map(c => c.endTime || 0));
               }
-  
-              if (maxEndTime <= now) {
-                  if (UnifiedState.data.settings?.debugMode) {
-                      logDebug('TURTLE', 'RETURNING NULL: Crop already mature');
-                  }
-                  return null;
-              }
-  
-              const remainingRealMinutes = (maxEndTime - now) / (1000 * 60);
+
+              if (targetEndTime <= now) return null; // Crop already mature
+
+              const remainingRealMinutes = (targetEndTime - now) / (1000 * 60);
               const { expectedMinutesRemoved } = turtleExpectations;
               const effectiveRate = expectedMinutesRemoved + 1;
               const expectedRealMinutes = remainingRealMinutes / effectiveRate;
-  
+
               const hours = Math.floor(expectedRealMinutes / 60);
               const minutes = Math.floor(expectedRealMinutes % 60);
-  
-              const result = `${hours}h ${minutes}m`;
-              if (UnifiedState.data.settings?.debugMode) {
-                  logDebug('TURTLE', 'SUCCESS! Returning estimate:', {
-                      result,
-                      remainingRealMinutes,
-                      expectedMinutesRemoved,
-                      effectiveRate,
-                      expectedRealMinutes
-                  });
-              }
-  
-              return result;
+
+              return `${hours}h ${minutes}m`;
           } catch (error) {
               logError('TURTLE', 'ERROR in estimateUntilLatestCrop:', error);
               return null;
@@ -19309,86 +19451,155 @@ async function initializeFirebase() {
   // ---------- REPLACEMENT: insertTurtleEstimate() with spatial matching ----------
   
 function insertTurtleEstimate() {
-    // COMPLETE REWRITE: Simplified to match working script exactly
-    // Removed 300+ lines of complex tooltipHost scoring logic
     const doc = targetDocument || document;
 
-    // Remove ALL existing turtle estimates and slot values (prevent duplication)
-    doc
-        .querySelectorAll(
-            '[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]'
-        )
+    // Remove existing turtle estimates and slot values
+    doc.querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
         .forEach((el) => el.remove());
 
+    // CORRECT SELECTOR: Get the last child's parent (where weight/mutations are shown)
     const currentPlantTooltipFlexbox = doc.querySelector(
-        'div.QuinoaUI > div.McFlex:nth-of-type(2) > div.McGrid > div.McFlex:nth-of-type(3) > :first-child p'
+        'div.QuinoaUI > div.McFlex:nth-of-type(2) > div.McGrid > div.McFlex:nth-of-type(3) > :first-child > :last-child p'
     )?.parentElement;
 
-    if (!currentPlantTooltipFlexbox) return; // No tooltip found, exit early
+    if (!currentPlantTooltipFlexbox) return;
 
-    // SIMPLIFIED APPROACH: Find time element (for growing crops) inside flexbox
+    const currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
+    if (!currentCrop || currentCrop.length === 0) return;
+
+    const currentSlotIndex = getCurrentSlotIndex(currentCrop);
+
+    // Find time element (for growing crops)
     const timeElement = [...currentPlantTooltipFlexbox.childNodes].find((el) =>
         /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(
             (el.textContent || '').trim()
         )
     );
 
-    // Show turtle estimate if there's a time element
+    // Show turtle estimate if there's a time element and crop is growing
     if (timeElement) {
-        const currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
         const activePets = targetWindow.activePets || UnifiedState.atoms.activePets;
-        const estimate = estimateUntilLatestCrop(currentCrop, activePets);
+
+        // Get the current slot index for turtle timer
+        const slotIndex = getCurrentSlotIndex(currentCrop);
+        const sortedIndices = UnifiedState.atoms.sortedSlotIndices || window.sortedSlotIndices;
+        let actualSlotIndex = slotIndex;
+
+        if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0 && slotIndex < sortedIndices.length) {
+            actualSlotIndex = sortedIndices[slotIndex];
+        }
+
+        // Pass the actual slot index to estimate function
+        const estimate = estimateUntilLatestCrop(currentCrop, activePets, actualSlotIndex);
 
         if (estimate) {
             const estimateEl = doc.createElement("p");
             estimateEl.dataset.turtletimerEstimate = "true";
             estimateEl.textContent = estimate;
-            // CSS at line 22235 handles styling
+            estimateEl.style.color = '#4ade80'; // Green-400 color
             currentPlantTooltipFlexbox.appendChild(estimateEl);
         }
     }
 
-    // Always show slot value if we have crops (works for both growing and mature)
-    const currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
-    if (currentCrop && currentCrop.length > 0) {
-        const slotValue = calculateCurrentSlotValue(currentCrop);
-        if (slotValue > 0) {
-            const slotValueEl = doc.createElement("p");
-            slotValueEl.dataset.turtletimerSlotValue = "true";
-            // Use Discord CDN image for universal emoji support across all platforms
-            slotValueEl.innerHTML = `<img src="https://cdn.discordapp.com/emojis/1425389207525920808.webp?size=96" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 2px; display: inline-block;">` + Number(slotValue).toLocaleString();
-            // CSS at line 22248 handles styling
-            currentPlantTooltipFlexbox.appendChild(slotValueEl);
-        }
+    // Show current slot value
+    const slotValue = calculateCurrentSlotValue(currentCrop);
+    if (slotValue > 0) {
+        const slotValueEl = doc.createElement("p");
+        slotValueEl.dataset.turtletimerSlotValue = "true";
+        slotValueEl.innerHTML = `<img src="https://cdn.discordapp.com/emojis/1425389207525920808.webp?size=96" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 2px; display: inline-block;">` + Number(slotValue).toLocaleString();
+        currentPlantTooltipFlexbox.appendChild(slotValueEl);
     }
 }
 
-  
-  
+
+      // Track current slot index for multi-harvest crops
+      // Updated ONLY when cycling (X/C keys) in handleTooltipChange()
+      // CRITICAL: Must be on window object to be accessible from both scopes
+      if (typeof window._mgtools_currentSlotIndex === 'undefined') {
+          window._mgtools_currentSlotIndex = 0;
+      }
+
+      function getCurrentSlotIndex(currentCrop) {
+          if (!currentCrop || currentCrop.length <= 1) return 0;
+          return window._mgtools_currentSlotIndex || 0;
+      }
+
       function calculateCurrentSlotValue(currentCrop) {
           if (!currentCrop || currentCrop.length === 0) return 0;
-  
+
           const friendBonus = UnifiedState.atoms.friendBonus || 1;
-          let totalValue = 0;
-  
-          currentCrop.forEach(slot => {
-              if (!slot || !slot.species) return;
-  
-              // Use same calculation as ValueManager.calculateTileValue()
-              const multiplier = calculateMutationMultiplier(slot.mutations);
-              const speciesVal = speciesValues[slot.species] || 0;
-              const scale = slot.targetScale || 1;
-  
-              totalValue += Math.round(multiplier * speciesVal * scale * friendBonus);
+          let slotIndex = getCurrentSlotIndex(currentCrop);
+
+          // If we have sorted indices, use them to get the actual slot
+          const sortedIndices = UnifiedState.atoms.sortedSlotIndices || window.sortedSlotIndices;
+          let actualSlotIndex = slotIndex;
+
+          if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0) {
+              // The window._mgtools_currentSlotIndex is the position in the sorted array
+              // The value at that position is the actual slot index in currentCrop
+              if (slotIndex < sortedIndices.length) {
+                  actualSlotIndex = sortedIndices[slotIndex];
+                  console.log(`🔄 [CROP-VALUE] Using sorted index: position ${slotIndex} → actual slot ${actualSlotIndex}`);
+              }
+          }
+
+          // Debug logging
+          console.log(`📊 [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
+              displayIndex: slotIndex,
+              actualSlotIndex,
+              cropCount: currentCrop.length,
+              windowIndex: window._mgtools_currentSlotIndex,
+              sortedIndices
           });
-  
-          return totalValue;
+
+          // Validate slot index
+          if (actualSlotIndex < 0 || actualSlotIndex >= currentCrop.length) {
+              console.error(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
+              window._mgtools_currentSlotIndex = 0; // Reset to safe value
+              return 0;
+          }
+
+          const slot = currentCrop[actualSlotIndex];
+          if (!slot || !slot.species) {
+              console.log(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
+              return 0;
+          }
+
+          const multiplier = calculateMutationMultiplier(slot.mutations);
+          const speciesVal = speciesValues[slot.species] || 0;
+          const scale = slot.targetScale || 1;
+          const value = Math.round(multiplier * speciesVal * scale * friendBonus);
+
+          // Always log for debugging the issue
+          console.log(`💰 [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`, {
+              species: slot.species,
+              speciesVal,
+              multiplier,
+              scale,
+              friendBonus,
+              value
+          });
+
+          return value;
       }
   
       // Hook currentCrop atom for turtle timer
       
 function initializeTurtleTimer() {
     productionLog('🐢 [TURTLE-TIMER] Initializing crop growth estimate...');
+
+    // Start listening to slot index changes
+    listenToSlotIndexAtom();
+
+    // Also hook the sorted slot indices atom for proper order tracking
+    hookAtom(
+        "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentSortedGrowSlotIndicesAtom",
+        "sortedSlotIndices",
+        (value) => {
+            console.log('📋 [SORTED-SLOTS] Sorted slot indices:', value);
+            return value;
+        }
+    );
 
     // Hook currentCrop atom
     hookAtom(
@@ -19449,6 +19660,9 @@ function initializeTurtleTimer() {
             insertTurtleEstimate();
         })
     );
+
+    // Slot index tracking is now handled by listenToSlotIndexAtom()
+    // which directly listens to the game's myCurrentGrowSlotIndex atom
 
     productionLog('✅ [TURTLE-TIMER] Turtle timer initialized successfully');
 }
