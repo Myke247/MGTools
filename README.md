@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.2.6** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.3.1** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.2.6-blue) ![Status](https://img.shields.io/badge/status-stable-green)
+![MGTools](https://img.shields.io/badge/version-3.3.1-blue) ![Status](https://img.shields.io/badge/status-stable-green)
 
 ---
 
@@ -57,10 +57,14 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - Custom timers with pause/resume
 - Shop refresh tracker
 
-### 🏠 Room Monitor
+### 🏠 Room Monitor & Management
+- **NEW: Custom Room Management** - Add, delete, and reorder your tracked rooms
+- **NEW: Discord Auto-Detection** - Automatically adds Discord play rooms (play#1-10)
+- **NEW: Drag & Drop Reordering** - Organize rooms in your preferred order
+- **Enhanced Search** - Type any room code to quickly find and join
 - Firebase integration for real-time room status
-- Track room activity and player presence
-- Quick room switching
+- Track room activity and player presence with live counts
+- All changes save automatically and persist across sessions
 
 ### 🛒 Quick Shop
 - **Alt+B** hotkey for instant seed/egg/decor browsing
@@ -218,6 +222,14 @@ The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) 
 1. Click Timers tab
 2. Click "Start Turtle Timer" when you plant
 3. Countdown appears on Timers dock badge
+
+**Manage Custom Rooms** (NEW!):
+1. Click Rooms tab (🏠)
+2. **Search for any room**: Type room code in search box at top
+3. **Add custom rooms**: Enter room code at bottom and click "Add"
+4. **Reorder rooms**: Drag the ⋮⋮ handle to rearrange
+5. **Delete rooms**: Click ❌ to remove from your list
+6. All changes save automatically!
 
 ---
 
@@ -391,6 +403,7 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 - Theme settings
 - All preferences
 - Locked crops configuration
+- Custom room list (with your additions and order)
 
 ---
 
@@ -408,12 +421,13 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.2.6)
+### Latest Updates (v3.3.1)
+- **v3.3.1**: 🔧 **Stability Improvements** - Enhanced localStorage handling for better compatibility across different environments.
+- **v3.3.0**: 🎉 **Major Update - Custom Room Management!** Add your own rooms, delete unwanted ones, and drag-to-reorder. Discord play rooms auto-detected! Enhanced search with full keyboard support.
+- **v3.2.9**: Added "No Mutation" convenience toggle for crop protection and fixed ability log timezone display to show user's local time
+- **v3.2.8**: Fixed Chilled mutation crop protection - crops with Chilled mutation now properly protected from harvesting
 - **v3.2.6**: Fixed crop cycling values - turtle timers and crop values now display correctly when cycling through multiple crops on same tile
 - **v3.2.5**: Updated slot value tile icon
-- **v3.2.4**: Fixed crop protection unlock not releasing crops
-- **v3.2.3**: Fixed tooltip coin icon visibility
-- **v3.2.2**: Fixed coin emoji visibility using Discord CDN image
 
 ---
 
