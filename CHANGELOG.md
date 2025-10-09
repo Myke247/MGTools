@@ -1,5 +1,16 @@
 # Changelog - MGTools
 
+## Version 3.2.9 (2025-10-08)
+
+### ✨ New Features
+- Added "No Mutation" checkbox as a convenience toggle - automatically checks/unchecks all mutation protection options (Rainbow, Frozen, Wet, Chilled, Gold) at once
+
+### 🐛 Bug Fixes
+- Fixed ability log timestamps to properly display in user's local timezone
+- Improved time formatting for better clarity (explicit hour/minute formatting)
+
+---
+
 ## Version 3.2.8 (2025-10-08)
 
 ### 🐛 Bug Fixes
