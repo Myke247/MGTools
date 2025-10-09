@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.8
+// @version      3.2.9
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
       'use strict';
   
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.2.8';  // Your local development version
+      const CURRENT_VERSION = '3.2.9';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -10308,20 +10308,28 @@ async function initializeFirebase() {
           if (MGA_AbilityCache.timestamps.has(cacheKey)) {
               return MGA_AbilityCache.timestamps.get(cacheKey);
           }
-  
+
           const date = new Date(timestamp);
           let formatted;
           if (UnifiedState.data.settings.detailedTimestamps) {
-              // Return HH:MM:SS format
-              formatted = date.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              // Return HH:MM:SS format in user's local timezone
+              formatted = date.toLocaleTimeString(undefined, {
+                  hour12: false,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
+              });
           } else {
-              // Return default H:MM AM/PM format
-              formatted = date.toLocaleTimeString();
+              // Return default H:MM AM/PM format in user's local timezone
+              formatted = date.toLocaleTimeString(undefined, {
+                  hour: 'numeric',
+                  minute: '2-digit'
+              });
           }
-  
+
           // PERFORMANCE: Cache result (cleared every minute via setInterval)
           MGA_AbilityCache.timestamps.set(cacheKey, formatted);
-  
+
           return formatted;
       }
   
@@ -15244,7 +15252,7 @@ async function initializeFirebase() {
       function setupProtectTabHandlers(context = document) {
           // Actual game crop species (from shop)
           const cropSpecies = ['Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
-          const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold'];
+          const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'No Mutation'];
   
           // Initialize locked crops if not exists
           if (!UnifiedState.data.lockedCrops) {
@@ -15303,13 +15311,47 @@ async function initializeFirebase() {
           context.querySelectorAll('.protect-mutation-checkbox').forEach(checkbox => {
               checkbox.addEventListener('change', (e) => {
                   const mutation = e.target.value;
-                  if (e.target.checked) {
-                      if (!lockedCrops.mutations.includes(mutation)) {
-                          lockedCrops.mutations.push(mutation);
+
+                  // Special handling for "No Mutation" - it's a "select all" toggle
+                  if (mutation === 'No Mutation') {
+                      const allMutationCheckboxes = context.querySelectorAll('.protect-mutation-checkbox');
+                      const otherMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold'];
+
+                      if (e.target.checked) {
+                          // Check all other mutation checkboxes
+                          allMutationCheckboxes.forEach(cb => {
+                              if (cb.value !== 'No Mutation') {
+                                  cb.checked = true;
+                                  if (!lockedCrops.mutations.includes(cb.value)) {
+                                      lockedCrops.mutations.push(cb.value);
+                                  }
+                              }
+                          });
+                      } else {
+                          // Uncheck all other mutation checkboxes
+                          allMutationCheckboxes.forEach(cb => {
+                              if (cb.value !== 'No Mutation') {
+                                  cb.checked = false;
+                              }
+                          });
+                          lockedCrops.mutations = [];
                       }
                   } else {
-                      lockedCrops.mutations = lockedCrops.mutations.filter(m => m !== mutation);
+                      // Regular mutation checkbox
+                      if (e.target.checked) {
+                          if (!lockedCrops.mutations.includes(mutation)) {
+                              lockedCrops.mutations.push(mutation);
+                          }
+                      } else {
+                          lockedCrops.mutations = lockedCrops.mutations.filter(m => m !== mutation);
+                          // Uncheck "No Mutation" if any individual mutation is unchecked
+                          const noMutationCheckbox = context.querySelector('.protect-mutation-checkbox[value="No Mutation"]');
+                          if (noMutationCheckbox) {
+                              noMutationCheckbox.checked = false;
+                          }
+                      }
                   }
+
                   MGA_saveJSON('MGA_data', UnifiedState.data);
                   updateProtectStatus(context);
                   applyHarvestRule();
