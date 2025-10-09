@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.9
+// @version      3.3.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -51,9 +51,69 @@
   
   (function() {
       'use strict';
-  
+
+      // ==================== SAFE LOCALSTORAGE WRAPPER ====================
+      // Discord iframes don't have localStorage access, so we need a fallback
+      const safeStorage = (() => {
+          const memoryStore = {};
+          let nativeLocalStorage;
+          let isLocalStorageAvailable = false;
+
+          // Try to access native localStorage
+          try {
+              if (typeof window.localStorage !== 'undefined') {
+                  nativeLocalStorage = window.localStorage;
+                  const test = '__localStorage_test__';
+                  nativeLocalStorage.setItem(test, test);
+                  nativeLocalStorage.removeItem(test);
+                  isLocalStorageAvailable = true;
+              }
+          } catch (e) {
+              console.warn('[MGTools] localStorage not available (Discord iframe?), using memory fallback');
+              isLocalStorageAvailable = false;
+          }
+
+          return {
+              getItem: (key) => {
+                  if (isLocalStorageAvailable) {
+                      return nativeLocalStorage.getItem(key);
+                  }
+                  return memoryStore[key] || null;
+              },
+              setItem: (key, value) => {
+                  if (isLocalStorageAvailable) {
+                      nativeLocalStorage.setItem(key, value);
+                  } else {
+                      memoryStore[key] = String(value);
+                  }
+              },
+              removeItem: (key) => {
+                  if (isLocalStorageAvailable) {
+                      nativeLocalStorage.removeItem(key);
+                  } else {
+                      delete memoryStore[key];
+                  }
+              },
+              get length() {
+                  if (isLocalStorageAvailable) {
+                      return nativeLocalStorage.length;
+                  }
+                  return Object.keys(memoryStore).length;
+              },
+              key: (index) => {
+                  if (isLocalStorageAvailable) {
+                      return nativeLocalStorage.key(index);
+                  }
+                  return Object.keys(memoryStore)[index] || null;
+              }
+          };
+      })();
+
+      // Override localStorage globally for this script
+      const localStorage = safeStorage;
+
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.2.9';  // Your local development version
+      const CURRENT_VERSION = '3.3.1';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -1330,6 +1390,7 @@
                   currentRoom: null,
                   reporterId: null
               },
+              customRooms: [], // Dynamic list of tracked rooms (initialized with defaults below)
               timers: {
                   seed: null,
                   egg: null,
@@ -1467,8 +1528,33 @@
       };
   
       const REPORT_INTERVAL = 5000; // Report room count every 5 seconds
-      const TRACKED_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'SLAY'];
+      const DEFAULT_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'SLAY']; // Default tracked rooms
+      const DISCORD_PLAY_ROOMS = ['play#1', 'play#2', 'play#3', 'play#4', 'play#5', 'play#6', 'play#7', 'play#8', 'play#9', 'play#10']; // Discord activity rooms
   
+      // Detect if running in Discord environment
+      function isDiscordEnvironment() {
+          try {
+              // Check if in Discord iframe or Discord-hosted URL
+              const isIframe = window.location !== window.parent.location;
+              const isDiscordHost = window.location.host.includes('discordsays.com');
+              const isDiscordActivity = isIframe || isDiscordHost;
+
+              if (UnifiedState.data.settings?.debugMode) {
+                  productionLog('[Discord Detection]', {
+                      isIframe,
+                      isDiscordHost,
+                      isDiscordActivity,
+                      host: window.location.host
+                  });
+              }
+
+              return isDiscordActivity;
+          } catch (err) {
+              console.error('Failed to detect Discord environment:', err);
+              return false;
+          }
+      }
+
       // Get current room code from URL
       function getCurrentRoomCode() {
           try {
@@ -1544,7 +1630,7 @@ async function initializeFirebase() {
                 async function tick(){
                     if (abort) return;
                     const out = {};
-                    for (const rc of TRACKED_ROOMS){
+                    for (const rc of UnifiedState.data.customRooms){
                         out[rc] = await fetchInfo(rc);
                     }
                     const snapshot = { val: () => out };
@@ -1685,7 +1771,7 @@ async function initializeFirebase() {
   
                   // Update room counts - use the highest count from fresh data to prevent flickering
                   const counts = {};
-                  TRACKED_ROOMS.forEach(roomCode => {
+                  UnifiedState.data.customRooms.forEach(roomCode => {
                       if (roomData[roomCode]) {
                           const age = Date.now() - (roomData[roomCode].lastUpdate || 0);
                           const newCount = age < 30000 ? (roomData[roomCode].count || 0) : 0;
@@ -1726,7 +1812,7 @@ async function initializeFirebase() {
           const currentRoom = getCurrentRoomCode();
           const roomCounts = UnifiedState.data.roomStatus.counts;
   
-          roomList.innerHTML = TRACKED_ROOMS.map(roomCode => {
+          roomList.innerHTML = UnifiedState.data.customRooms.map(roomCode => {
               const count = roomCounts[roomCode] || 0;
               const displayCount = Math.min(count, 6);
               const isCurrentRoom = roomCode === currentRoom;
@@ -1740,14 +1826,20 @@ async function initializeFirebase() {
               const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)';
   
               return `
-                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s;">
-                      <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                          <span style="font-weight: bold; color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'}; font-size: 14px; min-width: 45px;">${roomCode}</span>
-                          <span style="font-weight: bold; color: ${statusColor}; font-size: 13px; min-width: 50px;">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
+                  <div class="room-item" draggable="true" data-room="${roomCode}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s; cursor: grab !important; user-select: none;">
+                      <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: grab !important;">
+                          <span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>
+                          <span style="font-weight: bold; color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'}; font-size: 14px; min-width: 45px; cursor: grab !important;">${roomCode}</span>
+                          <span style="font-weight: bold; color: ${statusColor}; font-size: 13px; min-width: 50px; cursor: grab !important;">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
                       </div>
-                      <button class="mga-button room-join-btn" data-room="${roomCode}" style="padding: 6px 14px; font-size: 12px; background: ${isCurrentRoom ? '#666' : '#4a9eff'}; color: white; border: none; border-radius: 4px; cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'}; opacity: ${isCurrentRoom ? '0.5' : '1'};" ${isCurrentRoom ? 'disabled' : ''}>
-                          ${isCurrentRoom ? 'Current' : 'Join'}
-                      </button>
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                          <button class="mga-button room-join-btn" data-room="${roomCode}" style="padding: 6px 14px; font-size: 12px; background: ${isCurrentRoom ? '#666' : '#4a9eff'}; color: white; border: none; border-radius: 4px; cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important; opacity: ${isCurrentRoom ? '0.5' : '1'};" ${isCurrentRoom ? 'disabled' : ''}>
+                              ${isCurrentRoom ? 'Current' : 'Join'}
+                          </button>
+                          <button class="room-delete-btn" data-room="${roomCode}" style="padding: 6px 10px; font-size: 14px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer !important; opacity: 0.8; transition: opacity 0.2s;" title="Remove room from list">
+                              ❌
+                          </button>
+                      </div>
                   </div>
               `;
           }).join('');
@@ -1775,16 +1867,77 @@ async function initializeFirebase() {
           if (searchInput && !searchInput.hasAttribute('data-handler-attached')) {
               searchInput.setAttribute('data-handler-attached', 'true');
   
-              // FIX: Stop hotkey system from intercepting keypresses in search input
-              searchInput.addEventListener('keydown', (e) => {
-                  e.stopPropagation(); // Prevent hotkey system from seeing these events
-              }, true); // Use capture phase to intercept before hotkey system
+              // FIX: Aggressively block ALL game hotkeys when typing in search input
+              // The game has special handlers for M/G keys that cause focus loss
+              const aggressiveBlocker = (e) => {
+                  if (document.activeElement === searchInput || e.target === searchInput) {
+                      // COMPLETELY prevent game from seeing this event
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      e.preventDefault();
+
+                      // For keydown, manually insert the character if it's a printable key
+                      if (e.type === 'keydown' && !e.repeat && e.key.length === 1 && !e.ctrlKey && !e.altKey) {
+                          // Insert character at cursor position
+                          const start = searchInput.selectionStart;
+                          const end = searchInput.selectionEnd;
+                          const currentValue = searchInput.value;
+
+                          searchInput.value = currentValue.substring(0, start) + e.key + currentValue.substring(end);
+                          searchInput.selectionStart = searchInput.selectionEnd = start + 1;
+
+                          // Trigger input event for search filtering
+                          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                      }
+
+                      // Handle backspace manually
+                      if (e.type === 'keydown' && e.key === 'Backspace') {
+                          const start = searchInput.selectionStart;
+                          const end = searchInput.selectionEnd;
+                          const currentValue = searchInput.value;
+
+                          if (start !== end) {
+                              // Delete selection
+                              searchInput.value = currentValue.substring(0, start) + currentValue.substring(end);
+                              searchInput.selectionStart = searchInput.selectionEnd = start;
+                          } else if (start > 0) {
+                              // Delete one character
+                              searchInput.value = currentValue.substring(0, start - 1) + currentValue.substring(start);
+                              searchInput.selectionStart = searchInput.selectionEnd = start - 1;
+                          }
+
+                          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                      }
+
+                      return false;
+                  }
+              };
+
+              // Install at DOCUMENT level in capture phase to intercept FIRST
+              document.addEventListener('keydown', aggressiveBlocker, true);
+              document.addEventListener('keyup', aggressiveBlocker, true);
+              document.addEventListener('keypress', aggressiveBlocker, true);
+
+              // Also add focus protection - if input loses focus unexpectedly, reclaim it
+              let lastFocusTime = 0;
+              searchInput.addEventListener('focus', () => {
+                  lastFocusTime = Date.now();
+              });
+
+              searchInput.addEventListener('blur', (e) => {
+                  // If blur happens very quickly after focus (< 100ms), it's likely the game stealing focus
+                  const timeSinceFocus = Date.now() - lastFocusTime;
+                  if (timeSinceFocus < 100 && searchInput.value.length > 0) {
+                      // Reclaim focus
+                      setTimeout(() => searchInput.focus(), 0);
+                  }
+              });
   
               searchInput.addEventListener('input', (e) => {
                   const query = e.target.value.trim().toUpperCase();
                   const roomList = document.getElementById('room-status-list');
   
-                  if (query && !TRACKED_ROOMS.includes(query)) {
+                  if (query && !UnifiedState.data.customRooms.includes(query)) {
                       // Show searched room
                       const currentRoom = getCurrentRoomCode();
                       const roomCounts = UnifiedState.data.roomStatus?.counts || {};
@@ -1813,8 +1966,172 @@ async function initializeFirebase() {
                   }
               });
           }
-      }
   
+          // Setup add room button handler
+          const addRoomBtn = document.getElementById('add-room-btn');
+          const addRoomInput = document.getElementById('add-room-input');
+
+          if (addRoomBtn && addRoomInput && !addRoomBtn.hasAttribute('data-handler-attached')) {
+              addRoomBtn.setAttribute('data-handler-attached', 'true');
+
+              const handleAddRoom = () => {
+                  const roomCode = addRoomInput.value.trim().toUpperCase();
+
+                  // Validate room code
+                  if (!roomCode) {
+                      alert('Please enter a room code');
+                      return;
+                  }
+
+                  // Check if already exists
+                  if (UnifiedState.data.customRooms.includes(roomCode)) {
+                      alert(`Room "${roomCode}" is already in your list`);
+                      return;
+                  }
+
+                  // Add to custom rooms
+                  UnifiedState.data.customRooms.push(roomCode);
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                  // Clear input
+                  addRoomInput.value = '';
+
+                  // Refresh display
+                  updateRoomStatusDisplay();
+
+                  productionLog(`[Rooms] Added custom room: ${roomCode}`);
+              };
+
+              addRoomBtn.addEventListener('click', handleAddRoom);
+
+              // Also add on Enter key
+              addRoomInput.addEventListener('keypress', (e) => {
+                  if (e.key === 'Enter') {
+                      handleAddRoom();
+                  }
+              });
+
+              // Stop hotkeys from triggering when typing in add room input
+              addRoomInput.addEventListener('keydown', (e) => {
+                  e.stopPropagation();
+              });
+              addRoomInput.addEventListener('keyup', (e) => {
+                  e.stopPropagation();
+              });
+              addRoomInput.addEventListener('keypress', (e) => {
+                  e.stopPropagation();
+              });
+          }
+
+          // Setup delete room button handlers
+          document.querySelectorAll('.room-delete-btn:not([data-handler-attached])').forEach(btn => {
+              btn.setAttribute('data-handler-attached', 'true');
+              btn.addEventListener('click', (e) => {
+                  e.stopPropagation(); // Don't trigger parent clicks
+
+                  const roomCode = btn.getAttribute('data-room');
+
+                  // Confirm deletion
+                  if (!confirm(`Remove "${roomCode}" from your tracked rooms?`)) {
+                      return;
+                  }
+
+                  // Remove from custom rooms
+                  UnifiedState.data.customRooms = UnifiedState.data.customRooms.filter(code => code !== roomCode);
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                  // Refresh display
+                  updateRoomStatusDisplay();
+
+                  productionLog(`[Rooms] Removed custom room: ${roomCode}`);
+              });
+          });
+
+          // Setup drag-and-drop reordering
+          let draggedElement = null;
+          let draggedRoomCode = null;
+
+          document.querySelectorAll('.room-item').forEach(item => {
+              // Dragstart
+              item.addEventListener('dragstart', (e) => {
+                  draggedElement = item;
+                  draggedRoomCode = item.getAttribute('data-room');
+                  item.style.opacity = '0.5';
+                  item.style.cursor = 'grabbing';
+                  e.dataTransfer.effectAllowed = 'move';
+
+                  // Create transparent 1x1 canvas to completely hide drag image
+                  const canvas = document.createElement('canvas');
+                  canvas.width = 1;
+                  canvas.height = 1;
+                  const ctx = canvas.getContext('2d');
+                  ctx.clearRect(0, 0, 1, 1); // Transparent pixel
+
+                  // Set as drag image (offset by -10, -10 to hide completely)
+                  e.dataTransfer.setDragImage(canvas, -10, -10);
+              });
+
+              // Dragend
+              item.addEventListener('dragend', (e) => {
+                  item.style.opacity = '1';
+                  item.style.cursor = 'grab';
+                  draggedElement = null;
+                  draggedRoomCode = null;
+              });
+
+              // Dragover
+              item.addEventListener('dragover', (e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+
+                  if (draggedElement && draggedElement !== item) {
+                      // Visual feedback
+                      item.style.borderTop = '2px solid #4a9eff';
+                  }
+              });
+
+              // Dragleave
+              item.addEventListener('dragleave', (e) => {
+                  item.style.borderTop = '';
+              });
+
+              // Drop
+              item.addEventListener('drop', (e) => {
+                  e.preventDefault();
+                  item.style.borderTop = '';
+
+                  if (!draggedRoomCode || !draggedElement) return;
+
+                  const targetRoomCode = item.getAttribute('data-room');
+
+                  if (draggedRoomCode === targetRoomCode) return;
+
+                  // Reorder the customRooms array
+                  const newOrder = [...UnifiedState.data.customRooms];
+                  const draggedIndex = newOrder.indexOf(draggedRoomCode);
+                  const targetIndex = newOrder.indexOf(targetRoomCode);
+
+                  if (draggedIndex === -1 || targetIndex === -1) return;
+
+                  // Remove dragged item
+                  newOrder.splice(draggedIndex, 1);
+
+                  // Insert at new position
+                  const insertIndex = draggedIndex < targetIndex ? targetIndex : targetIndex;
+                  newOrder.splice(insertIndex, 0, draggedRoomCode);
+
+                  // Update state
+                  UnifiedState.data.customRooms = newOrder;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                  // Refresh display
+                  updateRoomStatusDisplay();
+
+                  productionLog(`[Rooms] Reordered: moved ${draggedRoomCode} to position ${insertIndex + 1}`);
+              });
+          });
+      }
+
       // ==================== SIMPLE PET DETECTION ====================
       function getActivePetsFromRoomState() {
           productionLog('🔧 [DEBUG] getActivePetsFromRoomState() called - checking for pets...');
@@ -9547,7 +9864,7 @@ async function initializeFirebase() {
                   </div>
   
                   <div id="room-status-list" style="display: flex; flex-direction: column; gap: 8px;">
-                      ${TRACKED_ROOMS.map(roomCode => {
+                      ${UnifiedState.data.customRooms.map(roomCode => {
                           const count = roomCounts[roomCode] || 0;
                           const displayCount = Math.min(count, 6);
                           const isCurrentRoom = roomCode === currentRoom;
@@ -9562,7 +9879,7 @@ async function initializeFirebase() {
                           const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)';
   
                           return `
-                              <div style="
+                              <div class="room-item" draggable="true" data-room="${roomCode}" style="
                                   display: flex;
                                   align-items: center;
                                   justify-content: space-between;
@@ -9571,33 +9888,53 @@ async function initializeFirebase() {
                                   border: 1px solid ${borderColor};
                                   border-radius: 6px;
                                   transition: all 0.2s;
+                                  cursor: grab !important;
+                                  user-select: none;
                               ">
-                                  <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                  <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: grab !important;">
+                                      <span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>
                                       <span style="
                                           font-weight: bold;
                                           color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'};
                                           font-size: 14px;
                                           min-width: 45px;
+                                          cursor: grab !important;
                                       ">${roomCode}</span>
                                       <span style="
                                           font-weight: bold;
                                           color: ${statusColor};
                                           font-size: 13px;
                                           min-width: 50px;
+                                          cursor: grab !important;
                                       ">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
                                   </div>
-                                  <button class="mga-button room-join-btn" data-room="${roomCode}" style="
-                                      padding: 6px 14px;
-                                      font-size: 12px;
-                                      background: ${isCurrentRoom ? '#666' : '#4a9eff'};
-                                      color: white;
-                                      border: none;
-                                      border-radius: 4px;
-                                      cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'};
-                                      opacity: ${isCurrentRoom ? '0.5' : '1'};
-                                  " ${isCurrentRoom ? 'disabled' : ''}>
-                                      ${isCurrentRoom ? 'Current' : 'Join'}
-                                  </button>
+                                  <div style="display: flex; gap: 8px; align-items: center;">
+                                      <button class="mga-button room-join-btn" data-room="${roomCode}" style="
+                                          padding: 6px 14px;
+                                          font-size: 12px;
+                                          background: ${isCurrentRoom ? '#666' : '#4a9eff'};
+                                          color: white;
+                                          border: none;
+                                          border-radius: 4px;
+                                          cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important;
+                                          opacity: ${isCurrentRoom ? '0.5' : '1'};
+                                      " ${isCurrentRoom ? 'disabled' : ''}>
+                                          ${isCurrentRoom ? 'Current' : 'Join'}
+                                      </button>
+                                      <button class="room-delete-btn" data-room="${roomCode}" style="
+                                          padding: 6px 10px;
+                                          font-size: 14px;
+                                          background: #ef4444;
+                                          color: white;
+                                          border: none;
+                                          border-radius: 4px;
+                                          cursor: pointer !important;
+                                          opacity: 0.8;
+                                          transition: opacity 0.2s;
+                                      " title="Remove room from list">
+                                          ❌
+                                      </button>
+                                  </div>
                               </div>
                           `;
                       }).join('')}
@@ -9612,6 +9949,29 @@ async function initializeFirebase() {
                           • Your current room is highlighted in blue<br>
                           • Click "Join" to navigate to any room instantly
                       </div>
+                  </div>
+              </div>
+
+              <!-- Add Room Section -->
+              <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;">
+                  <div style="font-weight: bold; color: #60a5fa; margin-bottom: 8px; font-size: 13px;">➕ Add Custom Room</div>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                      <input type="text" id="add-room-input" placeholder="Room code (e.g., MG11)"
+                          style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                          border-radius: 4px; color: white; font-size: 12px; text-transform: uppercase;">
+                      <button id="add-room-btn" class="mga-button" style="
+                          padding: 8px 16px;
+                          font-size: 12px;
+                          background: #4ade80;
+                          color: white;
+                          border: none;
+                          border-radius: 4px;
+                          cursor: pointer;
+                          font-weight: bold;
+                      ">Add</button>
+                  </div>
+                  <div style="font-size: 10px; color: #888; margin-top: 6px;">
+                      Tip: Drag rooms to reorder, click ❌ to remove
                   </div>
               </div>
           `;
@@ -15091,14 +15451,17 @@ async function initializeFirebase() {
       }
   
       function handleHotkeyPress(e) {
-          // Skip if disabled, typing in input, recording a hotkey, or in room search
+          // Skip if disabled, typing in input, recording a hotkey, or in room search/add room inputs
           const isRoomSearch = e.target && e.target.id === 'room-search-input';
+          const isAddRoomInput = e.target && e.target.id === 'add-room-input';
+          const isRoomSearchFocused = document.activeElement && document.activeElement.id === 'room-search-input';
+          const isAddRoomFocused = document.activeElement && document.activeElement.id === 'add-room-input';
   
           // CRITICAL: Skip simulated events to prevent infinite loops
           // Simulated events have isTrusted: false, real user keypresses have isTrusted: true
           if (!e.isTrusted) return;
   
-          if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey || isRoomSearch) return;
+          if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey || isRoomSearch || isRoomSearchFocused || isAddRoomInput || isAddRoomFocused) return;
   
           const isKeyDown = e.type === 'keydown';
           const isKeyUp = e.type === 'keyup';
@@ -20057,6 +20420,26 @@ function initializeTurtleTimer() {
           // Save merged settings
           MGA_saveJSON('MGA_data', UnifiedState.data);
           productionLog('🔔 [NOTIFICATIONS] Ensured all notification settings have defaults');
+
+          // Load customRooms from saved data
+          if (loadedData && loadedData.customRooms && Array.isArray(loadedData.customRooms) && loadedData.customRooms.length > 0) {
+              // Load from saved data
+              UnifiedState.data.customRooms = loadedData.customRooms;
+              productionLog('🏠 [ROOMS] Loaded custom rooms from storage:', UnifiedState.data.customRooms);
+          } else {
+              // Initialize with defaults (first time only)
+              UnifiedState.data.customRooms = [...DEFAULT_ROOMS];
+
+              // Add Discord play rooms if in Discord environment
+              if (isDiscordEnvironment()) {
+                  UnifiedState.data.customRooms.push(...DISCORD_PLAY_ROOMS);
+                  productionLog('🎮 [ROOMS] Discord environment detected - added Discord play rooms');
+              }
+
+              // Save custom rooms
+              MGA_saveJSON('MGA_data', UnifiedState.data);
+              productionLog('🏠 [ROOMS] Initialized custom rooms (first time):', UnifiedState.data.customRooms);
+          }
   
           // Load hotkeys data
           const savedHotkeys = MGA_loadJSON('MGA_hotkeys', null);
@@ -22876,7 +23259,7 @@ function initializeTurtleTimer() {
     (function roomsInfo(){
       const API_V1 = (name)=> `${location.origin}/api/rooms/${encodeURIComponent(name)}/info`;
       const API_V2 = (name)=> `${location.origin}/info?room=${encodeURIComponent(name)}`;
-      const TRACKED = (window.TRACKED_ROOMS || ['MG1','MG2','MG3','MG4','MG5','MG6','MG7','MG8','MG9','MG10','SLAY']);
+      const TRACKED = (window.UnifiedState?.data?.customRooms || window.TRACKED_ROOMS || ['MG1','MG2','MG3','MG4','MG5','MG6','MG7','MG8','MG9','MG10','SLAY']);
       let extra = new Set();
       const counts = {};
 
