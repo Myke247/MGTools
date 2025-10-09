@@ -1,5 +1,47 @@
 # Changelog - MGTools
 
+## Version 3.3.1 (2025-10-09)
+
+### 🐛 Critical Fix
+
+**Discord Compatibility**
+- Fixed script crash when running in Discord iframe environment
+- Added safe localStorage wrapper with memory fallback
+- Script now launches properly in Discord without errors
+- Important user data (presets, settings, custom rooms) still persists via Tampermonkey storage
+
+---
+
+## Version 3.3.0 (2025-10-09)
+
+### ✨ Major New Features
+
+**🏠 Custom Room Management System**
+- Add your own custom rooms to track - no more being limited to the default list!
+- Delete rooms you don't need from your tracked list
+- Drag and drop to reorder rooms in your preferred arrangement
+- All changes save automatically and persist across page refreshes
+- Perfect for organizing your favorite rooms or friend group rooms
+
+**🎮 Discord Play Rooms Auto-Detection**
+- Playing through Discord? MGTools now automatically detects the Discord environment
+- Discord play rooms (play#1 through play#10) are added to your room list automatically
+- Seamless experience whether you're playing through browser or Discord
+
+**🔍 Enhanced Room Search**
+- Improved search field with full keyboard support
+- Type any room code to instantly search and join
+- Game hotkeys no longer interfere when typing in search box
+- Smooth, responsive search experience
+
+**✨ UI & Visual Polish**
+- Refined drag-and-drop with proper cursor feedback (grab hand icon)
+- Cleaner room item styling with better visual hierarchy
+- Improved button interactions and hover states
+- More intuitive overall experience
+
+---
+
 ## Version 3.2.9 (2025-10-08)
 
 ### ✨ New Features
