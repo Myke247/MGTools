@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.2.6
+// @version      3.2.7
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -53,7 +53,7 @@
       'use strict';
   
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.2.6';  // Your local development version
+      const CURRENT_VERSION = '3.2.7';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -22515,7 +22515,7 @@ function initializeTurtleTimer() {
   
     /* Ensure our estimate/slot-value paragraphs behave as full-width, centered lines
        so they appear centered inside the game's tooltip textbox regardless of container quirks. */
-    [data-estimate="true"] {
+    [data-turtletimer-estimate="true"] {
       display: block !important;
       width: 100% !important;
       box-sizing: border-box !important;
@@ -22527,8 +22527,8 @@ function initializeTurtleTimer() {
       font-size: 14px !important;
       line-height: 1.25 !important;
     }
-  
-    [data-slot-value="true"] {
+
+    [data-turtletimer-slot-value="true"] {
       display: block !important;
       width: 100% !important;
       box-sizing: border-box !important;
