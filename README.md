@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.3.1** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.3.3** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.3.1-blue) ![Status](https://img.shields.io/badge/status-stable-green)
+![MGTools](https://img.shields.io/badge/version-3.3.3-blue) ![Status](https://img.shields.io/badge/status-stable-green)
 
 ---
 
@@ -421,13 +421,13 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.3.1)
-- **v3.3.1**: 🔧 **Stability Improvements** - Enhanced localStorage handling for better compatibility across different environments.
-- **v3.3.0**: 🎉 **Major Update - Custom Room Management!** Add your own rooms, delete unwanted ones, and drag-to-reorder. Discord play rooms auto-detected! Enhanced search with full keyboard support.
+### Latest Updates (v3.3.3)
+- **v3.3.3**: 🐛 **Bug Fixes** - Fixed ESC key, room search focus, turtle timers, and egg timer calculations
+- **v3.3.1**: 🔧 **Stability Improvements** - Enhanced localStorage handling for better compatibility across different environments
+- **v3.3.0**: 🎉 **Major Update - Custom Room Management!** Add your own rooms, delete unwanted ones, and drag-to-reorder. Discord play rooms auto-detected! Enhanced search with full keyboard support
 - **v3.2.9**: Added "No Mutation" convenience toggle for crop protection and fixed ability log timezone display to show user's local time
 - **v3.2.8**: Fixed Chilled mutation crop protection - crops with Chilled mutation now properly protected from harvesting
 - **v3.2.6**: Fixed crop cycling values - turtle timers and crop values now display correctly when cycling through multiple crops on same tile
-- **v3.2.5**: Updated slot value tile icon
 
 ---
 

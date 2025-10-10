@@ -1,5 +1,23 @@
 # Changelog - MGTools
 
+## Version 3.3.3 (2025-10-09)
+
+### 🐛 Bug Fixes
+
+**Sidebar & Navigation**
+- Fixed ESC key not closing sidebar panels
+
+**Room Search**
+- Fixed focus loss when typing tracked room names in search field
+
+**Turtle Timers**
+- Fixed turtle timers not appearing when standing on crops with turtles equipped
+- Fixed pet swap not instantly refreshing timer display
+- Fixed egg timer calculations to use actual remaining time instead of static values
+- Added proper egg boost calculations for turtle pets
+
+---
+
 ## Version 3.3.1 (2025-10-09)
 
 ### 🐛 Critical Fix
