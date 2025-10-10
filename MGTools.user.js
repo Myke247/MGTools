@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.3.1
+// @version      3.3.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -113,7 +113,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.3.1';  // Your local development version
+      const CURRENT_VERSION = '3.3.3';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -1342,13 +1342,11 @@
           { id: 'StoneBridge', name: 'Stone Bridge', category: 'Stone' },
           { id: 'StoneLampPost', name: 'Stone Lamp Post', category: 'Stone' },
           { id: 'StoneGnome', name: 'Stone Gnome', category: 'Stone' },
-          { id: 'StoneWell', name: 'Stone Well', category: 'Stone' },
-          // Other
-          { id: 'Windmill', name: 'Windmill', category: 'Other' },
-          { id: 'Fountain', name: 'Fountain', category: 'Other' },
-          { id: 'MushroomRing', name: 'Mushroom Ring', category: 'Other' },
-          { id: 'Scarecrow', name: 'Scarecrow', category: 'Other' },
-          { id: 'Beehive', name: 'Beehive', category: 'Other' }
+          { id: 'StoneBirdbath', name: 'Stone Birdbath', category: 'Stone' },
+          // Marble Items
+          { id: 'MarbleBench', name: 'Marble Bench', category: 'Marble' },
+          { id: 'MarbleArch', name: 'Marble Arch', category: 'Marble' },
+          { id: 'MarbleBridge', name: 'Marble Bridge', category: 'Marble' }
       ];
   
       const UnifiedState = {
@@ -1826,10 +1824,10 @@ async function initializeFirebase() {
               const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)';
   
               return `
-                  <div class="room-item" draggable="true" data-room="${roomCode}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s; cursor: grab !important; user-select: none;">
+                  <div class="room-item room-status-item" draggable="true" data-room="${roomCode}" data-room-code="${roomCode}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s; cursor: grab !important; user-select: none;">
                       <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: grab !important;">
                           <span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>
-                          <span style="font-weight: bold; color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'}; font-size: 14px; min-width: 45px; cursor: grab !important;">${roomCode}</span>
+                          <span class="room-code" style="font-weight: bold; color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'}; font-size: 14px; min-width: 45px; cursor: grab !important;">${roomCode}</span>
                           <span style="font-weight: bold; color: ${statusColor}; font-size: 13px; min-width: 50px; cursor: grab !important;">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
                       </div>
                       <div style="display: flex; gap: 8px; align-items: center;">
@@ -1862,89 +1860,85 @@ async function initializeFirebase() {
               });
           });
   
-          // Setup room search input handler
+          // Setup room search input - aggressive event blocking
           const searchInput = document.getElementById('room-search-input');
           if (searchInput && !searchInput.hasAttribute('data-handler-attached')) {
               searchInput.setAttribute('data-handler-attached', 'true');
-  
-              // FIX: Aggressively block ALL game hotkeys when typing in search input
-              // The game has special handlers for M/G keys that cause focus loss
-              const aggressiveBlocker = (e) => {
-                  if (document.activeElement === searchInput || e.target === searchInput) {
-                      // COMPLETELY prevent game from seeing this event
-                      e.stopPropagation();
-                      e.stopImmediatePropagation();
+
+              // Prevent game from stealing focus on ANY key
+              let isFocused = false;
+              searchInput.addEventListener('focus', () => { isFocused = true; });
+              searchInput.addEventListener('blur', (e) => {
+                  // Re-focus immediately if we're supposed to be focused
+                  if (isFocused && searchInput.value.length >= 0) {
                       e.preventDefault();
-
-                      // For keydown, manually insert the character if it's a printable key
-                      if (e.type === 'keydown' && !e.repeat && e.key.length === 1 && !e.ctrlKey && !e.altKey) {
-                          // Insert character at cursor position
-                          const start = searchInput.selectionStart;
-                          const end = searchInput.selectionEnd;
-                          const currentValue = searchInput.value;
-
-                          searchInput.value = currentValue.substring(0, start) + e.key + currentValue.substring(end);
-                          searchInput.selectionStart = searchInput.selectionEnd = start + 1;
-
-                          // Trigger input event for search filtering
-                          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                      }
-
-                      // Handle backspace manually
-                      if (e.type === 'keydown' && e.key === 'Backspace') {
-                          const start = searchInput.selectionStart;
-                          const end = searchInput.selectionEnd;
-                          const currentValue = searchInput.value;
-
-                          if (start !== end) {
-                              // Delete selection
-                              searchInput.value = currentValue.substring(0, start) + currentValue.substring(end);
-                              searchInput.selectionStart = searchInput.selectionEnd = start;
-                          } else if (start > 0) {
-                              // Delete one character
-                              searchInput.value = currentValue.substring(0, start - 1) + currentValue.substring(start);
-                              searchInput.selectionStart = searchInput.selectionEnd = start - 1;
-                          }
-
-                          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                      }
-
-                      return false;
+                      setTimeout(() => searchInput.focus(), 0);
+                  } else {
+                      isFocused = false;
                   }
-              };
-
-              // Install at DOCUMENT level in capture phase to intercept FIRST
-              document.addEventListener('keydown', aggressiveBlocker, true);
-              document.addEventListener('keyup', aggressiveBlocker, true);
-              document.addEventListener('keypress', aggressiveBlocker, true);
-
-              // Also add focus protection - if input loses focus unexpectedly, reclaim it
-              let lastFocusTime = 0;
-              searchInput.addEventListener('focus', () => {
-                  lastFocusTime = Date.now();
               });
 
-              searchInput.addEventListener('blur', (e) => {
-                  // If blur happens very quickly after focus (< 100ms), it's likely the game stealing focus
-                  const timeSinceFocus = Date.now() - lastFocusTime;
-                  if (timeSinceFocus < 100 && searchInput.value.length > 0) {
-                      // Reclaim focus
-                      setTimeout(() => searchInput.focus(), 0);
-                  }
+              // Block ALL key events from reaching game - document level capture
+              ['keydown', 'keypress', 'keyup'].forEach(eventType => {
+                  document.addEventListener(eventType, (e) => {
+                      if (e.target === searchInput || document.activeElement === searchInput) {
+                          e.stopPropagation();
+                          e.stopImmediatePropagation();
+                      }
+                  }, true);
               });
   
               searchInput.addEventListener('input', (e) => {
                   const query = e.target.value.trim().toUpperCase();
                   const roomList = document.getElementById('room-status-list');
-  
-                  if (query && !UnifiedState.data.customRooms.includes(query)) {
-                      // Show searched room
+
+                  // NEVER call updateTabContent() during typing - it rebuilds everything!
+
+                  if (!query) {
+                      // Show all rooms without rebuilding
+                      const allRooms = document.querySelectorAll('.room-status-item');
+                      allRooms.forEach(room => room.style.display = 'flex');
+
+                      // Hide search result div if it exists
+                      const searchResult = document.getElementById('room-search-result');
+                      if (searchResult) searchResult.style.display = 'none';
+                      return;
+                  }
+
+                  // Check if this is a tracked room
+                  const isTrackedRoom = UnifiedState.data.customRooms.includes(query);
+
+                  if (isTrackedRoom) {
+                      // Filter tracked rooms WITHOUT rebuilding
+                      const roomItems = document.querySelectorAll('.room-status-item');
+                      roomItems.forEach(item => {
+                          const roomCode = item.dataset.roomCode || item.querySelector('.room-code')?.textContent;
+                          if (roomCode && roomCode.includes(query)) {
+                              item.style.display = 'flex';
+                          } else {
+                              item.style.display = 'none';
+                          }
+                      });
+
+                      // Hide search result if showing
+                      const searchResult = document.getElementById('room-search-result');
+                      if (searchResult) searchResult.style.display = 'none';
+                  } else {
+                      // Show search UI for non-tracked rooms
+                      let searchResultDiv = document.getElementById('room-search-result');
+                      if (!searchResultDiv) {
+                          // Create the search result div once
+                          searchResultDiv = document.createElement('div');
+                          searchResultDiv.id = 'room-search-result';
+                          roomList.insertBefore(searchResultDiv, roomList.firstChild);
+                      }
+
                       const currentRoom = getCurrentRoomCode();
                       const roomCounts = UnifiedState.data.roomStatus?.counts || {};
                       const count = roomCounts[query] || 0;
-  
-                      roomList.innerHTML = `
-                          <div style="padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;">
+
+                      searchResultDiv.innerHTML = `
+                          <div style="padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 8px;">
                               <div style="display: flex; align-items: center; justify-content: space-between;">
                                   <div style="display: flex; align-items: center; gap: 12px;">
                                       <span style="font-weight: bold; color: #e5e7eb; font-size: 14px;">${query}</span>
@@ -1960,9 +1954,11 @@ async function initializeFirebase() {
                               </div>
                           </div>
                       `;
-                  } else {
-                      // Show default tracked rooms
-                      updateTabContent();
+                      searchResultDiv.style.display = 'block';
+
+                      // Hide all tracked rooms
+                      const roomItems = document.querySelectorAll('.room-status-item');
+                      roomItems.forEach(item => item.style.display = 'none');
                   }
               });
           }
@@ -15451,16 +15447,27 @@ async function initializeFirebase() {
       }
   
       function handleHotkeyPress(e) {
+          // ESC key closes sidebar (always active, even if hotkeys disabled)
+          if (e.key === 'Escape' && e.type === 'keydown') {
+              const sidebar = document.getElementById('mgh-sidebar');
+              if (sidebar && sidebar.classList.contains('open')) {
+                  sidebar.classList.remove('open');
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return;
+              }
+          }
+
           // Skip if disabled, typing in input, recording a hotkey, or in room search/add room inputs
           const isRoomSearch = e.target && e.target.id === 'room-search-input';
           const isAddRoomInput = e.target && e.target.id === 'add-room-input';
           const isRoomSearchFocused = document.activeElement && document.activeElement.id === 'room-search-input';
           const isAddRoomFocused = document.activeElement && document.activeElement.id === 'add-room-input';
-  
+
           // CRITICAL: Skip simulated events to prevent infinite loops
           // Simulated events have isTrusted: false, real user keypresses have isTrusted: true
           if (!e.isTrusted) return;
-  
+
           if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey || isRoomSearch || isRoomSearchFocused || isAddRoomInput || isAddRoomFocused) return;
   
           const isKeyDown = e.type === 'keydown';
@@ -19583,10 +19590,6 @@ async function initializeFirebase() {
                                          JSON.stringify(previousPets.map(p => ({s: p.petSpecies, a: p.abilities})));
   
                       if (petsChanged) {
-                          if (UnifiedState.data.settings?.debugMode) {
-                              console.log(`🐾 [PETS] Pets changed - updating displays`);
-                          }
-  
                           // Update UI if pets tab is active
                           if (UnifiedState.activeTab === 'pets') {
                               const context = document.getElementById('mga-tab-content');
@@ -19594,13 +19597,25 @@ async function initializeFirebase() {
                                   updateActivePetsDisplay(context);
                               }
                           }
-  
+
                           // Update all pet overlays
                           UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
                               if (overlay && document.contains(overlay) && tabName === 'pets') {
                                   updateActivePetsDisplay(overlay);
                               }
                           });
+
+                          // TURTLE TIMER: Refresh tooltip when pets change
+                          (targetDocument || document).querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
+                              .forEach((el) => el.remove());
+
+                          setTimeout(() => {
+                              requestAnimationFrame(() => {
+                                  if (typeof insertTurtleEstimate === 'function') {
+                                      insertTurtleEstimate();
+                                  }
+                              });
+                          }, 150);
                       }
   
                       // CRITICAL: Return the extracted array so hookAtom stores it correctly
@@ -19852,9 +19867,41 @@ async function initializeFirebase() {
   
       // REPLACE the entire existing insertTurtleEstimate function with this complete robust version:
   // ---------- FULL REPLACEMENT: insertTurtleEstimate() ----------
-  
+
   // ---------- REPLACEMENT: insertTurtleEstimate() with spatial matching ----------
-  
+
+  // ==================== GENERIC ABILITY EXPECTATIONS ====================
+  function getAbilityExpectations(activePets, abilityName, minutesPerBase = 5, odds = 0.27) {
+      const pets = (activePets || []).filter(p =>
+          p &&
+          p.hunger > 0 &&
+          p.abilities?.some(a => a === abilityName)
+      );
+
+      let expectedMinutesRemoved = 0;
+
+      pets.forEach(p => {
+          const base =
+              Math.min(Math.floor((p.xp || 0) / (100 * 3600) * 30), 30)
+              + Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80)
+              - 30;
+
+          expectedMinutesRemoved += (base / 100 * minutesPerBase) * 60 * (1 - Math.pow(1 - odds * base / 100, 1 / 60));
+      });
+
+      return {
+          expectedMinutesRemoved
+      };
+  }
+
+  function getEggExpectations(activePets) {
+      return getAbilityExpectations(activePets, "EggGrowthBoostII", 10, 0.24);
+  }
+
+  function getGrowthExpectations(activePets) {
+      return getAbilityExpectations(activePets, "PlantGrowthBoostII", 5, 0.27);
+  }
+
 function insertTurtleEstimate() {
     const doc = targetDocument || document;
 
@@ -19863,13 +19910,164 @@ function insertTurtleEstimate() {
         .forEach((el) => el.remove());
 
     // CORRECT SELECTOR: Get the last child's parent (where weight/mutations are shown)
-    const currentPlantTooltipFlexbox = doc.querySelector(
+    let currentPlantTooltipFlexbox = doc.querySelector(
         'div.QuinoaUI > div.McFlex:nth-of-type(2) > div.McGrid > div.McFlex:nth-of-type(3) > :first-child > :last-child p'
     )?.parentElement;
 
-    if (!currentPlantTooltipFlexbox) return;
+    if (!currentPlantTooltipFlexbox) {
+        // Try alternative selectors
+        const altSelectors = [
+            'div.QuinoaUI .McFlex .McGrid',
+            '[class*="tooltip"] [class*="flex"]',
+            'div[class*="plant"] div[class*="info"]',
+            '.McFlex .McGrid .McFlex',
+            'div.QuinoaUI div.McFlex div.McGrid'
+        ];
+        for (const sel of altSelectors) {
+            const el = doc.querySelector(sel);
+            if (el) {
+                currentPlantTooltipFlexbox = el;
+                break;
+            }
+        }
+        if (!currentPlantTooltipFlexbox) {
+            return;
+        }
+    }
 
-    const currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
+    // Try multiple ways to get current crop/egg
+    let currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
+    let currentEgg = targetWindow.currentEgg || UnifiedState.atoms.currentEgg;
+
+    // FALLBACK: Try to get from game state directly
+    if (!currentCrop && !currentEgg) {
+        // Try different possible locations
+        const possibleLocations = [
+            targetWindow.gameState?.currentCrop,
+            targetWindow.gameState?.currentEgg,
+            targetWindow.UnifiedState?.atoms?.currentCrop,
+            targetWindow.garden?.currentTile?.crop,
+            targetWindow.playerState?.standingOn?.crop,
+            targetWindow.jotaiAtomCache?.get?.('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom')?.debugValue
+        ];
+
+        for (const loc of possibleLocations) {
+            if (loc) {
+                currentCrop = Array.isArray(loc) ? loc : [loc];
+                break;
+            }
+        }
+
+        // ULTIMATE FALLBACK: Parse the tooltip DOM itself since game is rendering it
+        if (!currentCrop && !currentEgg && currentPlantTooltipFlexbox) {
+            const tooltipText = currentPlantTooltipFlexbox.textContent || '';
+
+            // Look for egg species names (Common Egg, Rare Egg, etc.)
+            const eggPattern = /(Common|Rare|Epic|Legendary|Mythic|Special)\s*Egg/i;
+            const eggMatch = tooltipText.match(eggPattern);
+
+            if (eggMatch) {
+                const eggSpecies = eggMatch[0].replace(/\s+/g, '');
+                currentCrop = [{
+                    species: eggSpecies,
+                    type: 'egg',
+                    category: 'egg',
+                    isEgg: true
+                }];
+            } else {
+                // Try to find crop species (Carrot, Wheat, etc.)
+                const cropPatterns = [
+                    /Carrot/i, /Wheat/i, /Corn/i, /Tomato/i, /Potato/i,
+                    /Pumpkin/i, /Watermelon/i, /Strawberry/i, /Blueberry/i,
+                    /Rose/i, /Tulip/i, /Sunflower/i, /Daisy/i, /Lily/i
+                ];
+
+                for (const pattern of cropPatterns) {
+                    const cropMatch = tooltipText.match(pattern);
+                    if (cropMatch) {
+                        currentCrop = [{
+                            species: cropMatch[0],
+                            type: 'crop',
+                            category: 'plant'
+                        }];
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if we're looking at an egg (multiple ways)
+    const isPlantedEgg1 = currentCrop?.[0]?.species?.endsWith('Egg');
+    const isPlantedEgg2 = currentCrop?.[0]?.species?.includes('Egg');
+    const isPlantedEgg3 = currentCrop?.[0]?.type === 'egg';
+    const isPlantedEgg4 = currentCrop?.[0]?.category === 'egg';
+
+    const isPlantedEgg = isPlantedEgg1 || isPlantedEgg2 || isPlantedEgg3 || isPlantedEgg4;
+    const isEgg = currentEgg || isPlantedEgg;
+
+    if (isEgg) {
+        // Handle egg timer with actual calculations
+        const activePets = targetWindow.activePets || UnifiedState.atoms.activePets;
+        const eggExpectations = getEggExpectations(activePets);
+
+        // CRITICAL: Find the ACTUAL time element in the tooltip (same way as crops)
+        const timeElement = [...currentPlantTooltipFlexbox.childNodes].find((el) =>
+            /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(
+                (el.textContent || '').trim()
+            )
+        );
+
+        if (!timeElement) {
+            return;
+        }
+
+        const timeText = timeElement.textContent.trim();
+
+        // Parse the actual remaining time from tooltip
+        const timeMatch = timeText.match(/(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/);
+        if (!timeMatch) {
+            return;
+        }
+
+        const hours = parseInt(timeMatch[1] || '0', 10);
+        const minutes = parseInt(timeMatch[2] || '0', 10);
+        const seconds = parseInt(timeMatch[3] || '0', 10);
+
+        // Convert to total seconds
+        const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+
+        if (totalSeconds <= 0) {
+            return;
+        }
+
+        if (eggExpectations && eggExpectations.expectedMinutesRemoved > 0) {
+            // Calculate boosted time
+            const remainingRealMinutes = totalSeconds / 60;
+            const effectiveRate = eggExpectations.expectedMinutesRemoved + 1;
+            const boostedRealMinutes = remainingRealMinutes / effectiveRate;
+            const boostedTotalSeconds = boostedRealMinutes * 60;
+
+            const boostedHours = Math.floor(boostedTotalSeconds / 3600);
+            const boostedMinutes = Math.floor((boostedTotalSeconds % 3600) / 60);
+            const boostedSeconds = Math.floor(boostedTotalSeconds % 60);
+
+            const eggEstimateEl = doc.createElement("p");
+            eggEstimateEl.dataset.turtletimerEstimate = "true";
+
+            // Format output similar to crop timer
+            if (boostedHours > 0) {
+                eggEstimateEl.textContent = `🥚 Egg: ${boostedHours}h ${boostedMinutes}m`;
+            } else {
+                eggEstimateEl.textContent = `🥚 Egg: ${boostedMinutes}m ${boostedSeconds}s`;
+            }
+
+            eggEstimateEl.style.color = '#fbbf24'; // Yellow color
+            currentPlantTooltipFlexbox.appendChild(eggEstimateEl);
+        }
+        return;
+    }
+
     if (!currentCrop || currentCrop.length === 0) return;
 
     const currentSlotIndex = getCurrentSlotIndex(currentCrop);
@@ -19991,6 +20189,7 @@ function insertTurtleEstimate() {
       // Hook currentCrop atom for turtle timer
       
 function initializeTurtleTimer() {
+    console.log('🐢🐢🐢 [TURTLE-TIMER-START] initializeTurtleTimer() called!');
     productionLog('🐢 [TURTLE-TIMER] Initializing crop growth estimate...');
 
     // Start listening to slot index changes
@@ -20001,7 +20200,6 @@ function initializeTurtleTimer() {
         "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentSortedGrowSlotIndicesAtom",
         "sortedSlotIndices",
         (value) => {
-            console.log('📋 [SORTED-SLOTS] Sorted slot indices:', value);
             return value;
         }
     );
@@ -20011,7 +20209,20 @@ function initializeTurtleTimer() {
         "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom",
         "currentCrop",
         (value) => {
-            const currentHash = getCropHash(value);
+            // CRITICAL: Extract the actual crop data from the atom value
+            // The atom might return {garden: {tileObjects: [...]}} not just the crop array
+            let cropData = null;
+            if (value?.garden?.tileObjects) {
+                cropData = value.garden.tileObjects;
+            } else if (Array.isArray(value)) {
+                cropData = value;
+            }
+
+            // Store the extracted crop data
+            UnifiedState.atoms.currentCrop = cropData;
+            targetWindow.currentCrop = cropData;
+
+            const currentHash = getCropHash(cropData || value);
 
             if (currentHash !== globalThis.prevCropHash) {
                 globalThis.prevCropHash = currentHash;
@@ -20020,11 +20231,158 @@ function initializeTurtleTimer() {
                 requestAnimationFrame(() => insertTurtleEstimate());
             }
 
-            return value;
+            return value; // Return original value to game
         }
     );
 
     const doc = targetDocument;
+
+    // Also poll while player is on a tile to catch any missed updates
+    setInterval(() => {
+        let currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
+        let currentEgg = targetWindow.currentEgg || UnifiedState.atoms.currentEgg;
+
+        // Try to find crop data manually - DIRECT ATOM READING
+        let manualCrop = null;
+        if (!currentCrop) {
+            // Step 1: Find Jotai store if not already found
+            if (!targetWindow.__foundJotaiStore) {
+                const possibleStores = [
+                    targetWindow.jotaiStore,
+                    targetWindow.__JOTAI_STORE__,
+                    targetWindow.store,
+                    targetWindow.getDefaultStore?.(),
+                    targetWindow.globalStore,
+                    targetWindow.__jotaiStore,
+                    targetWindow._jotaiStore
+                ];
+
+                for (const store of possibleStores) {
+                    // Make sure it's NOT cookieStore (browser API)
+                    // And verify it looks like a Jotai store (has sub/unsub or set methods)
+                    if (store &&
+                        typeof store.get === 'function' &&
+                        store !== targetWindow.cookieStore &&
+                        store !== window.cookieStore &&
+                        (typeof store.set === 'function' || typeof store.sub === 'function')) {
+                        targetWindow.__foundJotaiStore = store;
+                        break;
+                    }
+                }
+
+                // If still not found, explore window properties
+                if (!targetWindow.__foundJotaiStore) {
+                    const storeKeys = Object.keys(targetWindow).filter(k =>
+                        k.toLowerCase().includes('store') ||
+                        k.toLowerCase().includes('jotai')
+                    );
+
+                    for (const key of storeKeys) {
+                        const val = targetWindow[key];
+                        if (val &&
+                            typeof val === 'object' &&
+                            typeof val.get === 'function' &&
+                            val !== targetWindow.cookieStore &&
+                            val !== window.cookieStore &&
+                            (typeof val.set === 'function' || typeof val.sub === 'function')) {
+                            targetWindow.__foundJotaiStore = val;
+                            break;
+                        }
+                    }
+
+                    // ENHANCED: Explore jotaiAtomCache itself for store reference
+                    if (!targetWindow.__foundJotaiStore && targetWindow.jotaiAtomCache) {
+                        const cache = targetWindow.jotaiAtomCache;
+
+                        // Check if cache has store property
+                        if (cache.store) {
+                            targetWindow.__foundJotaiStore = cache.store;
+                        } else if (cache.cache && cache.cache.store) {
+                            targetWindow.__foundJotaiStore = cache.cache.store;
+                        }
+                    }
+                }
+            }
+
+            // Step 2: Try to read atom using the store
+            const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
+            if (atomCache && atomCache.get) {
+                const cropAtom = atomCache.get("/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom");
+
+                if (cropAtom) {
+                    // Try to read using found store
+                    if (targetWindow.__foundJotaiStore) {
+                        try {
+                            const cropValue = targetWindow.__foundJotaiStore.get(cropAtom);
+
+                            // Handle if it's a Promise
+                            if (cropValue && typeof cropValue.then === 'function') {
+                                cropValue.then(val => {
+                                    targetWindow.currentCrop = val;
+                                    UnifiedState.atoms.currentCrop = val;
+
+                                    // Trigger update
+                                    if (val && !document.querySelector('[data-turtletimer-estimate="true"]')) {
+                                        insertTurtleEstimate();
+                                    }
+                                }).catch(e => {
+                                    // Promise rejected
+                                });
+                            } else {
+                                manualCrop = cropValue;
+
+                                // Store it for next time
+                                targetWindow.currentCrop = cropValue;
+                                UnifiedState.atoms.currentCrop = cropValue;
+                            }
+                        } catch (e) {
+                            // Error reading atom from store
+                        }
+                    }
+
+                    // Fallback: try debugValue
+                    if (!manualCrop && cropAtom.debugValue !== undefined) {
+                        manualCrop = cropAtom.debugValue;
+                    }
+
+                    // ENHANCED: Try calling atom.read directly if it exists
+                    if (!manualCrop && typeof cropAtom.read === 'function') {
+                        try {
+                            const mockGetter = (a) => {
+                                if (a === cropAtom && cropAtom.init !== undefined) {
+                                    return cropAtom.init;
+                                }
+                                return undefined;
+                            };
+                            const directValue = cropAtom.read(mockGetter);
+                            if (directValue && typeof directValue.then !== 'function') {
+                                manualCrop = directValue;
+                            }
+                        } catch (e) {
+                            // Failed to call atom.read()
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update currentCrop if we found something manually
+        if (manualCrop && !currentCrop) {
+            currentCrop = manualCrop;
+        }
+
+        // Check if tooltip is visible (player might be standing on something)
+        const doc = targetDocument || document;
+        const tooltipVisible = doc.querySelector('div.QuinoaUI > div.McFlex:nth-of-type(2) > div.McGrid');
+
+        // If player is standing on something (has crop/egg data OR tooltip is visible), ensure estimate is shown
+        if (currentCrop || currentEgg || tooltipVisible) {
+            const hasExisting = doc.querySelector('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]');
+            if (!hasExisting) {
+                insertTurtleEstimate();
+            }
+        }
+    }, 1000); // Check every second
 
     // Predicate: check if keypress is as movement key
     const isMovementKeypress = (e) =>
@@ -20070,6 +20428,79 @@ function initializeTurtleTimer() {
     // which directly listens to the game's myCurrentGrowSlotIndex atom
 
     productionLog('✅ [TURTLE-TIMER] Turtle timer initialized successfully');
+
+    // Expose a debug function to manually check - make it available in page context
+    const debugCropDetectionFunc = function() {
+        console.log('=== MANUAL CROP DETECTION DEBUG ===');
+
+        // Check atom cache
+        const atomCache = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).jotaiAtomCache?.cache ||
+                          (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).jotaiAtomCache;
+        console.log('atomCache exists:', !!atomCache);
+
+        if (atomCache && atomCache.get) {
+            console.log('Atom cache entries count:', atomCache.size || 'unknown');
+
+            // Look for crop-related atoms
+            try {
+                const allKeys = Array.from(atomCache.keys ? atomCache.keys() : []);
+                console.log('Total atoms:', allKeys.length);
+
+                const cropAtoms = allKeys.filter(k =>
+                    k.includes('Crop') || k.includes('crop') || k.includes('Grow') || k.includes('Egg')
+                );
+                console.log('Crop-related atoms:', cropAtoms);
+
+                // Try to read the current crop atom
+                const atom = atomCache.get("/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom");
+                console.log('Current crop atom:', atom);
+
+                if (atom) {
+                    console.log('Atom properties:', Object.keys(atom));
+                    console.log('Atom.debugValue:', atom.debugValue);
+                    console.log('Atom.init:', atom.init);
+
+                    // Try to find store and read it
+                    const tw = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                    if (tw.__foundJotaiStore) {
+                        console.log('Found store, trying to read...');
+                        try {
+                            const val = tw.__foundJotaiStore.get(atom);
+                            console.log('✅ Store.get(atom) returned:', val);
+                        } catch (e) {
+                            console.log('❌ Error reading from store:', e);
+                        }
+                    } else {
+                        console.log('⚠️ No Jotai store found yet');
+                    }
+                }
+            } catch (e) {
+                console.log('Error exploring atoms:', e);
+            }
+        }
+
+        // Force call insertTurtleEstimate
+        console.log('Calling insertTurtleEstimate()...');
+        if (typeof insertTurtleEstimate === 'function') {
+            insertTurtleEstimate();
+        } else {
+            console.log('❌ insertTurtleEstimate not available in this context');
+        }
+    };
+
+    // Attach to multiple contexts
+    try {
+        window.debugCropDetection = debugCropDetectionFunc;
+        if (typeof unsafeWindow !== 'undefined' && unsafeWindow !== window) {
+            unsafeWindow.debugCropDetection = debugCropDetectionFunc;
+        }
+        targetWindow.debugCropDetection = debugCropDetectionFunc;
+
+        console.log('💡 TIP: Run window.debugCropDetection() in console to debug crop detection');
+        console.log('💡 Available in:', typeof unsafeWindow !== 'undefined' ? 'window, unsafeWindow, targetWindow' : 'window, targetWindow');
+    } catch (e) {
+        console.log('⚠️ Could not attach debugCropDetection:', e);
+    }
 }
 
   
