@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.3.3** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.5.6** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.3.3-blue) ![Status](https://img.shields.io/badge/status-stable-green)
+![MGTools](https://img.shields.io/badge/version-3.5.6-blue) ![Status](https://img.shields.io/badge/status-stable-green)
 
 ---
 
@@ -74,7 +74,9 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 
 ### 🔒 Crop Protection
 - Lock crops by species (Pepper, Starweaver, Lychee, etc.)
-- Lock crops by mutation (Rainbow, Frozen, Wet, Chill)
+- Lock crops by mutation (Rainbow, Frozen, Wet, Chilled, Gold)
+- **Lock All Mutations** - Quick toggle for all mutation types
+- **Lock Only Non-Mutated** - Protect only crops with 0 mutations
 - Friend bonus protection threshold
 - Prevents accidental harvesting
 
@@ -421,13 +423,10 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.3.3)
+### Latest Updates (v3.5.6)
+- **v3.5.6**: 🐛 **Bug Fixes** - Fixed settings persistence, notification selections, and shop tab caching issues
+- **v3.5.5**: ✨ **New Features** - "Lock Only Non-Mutated" option, auto-refresh on game updates, improved crop protection naming
 - **v3.3.3**: 🐛 **Bug Fixes** - Fixed ESC key, room search focus, turtle timers, and egg timer calculations
-- **v3.3.1**: 🔧 **Stability Improvements** - Enhanced localStorage handling for better compatibility across different environments
-- **v3.3.0**: 🎉 **Major Update - Custom Room Management!** Add your own rooms, delete unwanted ones, and drag-to-reorder. Discord play rooms auto-detected! Enhanced search with full keyboard support
-- **v3.2.9**: Added "No Mutation" convenience toggle for crop protection and fixed ability log timezone display to show user's local time
-- **v3.2.8**: Fixed Chilled mutation crop protection - crops with Chilled mutation now properly protected from harvesting
-- **v3.2.6**: Fixed crop cycling values - turtle timers and crop values now display correctly when cycling through multiple crops on same tile
 
 ---
 
