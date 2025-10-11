@@ -1,5 +1,58 @@
 # Changelog - MGTools
 
+## Version 3.5.6 (2025-10-11)
+
+### ✨ New Features
+- Added frozen exception option to crop protection (allows harvesting protected crops when frozen)
+- Added auto-favorite toggle for rooms
+- Continuous notifications now auto-enable acknowledgment mode
+
+### 🐛 Bug Fixes
+- Fixed tool stock not persisting across page refreshes
+- Fixed notification selections not saving
+- Fixed seeds tab settings not persisting
+- Fixed shop tab settings not saving
+- Fixed protect tab caching issues
+- Fixed Shovel displaying as in stock when owned
+
+---
+
+## Version 3.5.5 (2025-10-11)
+
+### ✨ New Features
+
+**🛒 Tool Shop Integration**
+- Added tool shop to the egg shop window with professional divider
+- Eggs and tools now displayed in one convenient "Eggs & Tools" window
+- Dynamic tool discovery from game shop inventory
+- Full purchase tracking and stock management for tools
+- Supports all shop features: stock tracking, sorting, filtering, buy buttons
+
+**🔄 Enhanced Auto-Refresh System**
+- Dual detection system for game updates with automatic page refresh
+- WebSocket close event detection (code 4710) triggers 5-second countdown notification
+- DOM popup monitor as backup detection method for update modals
+- Fixes work PC issues - main version now handles game refreshes automatically
+- No more manual refreshing when devs push updates!
+
+**🔒 Lock Only Non-Mutated**
+- New crop protection option to lock ONLY crops with 0 mutations
+- Opposite behavior from "Lock All Mutations" for flexible protection strategies
+- Perfect for protecting base crops while allowing mutated ones to be harvested
+
+### 🔧 Improvements
+- Renamed "No Mutation" to "Lock All Mutations" for better clarity
+- Enhanced Discord compatibility with detailed execution tracing
+- Improved shop window organization with cleaner separation between item types
+- Added tool purchase message type support ("PurchaseTool" with 'toolId')
+
+### 🐛 Bug Fixes
+- **Work PC Edition**: Fixed toolbar becoming unresponsive after game refresh
+- Fixed duplicate event listeners causing button responsiveness issues
+- Migration system preserves existing crop protection settings
+
+---
+
 ## Version 3.3.3 (2025-10-09)
 
 ### 🐛 Bug Fixes

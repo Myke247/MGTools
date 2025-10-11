@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.3.3
-// @description  All-in-one assistant for Magic Garden with beautiful unified UI (Works on Discord!)
+// @version      3.5.6
+// @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
 // @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -12,9 +12,11 @@
 // @match        https://discord.com/channels/*
 // @match        https://canary.discord.com/channels/*
 // @match        https://ptb.discord.com/channels/*
+// @match        https://*.discordsays.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
+// @grant        GM_addElement
 // @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -61,16 +63,55 @@
 
           // Try to access native localStorage
           try {
-              if (typeof window.localStorage !== 'undefined') {
+              if (window.localStorage && typeof window.localStorage !== 'undefined') {
                   nativeLocalStorage = window.localStorage;
                   const test = '__localStorage_test__';
                   nativeLocalStorage.setItem(test, test);
                   nativeLocalStorage.removeItem(test);
                   isLocalStorageAvailable = true;
+                  console.log('✅ [STORAGE] Direct localStorage access available');
+              } else {
+                  // localStorage is undefined or deleted (Discord scenario)
+                  throw new Error('localStorage undefined');
               }
           } catch (e) {
-              console.warn('[MGTools] localStorage not available (Discord iframe?), using memory fallback');
-              isLocalStorageAvailable = false;
+              console.warn('[MGTools] Direct localStorage blocked, trying iframe workaround...');
+
+              // Discord Fix: Try iframe workaround for localStorage access
+              // Discord deletes window.localStorage but the object itself still exists
+              // A fresh iframe contentWindow has untouched localStorage property
+              try {
+                  const iframe = document.createElement('iframe');
+                  iframe.style.display = 'none';
+                  iframe.style.position = 'absolute';
+                  iframe.style.width = '0';
+                  iframe.style.height = '0';
+
+                  // Wait for body to exist in Discord
+                  if (!document.body) {
+                      console.warn('[MGTools] document.body not ready, waiting...');
+                      // Use a different approach - create iframe without body
+                      document.documentElement.appendChild(iframe);
+                  } else {
+                      document.body.appendChild(iframe);
+                  }
+
+                  const iframeStorage = iframe.contentWindow.localStorage;
+
+                  // Test if it works
+                  const test = '__mgtools_iframe_test__';
+                  iframeStorage.setItem(test, test);
+                  iframeStorage.removeItem(test);
+
+                  nativeLocalStorage = iframeStorage;
+                  isLocalStorageAvailable = true;
+                  console.log('✅ [STORAGE] Iframe localStorage workaround successful (Discord mode)');
+
+                  // Keep iframe for localStorage access
+              } catch (iframeError) {
+                  console.warn('[MGTools] Iframe localStorage workaround failed, using memory fallback:', iframeError.message);
+                  isLocalStorageAvailable = false;
+              }
           }
 
           return {
@@ -113,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.3.3';  // Your local development version
+      const CURRENT_VERSION = '3.5.5';  // Your local development version
       const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
   
       // Semantic version comparison function
@@ -177,7 +218,8 @@
           const message = String(args[0] || '');
           const categoryMatch = message.match(/^\[([A-Z][A-Z-]*)\]/);
           const category = categoryMatch ? categoryMatch[1] : 'LEGACY';
-          logDebug(category, ...args);
+          // Changed from logDebug to logInfo so logs appear in PRODUCTION mode
+          logInfo(category, ...args);
       };
       const productionWarn = (...args) => {
           const message = String(args[0] || '');
@@ -191,7 +233,316 @@
           const category = categoryMatch ? categoryMatch[1] : 'LEGACY';
           logError(category, ...args);
       };
-  
+
+      // Export logging functions globally for IIFE access
+      if (typeof window !== 'undefined') {
+          window.productionLog = productionLog;
+          window.productionWarn = productionWarn;
+          window.productionError = productionError;
+      }
+      if (typeof unsafeWindow !== 'undefined' && unsafeWindow !== window) {
+          unsafeWindow.productionLog = productionLog;
+          unsafeWindow.productionWarn = productionWarn;
+          unsafeWindow.productionError = productionError;
+      }
+
+      // ==================== COMPATIBILITY MODE SYSTEM ====================
+      // Advanced CSP detection and compatibility mode for Discord/managed devices
+      const CompatibilityMode = {
+          flags: {
+              enabled: false,
+              blockExternalFonts: false,
+              blockExternalBeacons: false,
+              wsReconnectWhenHidden: false,
+              strictNoEvalDynamicImport: false,
+              inlineAssetsOnly: false,
+              uiReducedMode: false,
+              domOnlyStyles: false,
+              bypassCSPNetworking: false
+          },
+
+          detectionComplete: false,
+          cspViolations: [],
+          detectionReason: null,
+
+          detect() {
+              // Check for user override first
+              try {
+                  const disabled = localStorage.getItem('mgtools_compat_disabled');
+                  if (disabled === 'true') {
+                      logInfo('COMPAT', 'Compatibility mode disabled by user');
+                      this.detectionComplete = true;
+                      return;
+                  }
+
+                  const forced = localStorage.getItem('mgtools_compat_forced');
+                  if (forced === 'true') {
+                      this.enableCompat('user-forced');
+                      this.detectionComplete = true;
+                      return;
+                  }
+              } catch (e) {
+                  logWarn('COMPAT', 'Unable to check localStorage for compat settings', e);
+              }
+
+              // 1. Discord embed detection (enhanced)
+              const host = window.location.host;
+              const isDiscordEmbed = host.includes('discordsays.com') ||
+                                    host.includes('discordactivities.com') ||
+                                    host.includes('discord.gg') ||
+                                    host.includes('discord.com') ||
+                                    // Check for Discord SDK presence
+                                    (typeof window.DiscordSDK !== 'undefined') ||
+                                    (typeof window.__DISCORD__ !== 'undefined') ||
+                                    (typeof window.DiscordNative !== 'undefined');
+
+              if (isDiscordEmbed) {
+                  this.enableCompat('discord-embed');
+                  this.detectionComplete = true;
+                  return;
+              }
+
+              // 2. CSP violation listener (500ms window) with duplicate prevention
+              const originalError = console.error.bind(console);
+              const self = this;
+              const seenCSPMessages = new Set();
+
+              console.error = function(...args) {
+                  const msg = args.join(' ');
+
+                  // Check for CSP-related errors
+                  if ((msg.includes('Content Security Policy') ||
+                       msg.includes('Refused to load') ||
+                       msg.includes('violates the following')) &&
+                      !msg.includes('mgtools')) {  // Ignore our own CSP issues
+
+                      // Skip duplicate CSP violations to reduce console spam
+                      if (seenCSPMessages.has(msg)) {
+                          return; // Silently skip duplicate
+                      }
+                      seenCSPMessages.add(msg);
+
+                      self.cspViolations.push(msg);
+                      if (self.cspViolations.length >= 2 && !self.flags.enabled) {
+                          self.enableCompat('csp-violations');
+                      }
+                  }
+                  return originalError.apply(console, args);
+              };
+
+              // 3. Test storage availability
+              setTimeout(() => {
+                  if (!this.flags.enabled) {
+                      try {
+                          const testKey = '__mgtools_compat_test_' + Date.now();
+                          GM_setValue(testKey, 'test');
+                          GM_deleteValue(testKey);
+                      } catch (e) {
+                          this.enableCompat('storage-failed');
+                      }
+                  }
+
+                  this.detectionComplete = true;
+                  if (this.flags.enabled) {
+                      logInfo('COMPAT', 'Compatibility mode ACTIVE', {
+                          reason: this.detectionReason,
+                          violations: this.cspViolations.length
+                      });
+                  } else {
+                      logDebug('COMPAT', 'Compatibility mode not needed, running in normal mode');
+                  }
+              }, 500);
+          },
+
+          enableCompat(reason) {
+              if (this.flags.enabled) return; // Already enabled
+
+              logInfo('COMPAT', `Enabling compatibility mode: ${reason}`);
+
+              // Discord Fix: Add detailed Discord-specific logging
+              const isDiscordReason = reason.includes('discord') || reason.includes('csp');
+              if (isDiscordReason) {
+                  productionLog('🎮 [DISCORD] Compatibility mode activated for Discord environment');
+                  productionLog('   📋 [DISCORD] Features enabled:');
+                  productionLog('      • Inline styles only (no external CSS)');
+                  productionLog('      • System fonts (no Google Fonts CDN)');
+                  productionLog('      • GM_xmlhttpRequest for network requests');
+                  productionLog('      • DOM mutation observer for UI persistence');
+              }
+
+              this.detectionReason = reason;
+              this.flags.enabled = true;
+              this.flags.blockExternalFonts = true;
+              this.flags.blockExternalBeacons = true;
+              this.flags.wsReconnectWhenHidden = true;
+              this.flags.strictNoEvalDynamicImport = true;
+              this.flags.inlineAssetsOnly = true;
+              this.flags.uiReducedMode = true;
+              this.flags.domOnlyStyles = true;
+              this.flags.bypassCSPNetworking = true;
+
+              // Save preference
+              try {
+                  localStorage.setItem('mgtools_compat_mode', 'true');
+                  localStorage.setItem('mgtools_compat_reason', reason);
+              } catch (e) {
+                  // Ignore localStorage errors in restricted environments
+              }
+          },
+
+          disableCompat() {
+              this.flags.enabled = false;
+              Object.keys(this.flags).forEach(key => {
+                  if (key !== 'enabled') this.flags[key] = false;
+              });
+
+              try {
+                  localStorage.setItem('mgtools_compat_disabled', 'true');
+                  localStorage.removeItem('mgtools_compat_mode');
+              } catch (e) {}
+
+              logInfo('COMPAT', 'Compatibility mode disabled');
+          },
+
+          isEnabled() {
+              return this.flags.enabled;
+          }
+      };
+
+      // Initialize compatibility detection immediately
+      CompatibilityMode.detect();
+
+      // ==================== NETWORK ABSTRACTION LAYER ====================
+      // Unified network layer that bypasses CSP using GM_xmlhttpRequest in compat mode
+      const Network = {
+          async fetch(url, options = {}) {
+              if (CompatibilityMode.flags.bypassCSPNetworking &&
+                  typeof GM_xmlhttpRequest === 'function' &&
+                  !url.startsWith(window.location.origin)) {
+                  // Use GM_xmlhttpRequest to bypass CSP for external requests
+                  logDebug('NETWORK', `Using GM_xmlhttpRequest for: ${url}`);
+                  return new Promise((resolve, reject) => {
+                      GM_xmlhttpRequest({
+                          url,
+                          method: options.method || 'GET',
+                          headers: options.headers || {},
+                          data: options.body,
+                          responseType: 'text',
+                          timeout: options.timeout || 10000,
+                          onload: (response) => {
+                              resolve({
+                                  ok: response.status >= 200 && response.status < 300,
+                                  status: response.status,
+                                  statusText: response.statusText,
+                                  text: () => Promise.resolve(response.responseText),
+                                  json: () => Promise.resolve(JSON.parse(response.responseText)),
+                                  headers: {
+                                      get: (name) => response.responseHeaders.match(
+                                          new RegExp(`^${name}:\\s*(.*)$`, 'mi')
+                                      )?.[1]
+                                  }
+                              });
+                          },
+                          onerror: (error) => reject(new Error(error.statusText || 'Network error')),
+                          ontimeout: () => reject(new Error('Request timeout'))
+                      });
+                  });
+              } else {
+                  // Normal fetch
+                  return fetch(url, options);
+              }
+          }
+      };
+
+      // ==================== ASSET MANAGEMENT (STYLES & FONTS) ====================
+      // Compatibility-aware style and font loading
+      const AssetManager = {
+          addStyles(css, id) {
+              // Discord Fix: Prefer GM_addElement for best CSP compatibility
+              // GM_addElement bypasses CSP better than regular createElement
+              if (typeof GM_addElement === 'function' && CompatibilityMode.flags.enabled) {
+                  try {
+                      const attrs = { textContent: css };
+                      if (id) attrs.id = id;
+                      GM_addElement('style', attrs);
+                      logDebug('ASSETS', `Added styles via GM_addElement${id ? ` (${id})` : ''} (Discord-safe)`);
+                      return;
+                  } catch (e) {
+                      logWarn('ASSETS', 'GM_addElement failed, falling back to standard method', e);
+                  }
+              }
+
+              if (CompatibilityMode.flags.domOnlyStyles) {
+                  // Inline styles only - inject into head with style element
+                  const style = document.createElement('style');
+                  style.textContent = css;
+                  if (id) style.id = id;
+                  document.head.appendChild(style);
+                  logDebug('ASSETS', `Injected inline styles${id ? ` (${id})` : ''}`);
+              } else {
+                  // Normal mode - use GM_addStyle if available
+                  if (typeof GM_addStyle === 'function') {
+                      GM_addStyle(css);
+                  } else {
+                      const style = document.createElement('style');
+                      style.textContent = css;
+                      if (id) style.id = id;
+                      document.head.appendChild(style);
+                  }
+                  logDebug('ASSETS', `Added styles${id ? ` (${id})` : ''}`);
+              }
+          },
+
+          loadFonts() {
+              if (CompatibilityMode.flags.blockExternalFonts) {
+                  // Use system fonts only
+                  this.addStyles(`
+                      .mgtools-ui *, .mga-dock *, .mga-sidebar *, .mga-panel * {
+                          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                                       Roboto, Helvetica, Arial, sans-serif !important;
+                      }
+                      .fancy-header, .mgtools-header {
+                          font-family: Georgia, "Times New Roman", serif !important;
+                          font-style: italic;
+                      }
+                  `, 'mgtools-compat-fonts');
+                  logInfo('ASSETS', 'Using system fonts (compat mode)');
+              } else {
+                  // Normal font loading - Google Fonts
+                  // The CSP guard at the top of the file will prevent this in Discord anyway
+                  logDebug('ASSETS', 'External fonts allowed (normal mode)');
+              }
+          },
+
+          // Icon helper - returns data URI in compat mode or emoji/text fallback
+          getIcon(name) {
+              // In compat mode or for simplicity, use emoji fallbacks
+              const icons = {
+                  'pet': '🐾',
+                  'timer': '⏰',
+                  'shop': '🛒',
+                  'seeds': '🌱',
+                  'values': '💎',
+                  'abilities': '⚡',
+                  'rooms': '🏠',
+                  'tools': '🔧',
+                  'settings': '⚙️',
+                  'hotkeys': '⌨️',
+                  'help': '❓',
+                  'alert': '🔔',
+                  'close': '✖️',
+                  'refresh': '🔄',
+                  'save': '💾',
+                  'export': '📤',
+                  'import': '📥'
+              };
+              return icons[name] || '📦';
+          }
+      };
+
+      // Call font setup early
+      AssetManager.loadFonts();
+
       // ==================== SELECTIVE CONTEXT ISOLATION ====================
       // Detect execution context and set up selective window/document references
       const isUserscript = typeof unsafeWindow !== 'undefined';
@@ -203,10 +554,123 @@
   
       // Set context identifier for debugging (use window not targetWindow to avoid modifying page)
       window.MGA_CONTEXT = isUserscript ? 'userscript' : 'console';
-  
-      // GM API availability check
+
+      // ==================== API BASE URL HELPER (MUST BE EARLY) ====================
+      // This function MUST be defined early because roomsInfo() IIFE needs it immediately
+      // Determines correct API base URL to prevent 404 errors in Discord browser
+      targetWindow.getGameApiBaseUrl = function() {
+          try {
+              // Check if we're in Discord browser or Discord activity
+              const isDiscordHost = window.location.host.includes('discordsays.com') ||
+                                    window.location.host.endsWith('.discordsays.com') ||
+                                    window.location.host.includes('discord.com');
+
+              const isInIframe = window.location !== window.parent.location;
+              const hasDiscordNative = window.DiscordNative !== undefined;
+
+              // If in any Discord context, use magiccircle.gg API
+              // This prevents 404 errors when trying to fetch from discord.com/api/rooms/
+              if (isDiscordHost || hasDiscordNative || (isInIframe && document.referrer && document.referrer.includes('discord'))) {
+                  return 'https://magiccircle.gg';
+              }
+
+              // Otherwise use current origin for proper same-origin requests
+              return location.origin;
+          } catch (err) {
+              console.error('[API-BASE] Failed to determine API base URL:', err);
+              // Safe fallback: use magiccircle.gg if detection fails
+              return 'https://magiccircle.gg';
+          }
+      };
+
+      // Also define as regular function for convenience
+      const getGameApiBaseUrl = targetWindow.getGameApiBaseUrl;
+
+      // Verify function is accessible and log current API base
+      console.log('✅ [API-BASE] getGameApiBaseUrl() defined and accessible');
+      try {
+          console.log('🔗 [API-BASE] Current API base:', targetWindow.getGameApiBaseUrl());
+      } catch (e) {
+          console.error('❌ [API-BASE] Function exists but failed to execute:', e);
+      }
+
+      // GM API availability check with actual functionality test
+      let gmApiCheckResult = null; // Cache the result
+      let gmApiWarningShown = false; // Only warn once
+
       function isGMApiAvailable() {
-          return typeof GM_setValue !== 'undefined' && typeof GM_getValue !== 'undefined';
+          // CRITICAL: Wrap entire function in try-catch to prevent script failure on managed devices
+          try {
+              // Return cached result if already tested
+              if (gmApiCheckResult !== null) {
+                  return gmApiCheckResult;
+              }
+
+              // Check if functions exist
+              if (typeof GM_setValue === 'undefined' || typeof GM_getValue === 'undefined') {
+                  gmApiCheckResult = false;
+                  if (!gmApiWarningShown) {
+                      try {
+                          logWarn('GM-STORAGE', 'GM API functions not defined - using localStorage fallback');
+                      } catch (e) {
+                          console.warn('⚠️ [GM-STORAGE] GM API not available - using localStorage fallback');
+                      }
+                      gmApiWarningShown = true;
+                  }
+                  return false;
+              }
+
+              // Try to actually USE the functions (managed devices may block them)
+              try {
+                  const testKey = '__mgtools_gm_test__';
+                  const testValue = 'test_' + Date.now();
+                  GM_setValue(testKey, testValue);
+                  const retrieved = GM_getValue(testKey, null);
+
+                  // Clean up test
+                  try {
+                      if (typeof GM_deleteValue !== 'undefined') {
+                          GM_deleteValue(testKey);
+                      }
+                  } catch (e) {
+                      // Ignore cleanup errors
+                  }
+
+                  // Check if it actually worked
+                  if (retrieved === testValue) {
+                      gmApiCheckResult = true;
+                      try {
+                          logInfo('GM-STORAGE', 'GM API fully functional');
+                      } catch (e) {
+                          console.log('✅ [GM-STORAGE] GM API fully functional');
+                      }
+                      return true;
+                  } else {
+                      throw new Error('GM_getValue returned incorrect value');
+                  }
+              } catch (e) {
+                  gmApiCheckResult = false;
+                  if (!gmApiWarningShown) {
+                      try {
+                          logWarn('GM-STORAGE', 'GM API blocked by security policy - using localStorage fallback');
+                      } catch (e2) {
+                          console.warn('⚠️ [GM-STORAGE] GM API blocked - using localStorage fallback');
+                      }
+                      gmApiWarningShown = true;
+                  }
+                  return false;
+              }
+          } catch (outerError) {
+              // Absolute last resort - assume GM API is not available and continue
+              gmApiCheckResult = false;
+              gmApiWarningShown = true;
+              try {
+                  console.warn('⚠️ [GM-STORAGE] Unexpected error testing GM API - using localStorage fallback');
+              } catch (e) {
+                  // Even console might fail on heavily locked down devices
+              }
+              return false;
+          }
       }
   
       // SELECTIVE CONTEXT FUNCTIONS - Use these instead of direct document/window references
@@ -485,16 +949,28 @@
               }
           }
       }, 30000);
-  
+
+      // ==================== CRITICAL EXECUTION CHECKPOINT ====================
+      console.log('🔍🔍🔍 [EXECUTION] Reached line 951 - About to define initialization');
+      console.log('🔍 typeof document:', typeof document);
+      console.log('🔍 typeof window:', typeof window);
+      console.log('🔍 document.readyState:', document?.readyState);
+
       // ==================== PROPER PAGE LOAD DETECTION ====================
       // Fix for document-idle timing issues - wait for complete page load
       let initializationStarted = false;
   
       function initializeWhenReady() {
-          if (initializationStarted) return;
+          console.log('🔍🔍🔍 [EXECUTION] initializeWhenReady() called!');
+          console.log(`🔍 [EXECUTION] initializationStarted = ${initializationStarted}`);
+          if (initializationStarted) {
+              console.log('🔍 [EXECUTION] Already initialized, returning early');
+              return;
+          }
           initializationStarted = true;
+          console.log('🔍 [EXECUTION] Set initializationStarted = true');
   
-          productionLog('🚀 Magic Garden Unified Assistant v1.6.0 - STORAGE FIX');
+          productionLog('🚀 Magic Garden Unified Assistant v3.5.2 - Discord Fix');
           productionLog('🔧 CRITICAL: Disabled data-destroying migration system');
           productionLog('🔧 Fixed: Now uses localStorage directly (100% reliable)');
           productionLog('🔧 Fixed: Active pets detection with retry logic');
@@ -505,41 +981,184 @@
           productionLog('🔧 [BASIC-DEBUG] User Agent:', navigator.userAgent);
   
           // Proceed with initialization
+          console.log('🔍 [EXECUTION] About to call startMGAInitialization()');
           startMGAInitialization();
+          console.log('🔍 [EXECUTION] startMGAInitialization() returned');
       }
   
       // CRITICAL FIX: Handle all readyState possibilities for Tampermonkey compatibility
       // document-idle means readyState is 'interactive' - not 'loading' or 'complete'
-      productionLog('🔧 [INIT] Initial readyState:', document.readyState);
-  
-      // NEW: Add delay for Tampermonkey to let game load first
-      const initDelay = isUserscript ? 3000 : 100; // 3 second delay for Tampermonkey, 100ms for console
-  
-      if (document.readyState === 'complete') {
-          // Page is already fully loaded
-          productionLog(`🔧 [INIT] Page already complete, initializing in ${initDelay}ms`);
-          setTimeout(initializeWhenReady, initDelay);
-      } else if (document.readyState === 'interactive') {
-          // DOM is ready but resources still loading (document-idle state)
-          // Wait for resources plus our delay
-          productionLog(`🔧 [INIT] DOM interactive (document-idle), initializing in ${initDelay}ms...`);
-          setTimeout(() => {
-              initializeWhenReady();
-          }, initDelay); // Delay to let game initialize
-      } else {
-          // readyState is 'loading' - wait for full page load
-          productionLog('🔧 [INIT] DOM still loading, waiting for load event...');
-          window.addEventListener('load', initializeWhenReady);
-  
-          // Backup: also listen for DOMContentLoaded
-          document.addEventListener('DOMContentLoaded', () => {
-              productionLog('🔧 [TIMING] DOM ready, waiting for complete load...');
-          });
+
+      console.log('🔍🔍🔍 [EXECUTION] Reached line 982 - INITIALIZATION BLOCK START');
+      console.log('🔍 About to call productionLog for readyState...');
+
+      try {
+          productionLog('🔧 [INIT] Initial readyState:', document.readyState);
+      } catch (e) {
+          console.error('❌ [EXECUTION] productionLog FAILED:', e);
       }
-  
+
+      // Detect Discord environment for special handling
+      const isDiscordEnv = window.location.host.includes('discordsays.com') ||
+                           window.location.host.includes('discord.com') ||
+                           (typeof window.DiscordNative !== 'undefined') ||
+                           (typeof window.__DISCORD__ !== 'undefined');
+
+      if (isDiscordEnv) {
+          productionLog('🎮 [DISCORD] Discord environment detected, using specialized initialization');
+      }
+
+      // Discord Fix: Use shorter delay for Discord, check for canvas existence
+      const initDelay = isDiscordEnv ? 500 : (isUserscript ? 3000 : 100);
+
+      // Helper function to check if game canvas is ready
+      function isGameCanvasReady() {
+          const canvas = document.querySelector('canvas');
+          const gameContainer = document.querySelector('#game-container, #app, .game-wrapper, main, body');
+          const ready = canvas && gameContainer;
+          if (!ready && isDiscordEnv) {
+              productionLog('⏳ [DISCORD] Waiting for game canvas...');
+          }
+          return ready;
+      }
+
+      // Discord Fix: Wait for canvas with retry mechanism
+      function initWithCanvasCheck(attempt = 0) {
+          console.log(`🔍 [EXECUTION] initWithCanvasCheck called, attempt=${attempt}`);
+          if (isGameCanvasReady()) {
+              console.log('🔍 [EXECUTION] Canvas ready! Calling initializeWhenReady()');
+              productionLog('✅ [INIT] Game canvas detected, initializing MGTools');
+              initializeWhenReady();
+          } else if (attempt < 20) {
+              // Retry up to 20 times (10 seconds) for Discord
+              console.log(`🔍 [EXECUTION] Canvas not ready, scheduling retry ${attempt + 1}/20`);
+              productionLog(`🔄 [INIT] Canvas not ready, retry ${attempt + 1}/20`);
+              setTimeout(() => initWithCanvasCheck(attempt + 1), 500);
+          } else {
+              console.log('🔍 [EXECUTION] Max retries reached, calling initializeWhenReady() anyway');
+              productionLog('⚠️ [INIT] Canvas not detected after 10s, initializing anyway');
+              initializeWhenReady();
+          }
+      }
+
+      console.log('🔍 [EXECUTION] About to check document.readyState...');
+
+      try {
+          if (document.readyState === 'complete') {
+              // Page is already fully loaded
+              console.log('🔍 [EXECUTION] readyState is complete');
+              console.log(`🔍 [EXECUTION] isDiscordEnv = ${isDiscordEnv}, initDelay = ${initDelay}ms`);
+              productionLog(`🔧 [INIT] Page already complete, initializing in ${initDelay}ms`);
+              console.log(`🔍 [EXECUTION] About to schedule setTimeout for ${initDelay}ms`);
+              setTimeout(() => {
+                  console.log('🔍🔍🔍 [EXECUTION] setTimeout FIRED! About to call init function...');
+                  if (isDiscordEnv) {
+                      console.log('🔍 [EXECUTION] Calling initWithCanvasCheck()');
+                      initWithCanvasCheck();
+                  } else {
+                      console.log('🔍 [EXECUTION] Calling initializeWhenReady()');
+                      initializeWhenReady();
+                  }
+              }, initDelay);
+          } else if (document.readyState === 'interactive') {
+              console.log('🔍 [EXECUTION] readyState is interactive');
+              // DOM is ready but resources still loading (document-idle state)
+              productionLog(`🔧 [INIT] DOM interactive (document-idle), initializing in ${initDelay}ms...`);
+              setTimeout(() => {
+                  if (isDiscordEnv) {
+                      initWithCanvasCheck();
+                  } else {
+                      initializeWhenReady();
+                  }
+              }, initDelay);
+          } else {
+              // readyState is 'loading' - wait for full page load
+              productionLog('🔧 [INIT] DOM still loading, waiting for load event...');
+
+              // Discord Fix: Use DOMContentLoaded for Discord like friendscript does
+              if (isDiscordEnv) {
+                  document.addEventListener('DOMContentLoaded', () => {
+                      productionLog('✅ [DISCORD] DOM ready, checking for canvas...');
+                      setTimeout(() => initWithCanvasCheck(), initDelay);
+                  });
+              } else {
+                  window.addEventListener('load', initializeWhenReady);
+
+                  // Backup: also listen for DOMContentLoaded
+                  document.addEventListener('DOMContentLoaded', () => {
+                      productionLog('🔧 [TIMING] DOM ready, waiting for complete load...');
+                  });
+              }
+          }
+      } catch (initError) {
+          console.error('❌❌❌ [EXECUTION] CRITICAL ERROR in initialization block:', initError);
+          console.error('Stack:', initError.stack);
+          // Try to initialize anyway as fallback
+          console.log('🔄 [EXECUTION] Attempting fallback initialization in 1s...');
+          setTimeout(() => {
+              try {
+                  initializeWhenReady();
+              } catch (e2) {
+                  console.error('❌ [EXECUTION] Fallback also failed:', e2);
+              }
+          }, 1000);
+      }
+
+      console.log('✅ [EXECUTION] Initialization block completed without throwing');
+
       function startMGAInitialization() {
+          console.log('🔍🔍🔍🔍🔍 [EXECUTION] ENTERED startMGAInitialization() function!');
+          console.log('🔍 [EXECUTION] document.readyState:', document.readyState);
           productionLog('🚀 [TIMING] Starting MGA initialization with readyState:', document.readyState);
-  
+          console.log('🔍 [EXECUTION] productionLog completed, continuing...');
+
+      // ==================== PROACTIVE STORAGE CLEANUP ====================
+      // CRITICAL: Clean up large debug/console storage items BEFORE MGTools tries to save anything
+      // This prevents quota errors on managed devices with monitoring software
+      (function cleanupStorageBeforeInit() {
+          try {
+              const debugKeys = [
+                  'console-history',
+                  'mga-debug-cache',
+                  'mga-temp-cache',
+                  'console-insights-onboarding-finished',
+                  'experiments',
+                  'settles',
+                  'getItem',
+                  'removeItem',
+                  'key',
+                  'localInspectorVersion'
+              ];
+
+              let cleaned = 0;
+              let freedBytes = 0;
+
+              for (const key of debugKeys) {
+                  try {
+                      const value = localStorage.getItem(key);
+                      if (value) {
+                          const size = value.length;
+                          // Remove any item over 100KB or any console-history regardless of size
+                          if (size > 100000 || key.includes('console')) {
+                              localStorage.removeItem(key);
+                              cleaned++;
+                              freedBytes += size;
+                              logInfo('STORAGE-CLEANUP', `Removed ${key} (${(size / 1024).toFixed(1)}KB)`);
+                          }
+                      }
+                  } catch (e) {
+                      // Ignore errors for individual keys
+                  }
+              }
+
+              if (cleaned > 0) {
+                  logInfo('STORAGE-CLEANUP', `Freed ${(freedBytes / 1024).toFixed(1)}KB by removing ${cleaned} debug items`);
+              }
+          } catch (e) {
+              logWarn('STORAGE-CLEANUP', 'Could not clean storage, continuing anyway', e);
+          }
+      })();
+
       // Detect other Magic Garden scripts
       setTimeout(() => {
           const hasMainScript = typeof window.loadJSON === 'function' ||
@@ -598,8 +1217,14 @@
   
       // ==================== GLOBAL STYLES ====================
       // Skip Google Fonts on Discord to avoid CSP violations
-      const isDiscordPage = window.location.hostname.includes('discord.com');
-      const googleFontsImport = isDiscordPage ? '' : "@import url('CSP_BLOCKED_GOOGLE_FONTS/css2?family=Inter:wght@400;500;600;700&display=swap');";
+      const isDiscordPage = window.location.hostname.includes('discord.com') ||
+                            window.location.hostname.includes('discordsays.com') ||
+                            (typeof window.DiscordNative !== 'undefined') ||
+                            (typeof window.__DISCORD__ !== 'undefined');
+
+      // Use empty string for Discord (system fonts only), otherwise no Google Fonts CDN
+      // We never use external CDN to avoid CSP issues entirely
+      const googleFontsImport = '';
   
       const UNIFIED_STYLES = `
           ${googleFontsImport}
@@ -1335,7 +1960,7 @@
           { id: 'WoodBridge', name: 'Wood Bridge', category: 'Wood' },
           { id: 'WoodLampPost', name: 'Wood Lamp Post', category: 'Wood' },
           { id: 'WoodOwl', name: 'Wood Owl', category: 'Wood' },
-          { id: 'Birdhouse', name: 'Birdhouse', category: 'Wood' },
+          { id: 'WoodBirdhouse', name: 'Wood Birdhouse', category: 'Wood' },
           // Stone Items
           { id: 'StoneBench', name: 'Stone Bench', category: 'Stone' },
           { id: 'StoneArch', name: 'Stone Arch', category: 'Stone' },
@@ -1346,7 +1971,8 @@
           // Marble Items
           { id: 'MarbleBench', name: 'Marble Bench', category: 'Marble' },
           { id: 'MarbleArch', name: 'Marble Arch', category: 'Marble' },
-          { id: 'MarbleBridge', name: 'Marble Bridge', category: 'Marble' }
+          { id: 'MarbleBridge', name: 'Marble Bridge', category: 'Marble' },
+          { id: 'MarbleLampPost', name: 'Marble Lamp Post', category: 'Marble' }
       ];
   
       const UnifiedState = {
@@ -1440,7 +2066,12 @@
                   },
                   detailedTimestamps: true,  // Show HH:MM:SS 24-hour format instead of 12-hour AM/PM
                   debugMode: false,  // Enable debug logging for troubleshooting
-                  hideWeather: false  // Hide weather visual effects (snow, rain, etc)
+                  hideWeather: false,  // Hide weather visual effects (snow, rain, etc)
+                  autoFavorite: {
+                      enabled: false,
+                      species: [],  // List of species names to auto-favorite
+                      mutations: []  // List of mutations to auto-favorite (Rainbow, Gold, Frozen, etc)
+                  }
               },
               hotkeys: {
                   enabled: true,
@@ -1534,7 +2165,7 @@
           try {
               // Check if in Discord iframe or Discord-hosted URL
               const isIframe = window.location !== window.parent.location;
-              const isDiscordHost = window.location.host.includes('discordsays.com');
+              const isDiscordHost = window.location.host.includes('discordsays.com') || window.location.host.endsWith('.discordsays.com');
               const isDiscordActivity = isIframe || isDiscordHost;
 
               if (UnifiedState.data.settings?.debugMode) {
@@ -1552,7 +2183,6 @@
               return false;
           }
       }
-
       // Get current room code from URL
       function getCurrentRoomCode() {
           try {
@@ -1616,7 +2246,11 @@ async function initializeFirebase() {
                 let abort = false;
                 const fetchInfo = async (room) => {
                     try{
-                        const url = new URL(location.origin + '/info');
+                        // Use getGameApiBaseUrl from global scope with fallback
+                        const globalScope = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
+                        const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
+                        const apiBase = getApiBase();
+                        const url = new URL(apiBase + '/info');
                         url.searchParams.set('room', room);
                         const res = await fetch(url.toString(), {credentials:'include'});
                         if (!res.ok) throw new Error('HTTP '+res.status);
@@ -2314,19 +2948,29 @@ async function initializeFirebase() {
   
           // PRIORITY FIX: Check for game environment FIRST (before Discord check)
           // This ensures that when running inside game iframe in Discord, we detect game mode
-          const gameHosts = ['magiccircle.gg', 'magicgarden.gg', 'starweaver.org'];
+          const gameHosts = ['magiccircle.gg', 'magicgarden.gg', 'starweaver.org', 'discordsays.com'];
           const isGameDomain = gameHosts.some(host => environment.domain.includes(host));
           const hasGamePath = targetWindow.location.pathname.includes('/r/');
+          const isDiscordActivity = environment.domain.includes('discordsays.com');
   
           productionLog('🔍 [ENV-DEBUG] Game checks:', {
               isGameDomain,
               hasGamePath,
-              willEnterGameMode: isGameDomain && hasGamePath
+              isDiscordActivity,
+              willEnterGameMode: isGameDomain && (hasGamePath || isDiscordActivity)
           });
-  
-          if (isGameDomain && hasGamePath) {
-              // We're in the game (either standalone or inside Discord iframe)
+
+          // Game environment: Regular game domains with /r/ path OR Discord Activities (no /r/ needed)
+          if (isGameDomain && (hasGamePath || isDiscordActivity)) {
+              // We're in the game environment (works in Discord iframes, standalone, and everywhere)
+              const isInIframe = window.location !== window.parent.location;
+              const isDiscordDesktopApp = window.DiscordNative !== undefined;
+
               productionLog('🎮 [ENV] Running in game environment:', environment.domain);
+              if (isDiscordActivity) {
+                  productionLog('🎮 [DISCORD-ACTIVITY] Detected Discord Activity iframe!');
+              }
+              productionLog('🎮 [ENV] IsIframe:', isInIframe, '| DiscordNative:', isDiscordDesktopApp);
               environment.isGameEnvironment = true;
               environment.isStandalone = false;
               environment.gameReady = environment.hasJotaiAtoms && environment.hasMagicCircleConnection && document.readyState === 'complete';
@@ -2349,12 +2993,13 @@ async function initializeFirebase() {
               environment.isDiscordEmbed = true;
               productionLog('🎮 [DISCORD] Running on Discord page - looking for game iframe...');
   
-              // Try to find the game iframe
+              // Try to find the game iframe (gameHosts already includes discordsays.com)
               const gameIframes = document.querySelectorAll('iframe');
               let foundGameIframe = false;
               for (const iframe of gameIframes) {
                   try {
                       const iframeSrc = iframe.src || '';
+                      // gameHosts includes all game domains plus discordsays.com
                       if (gameHosts.some(host => iframeSrc.includes(host))) {
                           productionLog('✅ [DISCORD] Found game iframe:', iframeSrc);
                           productionLog('💡 [DISCORD] Script should be running inside that iframe');
@@ -2725,7 +3370,7 @@ async function initializeFirebase() {
       try {
           // Enhanced GM API availability check
           if (!isGMApiAvailable()) {
-              productionWarn(`⚠️ [GM-STORAGE] GM_setValue not available! Falling back to localStorage.`);
+              // Warning already shown by isGMApiAvailable(), just use fallback silently
               return MGA_saveJSON_localStorage_fallback(key, value);
           }
   
@@ -5106,6 +5751,22 @@ async function initializeFirebase() {
               img.src = icons[tabName];
               // FIX: Match scriptwithicons sizing exactly
               img.style.height = '70%';
+
+              // Add fallback for failed icon loads (especially shop icon)
+              img.onerror = () => {
+                  img.style.display = 'none';
+                  const fallbackEmoji = targetDocument.createElement('span');
+                  const emojiMap = {
+                      pets: '🐾', abilities: '⚡', seeds: '🌱', values: '💎',
+                      timers: '⏱️', rooms: '🏠', shop: '🛒', tools: '🔧',
+                      settings: '⚙️', hotkeys: '⌨️', protect: '🔒',
+                      notifications: '🔔', help: '❓'
+                  };
+                  fallbackEmoji.textContent = emojiMap[tabName] || '📋';
+                  fallbackEmoji.style.fontSize = '24px';
+                  item.insertBefore(fallbackEmoji, item.firstChild);
+              };
+
               item.appendChild(img);
   
               const tooltip = targetDocument.createElement('div');
@@ -5144,6 +5805,22 @@ async function initializeFirebase() {
               img.src = icons[tabName];
               // FIX: Match scriptwithicons sizing exactly
               img.style.height = '70%';
+
+              // Add fallback for failed icon loads (especially shop icon)
+              img.onerror = () => {
+                  img.style.display = 'none';
+                  const fallbackEmoji = targetDocument.createElement('span');
+                  const emojiMap = {
+                      pets: '🐾', abilities: '⚡', seeds: '🌱', values: '💎',
+                      timers: '⏱️', rooms: '🏠', shop: '🛒', tools: '🔧',
+                      settings: '⚙️', hotkeys: '⌨️', protect: '🔒',
+                      notifications: '🔔', help: '❓'
+                  };
+                  fallbackEmoji.textContent = emojiMap[tabName] || '📋';
+                  fallbackEmoji.style.fontSize = '24px';
+                  item.insertBefore(fallbackEmoji, item.firstChild);
+              };
+
               item.appendChild(img);
   
               const tooltip = targetDocument.createElement('div');
@@ -5259,7 +5936,39 @@ async function initializeFirebase() {
           // Append to DOM
           targetDocument.body.appendChild(dock);
           targetDocument.body.appendChild(sidebar);
-  
+
+          // Discord Fix: Add MutationObserver to detect when React purges UI
+          if (isDiscordEnv) {
+              let uiRemovalCount = 0;
+              const maxReinjections = 10; // Prevent infinite loops
+
+              const observer = new MutationObserver((mutations) => {
+                  const dockMissing = !targetDocument.body.contains(dock);
+                  const sidebarMissing = !targetDocument.body.contains(sidebar);
+
+                  if ((dockMissing || sidebarMissing) && uiRemovalCount < maxReinjections) {
+                      uiRemovalCount++;
+                      productionLog(`🔄 [DISCORD] UI purged by React (${uiRemovalCount}/${maxReinjections}), re-injecting...`);
+
+                      // Re-inject missing elements
+                      if (dockMissing && dock.parentNode !== targetDocument.body) {
+                          targetDocument.body.appendChild(dock);
+                      }
+                      if (sidebarMissing && sidebar.parentNode !== targetDocument.body) {
+                          targetDocument.body.appendChild(sidebar);
+                      }
+                  }
+              });
+
+              // Watch for removals in body
+              observer.observe(targetDocument.body, {
+                  childList: true,
+                  subtree: false
+              });
+
+              productionLog('✅ [DISCORD] MutationObserver active for UI persistence');
+          }
+
           // Restore saved orientation
           const savedOrientation = loadDockOrientation();
           if (savedOrientation === 'vertical') {
@@ -5855,10 +6564,12 @@ async function initializeFirebase() {
       }
   
       // Register Alt+B hotkey to toggle shop windows
+      // Use capture phase (true) to intercept before game handlers
       targetDocument.addEventListener('keydown', (e) => {
           // Alt+B for shop
           if (e.altKey && e.key.toLowerCase() === 'b') {
               e.preventDefault();
+              e.stopPropagation();
               toggleShopWindows();
               return;
           }
@@ -5867,6 +6578,7 @@ async function initializeFirebase() {
           for (const [presetName, hotkey] of Object.entries(UnifiedState.data.petPresetHotkeys)) {
               if (hotkey && matchesHotkey(e, hotkey)) {
                   e.preventDefault();
+                  e.stopPropagation();
                   const preset = UnifiedState.data.petPresets[presetName];
                   if (preset) {
                       loadPetPreset(preset);
@@ -5900,6 +6612,7 @@ async function initializeFirebase() {
           for (const [action, config] of Object.entries(mgToolsKeys)) {
               if (config.custom && matchesHotkey(e, config.custom)) {
                   e.preventDefault();
+                  e.stopPropagation();
                   const tabName = tabMap[action];
                   if (tabName === 'shop') {
                       toggleShopWindows();
@@ -5909,7 +6622,7 @@ async function initializeFirebase() {
                   return;
               }
           }
-      });
+      }, true); // Use capture phase to intercept before game handlers
   
       // Pop-out window functionality
       function openTabInPopout(tabName) {
@@ -6562,6 +7275,44 @@ async function initializeFirebase() {
   
           // Add to DOM and track
           targetDocument.body.appendChild(overlay);
+
+          // After rendering notification checkboxes in widget, reload saved state
+          if (tabName === 'notifications') {
+              // Re-apply saved states to all checkboxes
+              const savedData = MGA_loadJSON('MGA_data');
+              if (savedData?.settings?.notifications) {
+                  const notifications = savedData.settings.notifications;
+
+                  // Apply ability notification settings
+                  const abilityCheckbox = overlay.querySelector('#ability-notifications-enabled');
+                  if (abilityCheckbox) {
+                      abilityCheckbox.checked = notifications.abilityNotificationsEnabled || false;
+                  }
+
+                  // Apply category settings if category checkboxes exist
+                  if (notifications.watchedAbilityCategories) {
+                      Object.keys(notifications.watchedAbilityCategories).forEach(category => {
+                          const catCheckbox = overlay.querySelector(`#ability-cat-${category}`);
+                          if (catCheckbox) {
+                              catCheckbox.checked = notifications.watchedAbilityCategories[category];
+                          }
+                      });
+                  }
+
+                  // Apply individual ability checkboxes
+                  if (notifications.watchedAbilities) {
+                      const individualCheckboxes = overlay.querySelectorAll('.individual-ability-checkbox');
+                      individualCheckboxes.forEach(checkbox => {
+                          const abilityName = checkbox.dataset.abilityName;
+                          if (abilityName) {
+                              checkbox.checked = notifications.watchedAbilities.includes(abilityName);
+                          }
+                      });
+                  }
+
+                  productionLog(`✅ [WIDGET-STATE] Reloaded notification settings for ${tabName} widget`);
+              }
+          }
           UnifiedState.data.popouts.overlays.set(tabName, overlay);
   
           // Setup handlers for the content (now that overlay is in DOM)
@@ -7907,7 +8658,7 @@ async function initializeFirebase() {
   
       function getCachedTabContent(tabName, generator) {
           // Never cache dynamic tabs (they need real-time data)
-          const dynamicTabs = ['pets', 'abilities', 'values', 'timers', 'rooms', 'hotkeys', 'settings'];
+          const dynamicTabs = ['pets', 'abilities', 'seeds', 'shop', 'values', 'timers', 'rooms', 'hotkeys', 'settings', 'notifications', 'protect'];
           if (dynamicTabs.includes(tabName)) {
               return generator();
           }
@@ -8706,7 +9457,14 @@ async function initializeFirebase() {
           "UncommonEgg": "https://cdn.discordapp.com/emojis/1423011627602804856.webp",
           "RareEgg": "https://cdn.discordapp.com/emojis/1423011625664905316.webp",
           "LegendaryEgg": "https://cdn.discordapp.com/emojis/1423011623089737739.webp",
-          "MythicalEgg": "https://cdn.discordapp.com/emojis/1423011620828745899.webp"
+          "MythicalEgg": "https://cdn.discordapp.com/emojis/1423011620828745899.webp",
+          // Tools (Use Discord emojis for proper display)
+          "WateringCan": "https://cdn.discordapp.com/emojis/1426622484957888512.webp",
+          "PlanterPot": "https://cdn.discordapp.com/emojis/1426622518948794451.webp",
+          "Shovel": "https://cdn.discordapp.com/emojis/1426622542222856282.webp",
+          "Watering Can": "https://cdn.discordapp.com/emojis/1426622484957888512.webp",
+          "Planter Pot": "https://cdn.discordapp.com/emojis/1426622518948794451.webp",
+          "Garden Shovel": "https://cdn.discordapp.com/emojis/1426622542222856282.webp"
       };
   
       // Color groups for item rarity/type
@@ -8765,7 +9523,14 @@ async function initializeFirebase() {
           "UncommonEgg": 1000000,
           "RareEgg": 10000000,
           "LegendaryEgg": 100000000,
-          "MythicalEgg": 1000000000
+          "MythicalEgg": 1000000000,
+          // Tools (from game screenshot)
+          "WateringCan": 3000,
+          "Watering Can": 3000,
+          "PlanterPot": 25000,
+          "Planter Pot": 25000,
+          "GardenShovel": 0,  // OWNED - unlimited uses
+          "Garden Shovel": 0
       };
   
       // Format price with k/m/b notation and return color
@@ -9002,12 +9767,12 @@ async function initializeFirebase() {
       function createShopSidebars() {
           // Create seed shop sidebar (left)
           seedShopWindow = createShopSidebar('seed', 'Seeds', 'left');
-          // Create egg shop sidebar (right)
-          eggShopWindow = createShopSidebar('egg', 'Eggs', 'right');
-  
+          // Create egg & tool shop sidebar (right)
+          eggShopWindow = createShopSidebar('egg', 'Eggs & Tools', 'right');
+
           // Setup handlers
           setupShopWindowHandlers(seedShopWindow, 'seed');
-          setupShopWindowHandlers(eggShopWindow, 'egg');
+          setupShopWindowHandlers(eggShopWindow, 'egg'); // This now handles both eggs and tools
       }
   
       // Escape key handler to close shop windows
@@ -9185,37 +9950,131 @@ async function initializeFirebase() {
           const itemsList = window.querySelector('.shop-items-list');
           const sortCheckbox = window.querySelector('.sort-by-value');
           const showAvailableCheckbox = window.querySelector('.show-available-only');
-  
+
           const items = type === 'seed' ? SEED_SPECIES_SHOP : EGG_IDS_SHOP;
-  
+
           function renderItems(sortByValue = false, showAvailableOnly = false) {
               itemsList.innerHTML = '';
-  
-              let itemsToRender = items.map(id => ({
-                  id,
-                  stock: getItemStock(id, type),
-                  value: getItemValue(id, type)
-              }));
-  
-              // Filter by availability if checkbox is checked
-              if (showAvailableOnly) {
-                  itemsToRender = itemsToRender.filter(item => item.stock > 0);
-              }
-  
-              // Sort by value if checkbox is checked
-              if (sortByValue) {
-                  itemsToRender.sort((a, b) => b.value - a.value);
-              }
-  
-              // Render items
-              itemsToRender.forEach(({ id, stock, value }) => {
-                  const itemEl = createShopItemElement(id, type, stock, value);
-                  itemsList.appendChild(itemEl);
-              });
-  
-              // Show empty state if no items after filtering
-              if (itemsToRender.length === 0 && showAvailableOnly) {
-                  itemsList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+
+              // For egg type, render both eggs and tools with divider
+              if (type === 'egg') {
+                  // Render eggs section
+                  let eggItemsToRender = EGG_IDS_SHOP.map(id => ({
+                      id,
+                      stock: getItemStock(id, 'egg'),
+                      value: getItemValue(id, 'egg'),
+                      type: 'egg'
+                  }));
+
+                  if (showAvailableOnly) {
+                      eggItemsToRender = eggItemsToRender.filter(item => item.stock > 0);
+                  }
+
+                  if (sortByValue) {
+                      eggItemsToRender.sort((a, b) => b.value - a.value);
+                  }
+
+                  eggItemsToRender.forEach(({ id, stock, value }) => {
+                      const itemEl = createShopItemElement(id, 'egg', stock, value);
+                      itemsList.appendChild(itemEl);
+                  });
+
+                  // Get tools from game shop inventory
+                  const toolShop = targetWindow?.globalShop?.shops?.tool;
+                  const toolInventory = toolShop?.inventory || [];
+                  // Only show divider and tools if tools exist
+                  if (toolInventory.length > 0) {
+                      // Add professional divider
+                      const divider = targetDocument.createElement('div');
+                      divider.style.cssText = `
+                          margin: 12px 0;
+                          padding: 8px 0;
+                          border-top: 1px solid rgba(255, 255, 255, 0.15);
+                          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                          text-align: center;
+                          font-size: 11px;
+                          font-weight: 600;
+                          color: rgba(255, 255, 255, 0.5);
+                          text-transform: uppercase;
+                          letter-spacing: 1px;
+                      `;
+                      divider.textContent = '🔧 Tools';
+                      itemsList.appendChild(divider);
+
+                      // Render tools dynamically from inventory
+                      let toolItemsToRender = toolInventory.map((tool, idx) => {
+                          // Tools use toolId property (confirmed from friendscript)
+                          const toolId = tool.toolId || tool.name || `Tool_${idx}`;
+
+                          // Check if player owns Shovel (it's a one-time purchase)
+                          let isOwned = false;
+                          let isUnlimited = false;
+                          if (toolId === 'Shovel' || toolId === 'GardenShovel') {
+                              // Check player inventory for Shovel ownership
+                              const playerInventory = targetWindow.myData?.inventory?.items || [];
+                              isOwned = playerInventory.some(item =>
+                                  item.itemType === 'Tool' &&
+                                  (item.toolId === 'Shovel' || item.toolId === 'GardenShovel')
+                              );
+                              if (isOwned) {
+                                  isUnlimited = true;
+                              }
+                          }
+
+                          const toolStock = isOwned ? 0 : getItemStock(toolId, 'tool');
+                          return {
+                              id: toolId,
+                              stock: toolStock,
+                              value: getItemValue(toolId, 'tool'),
+                              type: 'tool',
+                              owned: isOwned,
+                              unlimited: isUnlimited
+                          };
+                      });
+
+                      if (showAvailableOnly) {
+                          // Don't filter out owned/unlimited items (like Shovel)
+                          toolItemsToRender = toolItemsToRender.filter(item => item.stock > 0 || item.owned || item.unlimited);
+                      }
+
+                      if (sortByValue) {
+                          toolItemsToRender.sort((a, b) => b.value - a.value);
+                      }
+
+                      toolItemsToRender.forEach(({ id, stock, value, owned, unlimited }) => {
+                          const itemEl = createShopItemElement(id, 'tool', stock, value, { owned, unlimited });
+                          itemsList.appendChild(itemEl);
+                      });
+                  }
+
+                  // Show empty state if no items after filtering
+                  if (eggItemsToRender.length === 0 && toolInventory.length === 0 && showAvailableOnly) {
+                      itemsList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+                  }
+              } else {
+                  // Render seeds normally
+                  let itemsToRender = items.map(id => ({
+                      id,
+                      stock: getItemStock(id, type),
+                      value: getItemValue(id, type)
+                  }));
+
+                  if (showAvailableOnly) {
+                      itemsToRender = itemsToRender.filter(item => item.stock > 0);
+                  }
+
+                  if (sortByValue) {
+                      itemsToRender.sort((a, b) => b.value - a.value);
+                  }
+
+                  itemsToRender.forEach(({ id, stock, value }) => {
+                      const itemEl = createShopItemElement(id, type, stock, value);
+                      itemsList.appendChild(itemEl);
+                  });
+
+                  if (itemsToRender.length === 0 && showAvailableOnly) {
+                      itemsList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+                  }
               }
           }
   
@@ -9310,15 +10169,18 @@ async function initializeFirebase() {
           }, 2000); // Check every 2 seconds for better responsiveness
       }
   
-      function createShopItemElement(id, type, stock, value) {
+      function createShopItemElement(id, type, stock, value, options = {}) {
+          const { owned = false, unlimited = false } = options;
+
           const div = targetDocument.createElement('div');
           div.className = 'shop-item';
-          if (stock > 0) div.classList.add('in-stock');
+          // Only add 'in-stock' class if actually in stock (not owned)
+          if (stock > 0 && !owned) div.classList.add('in-stock');
   
           div.style.cssText = `
               padding: 8px;
-              background: ${stock > 0 ? 'rgba(76, 255, 106, 0.15)' : 'rgba(255,255,255,0.03)'};
-              border: 1px solid ${stock > 0 ? 'rgba(9, 255, 0, 0.2)' : 'rgba(255,255,255,0.1)'};
+              background: ${(stock > 0 && !owned) ? 'rgba(76, 255, 106, 0.15)' : 'rgba(255,255,255,0.03)'};
+              border: 1px solid ${(stock > 0 && !owned) ? 'rgba(9, 255, 0, 0.2)' : 'rgba(255,255,255,0.1)'};
               border-radius: 4px;
               display: flex;
               align-items: center;
@@ -9332,16 +10194,25 @@ async function initializeFirebase() {
           const colorClass = getShopItemColorClass(id);
           const price = SHOP_PRICES[id] || 0;
           const priceData = formatShopPrice(price);
-  
+
+          // Determine stock display text
+          let stockDisplay;
+          if (owned || unlimited) {
+              // For owned items (like Shovel), just show "OWNED" in neutral color
+              stockDisplay = '<span style="color: #888; font-weight: 600;">OWNED</span>';
+          } else {
+              stockDisplay = `Stock: ${stock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span>`;
+          }
+
           div.innerHTML = `
               <div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;">
                   ${spriteUrl ? `<img src="${spriteUrl}" alt="${displayName}" class="shop-sprite" loading="lazy">` : ''}
                   <div style="flex: 1; min-width: 0;">
                       <div style="font-size: 12px; font-weight: 600; margin-bottom: 2px;" class="${colorClass}">${displayName}</div>
-                      <div class="stock-display" style="font-size: 10px; color: #888;">Stock: ${stock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span></div>
+                      <div class="stock-display" style="font-size: 10px; color: #888;">${stockDisplay}</div>
                   </div>
               </div>
-              <div style="display: flex; gap: 4px;">
+              <div style="display: ${(owned || unlimited) ? 'none' : 'flex'}; gap: 4px;">
                   <button class="buy-btn" data-amount="1" ${stock === 0 ? 'disabled' : ''}
                           style="padding: 4px 8px; font-size: 11px; background: rgba(74, 158, 255, 0.3); border: 1px solid rgba(74, 158, 255, 0.5); border-radius: 3px; color: #fff; cursor: ${stock > 0 ? 'pointer' : 'not-allowed'}; transition: all 0.15s ease;">1</button>
                   <button class="buy-btn" data-amount="all" ${stock === 0 ? 'disabled' : ''}
@@ -9380,13 +10251,26 @@ async function initializeFirebase() {
               alert('Connection not available');
               return;
           }
-  
+
           try {
               for (let i = 0; i < amount; i++) {
+                  let messageType, itemKey;
+
+                  if (type === 'seed') {
+                      messageType = "PurchaseSeed";
+                      itemKey = 'species';
+                  } else if (type === 'egg') {
+                      messageType = "PurchaseEgg";
+                      itemKey = 'eggId';
+                  } else if (type === 'tool') {
+                      messageType = "PurchaseTool";
+                      itemKey = 'toolId';
+                  }
+
                   conn.sendMessage({
                       scopePath: ["Room", "Quinoa"],
-                      type: type === 'seed' ? "PurchaseSeed" : "PurchaseEgg",
-                      [type === 'seed' ? 'species' : 'eggId']: id
+                      type: messageType,
+                      [itemKey]: id
                   });
               }
   
@@ -9434,23 +10318,41 @@ async function initializeFirebase() {
           try {
               const shop = targetWindow?.globalShop?.shops;
               if (!shop) return 0;
-  
-              const inventory = type === 'seed' ? shop.seed?.inventory : shop.egg?.inventory;
-              if (!inventory) return 0;
-  
-              const item = inventory.find(i => {
-                  const itemId = type === 'seed' ? i.species : i.eggId;
-                  return itemId === id;
-              });
-  
+
+              let inventory, item;
+
+              if (type === 'seed') {
+                  inventory = shop.seed?.inventory;
+                  if (!inventory) return 0;
+                  item = inventory.find(i => i.species === id);
+              } else if (type === 'egg') {
+                  inventory = shop.egg?.inventory;
+                  if (!inventory) return 0;
+                  item = inventory.find(i => i.eggId === id);
+              } else if (type === 'tool') {
+                  inventory = shop.tool?.inventory;
+                  if (!inventory) return 0;
+                  // Tools use toolId property (confirmed from friendscript)
+                  // Also check with/without spaces for compatibility
+                  const idNoSpaces = id.replace(/\s+/g, '');
+                  item = inventory.find(i =>
+                      i.toolId === id ||
+                      i.name === id ||
+                      i.toolId?.replace(/\s+/g, '') === idNoSpaces ||
+                      i.name?.replace(/\s+/g, '') === idNoSpaces
+                  );
+              } else {
+                  return 0;
+              }
+
               if (!item) return 0;
-  
+
               // initialStock is a snapshot that only updates on restock
               // We must subtract local purchases to get current stock
-              const initial = item.initialStock || 0;
+              const initial = item.initialStock || item.stock || 0;
               const purchased = getLocalPurchaseCount(id, type);
+
               const stock = Math.max(0, initial - purchased);
-  
               return stock;
           } catch (e) {
               productionError('[SHOP] getItemStock error:', e);
@@ -9474,7 +10376,9 @@ async function initializeFirebase() {
               'Strawberry': 60, 'Carrot': 40,
               // Eggs
               'MythicalEgg': 10000, 'LegendaryEgg': 5000, 'RareEgg': 1000,
-              'UncommonEgg': 200, 'CommonEgg': 50
+              'UncommonEgg': 200, 'CommonEgg': 50,
+              // Tools (placeholder values - these will be replaced with actual game values)
+              'Shovel': 500, 'WateringCan': 300, 'Fertilizer': 200
           };
           return valueMap[id] || 100;
       }
@@ -9494,9 +10398,10 @@ async function initializeFirebase() {
       // Local purchase tracking for immediate UI updates (persisted across page refreshes)
       let localPurchaseTracker = {
           seed: {},
-          egg: {}
+          egg: {},
+          tool: {}
       };
-  
+
       // Load persisted purchase tracker from storage
       function loadPurchaseTracker() {
           try {
@@ -9504,8 +10409,15 @@ async function initializeFirebase() {
               if (saved && typeof saved === 'object') {
                   localPurchaseTracker = {
                       seed: saved.seed || {},
-                      egg: saved.egg || {}
+                      egg: saved.egg || {},
+                      tool: saved.tool || {}
                   };
+                  console.log('📦 [LOCAL-TRACK] Loaded purchase tracker:', {
+                      seeds: Object.keys(localPurchaseTracker.seed).length,
+                      eggs: Object.keys(localPurchaseTracker.egg).length,
+                      tools: Object.keys(localPurchaseTracker.tool).length,
+                      toolData: localPurchaseTracker.tool
+                  });
               }
           } catch (e) {
               console.error('[LOCAL-TRACK] Error loading purchase tracker:', e);
@@ -9533,15 +10445,32 @@ async function initializeFirebase() {
               localPurchaseTracker[type][id] = 0;
           }
           localPurchaseTracker[type][id] += amount;
+
           productionLog(`📝 [LOCAL-TRACK] Recorded ${amount}x ${id} (${type}). Total local: ${localPurchaseTracker[type][id]}`);
-  
+
           // Persist to storage
           savePurchaseTracker();
       }
   
       // Function to get local purchase count
       function getLocalPurchaseCount(id, type) {
-          return localPurchaseTracker[type][id] || 0;
+          // Check exact match first
+          if (localPurchaseTracker[type][id]) {
+              return localPurchaseTracker[type][id];
+          }
+
+          // For tools, also check with/without spaces for compatibility
+          if (type === 'tool') {
+              const idNoSpaces = id.replace(/\s+/g, '');
+              for (const key in localPurchaseTracker[type]) {
+                  const keyNoSpaces = key.replace(/\s+/g, '');
+                  if (keyNoSpaces === idNoSpaces) {
+                      return localPurchaseTracker[type][key];
+                  }
+              }
+          }
+
+          return 0;
       }
   
       // Function to reset local purchases when shop restocks
@@ -9552,17 +10481,21 @@ async function initializeFirebase() {
           } else {
               localPurchaseTracker.seed = {};
               localPurchaseTracker.egg = {};
+              localPurchaseTracker.tool = {};
               productionLog(`🔄 [LOCAL-TRACK] Reset all purchases for restock`);
           }
-  
+
           // Persist to storage
           savePurchaseTracker();
       }
   
       // Display name overrides for shop (keeps internal names intact)
       const SHOP_DISPLAY_NAMES = {
-          'OrangeTulip': 'Tulip'
-          // Add more overrides here if needed
+          'OrangeTulip': 'Tulip',
+          // Tools
+          'WateringCan': 'Watering Can',
+          'PlanterPot': 'Planter Pot',
+          'GardenShovel': 'Garden Shovel'
       };
   
       // ==================== SHOP TAB (DEPRECATED - USING DUAL WINDOWS NOW) ====================
@@ -9696,10 +10629,23 @@ async function initializeFirebase() {
   
               try {
                   for (let i = 0; i < amount; i++) {
+                      let messageType, itemKey;
+
+                      if (type === 'seed') {
+                          messageType = "PurchaseSeed";
+                          itemKey = 'species';
+                      } else if (type === 'egg') {
+                          messageType = "PurchaseEgg";
+                          itemKey = 'eggId';
+                      } else if (type === 'tool') {
+                          messageType = "PurchaseTool";
+                          itemKey = 'toolId';
+                      }
+
                       conn.sendMessage({
                           scopePath: ["Room", "Quinoa"],
-                          type: type === 'seed' ? "PurchaseSeed" : "PurchaseEgg",
-                          [type === 'seed' ? 'species' : 'eggId']: id
+                          type: messageType,
+                          [itemKey]: id
                       });
                   }
   
@@ -9811,11 +10757,175 @@ async function initializeFirebase() {
                       <div class="overlay-val" style="text-align: right; color: #10b981; font-weight: bold; min-width: 90px; word-break: keep-all;">${gardenValue.toLocaleString()}</div>
                   </div>
               </div>
+
+              <div class="mga-section" style="margin-top: 16px;">
+                  <div class="mga-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+                      <span>🌟 Auto-Favorite</span>
+                      <label class="switch" style="margin-left: auto;">
+                          <input type="checkbox" id="auto-favorite-enabled" ${UnifiedState.data.settings.autoFavorite.enabled ? 'checked' : ''}>
+                          <span class="slider"></span>
+                      </label>
+                  </div>
+                  <div style="margin-top: 8px;">
+                      <div style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                          Automatically favorite these species when added to inventory:
+                      </div>
+                      <div id="auto-favorite-species" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px;">
+                          ${['Starweaver', 'Moonbinder', 'Dawnbinder', 'Pepper', 'Lychee', 'DragonFruit', 'Starfruit']
+                              .map(species => `
+                                  <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none;">
+                                      <input type="checkbox" value="${species}"
+                                          ${UnifiedState.data.settings.autoFavorite.species.includes(species) ? 'checked' : ''}
+                                          style="cursor: pointer;">
+                                      <span style="color: #e5e7eb;">${species}</span>
+                                  </label>
+                              `).join('')}
+                      </div>
+                      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                          <input type="text" id="auto-favorite-custom" placeholder="Add custom species..."
+                              style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                              border-radius: 4px; color: white; font-size: 12px;">
+                          <button id="add-auto-favorite" class="mga-btn-primary"
+                              style="padding: 8px 16px; background: rgba(74, 158, 255, 0.2); border: 1px solid rgba(74, 158, 255, 0.4);
+                              border-radius: 4px; color: #4a9eff; font-size: 12px; cursor: pointer; white-space: nowrap;"
+                              onmouseover="this.style.background='rgba(74, 158, 255, 0.3)'"
+                              onmouseout="this.style.background='rgba(74, 158, 255, 0.2)'">
+                              Add Species
+                          </button>
+                      </div>
+                      <div style="font-size: 11px; color: #aaa; margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+                          Automatically favorite items with these mutations:
+                      </div>
+                      <div id="auto-favorite-mutations" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                          ${['Rainbow', 'Gold', 'Frozen', 'Wet', 'Chilled']
+                              .map(mutation => `
+                                  <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none;">
+                                      <input type="checkbox" value="${mutation}"
+                                          ${UnifiedState.data.settings.autoFavorite.mutations.includes(mutation) ? 'checked' : ''}
+                                          style="cursor: pointer;">
+                                      <span style="color: #e5e7eb;">${mutation}</span>
+                                  </label>
+                              `).join('')}
+                      </div>
+                  </div>
+              </div>
           `;
       }
   
       function setupValuesTabHandlers(context = document) {
-          // No handlers needed for values tab since refresh button was removed
+          // Helper function to save auto-favorite settings with dual-backend persistence
+          const saveAutoFavoriteSettings = () => {
+              // Save entire UnifiedState
+              MGA_saveJSON('MGA_data', UnifiedState.data);
+
+              // Also save auto-favorite settings separately for redundancy
+              try {
+                  const autoFavData = JSON.stringify(UnifiedState.data.settings.autoFavorite);
+                  localStorage.setItem('mgtools_auto_favorites', autoFavData);
+                  logDebug('AUTO-FAV', 'Saved auto-favorites to localStorage backup');
+              } catch (e) {
+                  logWarn('AUTO-FAV', 'Failed to save localStorage backup', e);
+              }
+          };
+
+          // Auto-favorite toggle
+          const autoFavoriteToggle = context.querySelector('#auto-favorite-enabled');
+          if (autoFavoriteToggle) {
+              autoFavoriteToggle.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.autoFavorite.enabled = e.target.checked;
+                  saveAutoFavoriteSettings();
+                  productionLog(`🌟 Auto-favorite ${e.target.checked ? 'enabled' : 'disabled'}`);
+              });
+          }
+
+          // Species checkboxes
+          const speciesCheckboxes = context.querySelectorAll('#auto-favorite-species input[type="checkbox"]');
+          speciesCheckboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', (e) => {
+                  const species = e.target.value;
+                  if (e.target.checked) {
+                      if (!UnifiedState.data.settings.autoFavorite.species.includes(species)) {
+                          UnifiedState.data.settings.autoFavorite.species.push(species);
+                      }
+                      // Immediately favorite all existing items of this species
+                      if (targetWindow.favoriteSpecies) {
+                          productionLog(`🌟 [AUTO-FAVORITE] User checked ${species} - calling favoriteSpecies`);
+                          targetWindow.favoriteSpecies(species);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] favoriteSpecies function not available!');
+                      }
+                  } else {
+                      UnifiedState.data.settings.autoFavorite.species = UnifiedState.data.settings.autoFavorite.species.filter(s => s !== species);
+                      // Immediately unfavorite all existing items of this species
+                      if (targetWindow.unfavoriteSpecies) {
+                          productionLog(`🌟 [AUTO-FAVORITE] User unchecked ${species} - calling unfavoriteSpecies`);
+                          targetWindow.unfavoriteSpecies(species);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] unfavoriteSpecies function not available!');
+                      }
+                  }
+                  saveAutoFavoriteSettings();
+              });
+          });
+
+          // Mutation checkboxes
+          const mutationCheckboxes = context.querySelectorAll('#auto-favorite-mutations input[type="checkbox"]');
+          mutationCheckboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', (e) => {
+                  const mutation = e.target.value;
+                  if (e.target.checked) {
+                      if (!UnifiedState.data.settings.autoFavorite.mutations.includes(mutation)) {
+                          UnifiedState.data.settings.autoFavorite.mutations.push(mutation);
+                      }
+                      // Immediately favorite all existing items with this mutation
+                      if (targetWindow.favoriteMutation) {
+                          productionLog(`🌟 [AUTO-FAVORITE] User checked ${mutation} - calling favoriteMutation`);
+                          targetWindow.favoriteMutation(mutation);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] favoriteMutation function not available!');
+                      }
+                  } else {
+                      UnifiedState.data.settings.autoFavorite.mutations = UnifiedState.data.settings.autoFavorite.mutations.filter(m => m !== mutation);
+                      // Immediately unfavorite all existing items with this mutation
+                      if (targetWindow.unfavoriteMutation) {
+                          productionLog(`🌟 [AUTO-FAVORITE] User unchecked ${mutation} - calling unfavoriteMutation`);
+                          targetWindow.unfavoriteMutation(mutation);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] unfavoriteMutation function not available!');
+                      }
+                  }
+                  saveAutoFavoriteSettings();
+              });
+          });
+
+          // Add custom species
+          const addButton = context.querySelector('#add-auto-favorite');
+          const customInput = context.querySelector('#auto-favorite-custom');
+          if (addButton && customInput) {
+              addButton.addEventListener('click', () => {
+                  const species = customInput.value.trim();
+                  if (species && !UnifiedState.data.settings.autoFavorite.species.includes(species)) {
+                      UnifiedState.data.settings.autoFavorite.species.push(species);
+                      saveAutoFavoriteSettings();
+                      customInput.value = '';
+                      // Refresh the tab to show new species
+                      const valuesContent = getValuesTabContent();
+                      const tabContent = context.closest('.mga-tab-content, .tab-content');
+                      if (tabContent) {
+                          tabContent.innerHTML = valuesContent;
+                          setupValuesTabHandlers(context);
+                      }
+                      productionLog(`🌟 Added ${species} to auto-favorite list`);
+                  }
+              });
+
+              // Also trigger on Enter key
+              customInput.addEventListener('keypress', (e) => {
+                  if (e.key === 'Enter') {
+                      addButton.click();
+                  }
+              });
+          }
       }
   
       function getTimersTabContent() {
@@ -10869,9 +11979,11 @@ async function initializeFirebase() {
       let previousSeedInventory = [];
       let previousEggInventory = [];
       let previousDecorInventory = [];
+      let previousToolInventory = [];
       let previousSeedQuantities = {};
       let previousEggQuantities = {};
       let previousDecorQuantities = {};
+      let previousToolQuantities = {};
       let lastRestockCheck = 0;
       let lastNotificationTime = 0;
       let lastSeedTimer = 999;
@@ -11413,7 +12525,30 @@ async function initializeFirebase() {
           // keep tracking
           lastEggSeconds = curr;
       }
-  
+
+      // Tool shop restock detection
+      let toolWasDecreasing = false;
+      let lastToolSeconds = 0;
+
+      setManagedInterval('toolRestockWatch', () => {
+          const toolShop = targetWindow?.globalShop?.shops?.tool;
+          if (!toolShop || !toolShop.secondsUntilRestock) return;
+
+          const curr = toolShop.secondsUntilRestock;
+
+          if (curr < lastToolSeconds) {
+              toolWasDecreasing = true;
+          } else if (toolWasDecreasing && curr > lastToolSeconds + 2) {
+              productionLog('🔧 Tool restock detected (pattern-based jump)', { curr, lastToolSeconds });
+              toolWasDecreasing = false;
+              lastToolSeconds = curr;
+              resetLocalPurchases('tool');
+              scheduleRefresh('tool', toolShop);
+          }
+
+          lastToolSeconds = curr;
+      }, 1000);
+
       function initializeShopWatcher() {
           if (shopWatcherInitialized) return;
   
@@ -11910,7 +13045,8 @@ async function initializeFirebase() {
                       <p style="margin-bottom: 4px; font-size: 12px;">• <strong>Lock crops</strong> to prevent accidental harvesting</p>
                       <p style="margin-bottom: 4px; font-size: 12px;">• All crops are <strong>unlocked by default</strong></p>
                       <p style="margin-bottom: 4px; font-size: 12px;">• Locked crops <strong>cannot be harvested</strong> until unlocked</p>
-                      <p style="margin-bottom: 4px; font-size: 12px;">• Use this to protect valuable mutations or specific crops</p>
+                      <p style="margin-bottom: 4px; font-size: 12px;">• <strong>Lock All Mutations:</strong> Locks all mutation types at once</p>
+                      <p style="margin-bottom: 4px; font-size: 12px;">• <strong>Lock Only Non-Mutated:</strong> Locks ONLY crops with 0 mutations</p>
                   </div>
               </div>
   
@@ -11935,8 +13071,20 @@ async function initializeFirebase() {
                           🔓 Unlock All Crops
                       </button>
                   </div>
+
+                  <div style="margin-top: 20px; padding: 15px; background: rgba(100,200,255,0.1); border-radius: 8px; border: 1px solid rgba(100,200,255,0.3);">
+                      <div style="font-weight: 600; margin-bottom: 10px; color: #64b5f6;">℗ Advanced Settings</div>
+                      <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+                          <input type="checkbox" id="allow-frozen-pickup" class="mga-checkbox"
+                                 ${UnifiedState.data.protectionSettings?.allowFrozenPickup ? 'checked' : ''}>
+                          <span>Allow pickup of protected crops when frozen</span>
+                      </label>
+                      <div style="font-size: 11px; color: #888; margin-top: 5px; margin-left: 26px;">
+                          When enabled, locked Rainbow/Gold crops can still be harvested if they're frozen
+                      </div>
+                  </div>
               </div>
-  
+
               <div class="mga-section">
                   <div class="mga-section-title">💰 Sell Protection</div>
                   <div style="margin-bottom: 12px;">
@@ -12901,7 +14049,46 @@ async function initializeFirebase() {
                       </p>
                   </div>
               </div>
-  
+
+              <div class="mga-section">
+                  <div class="mga-section-title">🛡️ Compatibility Mode</div>
+                  <div style="margin-bottom: 16px;">
+                      <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px;
+                                  background: ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.05)'};
+                                  border: 1px solid ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+                                  border-radius: 8px; margin-bottom: 12px;">
+                          <div>
+                              <div style="font-weight: 600; margin-bottom: 4px;">
+                                  ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? '✅ Enabled' : '⚪ Disabled'}
+                              </div>
+                              <div style="font-size: 11px; color: #aaa;">
+                                  ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled
+                                      ? ('Reason: ' + (CompatibilityMode.detectionReason || 'manual'))
+                                      : 'Auto-detects CSP restrictions'}
+                              </div>
+                          </div>
+                          <button id="compat-toggle-btn" class="mga-btn mga-btn-sm"
+                                  style="padding: 8px 16px; font-size: 12px; min-width: 100px;">
+                              ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? 'Disable' : 'Force Enable'}
+                          </button>
+                      </div>
+                      <p style="font-size: 11px; color: #aaa; line-height: 1.6;">
+                          <strong>What it does:</strong><br>
+                          • Bypasses CSP restrictions for Discord/managed devices<br>
+                          • Uses system fonts instead of Google Fonts<br>
+                          • Forces WebSocket reconnection even when tab is hidden<br>
+                          • Uses GM_xmlhttpRequest for external network requests<br>
+                          <br>
+                          <strong>When to use:</strong><br>
+                          • Playing in Discord Activities<br>
+                          • Work/school computers with strict security policies<br>
+                          • Browser extensions or embeds<br>
+                          <br>
+                          <em style="opacity: 0.7;">Note: Changes require page refresh</em>
+                      </p>
+                  </div>
+              </div>
+
               <div class="mga-section">
                   <div class="mga-section-title">Developer Options</div>
                   <div style="margin-bottom: 12px;">
@@ -15622,8 +16809,15 @@ async function initializeFirebase() {
       function setupProtectTabHandlers(context = document) {
           // Actual game crop species (from shop)
           const cropSpecies = ['Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
-          const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'No Mutation'];
-  
+          const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'Lock All Mutations', 'Lock Only Non-Mutated'];
+
+          // Add new setting for frozen exception
+          if (!UnifiedState.data.protectionSettings) {
+              UnifiedState.data.protectionSettings = {
+                  allowFrozenPickup: false  // Allow pickup of protected crops when frozen
+              };
+          }
+
           // Initialize locked crops if not exists
           if (!UnifiedState.data.lockedCrops) {
               UnifiedState.data.lockedCrops = { species: [], mutations: [] };
@@ -15682,15 +16876,15 @@ async function initializeFirebase() {
               checkbox.addEventListener('change', (e) => {
                   const mutation = e.target.value;
 
-                  // Special handling for "No Mutation" - it's a "select all" toggle
-                  if (mutation === 'No Mutation') {
+                  // Special handling for "Lock All Mutations" - it's a "select all" toggle
+                  if (mutation === 'Lock All Mutations') {
                       const allMutationCheckboxes = context.querySelectorAll('.protect-mutation-checkbox');
                       const otherMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold'];
 
                       if (e.target.checked) {
                           // Check all other mutation checkboxes
                           allMutationCheckboxes.forEach(cb => {
-                              if (cb.value !== 'No Mutation') {
+                              if (cb.value !== 'Lock All Mutations' && cb.value !== 'Lock Only Non-Mutated') {
                                   cb.checked = true;
                                   if (!lockedCrops.mutations.includes(cb.value)) {
                                       lockedCrops.mutations.push(cb.value);
@@ -15700,11 +16894,20 @@ async function initializeFirebase() {
                       } else {
                           // Uncheck all other mutation checkboxes
                           allMutationCheckboxes.forEach(cb => {
-                              if (cb.value !== 'No Mutation') {
+                              if (cb.value !== 'Lock All Mutations' && cb.value !== 'Lock Only Non-Mutated') {
                                   cb.checked = false;
                               }
                           });
-                          lockedCrops.mutations = [];
+                          lockedCrops.mutations = lockedCrops.mutations.filter(m => m === 'Lock Only Non-Mutated');
+                      }
+                  } else if (mutation === 'Lock Only Non-Mutated') {
+                      // Special handling for "Lock Only Non-Mutated" - locks crops with 0 mutations
+                      if (e.target.checked) {
+                          if (!lockedCrops.mutations.includes(mutation)) {
+                              lockedCrops.mutations.push(mutation);
+                          }
+                      } else {
+                          lockedCrops.mutations = lockedCrops.mutations.filter(m => m !== mutation);
                       }
                   } else {
                       // Regular mutation checkbox
@@ -15714,10 +16917,10 @@ async function initializeFirebase() {
                           }
                       } else {
                           lockedCrops.mutations = lockedCrops.mutations.filter(m => m !== mutation);
-                          // Uncheck "No Mutation" if any individual mutation is unchecked
-                          const noMutationCheckbox = context.querySelector('.protect-mutation-checkbox[value="No Mutation"]');
-                          if (noMutationCheckbox) {
-                              noMutationCheckbox.checked = false;
+                          // Uncheck "Lock All Mutations" if any individual mutation is unchecked
+                          const lockAllCheckbox = context.querySelector('.protect-mutation-checkbox[value="Lock All Mutations"]');
+                          if (lockAllCheckbox) {
+                              lockAllCheckbox.checked = false;
                           }
                       }
                   }
@@ -15760,7 +16963,21 @@ async function initializeFirebase() {
                   applySellBlockThreshold();
               });
           }
-  
+
+          // Add handler for frozen pickup checkbox
+          const frozenCheckbox = context.querySelector('#allow-frozen-pickup');
+          if (frozenCheckbox) {
+              frozenCheckbox.addEventListener('change', (e) => {
+                  if (!UnifiedState.data.protectionSettings) {
+                      UnifiedState.data.protectionSettings = {};
+                  }
+                  UnifiedState.data.protectionSettings.allowFrozenPickup = e.target.checked;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog(`❄️ [PROTECTION] Frozen exception: ${e.target.checked ? 'enabled' : 'disabled'}`);
+                  applyHarvestRule();
+              });
+          }
+
           // Initial status update
           updateProtectStatus(context);
           applyHarvestRule();
@@ -15798,15 +17015,37 @@ async function initializeFirebase() {
               const freshLockedCrops = UnifiedState.data.lockedCrops || { species: [], mutations: [] };
               mutations = Array.isArray(mutations) ? mutations : [];
 
-              // If species is locked, block harvest
+              // Check if crop is frozen
+              const isFrozen = mutations.includes('Frozen');
+              const allowFrozenPickup = UnifiedState.data.protectionSettings?.allowFrozenPickup || false;
+
+              // If species is locked, check for frozen exception
               if (freshLockedCrops.species && freshLockedCrops.species.includes(species)) {
+                  // If frozen exception is enabled and crop is frozen, allow harvest
+                  if (isFrozen && allowFrozenPickup) {
+                      return true;
+                  }
                   return false;
               }
 
-              // If any locked mutation is present, block harvest
+              // Check for "Lock Only Non-Mutated" - locks crops with 0 mutations
+              if (freshLockedCrops.mutations && freshLockedCrops.mutations.includes('Lock Only Non-Mutated')) {
+                  if (mutations.length === 0) {
+                      return false; // Block harvest if crop has no mutations
+                  }
+              }
+
+              // If any locked mutation is present, check for frozen exception
               if (freshLockedCrops.mutations && freshLockedCrops.mutations.length > 0) {
-                  const hasLockedMutation = freshLockedCrops.mutations.some(m => mutations.includes(m));
+                  const regularMutations = freshLockedCrops.mutations.filter(m =>
+                      m !== 'Lock All Mutations' && m !== 'Lock Only Non-Mutated'
+                  );
+                  const hasLockedMutation = regularMutations.some(m => mutations.includes(m));
                   if (hasLockedMutation) {
+                      // If frozen exception is enabled and crop is frozen, allow harvest
+                      if (isFrozen && allowFrozenPickup) {
+                          return true;
+                      }
                       return false;
                   }
               }
@@ -15820,17 +17059,32 @@ async function initializeFirebase() {
           console.log(`✅ Sell block threshold set to ${targetWindow.sellBlockThreshold}x`);
       }
   
+      // Track RoomConnection retry attempts
+      let roomConnectionRetries = 0;
+      const MAX_ROOM_CONNECTION_RETRIES = 10;
+
       function initializeProtectionHooks() {
           // Note: friendBonus and myGarden atoms are already hooked in initializeAtoms()
           // which sets both UnifiedState.atoms and targetWindow values
-  
+
           // Hook sendMessage to intercept harvest and sell commands
           setTimeout(() => {
               if (!targetWindow.MagicCircle_RoomConnection) {
-                  console.warn('MagicCircle_RoomConnection not available yet, retrying...');
-                  setTimeout(initializeProtectionHooks, 1000);
-                  return;
+                  if (roomConnectionRetries < MAX_ROOM_CONNECTION_RETRIES) {
+                      roomConnectionRetries++;
+                      console.warn(`⏳ Waiting for RoomConnection (${roomConnectionRetries}/${MAX_ROOM_CONNECTION_RETRIES})...`);
+                      setTimeout(initializeProtectionHooks, 1000);
+                      return;
+                  } else {
+                      console.warn('⚠️ RoomConnection not found after max retries - continuing without protection hooks');
+                      // Continue without it - non-critical feature
+                      return;
+                  }
               }
+
+              // Reset counter on success
+              roomConnectionRetries = 0;
+              console.log('✅ MagicCircle_RoomConnection found - initializing protection hooks');
   
               const originalSendMessage = targetWindow.MagicCircle_RoomConnection.sendMessage.bind(targetWindow.MagicCircle_RoomConnection);
   
@@ -15843,7 +17097,7 @@ async function initializeFirebase() {
                       const friendBonus = targetWindow.friendBonus ?? 1.5;
                       const msgType = message.type;
                       const isSellMessage = msgType === "SellAllCrops" || msgType.toLowerCase().startsWith("sellpet");
-  
+
                       // Detect in-game shop purchases
                       if (msgType === "PurchaseSeed" && message.species) {
                           if (typeof trackLocalPurchase === 'function') {
@@ -15852,6 +17106,18 @@ async function initializeFirebase() {
                       } else if (msgType === "PurchaseEgg" && message.eggId) {
                           if (typeof trackLocalPurchase === 'function') {
                               trackLocalPurchase(message.eggId, 'egg', 1);
+                          }
+                      } else if (msgType === "PurchaseTool" && message.toolId) {
+                          console.log(`🔧 [PURCHASE-INTERCEPT] Tool Purchase Detected!`, {
+                              toolId: message.toolId,
+                              toolIdType: typeof message.toolId,
+                              fullMessage: JSON.stringify(message)
+                          });
+                          if (typeof trackLocalPurchase === 'function') {
+                              trackLocalPurchase(message.toolId, 'tool', 1);
+                              console.log(`🔧 [PURCHASE-INTERCEPT] Called trackLocalPurchase with: "${message.toolId}"`);
+                          } else {
+                              console.error(`❌ [PURCHASE-INTERCEPT] trackLocalPurchase function not available!`);
                           }
                       }
   
@@ -15965,9 +17231,33 @@ async function initializeFirebase() {
           const continuousCheckbox = context.querySelector('#notification-continuous-checkbox');
           if (continuousCheckbox && !continuousCheckbox.hasAttribute('data-handler-setup')) {
               continuousCheckbox.setAttribute('data-handler-setup', 'true');
+
+              // On load: if continuous is already enabled, lock acknowledgment checkbox
+              if (UnifiedState.data.settings.notifications.continuousEnabled) {
+                  const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+                  if (acknowledgmentCheckbox) {
+                      acknowledgmentCheckbox.checked = true;
+                      acknowledgmentCheckbox.disabled = true;
+                      UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+                  }
+              }
+
               continuousCheckbox.addEventListener('change', (e) => {
                   UnifiedState.data.settings.notifications.continuousEnabled = e.target.checked;
-  
+
+                  // When enabling continuous mode, force acknowledgment to be enabled AND disabled (locked)
+                  const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+                  if (acknowledgmentCheckbox) {
+                      if (e.target.checked) {
+                          acknowledgmentCheckbox.checked = true;
+                          acknowledgmentCheckbox.disabled = true; // Lock it on
+                          UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+                          productionLog(`🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+                      } else {
+                          acknowledgmentCheckbox.disabled = false; // Unlock when continuous is off
+                      }
+                  }
+
                   // Update dropdown state
                   const notificationTypeSelect = context.querySelector('#notification-type-select');
                   if (notificationTypeSelect) {
@@ -15993,6 +17283,17 @@ async function initializeFirebase() {
           const notificationTypeSelect = context.querySelector('#notification-type-select');
           if (notificationTypeSelect && !notificationTypeSelect.hasAttribute('data-handler-setup')) {
               notificationTypeSelect.setAttribute('data-handler-setup', 'true');
+
+              // On load: if continuous type is selected, lock acknowledgment checkbox
+              if (UnifiedState.data.settings.notifications.notificationType === 'continuous') {
+                  const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+                  if (acknowledgmentCheckbox) {
+                      acknowledgmentCheckbox.checked = true;
+                      acknowledgmentCheckbox.disabled = true;
+                      UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+                  }
+              }
+
               notificationTypeSelect.addEventListener('change', (e) => {
                   // Prevent selecting continuous if not enabled
                   if (e.target.value === 'continuous' && !UnifiedState.data.settings.notifications.continuousEnabled) {
@@ -16001,8 +17302,26 @@ async function initializeFirebase() {
                       showVisualNotification('⚠️ Please enable Continuous Mode checkbox first', false);
                       return;
                   }
-  
+
                   UnifiedState.data.settings.notifications.notificationType = e.target.value;
+
+                  // When selecting continuous, force acknowledgment to be enabled AND locked
+                  const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+                  if (acknowledgmentCheckbox) {
+                      if (e.target.value === 'continuous') {
+                          acknowledgmentCheckbox.checked = true;
+                          acknowledgmentCheckbox.disabled = true; // Lock it on
+                          UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+                          productionLog(`🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+                      } else {
+                          // When changing away from continuous, unlock the acknowledgment checkbox
+                          // (unless continuous mode checkbox is still enabled)
+                          if (!UnifiedState.data.settings.notifications.continuousEnabled) {
+                              acknowledgmentCheckbox.disabled = false;
+                          }
+                      }
+                  }
+
                   MGA_saveJSON('MGA_data', UnifiedState.data);
                   productionLog(`🔊 [NOTIFICATIONS] Sound type changed to: ${e.target.value}`);
               });
@@ -16369,6 +17688,34 @@ async function initializeFirebase() {
           productionLog('⚙️ [SETTINGS] setupSettingsTabHandlers called', { context: context === document ? 'document' : 'custom' });
           console.log('🚨 [CRITICAL-DEBUG] Context type:', context === document ? 'DOCUMENT' : 'ELEMENT', context);
   
+          // Compatibility Mode toggle button
+          const compatToggleBtn = context.querySelector('#compat-toggle-btn');
+          if (compatToggleBtn && typeof CompatibilityMode !== 'undefined') {
+              compatToggleBtn.addEventListener('click', () => {
+                  if (CompatibilityMode.flags.enabled) {
+                      // Disable compatibility mode
+                      CompatibilityMode.disableCompat();
+                      logInfo('COMPAT', 'User disabled compatibility mode - reload required');
+                      alert('Compatibility Mode disabled. Please refresh the page for changes to take effect.');
+                  } else {
+                      // Enable compatibility mode
+                      try {
+                          localStorage.setItem('mgtools_compat_forced', 'true');
+                          localStorage.removeItem('mgtools_compat_disabled');
+                          logInfo('COMPAT', 'User enabled compatibility mode - reload required');
+                          alert('Compatibility Mode enabled. Please refresh the page for changes to take effect.');
+                      } catch (e) {
+                          alert('Unable to save compatibility mode setting. Your browser may have storage restrictions.');
+                      }
+                  }
+
+                  // Offer to reload
+                  if (confirm('Would you like to reload the page now?')) {
+                      window.location.reload();
+                  }
+              });
+          }
+
           // Opacity slider
           const opacitySlider = context.querySelector('#opacity-slider');
           if (opacitySlider) {
@@ -18600,19 +19947,23 @@ async function initializeFirebase() {
           Dawnbound: 3,
           Dawncharged: 3,  // Same as Dawnbound
           Amberlit: 5,
+          Ambershine: 5,  // Internal game name for Amberlit
           Amberbound: 6,
           Ambercharged: 6  // Same as Amberbound
       };
-  
+
       const WEATHER_TIME_COMBO = {
           "Wet+Dawnlit": 3,
           "Chilled+Dawnlit": 3,
           "Wet+Amberlit": 6,
           "Chilled+Amberlit": 6,
+          "Wet+Ambershine": 6,  // Internal game name for Amberlit
+          "Chilled+Ambershine": 6,  // Internal game name for Amberlit
           "Frozen+Dawnlit": 11,
           "Frozen+Dawnbound": 12,
           "Frozen+Dawncharged": 12,  // Same as Dawnbound
           "Frozen+Amberlit": 14,
+          "Frozen+Ambershine": 14,  // Internal game name for Amberlit
           "Frozen+Amberbound": 15,
           "Frozen+Ambercharged": 15  // Same as Amberbound
       };
@@ -19669,12 +21020,13 @@ async function initializeFirebase() {
               }
           );
   
-          // Hook garden data
+          // Hook garden data AND myData for auto-favorite
           hookAtom(
               "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom",
               "myGarden",
               (value) => {
                   targetWindow.myGarden = value; // Needed for harvest protection
+                  targetWindow.myData = value; // Needed for auto-favorite
                   updateValues();
               }
           );
@@ -19746,7 +21098,241 @@ async function initializeFirebase() {
               }
           }, 2000); // Wait 2 seconds for atoms to populate
       }
-  
+
+      // ==================== AUTO-FAVORITE SYSTEM ====================
+      (function initAutoFavorite() {
+          let lastInventoryCount = 0;
+
+          // Monitor inventory changes for auto-favorite (myData is set by existing myDataAtom hook)
+          setInterval(() => {
+              if (!targetWindow.myData?.inventory?.items || !UnifiedState.data.settings.autoFavorite.enabled) {
+                  return;
+              }
+
+              const currentCount = targetWindow.myData.inventory.items.length;
+              if (currentCount > lastInventoryCount) {
+                  checkAndFavoriteNewItems(targetWindow.myData.inventory);
+              }
+              lastInventoryCount = currentCount;
+          }, 500);
+
+          function checkAndFavoriteNewItems(inventory) {
+              if (!inventory?.items) return;
+              if (!UnifiedState.data.settings.autoFavorite.species.length && !UnifiedState.data.settings.autoFavorite.mutations.length) return;
+
+              const favoritedIds = new Set(inventory.favoritedItemIds || []);
+              const targetSpecies = new Set(UnifiedState.data.settings.autoFavorite.species);
+              const targetMutations = new Set(UnifiedState.data.settings.autoFavorite.mutations);
+              let count = 0;
+
+              for (const item of inventory.items) {
+                  if (favoritedIds.has(item.id)) continue; // Already favorited
+
+                  // Check if item matches species
+                  const matchesSpecies = targetSpecies.has(item.species);
+
+                  // Check if item matches any mutation
+                  const itemMutations = item.mutations || [];
+                  const matchesMutation = itemMutations.some(mut => targetMutations.has(mut));
+
+                  if (matchesSpecies || matchesMutation) {
+                      // Send favorite command
+                      if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+                          targetWindow.MagicCircle_RoomConnection.sendMessage({
+                              scopePath: ["Room", "Quinoa"],
+                              type: "ToggleFavoriteItem",
+                              itemId: item.id
+                          });
+                          count++;
+                      }
+                  }
+              }
+
+              if (count > 0) {
+                  productionLog(`🌟 [AUTO-FAVORITE] Auto-favorited ${count} new items`);
+              }
+          }
+
+          // Function to favorite ALL items of a species (called when checkbox is checked)
+          targetWindow.favoriteSpecies = function(speciesName) {
+              if (!targetWindow.myData?.inventory?.items) {
+                  productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
+                  return;
+              }
+
+              const items = targetWindow.myData.inventory.items;
+              const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
+              let count = 0;
+
+              productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all ${speciesName} items...`);
+
+              for (const item of items) {
+                  if (item.species === speciesName && !favoritedIds.has(item.id)) {
+                      if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+                          targetWindow.MagicCircle_RoomConnection.sendMessage({
+                              scopePath: ["Room", "Quinoa"],
+                              type: "ToggleFavoriteItem",
+                              itemId: item.id
+                          });
+                          count++;
+                          productionLog(`🌟 [AUTO-FAVORITE] Favoriting ${item.species} (id: ${item.id})`);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
+                      }
+                  }
+              }
+
+              if (count > 0) {
+                  productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} ${speciesName} items`);
+              } else {
+                  productionLog(`ℹ️ [AUTO-FAVORITE] No ${speciesName} items to favorite (already favorited or none in inventory)`);
+              }
+          };
+
+          // Function to unfavorite ALL items of a species (called when checkbox is unchecked)
+          targetWindow.unfavoriteSpecies = function(speciesName) {
+              if (!targetWindow.myData?.inventory?.items) {
+                  productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
+                  return;
+              }
+
+              const items = targetWindow.myData.inventory.items;
+              const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
+              let count = 0;
+
+              productionLog(`🌟 [AUTO-FAVORITE] Attempting to unfavorite all ${speciesName} items...`);
+
+              for (const item of items) {
+                  if (item.species === speciesName && favoritedIds.has(item.id)) {
+                      if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+                          targetWindow.MagicCircle_RoomConnection.sendMessage({
+                              scopePath: ["Room", "Quinoa"],
+                              type: "ToggleFavoriteItem",
+                              itemId: item.id
+                          });
+                          count++;
+                          productionLog(`🌟 [AUTO-FAVORITE] Unfavoriting ${item.species} (id: ${item.id})`);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
+                      }
+                  }
+              }
+
+              if (count > 0) {
+                  productionLog(`✅ [AUTO-FAVORITE] Unfavorited ${count} ${speciesName} items`);
+              } else {
+                  productionLog(`ℹ️ [AUTO-FAVORITE] No ${speciesName} items to unfavorite (already unfavorited or none in inventory)`);
+              }
+          };
+
+          // Function to favorite ALL items with a specific mutation (called when mutation checkbox is checked)
+          targetWindow.favoriteMutation = function(mutationName) {
+              if (!targetWindow.myData?.inventory?.items) {
+                  productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
+                  return;
+              }
+
+              const items = targetWindow.myData.inventory.items;
+              const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
+              let count = 0;
+
+              productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all items with ${mutationName} mutation...`);
+
+              for (const item of items) {
+                  const itemMutations = item.mutations || [];
+                  if (itemMutations.includes(mutationName) && !favoritedIds.has(item.id)) {
+                      if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+                          targetWindow.MagicCircle_RoomConnection.sendMessage({
+                              scopePath: ["Room", "Quinoa"],
+                              type: "ToggleFavoriteItem",
+                              itemId: item.id
+                          });
+                          count++;
+                          productionLog(`🌟 [AUTO-FAVORITE] Favoriting ${item.species} with ${mutationName} mutation (id: ${item.id})`);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
+                      }
+                  }
+              }
+
+              if (count > 0) {
+                  productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} items with ${mutationName} mutation`);
+              } else {
+                  productionLog(`ℹ️ [AUTO-FAVORITE] No items with ${mutationName} mutation to favorite (already favorited or none in inventory)`);
+              }
+          };
+
+          // Function to unfavorite ALL items with a specific mutation (called when mutation checkbox is unchecked)
+          targetWindow.unfavoriteMutation = function(mutationName) {
+              if (!targetWindow.myData?.inventory?.items) {
+                  productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
+                  return;
+              }
+
+              const items = targetWindow.myData.inventory.items;
+              const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
+              let count = 0;
+
+              productionLog(`🌟 [AUTO-FAVORITE] Attempting to unfavorite all items with ${mutationName} mutation...`);
+
+              for (const item of items) {
+                  const itemMutations = item.mutations || [];
+                  if (itemMutations.includes(mutationName) && favoritedIds.has(item.id)) {
+                      if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+                          targetWindow.MagicCircle_RoomConnection.sendMessage({
+                              scopePath: ["Room", "Quinoa"],
+                              type: "ToggleFavoriteItem",
+                              itemId: item.id
+                          });
+                          count++;
+                          productionLog(`🌟 [AUTO-FAVORITE] Unfavoriting ${item.species} with ${mutationName} mutation (id: ${item.id})`);
+                      } else {
+                          productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
+                      }
+                  }
+              }
+
+              if (count > 0) {
+                  productionLog(`✅ [AUTO-FAVORITE] Unfavorited ${count} items with ${mutationName} mutation`);
+              } else {
+                  productionLog(`ℹ️ [AUTO-FAVORITE] No items with ${mutationName} mutation to unfavorite (already unfavorited or none in inventory)`);
+              }
+          };
+
+          productionLog('🌟 [AUTO-FAVORITE] System initialized - monitoring inventory changes');
+
+          // Diagnostic check every 5 seconds
+          setInterval(() => {
+              const hasMyData = !!targetWindow.myData;
+              const hasConnection = !!targetWindow.MagicCircle_RoomConnection;
+              const hasInventory = !!targetWindow.myData?.inventory?.items;
+              const inventoryCount = targetWindow.myData?.inventory?.items?.length || 0;
+
+              if (!hasMyData || !hasConnection) {
+                  productionLog(`🔍 [AUTO-FAVORITE-DEBUG] myData: ${hasMyData}, Connection: ${hasConnection}, Inventory: ${hasInventory}, Items: ${inventoryCount}`);
+              }
+          }, 5000);
+
+          // Expose test function for manual testing
+          targetWindow.testAutoFavorite = function() {
+              productionLog('🧪 [AUTO-FAVORITE-TEST] Starting diagnostic test...');
+              productionLog('🧪 myData exists:', !!targetWindow.myData);
+              productionLog('🧪 MagicCircle_RoomConnection exists:', !!targetWindow.MagicCircle_RoomConnection);
+              productionLog('🧪 Inventory items:', targetWindow.myData?.inventory?.items?.length || 0);
+              productionLog('🧪 Auto-favorite enabled:', UnifiedState.data.settings.autoFavorite.enabled);
+              productionLog('🧪 Watched species:', UnifiedState.data.settings.autoFavorite.species);
+              if (targetWindow.myData?.inventory?.items) {
+                  const itemCounts = {};
+                  targetWindow.myData.inventory.items.forEach(item => {
+                      itemCounts[item.species] = (itemCounts[item.species] || 0) + 1;
+                  });
+                  productionLog('🧪 Inventory breakdown:', itemCounts);
+              }
+          };
+
+          productionLog('💡 [AUTO-FAVORITE] Run testAutoFavorite() in console to debug auto-favorite issues');
+      })();
+
       // ==================== TURTLE TIMER (CROP GROWTH BOOST II) ====================
       // Calculates expected crop growth time with Turtle's Plant Growth Boost II ability
   
@@ -19963,7 +21549,8 @@ function insertTurtleEstimate() {
             const tooltipText = currentPlantTooltipFlexbox.textContent || '';
 
             // Look for egg species names (Common Egg, Rare Egg, etc.)
-            const eggPattern = /(Common|Rare|Epic|Legendary|Mythic|Special)\s*Egg/i;
+            // FIXED: Changed "Mythic" to "Mythical", added "Uncommon", removed non-existent "Epic" and "Special"
+            const eggPattern = /(Common|Uncommon|Rare|Legendary|Mythical)\s*Egg/i;
             const eggMatch = tooltipText.match(eggPattern);
 
             if (eggMatch) {
@@ -20832,9 +22419,25 @@ function initializeTurtleTimer() {
           };
   
           // Merge defaults with existing settings
+          // CRITICAL: Don't override intentionally empty arrays with defaults
           Object.keys(notifDefaults).forEach(key => {
-              if (UnifiedState.data.settings.notifications[key] === undefined) {
-                  UnifiedState.data.settings.notifications[key] = notifDefaults[key];
+              const currentValue = UnifiedState.data.settings.notifications[key];
+
+              if (currentValue === undefined) {
+                  // Only set default if field truly doesn't exist
+                  if (Array.isArray(notifDefaults[key])) {
+                      // For array fields, check if key exists in saved data
+                      if (!(key in UnifiedState.data.settings.notifications)) {
+                          UnifiedState.data.settings.notifications[key] = notifDefaults[key];
+                          productionLog(`📦 [SETTINGS] Initialized ${key} array with defaults (field was missing)`);
+                      } else {
+                          // Key exists but value is undefined - keep it undefined (user may have cleared it)
+                          productionLog(`📦 [SETTINGS] Preserved undefined ${key} (intentionally cleared)`);
+                      }
+                  } else {
+                      // Non-array fields just set default
+                      UnifiedState.data.settings.notifications[key] = notifDefaults[key];
+                  }
               }
           });
   
@@ -20847,7 +22450,43 @@ function initializeTurtleTimer() {
           if (UnifiedState.data.settings.detailedTimestamps === undefined) {
               UnifiedState.data.settings.detailedTimestamps = false;
           }
-  
+
+          // Ensure autoFavorite setting exists (for v3.3.4+)
+          if (!UnifiedState.data.settings.autoFavorite) {
+              UnifiedState.data.settings.autoFavorite = {
+                  enabled: false,
+                  species: [],
+                  mutations: []
+              };
+              productionLog('🌟 [AUTO-FAVORITE] Initialized auto-favorite settings');
+          }
+          // Ensure mutations array exists for existing users
+          if (!UnifiedState.data.settings.autoFavorite.mutations) {
+              UnifiedState.data.settings.autoFavorite.mutations = [];
+              productionLog('🌟 [AUTO-FAVORITE] Added mutations array to existing settings');
+          }
+
+          // Try to restore auto-favorites from backup if primary data is empty
+          if (UnifiedState.data.settings.autoFavorite.species.length === 0 &&
+              UnifiedState.data.settings.autoFavorite.mutations.length === 0) {
+              try {
+                  const backup = localStorage.getItem('mgtools_auto_favorites');
+                  if (backup) {
+                      const parsed = JSON.parse(backup);
+                      if (parsed && (parsed.species?.length > 0 || parsed.mutations?.length > 0)) {
+                          UnifiedState.data.settings.autoFavorite = parsed;
+                          logInfo('AUTO-FAV', 'Restored auto-favorites from localStorage backup', {
+                              species: parsed.species?.length || 0,
+                              mutations: parsed.mutations?.length || 0
+                          });
+                      }
+                  }
+              } catch (e) {
+                  // Silent fail - non-critical
+                  logDebug('AUTO-FAV', 'Failed to restore from backup', e);
+              }
+          }
+
           // Save merged settings
           MGA_saveJSON('MGA_data', UnifiedState.data);
           productionLog('🔔 [NOTIFICATIONS] Ensured all notification settings have defaults');
@@ -20914,12 +22553,32 @@ function initializeTurtleTimer() {
           UnifiedState.data.customMode = MGA_loadJSON('MGA_customMode', { selectedAbilities: {} });
           UnifiedState.data.petFilters = MGA_loadJSON('MGA_petFilters', { selectedPets: {} });
   
-          // Load seed deletion settings with fallback
+          // Load seed deletion settings from MGA_data (primary) with fallback to legacy keys
           const rawSeedsData = localStorage.getItem('MGA_seedsToDelete');
           const rawAutoDeleteData = localStorage.getItem('MGA_autoDeleteEnabled');
-  
-          UnifiedState.data.seedsToDelete = MGA_loadJSON('MGA_seedsToDelete', []);
-          UnifiedState.data.autoDeleteEnabled = MGA_loadJSON('MGA_autoDeleteEnabled', false);
+
+          // Load seeds to delete from MGA_data (primary) with fallback to legacy keys
+          if (loadedData && loadedData.seedsToDelete !== undefined) {
+              UnifiedState.data.seedsToDelete = loadedData.seedsToDelete;
+              productionLog('📦 [STORAGE] Loaded seedsToDelete from MGA_data:', UnifiedState.data.seedsToDelete.length);
+          } else {
+              // Backward compatibility: Try loading from old separate storage key
+              UnifiedState.data.seedsToDelete = MGA_loadJSON('MGA_seedsToDelete', []);
+              productionLog('📦 [STORAGE] Loaded seedsToDelete from legacy key');
+              // Migrate to MGA_data on next save
+              if (UnifiedState.data.seedsToDelete.length > 0) {
+                  productionLog('📦 [MIGRATION] Will migrate seedsToDelete to MGA_data on next save');
+              }
+          }
+
+          if (loadedData && loadedData.autoDeleteEnabled !== undefined) {
+              UnifiedState.data.autoDeleteEnabled = loadedData.autoDeleteEnabled;
+              productionLog('📦 [STORAGE] Loaded autoDeleteEnabled from MGA_data:', UnifiedState.data.autoDeleteEnabled);
+          } else {
+              // Backward compatibility
+              UnifiedState.data.autoDeleteEnabled = MGA_loadJSON('MGA_autoDeleteEnabled', false);
+              productionLog('📦 [STORAGE] Loaded autoDeleteEnabled from legacy key');
+          }
           productionLog('🔍 [STORAGE-DEBUG] Seeds type check:', typeof UnifiedState.data.seedsToDelete, 'length:', UnifiedState.data.seedsToDelete?.length || 0);
   
           productionLog('📦 [STORAGE] Loading seed deletion settings:', {
@@ -20954,19 +22613,21 @@ function initializeTurtleTimer() {
                   }
               }
           }
-  
-          // Force save to ensure persistence
-          setTimeout(() => {
-              if (UnifiedState.data.seedsToDelete.length > 0 || UnifiedState.data.autoDeleteEnabled) {
-                  MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
-                  MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
-                  productionLog('🔄 [STORAGE] Force-saved seed settings for persistence');
-              }
-          }, 1000);
-  
+
           // Load crop protection settings from MGA_data
           if (loadedData && loadedData.lockedCrops) {
               UnifiedState.data.lockedCrops = loadedData.lockedCrops;
+
+              // MIGRATION: Convert old "No Mutation" to "Lock All Mutations"
+              if (UnifiedState.data.lockedCrops.mutations) {
+                  const mutations = UnifiedState.data.lockedCrops.mutations;
+                  const oldIndex = mutations.indexOf('No Mutation');
+                  if (oldIndex !== -1) {
+                      mutations[oldIndex] = 'Lock All Mutations';
+                      productionLog('📦 [MIGRATION] Converted old "No Mutation" to "Lock All Mutations"');
+                  }
+              }
+
               productionLog('📦 [STORAGE] Loaded crop protection locks from MGA_data:', {
                   species: loadedData.lockedCrops.species?.length || 0,
                   mutations: loadedData.lockedCrops.mutations?.length || 0
@@ -22349,6 +24010,36 @@ function initializeTurtleTimer() {
                   }
               } catch (error) {
                   console.error('❌ Error creating UI:', error);
+
+                  // Show visible error popup for user (especially important in Discord browser)
+                  try {
+                      const errorDiv = targetDocument.createElement('div');
+                      errorDiv.style.cssText = `
+                          position: fixed;
+                          top: 50%;
+                          left: 50%;
+                          transform: translate(-50%, -50%);
+                          background: rgba(220, 38, 38, 0.95);
+                          color: white;
+                          padding: 20px;
+                          border-radius: 8px;
+                          z-index: 9999999;
+                          font-family: monospace;
+                          max-width: 500px;
+                          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+                      `;
+                      errorDiv.innerHTML = `
+                          <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px;">❌ MGTools UI Failed to Load</div>
+                          <div style="font-size: 12px; margin-bottom: 10px; color: #fecaca;">${error.message}</div>
+                          <div style="font-size: 11px; color: #fef2f2;">Press F12 and check Console for details</div>
+                          <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 8px 16px; background: white; color: #dc2626; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Close</button>
+                      `;
+                      targetDocument.body.appendChild(errorDiv);
+                  } catch (e) {
+                      // If even error display fails, log it
+                      console.error('Failed to show error UI:', e);
+                  }
+
                   if (window.MGA_DEBUG) {
                       window.MGA_DEBUG.logError(error, 'createUnifiedUI');
                   }
@@ -22530,8 +24221,11 @@ function initializeTurtleTimer() {
       /* CHECKPOINT removed: ENVIRONMENT_INITIALIZATION_START */
   
       function initializeBasedOnEnvironment() {
+          console.log('🔍🔍🔍 [EXECUTION] ENTERED initializeBasedOnEnvironment()');
           /* CHECKPOINT removed: DETECT_ENVIRONMENT_CALL */
+          console.log('🔍 [EXECUTION] About to call detectEnvironment()');
           const environment = detectEnvironment();
+          console.log('🔍 [EXECUTION] detectEnvironment() returned:', environment);
           /* CHECKPOINT removed: DETECT_ENVIRONMENT_COMPLETE */
   
           productionLog('📊 Environment Analysis:', {
@@ -22642,8 +24336,11 @@ function initializeTurtleTimer() {
   
       // Start environment-based initialization
       /* CHECKPOINT removed: CALLING_MAIN_INITIALIZATION */
+      console.log('🔍🔍🔍 [EXECUTION] Reached end of startMGAInitialization, about to call initializeBasedOnEnvironment()');
       try {
+          console.log('🔍 [EXECUTION] Calling initializeBasedOnEnvironment()...');
           initializeBasedOnEnvironment();
+          console.log('🔍 [EXECUTION] initializeBasedOnEnvironment() returned!');
           /* CHECKPOINT removed: MAIN_INITIALIZATION_COMPLETE */
   
           // Initialize crop protection hooks
@@ -22651,9 +24348,11 @@ function initializeTurtleTimer() {
               initializeProtectionHooks();
           }, 3000);
       } catch (error) {
-          console.error('❌ MAIN_INITIALIZATION_FAILED:', error);
+          console.error('❌❌❌ [EXECUTION] MAIN_INITIALIZATION_FAILED:', error);
+          console.error('❌ [EXECUTION] Error stack:', error.stack);
           console.error('🔧 This error caused the script to stop working');
       }
+      console.log('🔍 [EXECUTION] Completed startMGAInitialization try-catch block');
   
       // ==================== IMMEDIATE TEST INITIALIZATION ====================
       // Additional fallback for manual testing - only if initialization failed
@@ -23688,11 +25387,22 @@ function initializeTurtleTimer() {
   
     // ---------- Rooms via /api/rooms/{code}/info with Fallbacks ----------
     (function roomsInfo(){
-      const API_V1 = (name)=> `${location.origin}/api/rooms/${encodeURIComponent(name)}/info`;
-      const API_V2 = (name)=> `${location.origin}/info?room=${encodeURIComponent(name)}`;
+      // Get correct API base URL (handles Discord browser context)
+      // Access the function from global scope (unsafeWindow or window)
+      const globalScope = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
+      const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
+      const apiBase = getApiBase();
+      const API_V1 = (name)=> `${apiBase}/api/rooms/${encodeURIComponent(name)}/info`;
+      const API_V2 = (name)=> `${apiBase}/info?room=${encodeURIComponent(name)}`;
       const TRACKED = (window.UnifiedState?.data?.customRooms || window.TRACKED_ROOMS || ['MG1','MG2','MG3','MG4','MG5','MG6','MG7','MG8','MG9','MG10','SLAY']);
       let extra = new Set();
       const counts = {};
+
+      // Log API base for debugging Discord browser issues
+      productionLog(`🔗 [ROOMS-API] Using API base: ${apiBase}`);
+      if (apiBase !== location.origin) {
+          productionLog(`🔗 [ROOMS-API] Discord context detected - using magiccircle.gg APIs instead of ${location.origin}`);
+      }
 
       // Parse player count from various API response formats
       function parsePlayerCount(data) {
@@ -23860,6 +25570,44 @@ function initializeTurtleTimer() {
         const isIframe = window !== window.top;
         const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+        // ==================== DOCUMENT.HIDDEN OVERRIDE FOR COMPAT MODE ====================
+        // The game checks document.hidden and refuses to reconnect when hidden
+        // In compat mode (Discord/managed devices), we override this to always return false
+        if (typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.wsReconnectWhenHidden) {
+            try {
+                const originalDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden') ||
+                                          Object.getOwnPropertyDescriptor(document, 'hidden');
+
+                if (originalDescriptor && originalDescriptor.get) {
+                    Object.defineProperty(document, 'hidden', {
+                        get: function() {
+                            // Always return false in compat mode to allow reconnection
+                            return false;
+                        },
+                        configurable: true
+                    });
+
+                    logInfo('COMPAT-WS', 'Overrode document.hidden to enable reconnection in hidden state');
+                }
+
+                // Also patch visibilityState
+                const originalVisibilityDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState') ||
+                                                    Object.getOwnPropertyDescriptor(document, 'visibilityState');
+
+                if (originalVisibilityDescriptor && originalVisibilityDescriptor.get) {
+                    Object.defineProperty(document, 'visibilityState', {
+                        get: function() {
+                            // Always return 'visible' in compat mode
+                            return 'visible';
+                        },
+                        configurable: true
+                    });
+                }
+            } catch (e) {
+                logWarn('COMPAT-WS', 'Failed to override document.hidden', e);
+            }
+        }
+
         // Add CSS animations
         const style = document.createElement('style');
         style.textContent = `
@@ -23944,8 +25692,64 @@ function initializeTurtleTimer() {
 
         // Schedule reconnect with exponential backoff
         function scheduleReload(code, wasClean, reason) {
-            // Only reconnect for 4710 (server update), 1006 (abnormal), or if reason mentions update
-            if (wasClean && code !== 4710 && code !== 1006 && !/update/i.test(reason || '')) {
+            // Handle version expired (4710) immediately - auto-refresh with notification
+            if (code === 4710 || /version.?expired/i.test(reason || '')) {
+                if (typeof productionLog === 'function') {
+                    productionLog('[WebSocket] Version expired detected (code 4710) - auto-refreshing in 5 seconds');
+                }
+
+                // Show friendly update notification with countdown
+                let countdown = 5;
+                const updateToast = document.createElement('div');
+                updateToast.id = 'mga-update-toast';
+                updateToast.style.cssText = `
+                    position: fixed; top: 20px; right: 20px; z-index: 2147483647;
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));
+                    color: white; padding: 16px 24px; border-radius: 12px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    font-size: 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                    animation: slideInRight 0.3s ease-out; max-width: 320px;
+                `;
+
+                updateToast.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">🎮</div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">Game Update Available</div>
+                            <div style="font-size: 12px; opacity: 0.9;">
+                                Refreshing in <span id="mga-countdown">${countdown}</span>s...
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(updateToast);
+
+                // Update countdown every second
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    const countdownEl = document.getElementById('mga-countdown');
+                    if (countdownEl) {
+                        countdownEl.textContent = countdown;
+                    }
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+
+                // Auto-refresh after 5 seconds
+                setTimeout(() => {
+                    if (typeof productionLog === 'function') {
+                        productionLog('[WebSocket] Auto-refreshing for game update...');
+                    }
+                    window.location.reload();
+                }, 5000);
+
+                return;
+            }
+
+            // Only reconnect for 1006 (abnormal) or if reason mentions update
+            if (wasClean && code !== 1006 && !/update/i.test(reason || '')) {
                 if (typeof productionLog === 'function') {
                     productionLog('[WebSocket] Clean close detected - no reconnect needed');
                 }
@@ -24045,7 +25849,8 @@ function initializeTurtleTimer() {
             return ws;
         };
 
-        // Preserve prototype and mark as patched
+        // Preserve prototype and static properties
+        Object.setPrototypeOf(window.WebSocket, Native);
         window.WebSocket.prototype = Native.prototype;
         window.WebSocket.__mgtoolsPatched = true;
 
@@ -24091,7 +25896,10 @@ function initializeTurtleTimer() {
             productionLog('✅ [WebSocket] Enhanced auto-reconnect system initialized (max attempts: ' + MAX_ATTEMPTS + ')');
         }
     })();
-  
+
+    // DOM update popup monitor disabled - WebSocket code 4710 detection is reliable enough
+    // The DOM monitor was causing false positives by matching MGTools' own UI elements
+
   })();
 
 
