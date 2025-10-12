@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.5.6
+// @version      3.5.7
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
@@ -154,8 +154,14 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.5.5';  // Your local development version
-      const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
+      const CURRENT_VERSION = '3.5.7';  // Current version
+      const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
+      const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
+      const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
+      const BETA_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js';
+
+      // Detect if running Live Beta version (check @updateURL in script)
+      const IS_LIVE_BETA = GM_info?.script?.updateURL?.includes('Live-Beta') || false;
   
       // Semantic version comparison function
       function compareVersions(v1, v2) {
@@ -1310,7 +1316,7 @@
               width: 44px;
               height: 44px;
               background: rgba(255, 255, 255, 0.05);
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.57);
               border-radius: 10px;
               display: flex;
               align-items: center;
@@ -1322,7 +1328,7 @@
           }
   
           .mgh-dock-item:hover {
-              background: rgba(255, 255, 255, 0.12);
+              background: rgba(255, 255, 255, 0.15);
               transform: scale(1.1);
           }
   
@@ -1337,7 +1343,7 @@
           }
   
           .mgh-dock-item.flip-toggle:hover {
-              background: rgba(255, 255, 255, 0.15);
+              background: rgba(255, 255, 255, 0.12);
           }
   
           /* Optimized sizes for vertical mode */
@@ -1367,7 +1373,7 @@
               opacity: 0;
               pointer-events: none;
               transition: opacity 0.2s;
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.57);
               z-index: 10;
           }
   
@@ -1456,7 +1462,7 @@
   
           .mga-shop-sidebar-header {
               padding: 20px;
-              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              border-bottom: 1px solid rgba(255, 255, 255, 0.57);
               display: flex;
               justify-content: space-between;
               align-items: center;
@@ -1465,7 +1471,7 @@
   
           .mgh-sidebar-header {
               padding: 20px;
-              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              border-bottom: 1px solid rgba(255, 255, 255, 0.57);
               display: flex;
               justify-content: space-between;
               align-items: center;
@@ -1481,7 +1487,7 @@
               width: 32px;
               height: 32px;
               background: transparent;
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              border: 1px solid rgba(255, 255, 255, 0.73);
               border-radius: 8px;
               color: rgba(255, 255, 255, 0.7);
               cursor: pointer;
@@ -1493,7 +1499,7 @@
           }
   
           .mgh-sidebar-close:hover {
-              background: rgba(255, 255, 255, 0.1);
+              background: rgba(255, 255, 255, 0.57);
               color: white;
           }
   
@@ -1506,14 +1512,14 @@
   
           .mgh-sidebar-body::-webkit-scrollbar { width: 6px; }
           .mgh-sidebar-body::-webkit-scrollbar-thumb {
-              background: rgba(255, 255, 255, 0.2);
+              background: rgba(255, 255, 255, 0.73);
               border-radius: 3px;
           }
   
           /* ==================== PRESERVE ORIGINAL MGA STYLES ==================== */
           .mga-btn {
-              background: rgba(255, 255, 255, 0.1);
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              background: rgba(255, 255, 255, 0.57);
+              border: 1px solid rgba(255, 255, 255, 0.73);
               color: #ffffff;
               padding: 6px 12px;
               border-radius: 6px;
@@ -1527,11 +1533,11 @@
               background: rgba(255, 255, 255, 0.15);
               border-color: rgba(255, 255, 255, 0.3);
               transform: translateY(-1px);
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.40);
           }
   
           .mga-input, .mga-select {
-              background: rgba(255, 255, 255, 0.08);
+              background: rgba(255, 255, 255, 0.05);
               border: 1px solid rgba(255, 255, 255, 0.2);
               color: #ffffff;
               padding: 6px 12px;
@@ -1543,14 +1549,28 @@
           .mga-input:focus, .mga-select:focus {
               outline: none;
               border-color: rgba(102, 126, 234, 0.5);
-              background: rgba(255, 255, 255, 0.12);
+              background: rgba(255, 255, 255, 0.08);
           }
   
           .mga-select option {
               background: rgba(20, 20, 20, 0.95);
               color: #ffffff;
+              padding: 8px;
           }
-  
+
+          .mga-select option:hover {
+              background: rgba(74, 158, 255, 0.3);
+          }
+
+          .mga-select optgroup {
+              background: rgba(0, 0, 0, 0.5);
+              color: #4a9eff;
+              font-weight: bold;
+              font-size: 11px;
+              padding: 6px;
+              border-top: 1px solid rgba(255, 255, 255, 0.57);
+          }
+
           /* Shop item name colors */
           .shop-color-white { color: #ffffff !important; }
           .shop-color-green { color: #2afd23ff !important; }
@@ -1578,6 +1598,27 @@
               0%   { background-position: 0% 50%; }
               100% { background-position: 200% 50%; }
           }
+
+          /* ========== TEXTURE ANIMATIONS ========== */
+          @keyframes textureSlowDrift {
+              0%   { background-position: 0px 0px, 0 0; }
+              100% { background-position: 200px 200px, 0 0; }
+          }
+
+          @keyframes hologramScan {
+              0%   { background-position: 0 0, 0 0; }
+              100% { background-position: 0 100%, 0 0; }
+          }
+
+          @keyframes energyPulse {
+              0%   { background-position: 0% 0%, 0% 0%, 0% 0%, 0 0; }
+              50%  { background-position: 100% 0%, 100% 100%, 0% 100%, 0 0; }
+              100% { background-position: 0% 0%, 0% 0%, 0% 0%, 0 0; }
+          }
+
+          .mga-texture-animated {
+              animation: textureSlowDrift 60s linear infinite;
+          }
   
           /* Shop sprite sizing */
           .shop-sprite {
@@ -1599,7 +1640,7 @@
           .mga-overlay {
               position: fixed;
               background: rgba(17, 24, 39, 0.95);
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.57);
               border-radius: 12px;
               padding: 20px;
               color: #ffffff;
@@ -1627,7 +1668,7 @@
   
           .mgh-popout-header {
               padding: 12px 16px;
-              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              border-bottom: 1px solid rgba(255, 255, 255, 0.57);
               display: flex;
               align-items: center;
               justify-content: space-between;
@@ -1660,7 +1701,7 @@
               color: rgba(255, 255, 255, 0.9);
               margin-bottom: 12px;
               padding-bottom: 8px;
-              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              border-bottom: 1px solid rgba(255, 255, 255, 0.57);
           }
   
           .mga-pet-section-title {
@@ -1673,7 +1714,7 @@
           /* Active Pets Display */
           .mga-active-pets-display {
               background: rgba(255, 255, 255, 0.03);
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.57);
               border-radius: 8px;
               padding: 12px;
               margin-bottom: 12px;
@@ -1721,7 +1762,7 @@
               font-weight: 600;
               padding: 2px 6px;
               border-radius: 4px;
-              background: rgba(0, 0, 0, 0.2);
+              background: rgba(0, 0, 0, 0.48);
           }
   
           /* Pet Presets */
@@ -1733,7 +1774,7 @@
   
           .mga-preset {
               background: rgba(255, 255, 255, 0.05);
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.57);
               border-radius: 8px;
               padding: 12px;
               transition: all 0.2s ease;
@@ -1744,10 +1785,10 @@
           }
   
           .mga-preset-clickable:hover {
-              background: rgba(255, 255, 255, 0.08);
+              background: rgba(255, 255, 255, 0.55);
               border-color: #667eea;
               transform: translateY(-2px);
-              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.48);
           }
   
           .mga-preset-header {
@@ -1810,7 +1851,7 @@
           }
   
           .mga-scrollable::-webkit-scrollbar-thumb {
-              background: rgba(255, 255, 255, 0.2);
+              background: rgba(255, 255, 255, 0.73);
               border-radius: 3px;
           }
   
@@ -2454,8 +2495,8 @@ async function initializeFirebase() {
               if (count >= 4) statusColor = '#fbbf24';
               if (count >= 6) statusColor = '#ef4444';
   
-              const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)';
-              const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)';
+              const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
+              const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
   
               return `
                   <div class="room-item room-status-item" draggable="true" data-room="${roomCode}" data-room-code="${roomCode}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s; cursor: grab !important; user-select: none;">
@@ -2572,7 +2613,7 @@ async function initializeFirebase() {
                       const count = roomCounts[query] || 0;
 
                       searchResultDiv.innerHTML = `
-                          <div style="padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 8px;">
+                          <div style="padding: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.73); border-radius: 6px; margin-bottom: 8px;">
                               <div style="display: flex; align-items: center; justify-content: space-between;">
                                   <div style="display: flex; align-items: center; gap: 12px;">
                                       <span style="font-weight: bold; color: #e5e7eb; font-size: 14px;">${query}</span>
@@ -5176,7 +5217,7 @@ async function initializeFirebase() {
                   // Clean up styles
                   element.style.transition = 'all 0.2s ease';
                   element.style.transform = 'scale(1)';
-                  element.style.boxShadow = 'var(--panel-shadow, 0 4px 12px rgba(0, 0, 0, 0.15))';
+                  element.style.boxShadow = 'var(--panel-shadow, 0 4px 12px rgba(0, 0, 0, 0.40))';
                   element.style.zIndex = '';
                   element.style.borderTop = '';
                   element.style.borderBottom = '';
@@ -5293,6 +5334,7 @@ async function initializeFirebase() {
       // Create resize handle
       const resizeHandle = document.createElement('div');
       resizeHandle.className = 'mga-resize-handle';
+      resizeHandle.title = 'Drag to resize';
       resizeHandle.style.cssText = `
           position: absolute;
           bottom: 0;
@@ -5300,20 +5342,20 @@ async function initializeFirebase() {
           width: ${handleSize}px;
           height: ${handleSize}px;
           cursor: se-resize;
-          background: linear-gradient(-45deg, transparent 40%, rgba(74, 158, 255, 0.6) 50%, transparent 60%);
+          background: linear-gradient(-45deg, transparent 35%, rgba(74, 158, 255, 0.7) 45%, rgba(74, 158, 255, 0.9) 50%, rgba(74, 158, 255, 0.7) 55%, transparent 65%);
           border-radius: 0 0 4px 0;
-          opacity: ${showHandleOnHover ? '0.3' : '0.6'};
-          transition: opacity 0.2s ease;
+          opacity: ${showHandleOnHover ? '0.5' : '0.7'};
+          transition: opacity 0.2s ease, background 0.2s ease;
           z-index: 10;
           pointer-events: auto;
       `;
       element.appendChild(resizeHandle);
   
       if (showHandleOnHover) {
-          element.addEventListener('mouseenter', () => { resizeHandle.style.opacity = '0.8'; });
+          element.addEventListener('mouseenter', () => { resizeHandle.style.opacity = '1.0'; });
           element.addEventListener('mouseleave', () => {
               if (!element.hasAttribute('data-resizing')) {
-                  resizeHandle.style.opacity = '0.3';
+                  resizeHandle.style.opacity = '0.5';
               }
           });
       }
@@ -5341,7 +5383,7 @@ async function initializeFirebase() {
           element.removeAttribute('data-resizing');
           document.body.style.cursor = '';
           document.body.style.userSelect = '';
-          resizeHandle.style.opacity = '0.3';
+          resizeHandle.style.opacity = showHandleOnHover ? '0.5' : '0.7';
   
           // Unbind listeners safely
           document.removeEventListener('mousemove', onMouseMove);
@@ -5559,14 +5601,17 @@ async function initializeFirebase() {
       async function checkVersion(indicatorElement) {
           // Skip version check on Discord to avoid CSP violations
           if (isDiscordPage) {
-              indicatorElement.style.color = '#888'; // Gray for disabled
-              indicatorElement.title = `v${CURRENT_VERSION} - Version check disabled on Discord\nShift+Click to view on GitHub`;
+              const branchName = IS_LIVE_BETA ? 'Live Beta' : 'Stable';
+              indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#888'; // Blue for beta, gray for stable
+              indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Version check disabled on Discord\nShift+Click: Stable • Shift+Alt+Click: Live Beta`;
               indicatorElement.style.cursor = 'pointer';
-  
+
               indicatorElement.addEventListener('click', (e) => {
                   e.stopPropagation();
-                  if (e.shiftKey) {
-                      window.open('https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js', '_blank');
+                  if (e.shiftKey && e.altKey) {
+                      window.open(BETA_DOWNLOAD_URL, '_blank');
+                  } else if (e.shiftKey) {
+                      window.open(STABLE_DOWNLOAD_URL, '_blank');
                   }
               });
               return;
@@ -5575,9 +5620,11 @@ async function initializeFirebase() {
           // Try multiple URLs in order
           // Add cache-busting timestamp to avoid GitHub CDN cache (updates every ~5 min)
           const cacheBust = `?t=${Date.now()}`;
+          const branch = IS_LIVE_BETA ? 'Live-Beta' : 'main';
+          const branchName = IS_LIVE_BETA ? 'Live Beta' : 'Stable';
           const urls = [
-              `https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js${cacheBust}`,
-              `https://raw.githubusercontent.com/Myke247/MGTools/master/MGTools.user.js${cacheBust}`,
+              `https://raw.githubusercontent.com/Myke247/MGTools/${branch}/MGTools.user.js${cacheBust}`,
+              `https://raw.githubusercontent.com/Myke247/MGTools/master/MGTools.user.js${cacheBust}`, // fallback
               'https://api.github.com/repos/Myke247/MGTools/contents/MGTools.user.js' // API doesn't need cache-bust
           ];
   
@@ -5623,32 +5670,52 @@ async function initializeFirebase() {
   
                   if (latestVersion) {
                       const versionComparison = compareVersions(CURRENT_VERSION, latestVersion);
-  
+
                       if (versionComparison === 0) {
                           // Versions are equal - up to date
-                          indicatorElement.style.color = '#00ff00'; // Green
-                          indicatorElement.title = `v${CURRENT_VERSION} - Up to date! ✓ (click to recheck)`;
+                          indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#00ff00'; // Blue for beta, green for stable
+                          indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Up to date! ✓\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
+                          indicatorElement.style.cursor = 'pointer';
+
+                          // Add click handler for downloads
+                          const newIndicator = indicatorElement.cloneNode(true);
+                          indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+
+                          newIndicator.addEventListener('click', (e) => {
+                              e.stopPropagation();
+                              if (e.shiftKey && e.altKey) {
+                                  window.open(BETA_DOWNLOAD_URL, '_blank');
+                              } else if (e.shiftKey) {
+                                  window.open(STABLE_DOWNLOAD_URL, '_blank');
+                              } else {
+                                  newIndicator.style.color = '#888';
+                                  newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
+                                  checkVersion(newIndicator);
+                              }
+                          });
                       } else {
                           // Either development version (yellow) or update available (red)
                           if (versionComparison > 0) {
                               // Local version is newer - development version
-                              indicatorElement.style.color = '#ffff00'; // Yellow
-                              indicatorElement.title = `v${CURRENT_VERSION} - Development version (GitHub: v${latestVersion})\nClick dot to recheck • Shift+Click to view on GitHub`;
+                              indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#ffff00'; // Blue for beta, yellow for stable dev
+                              indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Development version (${branchName}: v${latestVersion})\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
                           } else {
                               // GitHub version is newer - update available
-                              indicatorElement.style.color = '#ff0000'; // Red
-                              indicatorElement.title = `v${CURRENT_VERSION} - Update available: v${latestVersion}\nClick dot to recheck • Shift+Click to view on GitHub`;
+                              indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#ff0000'; // Blue for beta, red for stable update
+                              indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Update available: v${latestVersion}\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
                           }
                           indicatorElement.style.cursor = 'pointer';
-  
+
                           // Remove old listener to avoid duplicates
                           const newIndicator = indicatorElement.cloneNode(true);
                           indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-  
+
                           newIndicator.addEventListener('click', (e) => {
                               e.stopPropagation();
-                              if (e.shiftKey) {
-                                  window.open('https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js', '_blank');
+                              if (e.shiftKey && e.altKey) {
+                                  window.open(BETA_DOWNLOAD_URL, '_blank');
+                              } else if (e.shiftKey) {
+                                  window.open(STABLE_DOWNLOAD_URL, '_blank');
                               } else {
                                   newIndicator.style.color = '#888';
                                   newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
@@ -5663,18 +5730,20 @@ async function initializeFirebase() {
               } catch (e) {
                   if (i === urls.length - 1) {
                       // All attempts failed
-                      indicatorElement.style.color = '#ffa500'; // Orange for error
-                      indicatorElement.title = `v${CURRENT_VERSION} - Check failed\nClick dot to retry • Shift+Click for GitHub`;
+                      indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#ffa500'; // Blue for beta, orange for error
+                      indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Check failed\nClick: Retry • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
                       indicatorElement.style.cursor = 'pointer';
-  
+
                       // Remove old listener to avoid duplicates
                       const newIndicator = indicatorElement.cloneNode(true);
                       indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-  
+
                       newIndicator.addEventListener('click', (e) => {
                           e.stopPropagation();
-                          if (e.shiftKey) {
-                              window.open('https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js', '_blank');
+                          if (e.shiftKey && e.altKey) {
+                              window.open(BETA_DOWNLOAD_URL, '_blank');
+                          } else if (e.shiftKey) {
+                              window.open(STABLE_DOWNLOAD_URL, '_blank');
                           } else {
                               newIndicator.style.color = '#888';
                               newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
@@ -6088,6 +6157,13 @@ async function initializeFirebase() {
               startLeft = rect.left;
               startTop = rect.top;
               dock.style.cursor = 'grabbing';
+
+              // Disable transitions during drag to prevent blinking
+              dock.style.transition = 'none';
+              dock.querySelectorAll('*').forEach(child => {
+                  child.style.transition = 'none';
+                  child.style.pointerEvents = 'none';
+              });
           };
   
           // Shared drag move logic
@@ -6109,6 +6185,13 @@ async function initializeFirebase() {
                   isDragging = false;
                   dock.style.cursor = '';
   
+                  // Re-enable transitions after drag
+                  dock.style.transition = '';
+                  dock.querySelectorAll('*').forEach(child => {
+                      child.style.transition = '';
+                      child.style.pointerEvents = '';
+                  });
+
                   // Save dock position to localStorage
                   const rect = dock.getBoundingClientRect();
                   saveDockPosition({
@@ -6485,7 +6568,7 @@ async function initializeFirebase() {
               background: #1a1a1a;
               padding: 24px;
               border-radius: 8px;
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              border: 1px solid rgba(255, 255, 255, 0.73);
               text-align: center;
               min-width: 300px;
           `;
@@ -6494,7 +6577,7 @@ async function initializeFirebase() {
               <h3 style="color: white; margin-bottom: 16px;">Set Hotkey for "${presetName}"</h3>
               <p style="color: #aaa; margin-bottom: 16px; font-size: 13px;">Press any key combination...</p>
               <div id="hotkey-display" style="
-                  background: rgba(74, 158, 255, 0.2);
+                  background: rgba(74, 158, 255, 0.48);
                   border: 1px solid #4a9eff;
                   padding: 12px;
                   border-radius: 4px;
@@ -6508,7 +6591,7 @@ async function initializeFirebase() {
               ">Waiting...</div>
               <div style="display: flex; gap: 8px;">
                   <button id="hotkey-save" class="mga-btn" disabled style="flex: 1;">Save</button>
-                  <button id="hotkey-clear" class="mga-btn" style="flex: 1; background: rgba(255, 100, 100, 0.2); border-color: #ff6464;">Clear</button>
+                  <button id="hotkey-clear" class="mga-btn" style="flex: 1; background: rgba(255, 100, 100, 0.48); border-color: #ff6464;">Clear</button>
                   <button id="hotkey-cancel" class="mga-btn" style="flex: 1;">Cancel</button>
               </div>
           `;
@@ -6732,7 +6815,7 @@ async function initializeFirebase() {
               padding: 12px;
               background: rgba(255, 255, 255, 0.05);
               border-radius: 8px;
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.57);
               flex-wrap: wrap;
               gap: 10px;
           }
@@ -7068,7 +7151,7 @@ async function initializeFirebase() {
               top: ${smartPosition.top}px;
               left: ${smartPosition.left}px;
               width: 240px;
-              height: auto;
+              height: 300px;
               min-height: 120px;
               max-height: 500px;
               padding: 10px 12px;
@@ -7087,9 +7170,18 @@ async function initializeFirebase() {
               will-change: width, height, transform;
           `;
   
-          // Apply theme - clean background with NO borders or shadows
+          // Apply theme - clean background with textures support
           const popoutTheme = generateThemeStyles(UnifiedState.data.settings, true);
-          overlay.style.background = popoutTheme.background;
+
+          // Layer texture over gradient if texture is enabled (same logic as applyThemeToElement)
+          if (popoutTheme.texturePattern) {
+              overlay.style.background = `${popoutTheme.texturePattern}, ${popoutTheme.background}`;
+              overlay.style.backgroundSize = `${popoutTheme.textureBackgroundSize}, cover`;
+              overlay.style.backgroundBlendMode = `${popoutTheme.textureBlendMode}, normal`;
+          } else {
+              overlay.style.background = popoutTheme.background;
+              overlay.style.backgroundBlendMode = '';
+          }
   
           // Invisible scrollbars are now handled by the mga-scrollable class
   
@@ -7168,7 +7260,7 @@ async function initializeFirebase() {
   
                   /* HIGH CONTRAST TOTAL VALUE */
                   .mga-overlay-content-only .mga-total-value {
-                      border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+                      border-top: 1px solid rgba(255, 255, 255, 0.73) !important;
                       margin-top: 6px !important;
                       padding-top: 4px !important;
                   }
@@ -7241,7 +7333,7 @@ async function initializeFirebase() {
           // For ability logs, add a subtle drag indicator
           if (tabName === 'abilities') {
               const dragIndicator = `
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.57);">
                       <div style="font-size: 11px; color: #4a9eff; font-weight: 600;">ABILITY LOGS</div>
                       <div style="font-size: 9px; color: rgba(255,255,255,0.4); cursor: grab;" title="Click and drag to move">⣿⣿ drag</div>
                   </div>
@@ -8172,7 +8264,7 @@ async function initializeFirebase() {
   
                   /* HIGH CONTRAST TOTAL VALUE */
                   .mga-overlay-content-only .mga-total-value {
-                      border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+                      border-top: 1px solid rgba(255, 255, 255, 0.73) !important;
                       margin-top: 6px !important;
                       padding-top: 4px !important;
                   }
@@ -8424,7 +8516,7 @@ async function initializeFirebase() {
               padding: 12px;
               background: rgba(255, 255, 255, 0.05);
               border-radius: 8px;
-              border: 1px solid rgba(255, 255, 255, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.57);
               flex-wrap: wrap;
               gap: 10px;
           }
@@ -9176,7 +9268,7 @@ async function initializeFirebase() {
                       <div class="mga-preset">
                           <div class="mga-preset-header">
                               <span class="mga-preset-name">${name}</span>
-                              <button class="mga-hotkey-btn" data-preset="${name}" style="margin-left: auto; padding: 2px 8px; font-size: 11px; background: rgba(100, 200, 255, 0.2); border: 1px solid #4a9eff; border-radius: 4px; color: white; cursor: pointer;">
+                              <button class="mga-hotkey-btn" data-preset="${name}" style="margin-left: auto; padding: 2px 8px; font-size: 11px; background: rgba(100, 200, 255, 0.48); border: 1px solid #4a9eff; border-radius: 4px; color: white; cursor: pointer;">
                                   ${hotkey || 'Set Hotkey'}
                               </button>
                           </div>
@@ -9259,14 +9351,14 @@ async function initializeFirebase() {
   
                   <!-- By Pet Mode -->
                   <div id="pet-filters" style="display: ${filterMode === 'byPet' ? 'block' : 'none'}; margin-bottom: 8px;">
-                      <div id="pet-species-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px;">
+                      <div id="pet-species-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; padding: 8px;">
                           <div style="color: #888; text-align: center;">Loading pet species...</div>
                       </div>
                   </div>
   
                   <!-- Custom Mode -->
                   <div id="custom-filters" style="display: ${filterMode === 'custom' ? 'block' : 'none'}; margin-bottom: 8px;">
-                      <div id="individual-abilities-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px;">
+                      <div id="individual-abilities-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; padding: 8px;">
                           <div style="color: #888; text-align: center;">Loading individual abilities...</div>
                       </div>
                   </div>
@@ -9335,7 +9427,7 @@ async function initializeFirebase() {
                       <button class="mga-btn" id="delete-selected-btn" style="background: #dc2626;">Delete Selected</button>
                       <button class="mga-btn mga-btn-sm" id="calculate-value-btn" style="background: #f59e0b;">Calculate Value</button>
                   </div>
-                  <div id="seed-value-display" style="display: none; margin-top: 8px; padding: 8px; background: rgba(245, 158, 11, 0.1); border-radius: 4px;">
+                  <div id="seed-value-display" style="display: none; margin-top: 8px; padding: 8px; background: rgba(245, 158, 11, 0.30); border-radius: 4px;">
                       <div style="font-size: 13px; color: #f59e0b;">Selected Seeds Value: <span id="selected-seeds-value">0</span> 💰</div>
                   </div>
               </div>
@@ -9705,7 +9797,7 @@ async function initializeFirebase() {
                       <button class="shop-close-btn" style="cursor: pointer; font-weight: 700; font-size: 20px; color: #cfcfcf; background: none; border: none; padding: 0 8px; transition: color 0.2s ease;">×</button>
                   </div>
               </div>
-              <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.57);">
                   <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                       <input type="checkbox" class="show-available-only" style="accent-color: #2afd23;">
                       <span>Show available only</span>
@@ -9816,7 +9908,7 @@ async function initializeFirebase() {
               width: ${savedSize.width}px;
               height: ${savedSize.height}px;
               background: rgba(17, 24, 39, 0.98);
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              border: 1px solid rgba(255, 255, 255, 0.73);
               border-radius: 8px;
               padding: 12px;
               z-index: 999999;
@@ -9826,7 +9918,7 @@ async function initializeFirebase() {
           `;
   
           window.innerHTML = `
-              <div class="shop-window-header" style="padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: grab;">
+              <div class="shop-window-header" style="padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.57); cursor: grab;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative;">
                       <h3 style="margin: 0; font-size: 14px;">🌱 ${title}</h3>
                       <button class="shop-close-btn" style="position: absolute; top: -4px; right: -4px; cursor: pointer; font-weight: 700; font-size: 16px; color: #cfcfcf; background: none; border: none; padding: 0 6px; transition: color 0.2s ease;">×</button>
@@ -9989,7 +10081,7 @@ async function initializeFirebase() {
                       divider.style.cssText = `
                           margin: 12px 0;
                           padding: 8px 0;
-                          border-top: 1px solid rgba(255, 255, 255, 0.15);
+                          border-top: 1px solid rgba(255, 255, 255, 0.1);
                           border-bottom: 1px solid rgba(255, 255, 255, 0.05);
                           text-align: center;
                           font-size: 11px;
@@ -10179,8 +10271,8 @@ async function initializeFirebase() {
   
           div.style.cssText = `
               padding: 8px;
-              background: ${(stock > 0 && !owned) ? 'rgba(76, 255, 106, 0.15)' : 'rgba(255,255,255,0.03)'};
-              border: 1px solid ${(stock > 0 && !owned) ? 'rgba(9, 255, 0, 0.2)' : 'rgba(255,255,255,0.1)'};
+              background: ${(stock > 0 && !owned) ? 'rgba(76, 255, 106, 0.40)' : 'rgba(255,255,255,0.03)'};
+              border: 1px solid ${(stock > 0 && !owned) ? 'rgba(9, 255, 0, 0.48)' : 'rgba(255, 255, 255, 0.57)'};
               border-radius: 4px;
               display: flex;
               align-items: center;
@@ -10230,7 +10322,7 @@ async function initializeFirebase() {
               if (stock > 0) {
                   btn.addEventListener('mouseenter', () => {
                       btn.style.transform = 'translateY(-1px)';
-                      btn.style.background = 'rgba(9, 255, 0, 0.1)';
+                      btn.style.background = 'rgba(9, 255, 0, 0.30)';
                       btn.style.borderColor = 'rgba(9, 255, 0, 0.09)';
                   });
                   btn.addEventListener('mouseleave', () => {
@@ -10296,7 +10388,7 @@ async function initializeFirebase() {
                   if (newStock === 0) {
                       itemEl.classList.remove('in-stock');
                       itemEl.style.background = 'rgba(255,255,255,0.03)';
-                      itemEl.style.borderColor = 'rgba(255,255,255,0.1)';
+                      itemEl.style.borderColor = 'rgba(255, 255, 255, 0.57)';
                       // Disable buttons
                       itemEl.querySelectorAll('.buy-btn').forEach(btn => {
                           btn.disabled = true;
@@ -10304,8 +10396,8 @@ async function initializeFirebase() {
                       });
                   } else {
                       itemEl.classList.add('in-stock');
-                      itemEl.style.background = 'rgba(76, 255, 106, 0.15)';
-                      itemEl.style.borderColor = 'rgba(9, 255, 0, 0.2)';
+                      itemEl.style.background = 'rgba(76, 255, 106, 0.40)';
+                      itemEl.style.borderColor = 'rgba(9, 255, 0, 0.48)';
                   }
               }, 100);
           } catch (e) {
@@ -10555,7 +10647,7 @@ async function initializeFirebase() {
               item.style.cssText = `
                   padding: 10px;
                   background: rgba(255,255,255,0.03);
-                  border: 1px solid rgba(255,255,255,0.1);
+                  border: 1px solid rgba(255, 255, 255, 0.57);
                   border-radius: 6px;
                   display: flex;
                   align-items: center;
@@ -10581,8 +10673,8 @@ async function initializeFirebase() {
               `;
   
               if (stock > 0) {
-                  item.style.background = 'rgba(76, 255, 106, 0.15)';
-                  item.style.borderColor = 'rgba(9, 255, 0, 0.2)';
+                  item.style.background = 'rgba(76, 255, 106, 0.40)';
+                  item.style.borderColor = 'rgba(9, 255, 0, 0.48)';
               }
   
               // Event handlers
@@ -10662,7 +10754,7 @@ async function initializeFirebase() {
   
                       if (newStock === 0) {
                           itemEl.style.background = 'rgba(255,255,255,0.03)';
-                          itemEl.style.borderColor = 'rgba(255,255,255,0.1)';
+                          itemEl.style.borderColor = 'rgba(255, 255, 255, 0.57)';
                       }
   
                       applyStockFilter();
@@ -10718,11 +10810,11 @@ async function initializeFirebase() {
                   buttons.forEach(btn => btn.disabled = newStock === 0);
   
                   if (newStock > 0) {
-                      item.style.background = 'rgba(76, 255, 106, 0.15)';
-                      item.style.borderColor = 'rgba(9, 255, 0, 0.2)';
+                      item.style.background = 'rgba(76, 255, 106, 0.40)';
+                      item.style.borderColor = 'rgba(9, 255, 0, 0.48)';
                   } else {
                       item.style.background = 'rgba(255,255,255,0.03)';
-                      item.style.borderColor = 'rgba(255,255,255,0.1)';
+                      item.style.borderColor = 'rgba(255, 255, 255, 0.57)';
                   }
               });
   
@@ -10783,17 +10875,17 @@ async function initializeFirebase() {
                       </div>
                       <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                           <input type="text" id="auto-favorite-custom" placeholder="Add custom species..."
-                              style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                              style="flex: 1; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
                               border-radius: 4px; color: white; font-size: 12px;">
                           <button id="add-auto-favorite" class="mga-btn-primary"
-                              style="padding: 8px 16px; background: rgba(74, 158, 255, 0.2); border: 1px solid rgba(74, 158, 255, 0.4);
+                              style="padding: 8px 16px; background: rgba(74, 158, 255, 0.48); border: 1px solid rgba(74, 158, 255, 0.4);
                               border-radius: 4px; color: #4a9eff; font-size: 12px; cursor: pointer; white-space: nowrap;"
                               onmouseover="this.style.background='rgba(74, 158, 255, 0.3)'"
-                              onmouseout="this.style.background='rgba(74, 158, 255, 0.2)'">
+                              onmouseout="this.style.background='rgba(74, 158, 255, 0.48)'">
                               Add Species
                           </button>
                       </div>
-                      <div style="font-size: 11px; color: #aaa; margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+                      <div style="font-size: 11px; color: #aaa; margin-bottom: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57); padding-top: 12px;">
                           Automatically favorite items with these mutations:
                       </div>
                       <div id="auto-favorite-mutations" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
@@ -10944,7 +11036,7 @@ async function initializeFirebase() {
                       <div class="mga-timer-label">Tool Restock</div>
                       <div class="mga-timer-value" id="timer-tool">--:--</div>
                   </div>
-                  <div class="mga-timer" style="background: rgba(147, 51, 234, 0.1); border-color: rgba(147, 51, 234, 0.3);">
+                  <div class="mga-timer" style="background: rgba(147, 51, 234, 0.30); border-color: rgba(147, 51, 234, 0.3);">
                       <div class="mga-timer-label">Lunar Event</div>
                       <div class="mga-timer-value" id="timer-lunar" style="color: #9333ea;">--:--</div>
                   </div>
@@ -10965,7 +11057,7 @@ async function initializeFirebase() {
   
                   <div style="margin-bottom: 12px;">
                       <input type="text" id="room-search-input" placeholder="Search room (e.g., SLAY)..."
-                          style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                          style="width: 100%; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
                           border-radius: 4px; color: white; font-size: 12px;">
                   </div>
   
@@ -10981,8 +11073,8 @@ async function initializeFirebase() {
                           if (count >= 4) statusColor = '#fbbf24'; // Yellow for busy
                           if (count >= 6) statusColor = '#ef4444'; // Red for full
   
-                          const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)';
-                          const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)';
+                          const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
+                          const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
   
                           return `
                               <div class="room-item" draggable="true" data-room="${roomCode}" style="
@@ -11046,7 +11138,7 @@ async function initializeFirebase() {
                       }).join('')}
                   </div>
   
-                  <div style="margin-top: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                  <div style="margin-top: 16px; padding: 12px; background: rgba(59, 130, 246, 0.30); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
                       <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
                           <strong style="color: #60a5fa;">How it works:</strong><br>
                           • Player counts update automatically every 5 seconds<br>
@@ -11059,11 +11151,11 @@ async function initializeFirebase() {
               </div>
 
               <!-- Add Room Section -->
-              <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;">
+              <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 6px;">
                   <div style="font-weight: bold; color: #60a5fa; margin-bottom: 8px; font-size: 13px;">➕ Add Custom Room</div>
                   <div style="display: flex; gap: 8px; align-items: center;">
                       <input type="text" id="add-room-input" placeholder="Room code (e.g., MG11)"
-                          style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                          style="flex: 1; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
                           border-radius: 4px; color: white; font-size: 12px; text-transform: uppercase;">
                       <button id="add-room-btn" class="mga-button" style="
                           padding: 8px 16px;
@@ -11114,7 +11206,7 @@ async function initializeFirebase() {
                           <div class="mga-tool-desc">Import and analyze your garden layout</div>
                       </div>
                   </div>
-                  <div class="mga-section-note" style="margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+                  <div class="mga-section-note" style="margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.15); border-radius: 5px;">
                       <strong>Note:</strong> Calculators will open in new popup windows. Make sure popup blockers are disabled for this site.
                   </div>
               </div>
@@ -11268,8 +11360,8 @@ async function initializeFirebase() {
                   }
   
                   .mga-tool-card {
-                      background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-                      border: 1px solid rgba(255,255,255,0.1);
+                      background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.02));
+                      border: 1px solid rgba(255, 255, 255, 0.57);
                       border-radius: 8px;
                       padding: 15px;
                       cursor: pointer;
@@ -11278,10 +11370,10 @@ async function initializeFirebase() {
                   }
   
                   .mga-tool-card:hover {
-                      background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
-                      border-color: rgba(255,255,255,0.2);
+                      background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255,255,255,0.04));
+                      border-color: rgba(255, 255, 255, 0.73);
                       transform: translateY(-2px);
-                      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.48);
                   }
   
                   .mga-tool-icon {
@@ -11309,8 +11401,8 @@ async function initializeFirebase() {
                   }
   
                   .mga-wiki-card {
-                      background: linear-gradient(135deg, rgba(74, 158, 255, 0.08), rgba(74, 158, 255, 0.03));
-                      border: 1px solid rgba(74, 158, 255, 0.2);
+                      background: linear-gradient(135deg, rgba(74, 158, 255, 0.28), rgba(74, 158, 255, 0.03));
+                      border: 1px solid rgba(74, 158, 255, 0.48);
                       border-radius: 6px;
                       padding: 12px 8px;
                       cursor: pointer;
@@ -11319,10 +11411,10 @@ async function initializeFirebase() {
                   }
   
                   .mga-wiki-card:hover {
-                      background: linear-gradient(135deg, rgba(74, 158, 255, 0.15), rgba(74, 158, 255, 0.08));
+                      background: linear-gradient(135deg, rgba(74, 158, 255, 0.40), rgba(74, 158, 255, 0.28));
                       border-color: rgba(74, 158, 255, 0.4);
                       transform: translateY(-1px);
-                      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.48);
                   }
   
                   .mga-wiki-icon {
@@ -11513,7 +11605,43 @@ async function initializeFirebase() {
           if (!name || typeof name !== 'string') return '';
           return name.trim().toLowerCase();
       }
-  
+
+      // ========== CUSTOM SOUND PLAYBACK WRAPPERS ==========
+      // These functions check for custom uploaded sounds before falling back to default beeps
+
+      function playCustomOrDefaultSound(soundType, defaultPlayFunc, volume) {
+          const customSound = GM_getValue(`mgtools_custom_sound_${soundType}`, null);
+          if (customSound) {
+              try {
+                  const audio = new Audio(customSound);
+                  audio.volume = volume || 0.3;
+                  audio.play();
+                  productionLog(`🎵 [CUSTOM-SOUND] Playing custom ${soundType} sound`);
+              } catch (err) {
+                  console.error(`Failed to play custom ${soundType} sound:`, err);
+                  defaultPlayFunc(volume);
+              }
+          } else {
+              defaultPlayFunc(volume);
+          }
+      }
+
+      function playShopNotificationSound(volume) {
+          playCustomOrDefaultSound('shop', playTripleBeepNotification, volume);
+      }
+
+      function playPetNotificationSound(volume) {
+          playCustomOrDefaultSound('pet', playDoubleBeepNotification, volume);
+      }
+
+      function playAbilityNotificationSound(volume) {
+          playCustomOrDefaultSound('ability', playSingleBeepNotification, volume);
+      }
+
+      function playWeatherNotificationSound(volume) {
+          playCustomOrDefaultSound('weather', playTripleBeepNotification, volume);
+      }
+
       // Check if an item is on the watch list (case-insensitive for seeds)
       function isWatchedItem(itemId, type = 'seed') {
           const notifications = UnifiedState.data.settings.notifications;
@@ -11616,7 +11744,7 @@ async function initializeFirebase() {
       // Generate HTML for notification list
       function generateNotificationListHTML() {
           return notificationQueue.map((notif, index) => `
-              <div style="margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; border-left: 3px solid #fff;">
+              <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.57); border-radius: 5px; border-left: 3px solid #fff;">
                   <div style="font-size: 14px; margin-bottom: 5px;">${notif.message}</div>
                   <div style="font-size: 10px; opacity: 0.8;">${new Date(notif.timestamp).toLocaleTimeString()}</div>
               </div>
@@ -11668,7 +11796,7 @@ async function initializeFirebase() {
               color: white;
               padding: 20px;
               border-radius: 15px;
-              box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255,0,0,0.2);
+              box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
               z-index: 9999999;
               font-weight: bold;
               animation: mga-modal-entrance 0.5s ease-out;
@@ -11822,7 +11950,7 @@ async function initializeFirebase() {
                   color: white;
                   padding: 30px;
                   border-radius: 15px;
-                  box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255,0,0,0.2);
+                  box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
                   z-index: 9999999;
                   font-weight: bold;
                   font-size: 20px;
@@ -12433,9 +12561,10 @@ async function initializeFirebase() {
               // Process batch notifications if any items were detected
               if (detectedItems.length > 0) {
                   productionLog(`🎉 [NOTIFICATIONS] Batch detected: ${detectedItems.length} items`);
-  
-                  // Play notification sound once for all items
-                  playSelectedNotification();
+
+                  // Play notification sound once for all items (custom or default)
+                  const volume = UnifiedState.data.settings.notifications.volume || 0.3;
+                  playShopNotificationSound(volume);
   
                   // Create notification message based on number of items
                   let notificationMessage;
@@ -12795,9 +12924,9 @@ async function initializeFirebase() {
                                     'below threshold (throttle expired)';
                       productionLog(`🐾 [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%) - Reason: ${reason}`);
   
-                      // Play different sound for pet hunger
+                      // Play different sound for pet hunger (custom or default)
                       const volume = UnifiedState.data.settings.notifications.volume || 0.3;
-                      playDoubleBeepNotification(volume);
+                      playPetNotificationSound(volume);
   
                       // Show visual notification with percentage
                       showNotificationToast(`⚠️ ${petName} needs feeding! Only ${Math.round(hungerPercent)}% full`, 'warning');
@@ -12867,9 +12996,9 @@ async function initializeFirebase() {
               });
   
               if (hungryCount > 0) {
-                  // Play sound once for all hungry pets
+                  // Play sound once for all hungry pets (custom or default)
                   const volume = UnifiedState.data.settings.notifications.volume || 0.3;
-                  playDoubleBeepNotification(volume);
+                  playPetNotificationSound(volume);
                   productionLog(`🐾 [PET-HUNGER] Initial scan found ${hungryCount} hungry pet(s)`);
               } else {
                   productionLog(`🐾 [PET-HUNGER] Initial scan: All pets are well-fed`);
@@ -13018,9 +13147,9 @@ async function initializeFirebase() {
                   if (watchedEvents.includes(mappedEvent)) {
                       productionLog(`🌤️ [WEATHER] ${mappedEvent} event detected!`);
   
-                      // Play weather notification
+                      // Play weather notification (custom or default)
                       const volume = UnifiedState.data.settings.notifications.volume || 0.3;
-                      playTripleBeepNotification(volume);
+                      playWeatherNotificationSound(volume);
   
                       // Show notification
                       showNotificationToast(`🌤️ Weather Event: ${mappedEvent}`, 'info');
@@ -13040,7 +13169,7 @@ async function initializeFirebase() {
           return `
               <div class="mga-section">
                   <div class="mga-section-title">🔒 Crop Protection</div>
-                  <div style="padding: 12px; background: rgba(74,158,255,0.1); border-radius: 6px; border-left: 3px solid #4a9eff; margin-bottom: 16px;">
+                  <div style="padding: 12px; background: rgba(74, 158, 255, 0.30); border-radius: 6px; border-left: 3px solid #4a9eff; margin-bottom: 16px;">
                       <p style="margin-bottom: 8px; font-size: 13px;"><strong>How it works:</strong></p>
                       <p style="margin-bottom: 4px; font-size: 12px;">• <strong>Lock crops</strong> to prevent accidental harvesting</p>
                       <p style="margin-bottom: 4px; font-size: 12px;">• All crops are <strong>unlocked by default</strong></p>
@@ -13067,12 +13196,12 @@ async function initializeFirebase() {
                   </div>
   
                   <div style="margin-bottom: 12px;">
-                      <button id="protect-clear-all" class="mga-button" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4);">
+                      <button id="protect-clear-all" class="mga-button" style="background: rgba(239, 68, 68, 0.48); border: 1px solid rgba(239, 68, 68, 0.4);">
                           🔓 Unlock All Crops
                       </button>
                   </div>
 
-                  <div style="margin-top: 20px; padding: 15px; background: rgba(100,200,255,0.1); border-radius: 8px; border: 1px solid rgba(100,200,255,0.3);">
+                  <div style="margin-top: 20px; padding: 15px; background: rgba(100, 200, 255, 0.30); border-radius: 8px; border: 1px solid rgba(100,200,255,0.3);">
                       <div style="font-weight: 600; margin-bottom: 10px; color: #64b5f6;">℗ Advanced Settings</div>
                       <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px;">
                           <input type="checkbox" id="allow-frozen-pickup" class="mga-checkbox"
@@ -13102,7 +13231,7 @@ async function initializeFirebase() {
   
               <div class="mga-section">
                   <div class="mga-section-title">📋 Currently Protected</div>
-                  <div id="protect-status-display" style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 12px; min-height: 60px;">
+                  <div id="protect-status-display" style="padding: 12px; background: rgba(0, 0, 0, 0.48); border-radius: 6px; font-size: 12px; min-height: 60px;">
                       <div style="color: #888;">No crops are currently locked.</div>
                   </div>
               </div>
@@ -13133,18 +13262,18 @@ async function initializeFirebase() {
               <div class="mga-section">
                   <div class="mga-section-title">⌨️ Keyboard Shortcuts</div>
                   <div class="mga-help-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin-bottom: 16px;">
-                      <code style="background: rgba(74,158,255,0.2); padding: 2px 6px; border-radius: 3px;">Alt+B</code>
+                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+B</code>
                       <span>Toggle Shop (opens/closes both seed and egg sidebars)</span>
-                      <code style="background: rgba(74,158,255,0.2); padding: 2px 6px; border-radius: 3px;">Escape</code>
+                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Escape</code>
                       <span>Close shop sidebars</span>
-                      <code style="background: rgba(74,158,255,0.2); padding: 2px 6px; border-radius: 3px;">Custom</code>
+                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Custom</code>
                       <span>Set your own hotkeys for tabs and pet presets in Hotkeys tab (⌨️)</span>
                   </div>
-                  <p style="font-size: 11px; color: #888; margin-top: 12px; padding: 8px; background: rgba(255,200,100,0.1); border-radius: 4px; border-left: 3px solid #ffc864;">
+                  <p style="font-size: 11px; color: #888; margin-top: 12px; padding: 8px; background: rgba(255, 200, 100, 0.30); border-radius: 4px; border-left: 3px solid #ffc864;">
                       <strong>⚠️ Note:</strong> Ctrl+1-9 removed to avoid conflicts with game hotbar controls.<br>
                       Use the Hotkeys tab to set custom keys for opening tabs and loading pet presets!
                   </p>
-                  <p style="font-size: 11px; color: #888; margin-top: 8px; padding: 8px; background: rgba(74,158,255,0.1); border-radius: 4px; border-left: 3px solid #4a9eff;">
+                  <p style="font-size: 11px; color: #888; margin-top: 8px; padding: 8px; background: rgba(74, 158, 255, 0.30); border-radius: 4px; border-left: 3px solid #4a9eff;">
                       <strong>🎮 Pet Preset Hotkeys:</strong><br>
                       • Click "Set Hotkey" button next to any preset<br>
                       • Press your desired key combination<br>
@@ -13198,7 +13327,7 @@ async function initializeFirebase() {
                       <li style="margin-bottom: 4px;"><strong>Real-time Updates:</strong> Changes take effect immediately without reload</li>
                       <li style="margin-bottom: 4px;"><strong>Status Display:</strong> View all currently protected crops at a glance</li>
                   </ul>
-                  <p style="font-size: 11px; color: #888; margin-top: 12px; padding: 8px; background: rgba(74,158,255,0.1); border-radius: 4px; border-left: 3px solid #4a9eff;">
+                  <p style="font-size: 11px; color: #888; margin-top: 12px; padding: 8px; background: rgba(74, 158, 255, 0.30); border-radius: 4px; border-left: 3px solid #4a9eff;">
                       <strong>💡 Pro Tip:</strong> Use crop protection to safeguard valuable mutations while auto-harvesting everything else. Set sell protection to 1.5x (50% bonus) to ensure you only sell during maximum friend bonus!
                   </p>
               </div>
@@ -13304,7 +13433,7 @@ async function initializeFirebase() {
                               <span style="font-size: 12px; flex: 1;">${config.name}</span>
                               <button class="hotkey-button" data-key="${key}" style="
                                   padding: 4px 8px;
-                                  background: ${config.custom ? 'rgba(100, 255, 100, 0.2)' : 'rgba(74, 158, 255, 0.2)'};
+                                  background: ${config.custom ? 'rgba(100, 255, 100, 0.48)' : 'rgba(74, 158, 255, 0.48)'};
                                   border: 1px solid ${config.custom ? '#64ff64' : '#4a9eff'};
                                   border-radius: 4px;
                                   color: white;
@@ -13318,7 +13447,7 @@ async function initializeFirebase() {
                                   <button class="hotkey-reset" data-key="${key}" style="
                                       margin-left: 5px;
                                       padding: 2px 6px;
-                                      background: rgba(255, 100, 100, 0.2);
+                                      background: rgba(255, 100, 100, 0.48);
                                       border: 1px solid #ff6464;
                                       border-radius: 3px;
                                       color: white;
@@ -13465,7 +13594,20 @@ async function initializeFirebase() {
                           🔔 Test Notification
                       </button>
                   </div>
-  
+              </div>
+
+              <div class="mga-section">
+                  <div class="mga-section-title">🎵 Custom Notification Sounds</div>
+                  <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                      Upload your own .mp3/.wav/.ogg files to replace default beep sounds. Max 2MB per file.
+                  </p>
+
+                  <div id="custom-sounds-container" style="display: grid; gap: 12px;">
+                      <!-- Custom sound upload controls will be populated by setupNotificationsTabHandlers -->
+                  </div>
+              </div>
+
+              <div class="mga-section">
                   <div style="margin-bottom: 12px;">
                       <label class="mga-label" style="display: block; margin-bottom: 8px;">
                           Watched Seeds
@@ -13702,7 +13844,7 @@ async function initializeFirebase() {
                       </div>
                   </div>
   
-                  <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                  <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.15); border-radius: 4px;">
                       <label class="mga-label" style="display: block; margin-bottom: 8px; font-size: 12px;">
                           Last Seen
                       </label>
@@ -13757,7 +13899,7 @@ async function initializeFirebase() {
                           Ability Sound Type
                       </label>
                       <select class="mga-select" id="ability-notification-sound-select"
-                              style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: white; font-size: 12px;">
+                              style="width: 100%; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: white; font-size: 12px;">
                           <option value="single" ${settings.notifications.abilityNotificationSound === 'single' ? 'selected' : ''}>🔊 Single Beep (Subtle)</option>
                           <option value="double" ${settings.notifications.abilityNotificationSound === 'double' ? 'selected' : ''}>🔔 Double Beep</option>
                           <option value="triple" ${settings.notifications.abilityNotificationSound === 'triple' ? 'selected' : ''}>🎵 Triple Beep</option>
@@ -13778,7 +13920,7 @@ async function initializeFirebase() {
                              style="width: 100%; accent-color: #9f7aea;">
                   </div>
   
-                  <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                  <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57);">
                       <label class="mga-label" style="display: block; margin-bottom: 8px; font-weight: 600;">
                           📋 Which Abilities to Notify For
                       </label>
@@ -13792,7 +13934,7 @@ async function initializeFirebase() {
                       </div>
   
                       <input type="text" id="ability-search-box" placeholder="🔍 Search abilities..."
-                             style="width: 100%; padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; font-size: 12px;">
+                             style="width: 100%; padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: #fff; font-size: 12px;">
   
                       <div id="individual-abilities-notification-list" style="display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 400px; overflow-y: auto; padding: 4px;">
                           ${(() => {
@@ -13958,6 +14100,12 @@ async function initializeFirebase() {
                               <option value="black-pink" ${settings.gradientStyle === 'black-pink' ? 'selected' : ''}>⚫💗 Noir Pink</option>
                               <option value="black-matrix" ${settings.gradientStyle === 'black-matrix' ? 'selected' : ''}>⚫🟢 Matrix Black</option>
                               <option value="black-sunset" ${settings.gradientStyle === 'black-sunset' ? 'selected' : ''}>⚫🌅 Eclipse Sunset</option>
+                              <option value="black-blood" ${settings.gradientStyle === 'black-blood' ? 'selected' : ''}>⚫🩸 Midnight Blood</option>
+                              <option value="black-neon" ${settings.gradientStyle === 'black-neon' ? 'selected' : ''}>⚫⚡ Shadow Neon</option>
+                              <option value="black-storm" ${settings.gradientStyle === 'black-storm' ? 'selected' : ''}>⚫⛈️ Obsidian Storm</option>
+                              <option value="black-sapphire" ${settings.gradientStyle === 'black-sapphire' ? 'selected' : ''}>⚫💠 Void Sapphire</option>
+                              <option value="black-aqua" ${settings.gradientStyle === 'black-aqua' ? 'selected' : ''}>⚫🌊 Dark Aqua</option>
+                              <option value="black-phantom" ${settings.gradientStyle === 'black-phantom' ? 'selected' : ''}>⚫🪙 Phantom Silver</option>
                           </optgroup>
                           <optgroup label="🌈 Classic Themes">
                               <option value="blue-purple" ${settings.gradientStyle === 'blue-purple' ? 'selected' : ''}>🌌 Blue-Purple</option>
@@ -14003,8 +14151,100 @@ async function initializeFirebase() {
                           <option value="titanium" ${settings.effectStyle === 'titanium' ? 'selected' : ''}>🌫️ Titanium</option>
                       </select>
                   </div>
+
+                  <div style="margin-bottom: 12px;">
+                      <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                          Texture Overlay
+                      </label>
+                      <select class="mga-select" id="texture-select">
+                          <option value="none" ${settings.textureStyle === 'none' || !settings.textureStyle ? 'selected' : ''}>🚫 None</option>
+
+                          <optgroup label="🌟 Modern Glass">
+                              <option value="frosted-glass" ${settings.textureStyle === 'frosted-glass' ? 'selected' : ''}>❄️ Frosted Glass</option>
+                              <option value="crystal-prism" ${settings.textureStyle === 'crystal-prism' ? 'selected' : ''}>💎 Crystal Prism</option>
+                              <option value="ice-frost" ${settings.textureStyle === 'ice-frost' ? 'selected' : ''}>🧊 Ice Frost</option>
+                              <option value="smoke-flow" ${settings.textureStyle === 'smoke-flow' ? 'selected' : ''}>💨 Smoke Flow</option>
+                              <option value="water-ripple" ${settings.textureStyle === 'water-ripple' ? 'selected' : ''}>🌊 Water Ripple</option>
+                          </optgroup>
+
+                          <optgroup label="⚙️ Premium Materials">
+                              <option value="carbon-fiber-pro" ${settings.textureStyle === 'carbon-fiber-pro' ? 'selected' : ''}>🏁 Carbon Fiber Pro</option>
+                              <option value="brushed-aluminum" ${settings.textureStyle === 'brushed-aluminum' ? 'selected' : ''}>⚪ Brushed Aluminum</option>
+                              <option value="brushed-titanium" ${settings.textureStyle === 'brushed-titanium' ? 'selected' : ''}>⚫ Brushed Titanium</option>
+                              <option value="leather-grain" ${settings.textureStyle === 'leather-grain' ? 'selected' : ''}>🧳 Leather Grain</option>
+                              <option value="fabric-weave" ${settings.textureStyle === 'fabric-weave' ? 'selected' : ''}>🧵 Fabric Weave</option>
+                              <option value="wood-grain" ${settings.textureStyle === 'wood-grain' ? 'selected' : ''}>🪵 Wood Grain</option>
+                          </optgroup>
+
+                          <optgroup label="⚡ Tech/Futuristic">
+                              <option value="circuit-board" ${settings.textureStyle === 'circuit-board' ? 'selected' : ''}>🔌 Circuit Board</option>
+                              <option value="hexagon-grid-pro" ${settings.textureStyle === 'hexagon-grid-pro' ? 'selected' : ''}>⬡ Hexagon Grid Pro</option>
+                              <option value="hologram-scan" ${settings.textureStyle === 'hologram-scan' ? 'selected' : ''}>📡 Hologram Scan</option>
+                              <option value="matrix-rain" ${settings.textureStyle === 'matrix-rain' ? 'selected' : ''}>💚 Matrix Rain</option>
+                              <option value="energy-waves" ${settings.textureStyle === 'energy-waves' ? 'selected' : ''}>⚡ Energy Waves</option>
+                              <option value="cyberpunk-grid" ${settings.textureStyle === 'cyberpunk-grid' ? 'selected' : ''}>🔷 Cyberpunk Grid</option>
+                          </optgroup>
+
+                          <optgroup label="📐 Geometric Clean">
+                              <option value="dots-pro" ${settings.textureStyle === 'dots-pro' ? 'selected' : ''}>⚫ Dots Professional</option>
+                              <option value="grid-pro" ${settings.textureStyle === 'grid-pro' ? 'selected' : ''}>⬜ Grid Professional</option>
+                              <option value="diagonal-pro" ${settings.textureStyle === 'diagonal-pro' ? 'selected' : ''}>📐 Diagonal Pro</option>
+                              <option value="waves" ${settings.textureStyle === 'waves' ? 'selected' : ''}>〰️ Waves</option>
+                              <option value="triangles" ${settings.textureStyle === 'triangles' ? 'selected' : ''}>🔺 Triangles</option>
+                              <option value="crosshatch" ${settings.textureStyle === 'crosshatch' ? 'selected' : ''}>✖️ Crosshatch</option>
+                          </optgroup>
+
+                          <optgroup label="🎪 Special Effects">
+                              <option value="perlin-noise" ${settings.textureStyle === 'perlin-noise' ? 'selected' : ''}>📺 Perlin Noise</option>
+                              <option value="gradient-mesh" ${settings.textureStyle === 'gradient-mesh' ? 'selected' : ''}>🌈 Gradient Mesh</option>
+                          </optgroup>
+                      </select>
+                  </div>
+
+                  <!-- Texture Intensity Slider -->
+                  <div style="margin-bottom: 12px;">
+                      <label class="mga-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                          <span>Texture Intensity</span>
+                          <span id="texture-intensity-value" style="color: #4a9eff; font-weight: 600;">${settings.textureIntensity !== undefined ? settings.textureIntensity : 75}%</span>
+                      </label>
+                      <input type="range" id="texture-intensity-slider" min="0" max="100" value="${settings.textureIntensity !== undefined ? settings.textureIntensity : 75}"
+                             style="width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(90deg, rgba(74, 158, 255, 0.48) 0%, rgba(74,158,255,0.8) 100%); outline: none; cursor: pointer;">
+                  </div>
+
+                  <!-- Texture Scale Control -->
+                  <div style="margin-bottom: 12px;">
+                      <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                          Texture Scale
+                      </label>
+                      <div style="display: flex; gap: 8px;">
+                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="small" style="flex: 1; ${(settings.textureScale === 'small') ? 'background: #4a9eff; color: white;' : ''}">Small</button>
+                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="medium" style="flex: 1; ${(settings.textureScale === 'medium' || !settings.textureScale) ? 'background: #4a9eff; color: white;' : ''}">Medium</button>
+                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="large" style="flex: 1; ${(settings.textureScale === 'large') ? 'background: #4a9eff; color: white;' : ''}">Large</button>
+                      </div>
+                  </div>
+
+                  <!-- Blend Mode Selector -->
+                  <div style="margin-bottom: 12px;">
+                      <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                          Blend Mode
+                      </label>
+                      <select class="mga-select" id="texture-blend-mode">
+                          <option value="overlay" ${(settings.textureBlendMode === 'overlay' || !settings.textureBlendMode) ? 'selected' : ''}>Overlay (Balanced)</option>
+                          <option value="multiply" ${settings.textureBlendMode === 'multiply' ? 'selected' : ''}>Multiply (Darken)</option>
+                          <option value="screen" ${settings.textureBlendMode === 'screen' ? 'selected' : ''}>Screen (Lighten)</option>
+                          <option value="soft-light" ${settings.textureBlendMode === 'soft-light' ? 'selected' : ''}>Soft Light (Subtle)</option>
+                      </select>
+                  </div>
+
+                  <!-- Animation Toggle -->
+                  <div style="margin-bottom: 12px;">
+                      <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                          <input type="checkbox" id="texture-animated-checkbox" class="mga-checkbox" ${settings.textureAnimated ? 'checked' : ''}>
+                          <span>✨ Enable Animation (where supported)</span>
+                      </label>
+                  </div>
               </div>
-  
+
               <div class="mga-section">
                   <div class="mga-section-title">Quick Presets</div>
                   <div class="mga-grid">
@@ -14054,8 +14294,8 @@ async function initializeFirebase() {
                   <div class="mga-section-title">🛡️ Compatibility Mode</div>
                   <div style="margin-bottom: 16px;">
                       <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px;
-                                  background: ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.05)'};
-                                  border: 1px solid ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+                                  background: ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? 'rgba(34, 197, 94, 0.30)' : 'rgba(255, 255, 255, 0.05)'};
+                                  border: 1px solid ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.57)'};
                                   border-radius: 8px; margin-bottom: 12px;">
                           <div>
                               <div style="font-weight: 600; margin-bottom: 4px;">
@@ -14421,7 +14661,7 @@ async function initializeFirebase() {
           presetDiv.innerHTML = `
               <div class="mga-preset-header" style="cursor: move;">
                   <span class="mga-preset-name">⋮⋮ ${name}</span>
-                  <button class="mga-hotkey-btn" data-preset="${name}" style="margin-left: auto; padding: 2px 8px; font-size: 11px; background: rgba(100, 200, 255, 0.2); border: 1px solid #4a9eff; border-radius: 4px; color: white; cursor: pointer;">
+                  <button class="mga-hotkey-btn" data-preset="${name}" style="margin-left: auto; padding: 2px 8px; font-size: 11px; background: rgba(100, 200, 255, 0.48); border: 1px solid #4a9eff; border-radius: 4px; color: white; cursor: pointer;">
                       ${hotkey || 'Set Hotkey'}
                   </button>
               </div>
@@ -15115,15 +15355,15 @@ async function initializeFirebase() {
                   <div class="mga-section">
                       <div class="mga-section-title">📊 Resource Dashboard</div>
                       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 15px 0;">
-                          <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+                          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
                               <div style="color: #F59E0B; font-size: 24px; font-weight: bold;">${latest.coins.toLocaleString()}</div>
                               <div style="color: rgba(255,255,255,0.7); font-size: 12px;">💰 Coins</div>
                           </div>
-                          <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+                          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
                               <div style="color: #8B5CF6; font-size: 24px; font-weight: bold;">${latest.gems.toLocaleString()}</div>
                               <div style="color: rgba(255,255,255,0.7); font-size: 12px;">💎 Gems</div>
                           </div>
-                          <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+                          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
                               <div style="color: #10B981; font-size: 24px; font-weight: bold;">${latest.seeds}</div>
                               <div style="color: rgba(255,255,255,0.7); font-size: 12px;">🌱 Seeds</div>
                           </div>
@@ -15623,7 +15863,7 @@ async function initializeFirebase() {
                   }
   
                   .mga-log-recent {
-                      background: rgba(74, 158, 255, 0.1);
+                      background: rgba(74, 158, 255, 0.30);
                       border-color: #4a9eff;
                       box-shadow: 0 0 8px rgba(74, 158, 255, 0.3);
                       animation: mgaLogPulse 2s ease-out;
@@ -16832,7 +17072,7 @@ async function initializeFirebase() {
           const speciesList = context.querySelector('#protect-species-list');
           if (speciesList) {
               speciesList.innerHTML = cropSpecies.map(species => `
-                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74,158,255,0.1); border-radius: 4px;">
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
                       <input type="checkbox" class="protect-species-checkbox" value="${species}"
                           ${lockedCrops.species?.includes(species) ? 'checked' : ''}
                           style="cursor: pointer;">
@@ -16845,7 +17085,7 @@ async function initializeFirebase() {
           const mutationsList = context.querySelector('#protect-mutations-list');
           if (mutationsList) {
               mutationsList.innerHTML = cropMutations.map(mutation => `
-                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74,158,255,0.1); border-radius: 4px;">
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
                       <input type="checkbox" class="protect-mutation-checkbox" value="${mutation}"
                           ${lockedCrops.mutations?.includes(mutation) ? 'checked' : ''}
                           style="cursor: pointer;">
@@ -17284,6 +17524,11 @@ async function initializeFirebase() {
           if (notificationTypeSelect && !notificationTypeSelect.hasAttribute('data-handler-setup')) {
               notificationTypeSelect.setAttribute('data-handler-setup', 'true');
 
+              // Explicitly restore saved value (defensive - ensures dropdown matches saved state)
+              const savedNotificationType = UnifiedState.data.settings.notifications.notificationType || 'epic';
+              notificationTypeSelect.value = savedNotificationType;
+              productionLog(`🔊 [NOTIFICATIONS] Restored notification type to: ${savedNotificationType}`);
+
               // On load: if continuous type is selected, lock acknowledgment checkbox
               if (UnifiedState.data.settings.notifications.notificationType === 'continuous') {
                   const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
@@ -17331,6 +17576,11 @@ async function initializeFirebase() {
           const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
           if (acknowledgmentCheckbox && !acknowledgmentCheckbox.hasAttribute('data-handler-setup')) {
               acknowledgmentCheckbox.setAttribute('data-handler-setup', 'true');
+
+              // Explicitly restore saved value
+              acknowledgmentCheckbox.checked = UnifiedState.data.settings.notifications.requiresAcknowledgment || false;
+              productionLog(`🚨 [NOTIFICATIONS] Restored acknowledgment checkbox to: ${acknowledgmentCheckbox.checked}`);
+
               acknowledgmentCheckbox.addEventListener('change', (e) => {
                   UnifiedState.data.settings.notifications.requiresAcknowledgment = e.target.checked;
                   MGA_saveJSON('MGA_data', UnifiedState.data);
@@ -17681,8 +17931,91 @@ async function initializeFirebase() {
                   });
               }
           });
+
+          // ========== CUSTOM NOTIFICATION SOUNDS ==========
+          const customSoundsContainer = context.querySelector('#custom-sounds-container');
+          if (customSoundsContainer && !customSoundsContainer.hasAttribute('data-handler-setup')) {
+              customSoundsContainer.setAttribute('data-handler-setup', 'true');
+
+              const soundTypes = [
+                  { id: 'shop', label: '🛒 Shop Alerts' },
+                  { id: 'pet', label: '🐾 Pet Hunger' },
+                  { id: 'ability', label: '⚡ Ability Triggers' },
+                  { id: 'weather', label: '🌤️ Weather Events' }
+              ];
+
+              soundTypes.forEach(type => {
+                  const hasCustom = GM_getValue(`mgtools_custom_sound_${type.id}`, null) !== null;
+
+                  const controlDiv = document.createElement('div');
+                  controlDiv.style.cssText = 'border: 1px solid rgba(255, 255, 255, 0.57); padding: 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.48);';
+                  controlDiv.innerHTML = `
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                          <label class="mga-label" style="margin: 0;">${type.label}</label>
+                          <span id="custom-sound-status-${type.id}" style="font-size: 10px; color: ${hasCustom ? '#10b981' : '#666'};">
+                              ${hasCustom ? '✓ Custom' : '○ Default'}
+                          </span>
+                      </div>
+                      <div style="display: flex; gap: 6px;">
+                          <input type="file" accept="audio/*" id="upload-sound-${type.id}" style="display: none;">
+                          <button class="mga-btn mga-btn-sm" id="upload-btn-${type.id}" style="flex: 1; background: #4a9eff; font-size: 11px; padding: 6px;">📁 Upload</button>
+                          <button class="mga-btn mga-btn-sm" id="test-btn-${type.id}" style="flex: 0.6; background: #10b981; font-size: 11px; padding: 6px;">▶️ Test</button>
+                          <button class="mga-btn mga-btn-sm" id="delete-btn-${type.id}" style="flex: 0.6; background: ${hasCustom ? '#ef4444' : '#666'}; font-size: 11px; padding: 6px;" ${!hasCustom ? 'disabled' : ''}>🗑️</button>
+                      </div>
+                  `;
+                  customSoundsContainer.appendChild(controlDiv);
+
+                  const uploadBtn = controlDiv.querySelector(`#upload-btn-${type.id}`);
+                  const fileInput = controlDiv.querySelector(`#upload-sound-${type.id}`);
+                  uploadBtn.addEventListener('click', () => fileInput.click());
+
+                  fileInput.addEventListener('change', (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      if (file.size > 2 * 1024 * 1024) { alert('❌ File too large! Max 2MB'); return; }
+                      if (!file.type.startsWith('audio/')) { alert('❌ Please upload an audio file'); return; }
+
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                          GM_setValue(`mgtools_custom_sound_${type.id}`, event.target.result);
+                          controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = '✓ Custom';
+                          controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = '#10b981';
+                          const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
+                          delBtn.disabled = false;
+                          delBtn.style.background = '#ef4444';
+                          productionLog(`🎵 [CUSTOM-SOUND] Uploaded: ${type.id}`);
+                          alert(`✅ Custom sound uploaded!`);
+                      };
+                      reader.readAsDataURL(file);
+                  });
+
+                  controlDiv.querySelector(`#test-btn-${type.id}`).addEventListener('click', () => {
+                      const customSound = GM_getValue(`mgtools_custom_sound_${type.id}`, null);
+                      const volume = UnifiedState.data.settings.notifications.volume || 0.3;
+                      if (customSound) {
+                          const audio = new Audio(customSound);
+                          audio.volume = volume;
+                          audio.play();
+                      } else {
+                          playSelectedNotification();
+                      }
+                  });
+
+                  controlDiv.querySelector(`#delete-btn-${type.id}`).addEventListener('click', () => {
+                      if (confirm(`Delete custom sound for ${type.label}?`)) {
+                          GM_deleteValue(`mgtools_custom_sound_${type.id}`);
+                          controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = '○ Default';
+                          controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = '#666';
+                          const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
+                          delBtn.disabled = true;
+                          delBtn.style.background = '#666';
+                          alert(`✅ Reverted to default sound`);
+                      }
+                  });
+              });
+          }
       }
-  
+
       function setupSettingsTabHandlers(context = document) {
           console.log('🚨 [CRITICAL-DEBUG] setupSettingsTabHandlers ENTERED');
           productionLog('⚙️ [SETTINGS] setupSettingsTabHandlers called', { context: context === document ? 'document' : 'custom' });
@@ -17763,7 +18096,74 @@ async function initializeFirebase() {
                   MGA_saveJSON('MGA_data', UnifiedState.data);
               });
           }
-  
+
+          // Texture select
+          const textureSelect = context.querySelector('#texture-select');
+          if (textureSelect) {
+              textureSelect.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.textureStyle = e.target.value;
+                  applyTheme();
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+              });
+          }
+
+          // Texture intensity slider
+          const intensitySlider = context.querySelector('#texture-intensity-slider');
+          const intensityValue = context.querySelector('#texture-intensity-value');
+          if (intensitySlider && intensityValue) {
+              intensitySlider.addEventListener('input', (e) => {
+                  const value = e.target.value;
+                  intensityValue.textContent = value + '%';
+                  UnifiedState.data.settings.textureIntensity = parseInt(value);
+                  applyTheme();
+              });
+              intensitySlider.addEventListener('change', (e) => {
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+              });
+          }
+
+          // Texture scale buttons
+          const scaleButtons = context.querySelectorAll('.texture-scale-btn');
+          if (scaleButtons.length > 0) {
+              scaleButtons.forEach(btn => {
+                  btn.addEventListener('click', (e) => {
+                      const scale = e.target.dataset.scale;
+                      UnifiedState.data.settings.textureScale = scale;
+
+                      // Update button styles
+                      scaleButtons.forEach(b => {
+                          b.style.background = '';
+                          b.style.color = '';
+                      });
+                      e.target.style.background = '#4a9eff';
+                      e.target.style.color = 'white';
+
+                      applyTheme();
+                      MGA_saveJSON('MGA_data', UnifiedState.data);
+                  });
+              });
+          }
+
+          // Texture blend mode selector
+          const blendModeSelect = context.querySelector('#texture-blend-mode');
+          if (blendModeSelect) {
+              blendModeSelect.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.textureBlendMode = e.target.value;
+                  applyTheme();
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+              });
+          }
+
+          // Texture animation toggle
+          const animatedCheckbox = context.querySelector('#texture-animated-checkbox');
+          if (animatedCheckbox) {
+              animatedCheckbox.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.textureAnimated = e.target.checked;
+                  applyTheme();
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+              });
+          }
+
           // Ultra-compact mode checkbox
           const ultraCompactCheckbox = context.querySelector('#ultra-compact-checkbox');
           if (ultraCompactCheckbox) {
@@ -18029,10 +18429,10 @@ async function initializeFirebase() {
           if (!popupWindow || popupWindow.closed || typeof popupWindow.closed === 'undefined') {
               // Popup was blocked, show alternative message
               const message = `
-                  <div style="padding: 20px; background: rgba(255,50,50,0.1); border: 1px solid rgba(255,100,100,0.3); border-radius: 5px; margin: 20px;">
+                  <div style="padding: 20px; background: rgba(255, 50, 50, 0.30); border: 1px solid rgba(255,100,100,0.3); border-radius: 5px; margin: 20px;">
                       <h3 style="color: #ff6b6b; margin-bottom: 10px;">⚠️ Popup Blocked</h3>
                       <p style="margin-bottom: 15px;">The calculator popup was blocked by your browser. Please allow popups for this site or open the calculator manually:</p>
-                      <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 3px; word-break: break-all;">
+                      <div style="background: rgba(0, 0, 0, 0.48); padding: 10px; border-radius: 3px; word-break: break-all;">
                           <a href="${url}" target="_blank" style="color: #4fc3f7;">${url}</a>
                       </div>
                       <p style="margin-top: 10px; font-size: 0.9em; color: rgba(255,255,255,0.6);">
@@ -18080,10 +18480,10 @@ async function initializeFirebase() {
           if (!popupWindow || popupWindow.closed || typeof popupWindow.closed === 'undefined') {
               // Popup was blocked, show alternative message
               const message = `
-                  <div style="padding: 20px; background: rgba(255,50,50,0.1); border: 1px solid rgba(255,100,100,0.3); border-radius: 5px; margin: 20px;">
+                  <div style="padding: 20px; background: rgba(255, 50, 50, 0.30); border: 1px solid rgba(255,100,100,0.3); border-radius: 5px; margin: 20px;">
                       <h3 style="color: #ff6b6b; margin-bottom: 10px;">⚠️ Popup Blocked</h3>
                       <p style="margin-bottom: 15px;">The wiki popup was blocked by your browser. Please allow popups for this site or open the wiki manually:</p>
-                      <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 3px; word-break: break-all;">
+                      <div style="background: rgba(0, 0, 0, 0.48); padding: 10px; border-radius: 3px; word-break: break-all;">
                           <a href="${url}" target="_blank" style="color: #4fc3f7;">${url}</a>
                       </div>
                       <p style="margin-top: 10px; font-size: 0.9em; color: rgba(255,255,255,0.6);">
@@ -18911,7 +19311,13 @@ async function initializeFirebase() {
               'black-pink': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(26, 0, 20, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
               'black-matrix': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 17, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
               'black-sunset': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(26, 10, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-  
+              'black-blood': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(40, 0, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
+              'black-neon': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 20, 30, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
+              'black-storm': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(10, 0, 30, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
+              'black-sapphire': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 10, 40, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
+              'black-aqua': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 25, 25, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
+              'black-phantom': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(20, 20, 20, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
+
               // 🌈 ORIGINAL THEMES
               'blue-purple': 'linear-gradient(135deg, rgba(20, 20, 35, ' + effectiveOpacity + ') 0%, rgba(30, 30, 50, ' + effectiveOpacity + ') 100%)',
               'green-blue': 'linear-gradient(135deg, rgba(20, 35, 20, ' + effectiveOpacity + ') 0%, rgba(30, 40, 60, ' + effectiveOpacity + ') 100%)',
@@ -18928,11 +19334,11 @@ async function initializeFirebase() {
               'forest-mystique': 'linear-gradient(135deg, rgba(20, 83, 45, ' + (effectiveOpacity * 0.6) + ') 0%, rgba(34, 197, 94, ' + (effectiveOpacity * 0.4) + ') 100%)',
               'cosmic-purple': 'linear-gradient(135deg, rgba(88, 28, 135, ' + (effectiveOpacity * 0.6) + ') 0%, rgba(168, 85, 247, ' + (effectiveOpacity * 0.4) + ') 100%)',
               'rainbow-burst': 'linear-gradient(135deg, rgba(239, 68, 68, ' + (effectiveOpacity * 0.25) + ') 0%, rgba(245, 158, 11, ' + (effectiveOpacity * 0.25) + ') 25%, rgba(34, 197, 94, ' + (effectiveOpacity * 0.25) + ') 50%, rgba(59, 130, 246, ' + (effectiveOpacity * 0.25) + ') 75%, rgba(147, 51, 234, ' + (effectiveOpacity * 0.25) + ') 100%)',
-              // Premium metallic themes - using effectiveOpacity for better high-level opacity
-              'steel-blue': 'linear-gradient(135deg, rgba(30, 41, 59, ' + (effectiveOpacity * 0.9) + ') 0%, rgba(51, 65, 85, ' + (effectiveOpacity * 0.8) + ') 25%, rgba(71, 85, 105, ' + (effectiveOpacity * 0.7) + ') 50%, rgba(30, 58, 138, ' + (effectiveOpacity * 0.6) + ') 100%)',
-              'chrome-silver': 'linear-gradient(135deg, rgba(203, 213, 225, ' + (effectiveOpacity * 0.4) + ') 0%, rgba(148, 163, 184, ' + (effectiveOpacity * 0.6) + ') 25%, rgba(100, 116, 139, ' + (effectiveOpacity * 0.8) + ') 50%, rgba(71, 85, 105, ' + (effectiveOpacity * 0.9) + ') 100%)',
-              'titanium-gray': 'linear-gradient(135deg, rgba(55, 65, 81, ' + (effectiveOpacity * 0.9) + ') 0%, rgba(75, 85, 99, ' + (effectiveOpacity * 0.8) + ') 25%, rgba(107, 114, 128, ' + (effectiveOpacity * 0.7) + ') 50%, rgba(156, 163, 175, ' + (effectiveOpacity * 0.5) + ') 100%)',
-              'platinum-white': 'linear-gradient(135deg, rgba(249, 250, 251, ' + (effectiveOpacity * 0.3) + ') 0%, rgba(229, 231, 235, ' + (effectiveOpacity * 0.4) + ') 25%, rgba(209, 213, 219, ' + (effectiveOpacity * 0.5) + ') 50%, rgba(156, 163, 175, ' + (effectiveOpacity * 0.6) + ') 100%)'
+              // Premium metallic themes - FIXED for visibility with darker, richer tones
+              'steel-blue': 'linear-gradient(135deg, rgba(30, 41, 59, ' + (effectiveOpacity * 0.95) + ') 0%, rgba(51, 65, 85, ' + (effectiveOpacity * 0.9) + ') 25%, rgba(71, 85, 105, ' + (effectiveOpacity * 0.85) + ') 50%, rgba(30, 58, 138, ' + (effectiveOpacity * 0.8) + ') 100%)',
+              'chrome-silver': 'linear-gradient(135deg, rgba(55, 65, 81, ' + (effectiveOpacity * 0.9) + ') 0%, rgba(75, 85, 99, ' + (effectiveOpacity * 0.85) + ') 25%, rgba(100, 116, 139, ' + (effectiveOpacity * 0.8) + ') 50%, rgba(71, 85, 105, ' + (effectiveOpacity * 0.9) + ') 100%)',
+              'titanium-gray': 'linear-gradient(135deg, rgba(31, 41, 55, ' + (effectiveOpacity * 0.95) + ') 0%, rgba(55, 65, 81, ' + (effectiveOpacity * 0.9) + ') 25%, rgba(75, 85, 99, ' + (effectiveOpacity * 0.85) + ') 50%, rgba(107, 114, 128, ' + (effectiveOpacity * 0.8) + ') 100%)',
+              'platinum-white': 'linear-gradient(135deg, rgba(75, 85, 99, ' + (effectiveOpacity * 0.85) + ') 0%, rgba(100, 116, 139, ' + (effectiveOpacity * 0.8) + ') 25%, rgba(148, 163, 184, ' + (effectiveOpacity * 0.75) + ') 50%, rgba(156, 163, 175, ' + (effectiveOpacity * 0.7) + ') 100%)'
           };
   
           const background = gradients[settings.gradientStyle] || gradients['blue-purple'];
@@ -18945,8 +19351,8 @@ async function initializeFirebase() {
               case 'metallic':
                   boxShadow = `
                       0 10px 40px rgba(0, 0, 0, 0.5),
-                      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                      inset 0 -1px 0 rgba(0, 0, 0, 0.2)
+                      inset 0 1px 0 rgba(255, 255, 255, 0.57),
+                      inset 0 -1px 0 rgba(0, 0, 0, 0.48)
                   `;
                   break;
               case 'neon':
@@ -18967,7 +19373,7 @@ async function initializeFirebase() {
                   boxShadow = `
                       0 10px 40px rgba(0, 0, 0, 0.5),
                       0 0 40px rgba(255, 255, 255, ${effectiveOpacity * 0.1}),
-                      inset 0 1px 0 rgba(255, 255, 255, 0.2)
+                      inset 0 1px 0 rgba(255, 255, 255, 0.73)
                   `;
                   break;
               case 'crystal':
@@ -18975,7 +19381,7 @@ async function initializeFirebase() {
                       0 10px 40px rgba(0, 0, 0, 0.5),
                       0 0 20px rgba(255, 255, 255, ${effectiveOpacity * 0.1}),
                       inset 0 1px 0 rgba(255, 255, 255, 0.3),
-                      inset 0 -1px 0 rgba(0, 0, 0, 0.1)
+                      inset 0 -1px 0 rgba(0, 0, 0, 0.30)
                   `;
                   break;
           }
@@ -18991,11 +19397,241 @@ async function initializeFirebase() {
               'black-toxic': { color: '#7FFF00', glow: 'rgba(127, 255, 0, 0.5)', text: '#9ACD32' },
               'black-pink': { color: '#FF1493', glow: 'rgba(255, 20, 147, 0.5)', text: '#FFB6C1' },
               'black-matrix': { color: '#00FF00', glow: 'rgba(0, 255, 0, 0.8)', text: '#00FF00' },
-              'black-sunset': { color: '#FF6B35', glow: 'rgba(255, 107, 53, 0.6)', text: '#FFA500' }
+              'black-sunset': { color: '#FF6B35', glow: 'rgba(255, 107, 53, 0.6)', text: '#FFA500' },
+              'black-blood': { color: '#8B0000', glow: 'rgba(139, 0, 0, 0.7)', text: '#CD5C5C' },
+              'black-neon': { color: '#00CED1', glow: 'rgba(0, 206, 209, 0.8)', text: '#AFEEEE' },
+              'black-storm': { color: '#483D8B', glow: 'rgba(72, 61, 139, 0.6)', text: '#9370DB' },
+              'black-sapphire': { color: '#0F52BA', glow: 'rgba(15, 82, 186, 0.7)', text: '#4169E1' },
+              'black-aqua': { color: '#008B8B', glow: 'rgba(0, 139, 139, 0.6)', text: '#48D1CC' },
+              'black-phantom': { color: '#C0C0C0', glow: 'rgba(192, 192, 192, 0.4)', text: '#DCDCDC' }
           };
-  
+
           const accent = accentColors[settings.gradientStyle] || null;
-  
+
+          // Texture patterns (CSS background-image overlays)
+          // ========== PROFESSIONAL TEXTURE SYSTEM 2.0 ==========
+          // 25 premium patterns with proper visibility (0.12-0.25 opacity)
+          const textures = {
+              'none': '',
+
+              // ===== MODERN GLASS (Premium Look) =====
+              'frosted-glass': `
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.65'/%3E%3C/svg%3E"),
+                  radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.60), transparent 60%),
+                  radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.55), transparent 50%)
+              `,
+              'crystal-prism': `
+                  linear-gradient(45deg, rgba(255, 255, 255, 0.70) 0%, transparent 50%, rgba(255, 255, 255, 0.60) 100%),
+                  linear-gradient(-45deg, transparent 0%, rgba(255, 255, 255, 0.57) 50%, transparent 100%),
+                  radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.65), transparent 70%)
+              `,
+              'ice-frost': `
+                  radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.73) 0%, transparent 3%),
+                  radial-gradient(circle at 60% 70%, rgba(255, 255, 255, 0.65) 0%, transparent 4%),
+                  radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.70) 0%, transparent 2%),
+                  linear-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1px)
+              `,
+              'smoke-flow': `
+                  radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.65), transparent 50%),
+                  radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.60), transparent 50%),
+                  radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.55), transparent 40%)
+              `,
+              'water-ripple': `
+                  radial-gradient(circle, rgba(255, 255, 255, 0.60) 2px, transparent 2px),
+                  radial-gradient(circle, rgba(255, 255, 255, 0.55) 1px, transparent 1px)
+              `,
+
+              // ===== PREMIUM MATERIALS (High-End Feel) =====
+              'carbon-fiber-pro': `
+                  repeating-linear-gradient(0deg,
+                      rgba(255,255,255,0) 0px,
+                      rgba(255, 255, 255, 0.70) 1px,
+                      rgba(255, 255, 255, 0.60) 2px,
+                      rgba(255,255,255,0) 3px),
+                  repeating-linear-gradient(90deg,
+                      rgba(255,255,255,0) 0px,
+                      rgba(255, 255, 255, 0.70) 1px,
+                      rgba(255, 255, 255, 0.60) 2px,
+                      rgba(255,255,255,0) 3px)
+              `,
+              'brushed-aluminum': `
+                  repeating-linear-gradient(90deg,
+                      rgba(255, 255, 255, 0.65) 0px,
+                      rgba(255, 255, 255, 0.55) 1px,
+                      rgba(255, 255, 255, 0.65) 2px,
+                      rgba(255, 255, 255, 0.60) 3px)
+              `,
+              'brushed-titanium': `
+                  repeating-linear-gradient(45deg,
+                      rgba(255, 255, 255, 0.67) 0px,
+                      rgba(255, 255, 255, 0.57) 1px,
+                      rgba(255, 255, 255, 0.67) 2px,
+                      rgba(255, 255, 255, 0.60) 3px)
+              `,
+              'leather-grain': `
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='turbulence'%3E%3CfeTurbulence type='turbulence' baseFrequency='1.5' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23turbulence)' opacity='0.60'/%3E%3C/svg%3E"),
+                  radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.55), transparent 70%)
+              `,
+              'fabric-weave': `
+                  repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.60) 0px, transparent 1px, transparent 2px),
+                  repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.60) 0px, transparent 1px, transparent 2px)
+              `,
+              'wood-grain': `
+                  linear-gradient(90deg,
+                      rgba(255, 255, 255, 0.57) 0%,
+                      rgba(255, 255, 255, 0.65) 10%,
+                      rgba(255, 255, 255, 0.55) 20%,
+                      rgba(255, 255, 255, 0.60) 30%,
+                      rgba(255, 255, 255, 0.57) 40%),
+                  linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)
+              `,
+
+              // ===== TECH/FUTURISTIC (Gaming Aesthetic) =====
+              'circuit-board': `
+                  linear-gradient(rgba(255, 255, 255, 0.65) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
+                  linear-gradient(rgba(255, 255, 255, 0.55) 2px, transparent 2px),
+                  linear-gradient(90deg, rgba(255, 255, 255, 0.55) 2px, transparent 2px)
+              `,
+              'hexagon-grid-pro': `
+                  repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(255, 255, 255, 0.65) 20px, rgba(255, 255, 255, 0.65) 21px),
+                  repeating-linear-gradient(60deg, transparent, transparent 20px, rgba(255, 255, 255, 0.60) 20px, rgba(255, 255, 255, 0.60) 21px),
+                  repeating-linear-gradient(120deg, transparent, transparent 20px, rgba(255, 255, 255, 0.60) 20px, rgba(255, 255, 255, 0.60) 21px)
+              `,
+              'hologram-scan': `
+                  repeating-linear-gradient(0deg,
+                      transparent 0px,
+                      rgba(255,255,255,0.15) 1px,
+                      rgba(255, 255, 255, 0.65) 2px,
+                      rgba(255,255,255,0.15) 3px,
+                      transparent 4px)
+              `,
+              'matrix-rain': `
+                  linear-gradient(rgba(255, 255, 255, 0.65) 2px, transparent 2px),
+                  linear-gradient(90deg, rgba(255, 255, 255, 0.55) 1px, transparent 1px)
+              `,
+              'energy-waves': `
+                  radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.73), transparent 40%),
+                  radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.65), transparent 40%),
+                  radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.57), transparent 30%)
+              `,
+              'cyberpunk-grid': `
+                  linear-gradient(rgba(255, 255, 255, 0.70) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(255, 255, 255, 0.70) 1px, transparent 1px),
+                  radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.60), transparent 60%)
+              `,
+
+              // ===== GEOMETRIC CLEAN (Designer Choice) =====
+              'dots-pro': 'radial-gradient(circle, rgba(255, 255, 255, 0.70) 1.5px, transparent 1.5px)',
+              'grid-pro': `
+                  linear-gradient(rgba(255, 255, 255, 0.65) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(255, 255, 255, 0.65) 1px, transparent 1px)
+              `,
+              'diagonal-pro': `
+                  repeating-linear-gradient(45deg,
+                      transparent,
+                      transparent 15px,
+                      rgba(255, 255, 255, 0.65) 15px,
+                      rgba(255, 255, 255, 0.65) 16px)
+              `,
+              'waves': `
+                  repeating-radial-gradient(circle at 50% 50%,
+                      transparent 0px,
+                      rgba(255, 255, 255, 0.60) 10px,
+                      transparent 20px)
+              `,
+              'triangles': `
+                  linear-gradient(45deg, rgba(255, 255, 255, 0.65) 25%, transparent 25%),
+                  linear-gradient(-45deg, rgba(255, 255, 255, 0.65) 25%, transparent 25%),
+                  linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.65) 75%),
+                  linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.65) 75%)
+              `,
+              'crosshatch': `
+                  repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255, 255, 255, 0.60) 3px, rgba(255, 255, 255, 0.60) 4px),
+                  repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255, 255, 255, 0.60) 3px, rgba(255, 255, 255, 0.60) 4px)
+              `,
+
+              // ===== SPECIAL EFFECTS =====
+              'perlin-noise': `
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='perlin'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23perlin)' opacity='0.70'/%3E%3C/svg%3E")
+              `,
+              'gradient-mesh': `
+                  radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.65), transparent 50%),
+                  radial-gradient(circle at 75% 25%, rgba(255, 255, 255, 0.60), transparent 50%),
+                  radial-gradient(circle at 25% 75%, rgba(255, 255, 255, 0.60), transparent 50%),
+                  radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.57), transparent 50%)
+              `
+          };
+
+          const textureBackgroundSize = {
+              'frosted-glass': 'cover, 100% 100%, 100% 100%',
+              'crystal-prism': '100% 100%, 100% 100%, 100% 100%',
+              'ice-frost': '100% 100%, 100% 100%, 100% 100%, 2px 2px',
+              'smoke-flow': '100% 100%, 100% 100%, 100% 100%',
+              'water-ripple': '30px 30px, 50px 50px',
+              'carbon-fiber-pro': '6px 6px, 6px 6px',
+              'brushed-aluminum': '2px 100%',
+              'brushed-titanium': '3px 3px',
+              'leather-grain': 'cover, 100% 100%',
+              'fabric-weave': '4px 4px, 4px 4px',
+              'wood-grain': '100% 40px, 100% 2px',
+              'circuit-board': '40px 40px, 40px 40px, 120px 120px, 120px 120px',
+              'hexagon-grid-pro': '100% 100%, 100% 100%, 100% 100%',
+              'hologram-scan': '100% 5px',
+              'matrix-rain': '2px 20px, 10px 10px',
+              'energy-waves': '100% 100%, 100% 100%, 100% 100%',
+              'cyberpunk-grid': '50px 50px, 50px 50px, 100% 100%',
+              'dots-pro': '25px 25px',
+              'grid-pro': '30px 30px, 30px 30px',
+              'diagonal-pro': '100% 100%',
+              'waves': '100% 100%',
+              'triangles': '30px 30px, 30px 30px, 30px 30px, 30px 30px',
+              'crosshatch': '100% 100%, 100% 100%',
+              'perlin-noise': 'cover',
+              'gradient-mesh': '100% 100%, 100% 100%, 100% 100%, 100% 100%'
+          };
+
+          const textureStyle = settings.textureStyle || 'none';
+          let texturePattern = textures[textureStyle] || '';
+          let textureBgSize = textureBackgroundSize[textureStyle] || 'auto';
+
+          // Apply intensity multiplier to texture opacity
+          const textureIntensity = (settings.textureIntensity !== undefined) ? settings.textureIntensity : 75;
+          const intensityMultiplier = textureIntensity / 100; // 0-100% direct mapping
+
+          if (texturePattern && intensityMultiplier !== 1.0) {
+              // Multiply all rgba() opacity values by intensity multiplier
+              texturePattern = texturePattern.replace(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\)/g, (match, r, g, b, a) => {
+                  const newAlpha = Math.min(1, parseFloat(a) * intensityMultiplier);
+                  return `rgba(${r}, ${g}, ${b}, ${newAlpha.toFixed(3)})`;
+              });
+
+              // Also handle SVG opacity attributes
+              texturePattern = texturePattern.replace(/opacity='([0-9.]+)'/g, (match, a) => {
+                  const newAlpha = Math.min(1, parseFloat(a) * intensityMultiplier);
+                  return `opacity='${newAlpha.toFixed(2)}'`;
+              });
+          }
+
+          // Apply scale multiplier to texture background-size
+          const textureScale = settings.textureScale || 'medium';
+          const scaleMultipliers = { small: 0.5, medium: 1.0, large: 2.0 };
+          const scaleMultiplier = scaleMultipliers[textureScale];
+
+          if (textureBgSize !== 'cover' && textureBgSize !== 'auto' && scaleMultiplier !== 1.0) {
+              // Scale pixel/percentage values
+              textureBgSize = textureBgSize.replace(/(\d+)(px|%)/g, (match, value, unit) => {
+                  const scaled = Math.round(parseFloat(value) * scaleMultiplier);
+                  return scaled + unit;
+              });
+          }
+
+          // Get blend mode
+          const textureBlendMode = settings.textureBlendMode || 'overlay';
+
+          // Get animation setting
+          const textureAnimated = settings.textureAnimated || false;
+
           return {
               background,
               boxShadow,
@@ -19003,6 +19639,11 @@ async function initializeFirebase() {
               effectiveOpacity: effectiveOpacity,
               gradientStyle: settings.gradientStyle,
               effectStyle: settings.effectStyle,
+              textureStyle: textureStyle,
+              texturePattern: texturePattern,
+              textureBackgroundSize: textureBgSize,
+              textureBlendMode: textureBlendMode,
+              textureAnimated: textureAnimated,
               isPopout: isPopout,
               accentColor: accent ? accent.color : '#4a9eff',
               accentGlow: accent ? accent.glow : 'rgba(74, 158, 255, 0.5)',
@@ -19044,7 +19685,7 @@ async function initializeFirebase() {
                   element.style.border = `1px solid ${themeStyles.accentColor}`;
               } else {
                   element.style.boxShadow = themeStyles.boxShadow;
-                  element.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+                  element.style.border = '1px solid rgba(255, 255, 255, 0.73)';
               }
               element.style.backdropFilter = 'blur(15px)';
               productionLog('🎨 Applied true 100% opacity - completely opaque');
@@ -19052,7 +19693,24 @@ async function initializeFirebase() {
           }
   
           // Handle regular opacity ranges (1-99%)
-          element.style.background = themeStyles.background;
+          // Layer texture over gradient if texture is enabled
+          if (themeStyles.texturePattern) {
+              element.style.background = `${themeStyles.texturePattern}, ${themeStyles.background}`;
+              element.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+              element.style.backgroundBlendMode = `${themeStyles.textureBlendMode}, normal`;
+
+              // Add animation class if enabled for supported textures
+              const animatedTextures = ['smoke-flow', 'hologram-scan', 'energy-waves', 'water-ripple'];
+              if (themeStyles.textureAnimated && animatedTextures.includes(themeStyles.textureStyle)) {
+                  element.classList.add('mga-texture-animated');
+              } else {
+                  element.classList.remove('mga-texture-animated');
+              }
+          } else {
+              element.style.background = themeStyles.background;
+              element.style.backgroundBlendMode = '';
+              element.classList.remove('mga-texture-animated');
+          }
           element.style.boxShadow = themeStyles.boxShadow;
   
           if (opacity > 0.05) { // Lower threshold for backdrop filter
@@ -19321,9 +19979,9 @@ async function initializeFirebase() {
           if (themeStyles.effectStyle === 'neon' || themeStyles.effectStyle === 'plasma') {
               accentShadow += `, 0 0 40px ${themeStyles.accentGlow}`;
           } else if (themeStyles.effectStyle === 'metallic' || themeStyles.effectStyle === 'steel') {
-              accentShadow += `, inset 0 1px 0 rgba(255, 255, 255, 0.1)`;
+              accentShadow += `, inset 0 1px 0 rgba(255, 255, 255, 0.57)`;
           } else if (themeStyles.effectStyle === 'crystal' || themeStyles.effectStyle === 'glass') {
-              accentShadow += `, 0 0 30px ${themeStyles.accentGlow}, inset 0 1px 0 rgba(255, 255, 255, 0.2)`;
+              accentShadow += `, 0 0 30px ${themeStyles.accentGlow}, inset 0 1px 0 rgba(255, 255, 255, 0.73)`;
           }
   
           dock.style.boxShadow = accentShadow;
@@ -19338,16 +19996,26 @@ async function initializeFirebase() {
           const sidebar = document.querySelector('#mgh-sidebar');
           if (!sidebar) return;
   
-          // Apply theme background, border, and effects to sidebar
-          sidebar.style.background = themeStyles.background;
+          // Apply theme background with textures, border, and effects to sidebar
+          if (themeStyles.texturePattern) {
+              sidebar.style.background = `${themeStyles.texturePattern}, ${themeStyles.background}`;
+              sidebar.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+          } else {
+              sidebar.style.background = themeStyles.background;
+          }
           sidebar.style.borderRight = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.15})`;
           sidebar.style.boxShadow = `4px 0 24px rgba(0, 0, 0, 0.6), ${themeStyles.boxShadow}`;
           sidebar.style.backdropFilter = 'blur(20px)';
   
-          // Style sidebar header
+          // Style sidebar header with textures
           const header = sidebar.querySelector('.mgh-sidebar-header');
           if (header) {
-              header.style.background = themeStyles.background;
+              if (themeStyles.texturePattern) {
+                  header.style.background = `${themeStyles.texturePattern}, ${themeStyles.background}`;
+                  header.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+              } else {
+                  header.style.background = themeStyles.background;
+              }
               header.style.borderBottom = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.2})`;
           }
   
@@ -19360,8 +20028,14 @@ async function initializeFirebase() {
           const sidebar = document.querySelector('#mgh-sidebar');
           if (!sidebar) return;
   
-          // Apply solid black background with subtle accent tint
-          sidebar.style.background = `linear-gradient(180deg, #000000 0%, ${themeStyles.accentColor}11 50%, #000000 100%)`;
+          // Apply solid black background with subtle accent tint and textures
+          const accentGradient = `linear-gradient(180deg, #000000 0%, ${themeStyles.accentColor}11 50%, #000000 100%)`;
+          if (themeStyles.texturePattern) {
+              sidebar.style.background = `${themeStyles.texturePattern}, ${accentGradient}`;
+              sidebar.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+          } else {
+              sidebar.style.background = accentGradient;
+          }
           sidebar.style.borderRight = `2px solid ${themeStyles.accentColor}`;
           sidebar.style.backdropFilter = 'blur(20px)';
   
@@ -19372,7 +20046,7 @@ async function initializeFirebase() {
           if (themeStyles.effectStyle === 'neon' || themeStyles.effectStyle === 'plasma') {
               sidebarShadow += `, 0 0 40px ${themeStyles.accentGlow}`;
           } else if (themeStyles.effectStyle === 'crystal' || themeStyles.effectStyle === 'glass') {
-              sidebarShadow += `, inset 0 1px 0 rgba(255, 255, 255, 0.1)`;
+              sidebarShadow += `, inset 0 1px 0 rgba(255, 255, 255, 0.57)`;
           }
   
           sidebar.style.boxShadow = sidebarShadow;
@@ -19450,8 +20124,13 @@ async function initializeFirebase() {
           const isBlackTheme = themeStyles.gradientStyle && themeStyles.gradientStyle.startsWith('black-');
   
           if (isBlackTheme && themeStyles.accentColor) {
-              // Black themes: solid black with vibrant accents
-              popout.style.background = 'rgba(0, 0, 0, 0.95)';
+              // Black themes: solid black with vibrant accents and textures
+              if (themeStyles.texturePattern) {
+                  popout.style.background = `${themeStyles.texturePattern}, rgba(0, 0, 0, 0.95)`;
+                  popout.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+              } else {
+                  popout.style.background = 'rgba(0, 0, 0, 0.95)';
+              }
               popout.style.border = `1px solid ${themeStyles.accentColor}`;
   
               // Enhanced shadow with effect-specific styling
@@ -19461,9 +20140,9 @@ async function initializeFirebase() {
               if (themeStyles.effectStyle === 'neon' || themeStyles.effectStyle === 'plasma') {
                   shadow += `, 0 0 40px ${themeStyles.accentGlow}`;
               } else if (themeStyles.effectStyle === 'metallic' || themeStyles.effectStyle === 'steel') {
-                  shadow += `, inset 0 1px 0 rgba(255, 255, 255, 0.1)`;
+                  shadow += `, inset 0 1px 0 rgba(255, 255, 255, 0.57)`;
               } else if (themeStyles.effectStyle === 'crystal' || themeStyles.effectStyle === 'glass') {
-                  shadow += `, 0 0 30px ${themeStyles.accentGlow}, inset 0 1px 0 rgba(255, 255, 255, 0.2)`;
+                  shadow += `, 0 0 30px ${themeStyles.accentGlow}, inset 0 1px 0 rgba(255, 255, 255, 0.73)`;
               }
   
               popout.style.boxShadow = shadow;
@@ -19482,28 +20161,48 @@ async function initializeFirebase() {
                   header.style.boxShadow = headerGlow;
               }
   
-              // Keep body background solid for content readability
+              // Keep body background solid for content readability, with textures
               const body = popout.querySelector('.mgh-popout-body');
               if (body) {
-                  body.style.background = '#000000'; // Solid black for black themes
+                  if (themeStyles.texturePattern) {
+                      body.style.background = `${themeStyles.texturePattern}, #000000`;
+                      body.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+                  } else {
+                      body.style.background = '#000000'; // Solid black for black themes
+                  }
               }
           } else {
-              // Regular themes: use gradient background
-              popout.style.background = themeStyles.background;
+              // Regular themes: use gradient background with textures
+              if (themeStyles.texturePattern) {
+                  popout.style.background = `${themeStyles.texturePattern}, ${themeStyles.background}`;
+                  popout.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+              } else {
+                  popout.style.background = themeStyles.background;
+              }
               popout.style.border = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.15})`;
               popout.style.boxShadow = themeStyles.boxShadow;
   
               // Style header
               const header = popout.querySelector('.mgh-popout-header');
               if (header) {
-                  header.style.background = themeStyles.background;
+                  if (themeStyles.texturePattern) {
+                      header.style.background = `${themeStyles.texturePattern}, ${themeStyles.background}`;
+                      header.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+                  } else {
+                      header.style.background = themeStyles.background;
+                  }
                   header.style.borderBottom = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.2})`;
               }
   
               // Keep body background solid for content readability
               const body = popout.querySelector('.mgh-popout-body');
               if (body) {
-                  body.style.background = themeStyles.background; // Match theme gradient
+                  if (themeStyles.texturePattern) {
+                      body.style.background = `${themeStyles.texturePattern}, ${themeStyles.background}`;
+                      body.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
+                  } else {
+                      body.style.background = themeStyles.background; // Match theme gradient
+                  }
               }
           }
   
@@ -22487,10 +23186,6 @@ function initializeTurtleTimer() {
               }
           }
 
-          // Save merged settings
-          MGA_saveJSON('MGA_data', UnifiedState.data);
-          productionLog('🔔 [NOTIFICATIONS] Ensured all notification settings have defaults');
-
           // Load customRooms from saved data
           if (loadedData && loadedData.customRooms && Array.isArray(loadedData.customRooms) && loadedData.customRooms.length > 0) {
               // Load from saved data
@@ -22656,6 +23351,11 @@ function initializeTurtleTimer() {
               }
           });
   
+
+          // ==================== SAVE COMPLETE STATE ====================
+          // CRITICAL: Save AFTER all data has been loaded from loadedData to prevent data loss
+          MGA_saveJSON('MGA_data', UnifiedState.data);
+          productionLog('💾 [STORAGE] Saved complete merged state (settings, customRooms, seedsToDelete, lockedCrops, sellBlockThreshold)');
           // ==================== STORAGE LOADING SUMMARY ====================
           productionLog('📊 [STORAGE-SUMMARY] Data loading complete:', {
               petPresets: {
@@ -23811,7 +24511,7 @@ function initializeTurtleTimer() {
               position: relative;
               margin: -1px -1px 8px -1px;
               border-radius: 6px 6px 0 0;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.30);
           `;
           banner.innerHTML = '🎮 DEMO MODE - Showcasing full functionality with sample data';
   
