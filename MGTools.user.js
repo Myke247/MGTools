@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.4
+// @version      3.6.5
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.4';  // Current version
+      const CURRENT_VERSION = '3.6.5';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -23125,6 +23125,20 @@ function initializeTurtleTimer() {
           // Always load from MGA_data first (this is where we save)
           const loadedData = MGA_loadJSON('MGA_data', null);
 
+          // CRITICAL: Verify loaded data integrity before using
+          if (loadedData && typeof loadedData === 'object') {
+              productionLog('📦 [STORAGE-INTEGRITY] Loaded data structure:', {
+                  hasSettings: !!loadedData.settings,
+                  hasCustomRooms: !!loadedData.customRooms,
+                  hasSeedsToDelete: !!loadedData.seedsToDelete,
+                  hasLockedCrops: !!loadedData.lockedCrops,
+                  topLevelKeys: Object.keys(loadedData),
+                  settingsKeys: loadedData.settings ? Object.keys(loadedData.settings).length : 0
+              });
+          } else {
+              productionLog('⚠️ [STORAGE-INTEGRITY] No valid saved data found - will use defaults');
+          }
+
           if (loadedData && loadedData.settings) {
               // If MGA_data exists, use it (this is where saves go)
               UnifiedState.data.settings = loadedData.settings;
@@ -23134,11 +23148,10 @@ function initializeTurtleTimer() {
               const legacySettings = MGA_loadJSON('MGA_settings', null);
               if (legacySettings) {
                   UnifiedState.data.settings = legacySettings;
-                  // Immediately migrate to MGA_data
-                  MGA_saveJSON('MGA_data', UnifiedState.data);
-                  productionLog('📦 [STORAGE] Migrated settings from MGA_settings to MGA_data');
+                  // Migration will be saved at the end of loadSavedData (line ~23444)
+                  productionLog('📦 [STORAGE] Migrated settings from MGA_settings to MGA_data (will save at end of init)');
               } else {
-                  // Use defaults for first run
+                  // Use COMPLETE defaults for first run (must match full structure from lines 2074-2115)
                   UnifiedState.data.settings = {
                       opacity: 95,
                       popoutOpacity: 50,
@@ -23149,7 +23162,7 @@ function initializeTurtleTimer() {
                       ultraCompactMode: false,
                       useInGameOverlays: true,
                       debugMode: false,
-                      aggressiveIdlePrevention: true,
+                      hideWeather: false,
                       notifications: {
                           enabled: true,
                           volume: 0.3,
@@ -23158,13 +23171,37 @@ function initializeTurtleTimer() {
                           continuousEnabled: false,
                           watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
                           watchedEggs: ["CommonEgg", "MythicalEgg"],
+                          watchedDecor: [],
+                          petHungerEnabled: false,
+                          petHungerThreshold: 25,
+                          petHungerSound: 'double',
+                          abilityNotificationsEnabled: false,
+                          watchedAbilities: [],
+                          watchedAbilityCategories: {
+                              xpBoost: true,
+                              cropSizeBoost: true,
+                              selling: true,
+                              harvesting: true,
+                              growthSpeed: true,
+                              specialMutations: true,
+                              other: true
+                          },
+                          abilityNotificationSound: 'single',
+                          abilityNotificationVolume: 0.2,
+                          weatherNotificationsEnabled: false,
+                          watchedWeatherEvents: ['Snow', 'Rain', 'AmberMoon', 'Dawn'],
+                          shopFirebaseEnabled: false,
                           lastSeenTimestamps: {}
                       },
-                      detailedTimestamps: false
+                      detailedTimestamps: true,
+                      autoFavorite: {
+                          enabled: false,
+                          species: [],
+                          mutations: []
+                      }
                   };
-                  productionLog('📦 [STORAGE] Using default settings (first run)');
-                  // Save the defaults for next time
-                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog('📦 [STORAGE] Using complete default settings (first run - will save at end of init)');
+                  // Defaults will be saved at the end of loadSavedData (line ~23444)
               }
           }
   
@@ -23288,9 +23325,8 @@ function initializeTurtleTimer() {
                   productionLog('🎮 [ROOMS] Discord environment detected - added Discord play rooms');
               }
 
-              // Save custom rooms
-              MGA_saveJSON('MGA_data', UnifiedState.data);
-              productionLog('🏠 [ROOMS] Initialized custom rooms (first time):', UnifiedState.data.customRooms);
+              // Custom rooms will be saved at the end of loadSavedData (line ~23444)
+              productionLog('🏠 [ROOMS] Initialized custom rooms (first time - will save at end of init):', UnifiedState.data.customRooms);
           }
   
           // Load hotkeys data
