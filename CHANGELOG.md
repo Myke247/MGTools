@@ -1,5 +1,41 @@
 # Changelog - MGTools
 
+## Version 3.5.7 (2025-10-11)
+
+### ✨ New Features
+
+**🎨 Premium Texture System (25 Professional Patterns)**
+- 25 professional texture overlays organized in 5 categories:
+  - 🌟 Modern Glass: Frosted Glass, Crystal Prism, Ice Frost, Smoke Flow, Water Ripple
+  - ⚙️ Premium Materials: Carbon Fiber Pro, Brushed Aluminum, Brushed Titanium, Leather Grain, Fabric Weave, Wood Grain
+  - ⚡ Tech/Futuristic: Circuit Board, Hexagon Grid Pro, Hologram Scan, Matrix Rain, Energy Waves, Cyberpunk Grid
+  - 📐 Geometric Clean: Dots Pro, Grid Pro, Diagonal Pro, Waves, Triangles, Crosshatch
+  - 🎪 Special Effects: Perlin Noise, Gradient Mesh
+- **Texture Intensity Slider** (0-100%, default 75%) for precise opacity control
+- **Scale Control**: Small, Medium, Large sizing options
+- **4 Blend Modes**: Overlay (balanced), Multiply (darken), Screen (lighten), Soft-Light (subtle)
+- **Animation Toggle**: Animated effects for supported textures (smoke, hologram, energy, water)
+- Real-time preview with instant updates
+- All settings persist across page refreshes
+
+### 🐛 Critical Bug Fixes
+- Fixed UI opacity values globally boosted by texture system (grey button issue)
+- Fixed dock border opacity (was too bright, causing visual glare)
+- Fixed popout window borders (now properly subtle)
+- Fixed sidebar borders (reverted from 0.65 to 0.15 opacity)
+- Fixed button hover states (reverted to proper visibility)
+- Fixed input/select borders (proper contrast restored)
+- Fixed scrollbar styling (no longer overly bright)
+- Surgical reversion: kept texture boosts (0.55-0.75), reverted all UI elements to original opacity values
+
+### 🎨 Improvements
+- Texture opacity range boosted from 0.12-0.25 to 0.55-0.75 for maximum visibility (+200% improvement)
+- Default texture intensity increased from 50% to 75% for professional look out-of-box
+- Organized texture dropdown with categorized optgroups for easy navigation
+- All 25 textures work perfectly with intensity, scale, blend mode, and animation controls
+
+---
+
 ## Version 3.5.6 (2025-10-11)
 
 ### ✨ New Features
