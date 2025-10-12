@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.6.7** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.6.8** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.6.7-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.6.8-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -351,6 +351,17 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 ## 🆘 Troubleshooting
 
+### ⚠️ Script Crashes with "GM_info is not defined"?
+**You're installing it incorrectly!** MGTools must be installed via Tampermonkey, NOT pasted in the browser console.
+
+**Correct installation:**
+1. Install [Tampermonkey](https://www.tampermonkey.net/) extension
+2. Click [Install MGTools](https://github.com/Myke247/MGTools/raw/main/MGTools.user.js)
+3. Click "Install" when Tampermonkey opens
+4. Refresh Magic Garden - done!
+
+**Why console paste doesn't work:** MGTools requires Tampermonkey's API (GM_setValue, GM_getValue, GM_info) which is not available when pasting code directly in the console.
+
 ### UI Not Appearing?
 - Make sure Tampermonkey is enabled (check browser toolbar)
 - Check that MGTools is active in Tampermonkey dashboard
@@ -425,10 +436,10 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.6.7)
+### Latest Updates (v3.6.8)
+- **v3.6.8**: 🐛 **DISCORD & INSTALLATION FIX!** - Fixed crash in Discord pop-out. Added warnings for incorrect installation (console paste).
 - **v3.6.7**: 🐛 **SHOP FLICKERING FIX!** - Fixed shop buttons pulsing/flickering when hovering. Added all 29 crops to auto-favorite!
 - **v3.6.3**: 🐛 **CRITICAL BUG FIX!** - Fixed duplicate function causing ALL notification settings to fail! Custom sounds now work!
-- **v3.6.2**: 🎉 **COMPLETE PERSISTENCE FIX!** - ALL settings now save! Themes, notifications, everything persists across refresh!
 
 ---
 
