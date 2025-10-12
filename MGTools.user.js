@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.3
+// @version      3.6.4
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.3';  // Current version
+      const CURRENT_VERSION = '3.6.4';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -21944,6 +21944,11 @@ async function initializeFirebase() {
                   if (favoritedIds.has(item.id)) continue; // Already favorited
                   if (item.itemType !== 'Produce') continue; // Only auto-favorite crops
 
+                  // CRITICAL: Explicitly exclude pets, eggs, and tools - CROPS ONLY
+                  if (item.itemType === 'Pet' || item.itemType === 'Egg' || item.itemType === 'Tool') continue;
+                  if (item.category === 'Pet' || item.category === 'Egg' || item.category === 'Tool') continue;
+                  if (item.species && (item.species.includes('Pet') || item.species.includes('Egg'))) continue;
+
                   // Check if item matches species
                   const matchesSpecies = targetSpecies.has(item.species);
 
@@ -21980,10 +21985,16 @@ async function initializeFirebase() {
               const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
               let count = 0;
 
-              productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all ${speciesName} items...`);
+              productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all ${speciesName} crops...`);
 
               for (const item of items) {
-                  if (item.itemType === 'Produce' && item.species === speciesName && !favoritedIds.has(item.id)) {
+                  // CRITICAL: Multiple checks to ensure ONLY crops are favorited
+                  if (item.itemType !== 'Produce') continue;
+                  if (item.itemType === 'Pet' || item.itemType === 'Egg' || item.itemType === 'Tool') continue;
+                  if (item.category === 'Pet' || item.category === 'Egg' || item.category === 'Tool') continue;
+                  if (item.species && (item.species.includes('Pet') || item.species.includes('Egg'))) continue;
+
+                  if (item.species === speciesName && !favoritedIds.has(item.id)) {
                       if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
                           targetWindow.MagicCircle_RoomConnection.sendMessage({
                               scopePath: ["Room", "Quinoa"],
@@ -22023,11 +22034,17 @@ async function initializeFirebase() {
               const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
               let count = 0;
 
-              productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all items with ${mutationName} mutation...`);
+              productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all crops with ${mutationName} mutation...`);
 
               for (const item of items) {
+                  // CRITICAL: Multiple checks to ensure ONLY crops are favorited
+                  if (item.itemType !== 'Produce') continue;
+                  if (item.itemType === 'Pet' || item.itemType === 'Egg' || item.itemType === 'Tool') continue;
+                  if (item.category === 'Pet' || item.category === 'Egg' || item.category === 'Tool') continue;
+                  if (item.species && (item.species.includes('Pet') || item.species.includes('Egg'))) continue;
+
                   const itemMutations = item.mutations || [];
-                  if (item.itemType === 'Produce' && itemMutations.includes(mutationName) && !favoritedIds.has(item.id)) {
+                  if (itemMutations.includes(mutationName) && !favoritedIds.has(item.id)) {
                       if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
                           targetWindow.MagicCircle_RoomConnection.sendMessage({
                               scopePath: ["Room", "Quinoa"],
