@@ -1,5 +1,31 @@
 # Changelog - MGTools
 
+## Version 3.6.3 (2025-10-12)
+
+### 🐛 Critical Bug Fixes
+
+**Notification Settings Persistence**
+- Fixed notification settings not saving after page refresh
+- Fixed custom notification sounds UI not appearing
+- Fixed volume sliders not persisting changes
+- Fixed watched seeds/eggs/decor selections not saving
+- Fixed pet hunger notification settings not saving
+- Fixed ability notification settings not persisting
+- Fixed weather notification settings not saving
+- Fixed continuous mode toggle not working
+
+**Root Cause**
+- Removed duplicate `setupNotificationsTabHandlers` function definition that was overwriting the complete function
+- The duplicate function (lines 18047-18259) was missing critical handlers including custom sounds setup
+- First complete function definition (lines 17440-18045) is now properly used
+
+**Impact**
+- All notification-related settings now save correctly and persist across page refreshes
+- Custom sound upload UI is now visible and functional
+- All notification toggles, sliders, and checkboxes now work as intended
+
+---
+
 ## Version 3.5.7 (2025-10-11)
 
 ### ✨ New Features
