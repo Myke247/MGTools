@@ -21869,6 +21869,7 @@ async function initializeFirebase() {
 
               for (const item of inventory.items) {
                   if (favoritedIds.has(item.id)) continue; // Already favorited
+                  if (item.itemType !== 'Produce') continue; // Only auto-favorite crops
 
                   // Check if item matches species
                   const matchesSpecies = targetSpecies.has(item.species);
@@ -21891,7 +21892,7 @@ async function initializeFirebase() {
               }
 
               if (count > 0) {
-                  productionLog(`🌟 [AUTO-FAVORITE] Auto-favorited ${count} new items`);
+                  productionLog(`🌟 [AUTO-FAVORITE] Auto-favorited ${count} new crops`);
               }
           }
 
@@ -21909,7 +21910,7 @@ async function initializeFirebase() {
               productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all ${speciesName} items...`);
 
               for (const item of items) {
-                  if (item.species === speciesName && !favoritedIds.has(item.id)) {
+                  if (item.itemType === 'Produce' && item.species === speciesName && !favoritedIds.has(item.id)) {
                       if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
                           targetWindow.MagicCircle_RoomConnection.sendMessage({
                               scopePath: ["Room", "Quinoa"],
@@ -21925,46 +21926,17 @@ async function initializeFirebase() {
               }
 
               if (count > 0) {
-                  productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} ${speciesName} items`);
+                  productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} ${speciesName} crops`);
               } else {
-                  productionLog(`ℹ️ [AUTO-FAVORITE] No ${speciesName} items to favorite (already favorited or none in inventory)`);
+                  productionLog(`ℹ️ [AUTO-FAVORITE] No ${speciesName} crops to favorite (already favorited or none in inventory)`);
               }
           };
 
-          // Function to unfavorite ALL items of a species (called when checkbox is unchecked)
+          // DISABLED: Script never unfavorites - only adds favorites
           targetWindow.unfavoriteSpecies = function(speciesName) {
-              if (!targetWindow.myData?.inventory?.items) {
-                  productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
-                  return;
-              }
-
-              const items = targetWindow.myData.inventory.items;
-              const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
-              let count = 0;
-
-              productionLog(`🌟 [AUTO-FAVORITE] Attempting to unfavorite all ${speciesName} items...`);
-
-              for (const item of items) {
-                  if (item.species === speciesName && favoritedIds.has(item.id)) {
-                      if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
-                          targetWindow.MagicCircle_RoomConnection.sendMessage({
-                              scopePath: ["Room", "Quinoa"],
-                              type: "ToggleFavoriteItem",
-                              itemId: item.id
-                          });
-                          count++;
-                          productionLog(`🌟 [AUTO-FAVORITE] Unfavoriting ${item.species} (id: ${item.id})`);
-                      } else {
-                          productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
-                      }
-                  }
-              }
-
-              if (count > 0) {
-                  productionLog(`✅ [AUTO-FAVORITE] Unfavorited ${count} ${speciesName} items`);
-              } else {
-                  productionLog(`ℹ️ [AUTO-FAVORITE] No ${speciesName} items to unfavorite (already unfavorited or none in inventory)`);
-              }
+              productionLog(`🔒 [AUTO-FAVORITE] Checkbox unchecked for ${speciesName} - Auto-favorite disabled, but existing favorites are preserved (script never removes favorites)`);
+              // Do nothing - script only adds favorites, never removes them
+              // This protects user's manually-favorited items (pets, eggs, crops, etc.)
           };
 
           // Function to favorite ALL items with a specific mutation (called when mutation checkbox is checked)
@@ -21982,7 +21954,7 @@ async function initializeFirebase() {
 
               for (const item of items) {
                   const itemMutations = item.mutations || [];
-                  if (itemMutations.includes(mutationName) && !favoritedIds.has(item.id)) {
+                  if (item.itemType === 'Produce' && itemMutations.includes(mutationName) && !favoritedIds.has(item.id)) {
                       if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
                           targetWindow.MagicCircle_RoomConnection.sendMessage({
                               scopePath: ["Room", "Quinoa"],
@@ -21998,47 +21970,17 @@ async function initializeFirebase() {
               }
 
               if (count > 0) {
-                  productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} items with ${mutationName} mutation`);
+                  productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} crops with ${mutationName} mutation`);
               } else {
-                  productionLog(`ℹ️ [AUTO-FAVORITE] No items with ${mutationName} mutation to favorite (already favorited or none in inventory)`);
+                  productionLog(`ℹ️ [AUTO-FAVORITE] No crops with ${mutationName} mutation to favorite (already favorited or none in inventory)`);
               }
           };
 
-          // Function to unfavorite ALL items with a specific mutation (called when mutation checkbox is unchecked)
+          // DISABLED: Script never unfavorites - only adds favorites
           targetWindow.unfavoriteMutation = function(mutationName) {
-              if (!targetWindow.myData?.inventory?.items) {
-                  productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
-                  return;
-              }
-
-              const items = targetWindow.myData.inventory.items;
-              const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
-              let count = 0;
-
-              productionLog(`🌟 [AUTO-FAVORITE] Attempting to unfavorite all items with ${mutationName} mutation...`);
-
-              for (const item of items) {
-                  const itemMutations = item.mutations || [];
-                  if (itemMutations.includes(mutationName) && favoritedIds.has(item.id)) {
-                      if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
-                          targetWindow.MagicCircle_RoomConnection.sendMessage({
-                              scopePath: ["Room", "Quinoa"],
-                              type: "ToggleFavoriteItem",
-                              itemId: item.id
-                          });
-                          count++;
-                          productionLog(`🌟 [AUTO-FAVORITE] Unfavoriting ${item.species} with ${mutationName} mutation (id: ${item.id})`);
-                      } else {
-                          productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
-                      }
-                  }
-              }
-
-              if (count > 0) {
-                  productionLog(`✅ [AUTO-FAVORITE] Unfavorited ${count} items with ${mutationName} mutation`);
-              } else {
-                  productionLog(`ℹ️ [AUTO-FAVORITE] No items with ${mutationName} mutation to unfavorite (already unfavorited or none in inventory)`);
-              }
+              productionLog(`🔒 [AUTO-FAVORITE] Checkbox unchecked for ${mutationName} mutation - Auto-favorite disabled, but existing favorites are preserved (script never removes favorites)`);
+              // Do nothing - script only adds favorites, never removes them
+              // This protects user's manually-favorited items (pets, eggs, crops, etc.)
           };
 
           productionLog('🌟 [AUTO-FAVORITE] System initialized - monitoring inventory changes');
