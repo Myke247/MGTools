@@ -1,5 +1,21 @@
 # Changelog - MGTools
 
+## Version 3.6.8 (2025-10-12)
+
+### 🐛 Critical Bug Fixes
+
+**Discord Pop-Out Compatibility**
+- Fixed crash when GM_info is undefined in Discord pop-out windows
+- Script now safely detects branch without crashing
+- Added fallback mode when Tampermonkey API unavailable
+
+**Installation Error Detection**
+- Added warning when script is pasted in console instead of installed via Tampermonkey
+- Clear error messages with correct installation instructions
+- Improved error handling throughout script initialization
+
+---
+
 ## Version 3.6.7 (2025-10-12)
 
 ### 🐛 Bug Fixes

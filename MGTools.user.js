@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.7
+// @version      3.6.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,15 +154,39 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.7';  // Current version
+      const CURRENT_VERSION = '3.6.8';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
       const BETA_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js';
 
       // Detect if running Live Beta version (check @updateURL in script)
-      const IS_LIVE_BETA = GM_info?.script?.updateURL?.includes('Live-Beta') || false;
-  
+      // Safe check for Discord pop-out and console paste compatibility
+      const IS_LIVE_BETA = (() => {
+          try {
+              if (typeof GM_info === 'undefined') {
+                  return false;
+              }
+              return GM_info?.script?.updateURL?.includes('Live-Beta') || false;
+          } catch (e) {
+              console.warn('[MGTOOLS] Branch detection failed:', e.message);
+              return false;
+          }
+      })();
+
+      // Detect if running without Tampermonkey (console paste or incompatible environment)
+      const isRunningWithoutTampermonkey = typeof GM_info === 'undefined';
+
+      if (isRunningWithoutTampermonkey) {
+          console.error('%c⚠️ MGTOOLS INSTALLATION ERROR', 'font-size:16px;color:#ff0000;font-weight:bold');
+          console.error('%cMGTools MUST be installed via Tampermonkey!', 'font-size:14px;color:#ff9900');
+          console.error('%cDo NOT paste the script in console - it will not work correctly!', 'font-size:14px;color:#ff9900');
+          console.error('%c\n📋 Correct Installation:\n1. Install Tampermonkey: https://www.tampermonkey.net/\n2. Click: https://github.com/Myke247/MGTools/raw/main/MGTools.user.js\n3. Click "Install" button\n4. Refresh Magic Garden', 'font-size:12px;color:#00ffff');
+
+          // Try to continue anyway using localStorage fallback
+          console.warn('%c⚠️ Attempting to run in fallback mode (limited functionality)...', 'font-size:12px;color:#ffff00');
+      }
+
       // Semantic version comparison function
       function compareVersions(v1, v2) {
           // Returns: -1 if v1 < v2, 0 if v1 === v2, 1 if v1 > v2
