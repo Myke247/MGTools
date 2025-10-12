@@ -4,6 +4,24 @@ This is the **Live Beta** branch of MGTools. Changes here are experimental and m
 
 ---
 
+## v3.5.8 (2025-10-12)
+
+### 🚨 EMERGENCY FIX
+- **Auto-Favorite Unfavoriting Everything** - Fixed critical bug where auto-favorite was removing ALL favorited items (pets, eggs, crops, seeds) when checkboxes were unchecked
+
+### 🐛 Bug Fixes
+- **Crop-Only Filter Added** - Auto-favorite now only affects crops (itemType === 'Produce'), not pets or eggs
+- **Unfavorite Functions Disabled** - Script now ONLY adds favorites, never removes them
+- **User Favorites Protected** - Manually-favorited items (pets, eggs, etc.) are now completely safe
+- **Checkbox Behavior Fixed** - Unchecking stops auto-favorite but preserves all existing favorites
+
+### 🔒 Security
+- Script never unfavorites anything - only adds favorites
+- Only operates on crops, never on pets/eggs/seeds/decor
+- All existing user favorites are preserved when changing settings
+
+---
+
 ## v3.5.7 (2025-10-11)
 
 ### ✨ Features
