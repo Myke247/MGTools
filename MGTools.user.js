@@ -19414,181 +19414,224 @@ async function initializeFirebase() {
           const textures = {
               'none': '',
 
-              // ===== MODERN GLASS (Premium Look) =====
+              // ===== MODERN GLASS (Apple iOS Glassmorphism) =====
               'frosted-glass': `
-                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.65'/%3E%3C/svg%3E"),
-                  radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.60), transparent 60%),
-                  radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.55), transparent 50%)
+                  radial-gradient(circle at 35% 35%, rgba(74, 158, 255, 0.25), transparent 60%),
+                  radial-gradient(circle at 65% 65%, rgba(0, 217, 255, 0.20), transparent 55%),
+                  radial-gradient(circle at 20% 80%, rgba(147, 197, 253, 0.18), transparent 45%),
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E"),
+                  linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(200, 230, 255, 0.08))
               `,
               'crystal-prism': `
-                  linear-gradient(45deg, rgba(255, 255, 255, 0.70) 0%, transparent 50%, rgba(255, 255, 255, 0.60) 100%),
-                  linear-gradient(-45deg, transparent 0%, rgba(255, 255, 255, 0.57) 50%, transparent 100%),
-                  radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.65), transparent 70%)
+                  linear-gradient(45deg, rgba(74, 158, 255, 0.35) 0%, transparent 50%, rgba(147, 51, 234, 0.28) 100%),
+                  linear-gradient(-45deg, transparent 0%, rgba(0, 217, 255, 0.30) 50%, transparent 100%),
+                  radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.25), transparent 60%),
+                  radial-gradient(circle at 30% 70%, rgba(139, 92, 246, 0.18), transparent 50%)
               `,
               'ice-frost': `
-                  radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.73) 0%, transparent 3%),
-                  radial-gradient(circle at 60% 70%, rgba(255, 255, 255, 0.65) 0%, transparent 4%),
-                  radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.70) 0%, transparent 2%),
-                  linear-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1px)
+                  radial-gradient(circle at 20% 30%, rgba(147, 197, 253, 0.40) 0%, transparent 4%),
+                  radial-gradient(circle at 60% 70%, rgba(191, 219, 254, 0.35) 0%, transparent 5%),
+                  radial-gradient(circle at 80% 20%, rgba(224, 242, 254, 0.38) 0%, transparent 3%),
+                  radial-gradient(circle at 40% 50%, rgba(59, 130, 246, 0.22) 0%, transparent 8%),
+                  linear-gradient(to bottom, rgba(219, 234, 254, 0.15), rgba(147, 197, 253, 0.08))
               `,
               'smoke-flow': `
-                  radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.65), transparent 50%),
-                  radial-gradient(ellipse at 100% 100%, rgba(255, 255, 255, 0.60), transparent 50%),
-                  radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.55), transparent 40%)
+                  radial-gradient(ellipse at 0% 0%, rgba(96, 165, 250, 0.35), transparent 55%),
+                  radial-gradient(ellipse at 100% 100%, rgba(147, 197, 253, 0.28), transparent 60%),
+                  radial-gradient(ellipse at 50% 50%, rgba(191, 219, 254, 0.25), transparent 45%),
+                  radial-gradient(ellipse at 30% 70%, rgba(59, 130, 246, 0.18), transparent 50%)
               `,
               'water-ripple': `
-                  radial-gradient(circle, rgba(255, 255, 255, 0.60) 2px, transparent 2px),
-                  radial-gradient(circle, rgba(255, 255, 255, 0.55) 1px, transparent 1px)
+                  radial-gradient(circle, rgba(6, 182, 212, 0.30) 3px, transparent 3px),
+                  radial-gradient(circle, rgba(34, 211, 238, 0.25) 2px, transparent 2px),
+                  radial-gradient(circle, rgba(103, 232, 249, 0.18) 1.5px, transparent 1.5px),
+                  linear-gradient(to bottom, rgba(165, 243, 252, 0.12), rgba(6, 182, 212, 0.08))
               `,
 
-              // ===== PREMIUM MATERIALS (High-End Feel) =====
+              // ===== PREMIUM MATERIALS (Photorealistic Luxury) =====
               'carbon-fiber-pro': `
                   repeating-linear-gradient(0deg,
-                      rgba(255,255,255,0) 0px,
-                      rgba(255, 255, 255, 0.70) 1px,
-                      rgba(255, 255, 255, 0.60) 2px,
-                      rgba(255,255,255,0) 3px),
+                      rgba(59, 130, 246, 0.15) 0px,
+                      rgba(147, 51, 234, 0.35) 1px,
+                      rgba(99, 102, 241, 0.28) 2px,
+                      rgba(139, 92, 246, 0.12) 3px,
+                      transparent 4px),
                   repeating-linear-gradient(90deg,
-                      rgba(255,255,255,0) 0px,
-                      rgba(255, 255, 255, 0.70) 1px,
-                      rgba(255, 255, 255, 0.60) 2px,
-                      rgba(255,255,255,0) 3px)
+                      rgba(30, 58, 138, 0.18) 0px,
+                      rgba(67, 56, 202, 0.32) 1px,
+                      rgba(79, 70, 229, 0.25) 2px,
+                      rgba(99, 102, 241, 0.15) 3px,
+                      transparent 4px),
+                  linear-gradient(135deg, rgba(30, 27, 75, 0.20), rgba(67, 56, 202, 0.10))
               `,
               'brushed-aluminum': `
                   repeating-linear-gradient(90deg,
-                      rgba(255, 255, 255, 0.65) 0px,
-                      rgba(255, 255, 255, 0.55) 1px,
-                      rgba(255, 255, 255, 0.65) 2px,
-                      rgba(255, 255, 255, 0.60) 3px)
+                      rgba(226, 232, 240, 0.35) 0px,
+                      rgba(203, 213, 225, 0.45) 0.5px,
+                      rgba(226, 232, 240, 0.38) 1px,
+                      rgba(241, 245, 249, 0.28) 1.5px,
+                      rgba(203, 213, 225, 0.32) 2px),
+                  linear-gradient(180deg, rgba(248, 250, 252, 0.18), rgba(226, 232, 240, 0.25)),
+                  radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.15), transparent 60%)
               `,
               'brushed-titanium': `
                   repeating-linear-gradient(45deg,
-                      rgba(255, 255, 255, 0.67) 0px,
-                      rgba(255, 255, 255, 0.57) 1px,
-                      rgba(255, 255, 255, 0.67) 2px,
-                      rgba(255, 255, 255, 0.60) 3px)
+                      rgba(251, 191, 36, 0.30) 0px,
+                      rgba(217, 119, 6, 0.40) 1px,
+                      rgba(245, 158, 11, 0.35) 2px,
+                      rgba(251, 191, 36, 0.25) 3px),
+                  linear-gradient(135deg, rgba(217, 119, 6, 0.18), rgba(251, 191, 36, 0.12)),
+                  radial-gradient(circle at 40% 40%, rgba(252, 211, 77, 0.20), transparent 55%)
               `,
               'leather-grain': `
-                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='turbulence'%3E%3CfeTurbulence type='turbulence' baseFrequency='1.5' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23turbulence)' opacity='0.60'/%3E%3C/svg%3E"),
-                  radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.55), transparent 70%)
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='turbulence'%3E%3CfeTurbulence type='turbulence' baseFrequency='2.2' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23turbulence)' opacity='0.28'/%3E%3C/svg%3E"),
+                  radial-gradient(circle at 60% 40%, rgba(127, 29, 29, 0.35), transparent 65%),
+                  radial-gradient(circle at 30% 70%, rgba(153, 27, 27, 0.28), transparent 60%),
+                  linear-gradient(135deg, rgba(185, 28, 28, 0.22), rgba(127, 29, 29, 0.18))
               `,
               'fabric-weave': `
-                  repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.60) 0px, transparent 1px, transparent 2px),
-                  repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.60) 0px, transparent 1px, transparent 2px)
+                  repeating-linear-gradient(0deg, rgba(148, 163, 184, 0.35) 0px, transparent 1px, transparent 3px),
+                  repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.35) 0px, transparent 1px, transparent 3px),
+                  linear-gradient(45deg, rgba(203, 213, 225, 0.15) 25%, transparent 25%, transparent 75%, rgba(203, 213, 225, 0.15) 75%),
+                  linear-gradient(45deg, rgba(226, 232, 240, 0.12), rgba(203, 213, 225, 0.08))
               `,
               'wood-grain': `
                   linear-gradient(90deg,
-                      rgba(255, 255, 255, 0.57) 0%,
-                      rgba(255, 255, 255, 0.65) 10%,
-                      rgba(255, 255, 255, 0.55) 20%,
-                      rgba(255, 255, 255, 0.60) 30%,
-                      rgba(255, 255, 255, 0.57) 40%),
-                  linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)
+                      rgba(217, 119, 6, 0.28) 0%,
+                      rgba(251, 146, 60, 0.35) 8%,
+                      rgba(217, 119, 6, 0.25) 16%,
+                      rgba(234, 88, 12, 0.32) 24%,
+                      rgba(251, 146, 60, 0.28) 32%,
+                      rgba(217, 119, 6, 0.30) 40%),
+                  repeating-linear-gradient(90deg, transparent 0px, rgba(180, 83, 9, 0.18) 1px, transparent 2px),
+                  linear-gradient(180deg, rgba(251, 191, 36, 0.15), rgba(217, 119, 6, 0.10))
               `,
 
-              // ===== TECH/FUTURISTIC (Gaming Aesthetic) =====
+              // ===== TECH/FUTURISTIC (Cyberpunk Neon) =====
               'circuit-board': `
-                  linear-gradient(rgba(255, 255, 255, 0.65) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
-                  linear-gradient(rgba(255, 255, 255, 0.55) 2px, transparent 2px),
-                  linear-gradient(90deg, rgba(255, 255, 255, 0.55) 2px, transparent 2px)
+                  linear-gradient(rgba(34, 197, 94, 0.32) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(34, 197, 94, 0.32) 1px, transparent 1px),
+                  linear-gradient(rgba(16, 185, 129, 0.25) 2px, transparent 2px),
+                  linear-gradient(90deg, rgba(16, 185, 129, 0.25) 2px, transparent 2px),
+                  radial-gradient(circle at 25% 25%, rgba(52, 211, 153, 0.20), transparent 15%),
+                  radial-gradient(circle at 75% 75%, rgba(16, 185, 129, 0.18), transparent 15%),
+                  linear-gradient(135deg, rgba(6, 78, 59, 0.15), rgba(20, 83, 45, 0.10))
               `,
               'hexagon-grid-pro': `
-                  repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(255, 255, 255, 0.65) 20px, rgba(255, 255, 255, 0.65) 21px),
-                  repeating-linear-gradient(60deg, transparent, transparent 20px, rgba(255, 255, 255, 0.60) 20px, rgba(255, 255, 255, 0.60) 21px),
-                  repeating-linear-gradient(120deg, transparent, transparent 20px, rgba(255, 255, 255, 0.60) 20px, rgba(255, 255, 255, 0.60) 21px)
+                  repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(6, 182, 212, 0.38) 22px, rgba(14, 165, 233, 0.38) 23px),
+                  repeating-linear-gradient(60deg, transparent, transparent 22px, rgba(34, 211, 238, 0.32) 22px, rgba(6, 182, 212, 0.32) 23px),
+                  repeating-linear-gradient(120deg, transparent, transparent 22px, rgba(56, 189, 248, 0.32) 22px, rgba(14, 165, 233, 0.32) 23px),
+                  radial-gradient(circle at 50% 50%, rgba(125, 211, 252, 0.18), transparent 50%)
               `,
               'hologram-scan': `
                   repeating-linear-gradient(0deg,
                       transparent 0px,
-                      rgba(255,255,255,0.15) 1px,
-                      rgba(255, 255, 255, 0.65) 2px,
-                      rgba(255,255,255,0.15) 3px,
-                      transparent 4px)
+                      rgba(6, 182, 212, 0.22) 1px,
+                      rgba(236, 72, 153, 0.32) 2px,
+                      rgba(6, 182, 212, 0.22) 3px,
+                      transparent 4px),
+                  linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(6, 182, 212, 0.15), rgba(236, 72, 153, 0.15)),
+                  radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.18), transparent 60%)
               `,
               'matrix-rain': `
-                  linear-gradient(rgba(255, 255, 255, 0.65) 2px, transparent 2px),
-                  linear-gradient(90deg, rgba(255, 255, 255, 0.55) 1px, transparent 1px)
+                  linear-gradient(rgba(34, 197, 94, 0.35) 2px, transparent 2px),
+                  linear-gradient(90deg, rgba(16, 185, 129, 0.28) 1px, transparent 1px),
+                  radial-gradient(circle at 30% 40%, rgba(52, 211, 153, 0.20), transparent 50%),
+                  linear-gradient(180deg, rgba(34, 197, 94, 0.12), rgba(6, 78, 59, 0.08))
               `,
               'energy-waves': `
-                  radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.73), transparent 40%),
-                  radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.65), transparent 40%),
-                  radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.57), transparent 30%)
+                  radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.40), transparent 45%),
+                  radial-gradient(ellipse at 50% 100%, rgba(96, 165, 250, 0.38), transparent 45%),
+                  radial-gradient(ellipse at 50% 50%, rgba(147, 197, 253, 0.28), transparent 35%),
+                  radial-gradient(ellipse at 0% 50%, rgba(29, 78, 216, 0.22), transparent 40%),
+                  radial-gradient(ellipse at 100% 50%, rgba(37, 99, 235, 0.22), transparent 40%)
               `,
               'cyberpunk-grid': `
-                  linear-gradient(rgba(255, 255, 255, 0.70) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255, 255, 255, 0.70) 1px, transparent 1px),
-                  radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.60), transparent 60%)
+                  linear-gradient(rgba(236, 72, 153, 0.35) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(6, 182, 212, 0.35) 1px, transparent 1px),
+                  radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.25), transparent 65%),
+                  linear-gradient(135deg, rgba(236, 72, 153, 0.12), rgba(6, 182, 212, 0.12))
               `,
 
-              // ===== GEOMETRIC CLEAN (Designer Choice) =====
-              'dots-pro': 'radial-gradient(circle, rgba(255, 255, 255, 0.70) 1.5px, transparent 1.5px)',
+              // ===== GEOMETRIC CLEAN (Swiss Design) =====
+              'dots-pro': `
+                  radial-gradient(circle, rgba(100, 116, 139, 0.40) 2px, transparent 2px),
+                  radial-gradient(circle, rgba(148, 163, 184, 0.20) 1px, transparent 1px),
+                  linear-gradient(to bottom right, rgba(203, 213, 225, 0.10), rgba(148, 163, 184, 0.08))
+              `,
               'grid-pro': `
-                  linear-gradient(rgba(255, 255, 255, 0.65) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255, 255, 255, 0.65) 1px, transparent 1px)
+                  linear-gradient(rgba(100, 116, 139, 0.35) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(100, 116, 139, 0.35) 1px, transparent 1px),
+                  linear-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(148, 163, 184, 0.15) 1px, transparent 1px)
               `,
               'diagonal-pro': `
                   repeating-linear-gradient(45deg,
                       transparent,
-                      transparent 15px,
-                      rgba(255, 255, 255, 0.65) 15px,
-                      rgba(255, 255, 255, 0.65) 16px)
+                      transparent 18px,
+                      rgba(100, 116, 139, 0.32) 18px,
+                      rgba(148, 163, 184, 0.28) 19px,
+                      transparent 20px),
+                  linear-gradient(135deg, rgba(203, 213, 225, 0.10), rgba(148, 163, 184, 0.05))
               `,
               'waves': `
                   repeating-radial-gradient(circle at 50% 50%,
                       transparent 0px,
-                      rgba(255, 255, 255, 0.60) 10px,
-                      transparent 20px)
+                      rgba(100, 116, 139, 0.30) 12px,
+                      transparent 24px),
+                  radial-gradient(circle at 50% 50%, rgba(148, 163, 184, 0.18), transparent 60%)
               `,
               'triangles': `
-                  linear-gradient(45deg, rgba(255, 255, 255, 0.65) 25%, transparent 25%),
-                  linear-gradient(-45deg, rgba(255, 255, 255, 0.65) 25%, transparent 25%),
-                  linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.65) 75%),
-                  linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.65) 75%)
+                  linear-gradient(45deg, rgba(100, 116, 139, 0.35) 25%, transparent 25%),
+                  linear-gradient(-45deg, rgba(100, 116, 139, 0.35) 25%, transparent 25%),
+                  linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.28) 75%),
+                  linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.28) 75%)
               `,
               'crosshatch': `
-                  repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255, 255, 255, 0.60) 3px, rgba(255, 255, 255, 0.60) 4px),
-                  repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255, 255, 255, 0.60) 3px, rgba(255, 255, 255, 0.60) 4px)
+                  repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(100, 116, 139, 0.32) 4px, rgba(100, 116, 139, 0.32) 5px),
+                  repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(148, 163, 184, 0.28) 4px, rgba(148, 163, 184, 0.28) 5px)
               `,
 
-              // ===== SPECIAL EFFECTS =====
+              // ===== SPECIAL EFFECTS (Atmospheric) =====
               'perlin-noise': `
-                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='perlin'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23perlin)' opacity='0.70'/%3E%3C/svg%3E")
+                  url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='perlin'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.3 0 0 0 0.4, 0 0.4 0 0 0.5, 0 0 0.5 0 0.6, 0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23perlin)'/%3E%3C/svg%3E"),
+                  radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.15), transparent 70%)
               `,
               'gradient-mesh': `
-                  radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.65), transparent 50%),
-                  radial-gradient(circle at 75% 25%, rgba(255, 255, 255, 0.60), transparent 50%),
-                  radial-gradient(circle at 25% 75%, rgba(255, 255, 255, 0.60), transparent 50%),
-                  radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.57), transparent 50%)
+                  radial-gradient(circle at 25% 25%, rgba(139, 92, 246, 0.35), transparent 55%),
+                  radial-gradient(circle at 75% 25%, rgba(59, 130, 246, 0.32), transparent 55%),
+                  radial-gradient(circle at 25% 75%, rgba(236, 72, 153, 0.30), transparent 55%),
+                  radial-gradient(circle at 75% 75%, rgba(6, 182, 212, 0.28), transparent 55%),
+                  linear-gradient(135deg, rgba(167, 139, 250, 0.12), rgba(96, 165, 250, 0.12))
               `
           };
 
           const textureBackgroundSize = {
-              'frosted-glass': 'cover, 100% 100%, 100% 100%',
-              'crystal-prism': '100% 100%, 100% 100%, 100% 100%',
-              'ice-frost': '100% 100%, 100% 100%, 100% 100%, 2px 2px',
-              'smoke-flow': '100% 100%, 100% 100%, 100% 100%',
-              'water-ripple': '30px 30px, 50px 50px',
-              'carbon-fiber-pro': '6px 6px, 6px 6px',
-              'brushed-aluminum': '2px 100%',
-              'brushed-titanium': '3px 3px',
-              'leather-grain': 'cover, 100% 100%',
-              'fabric-weave': '4px 4px, 4px 4px',
-              'wood-grain': '100% 40px, 100% 2px',
-              'circuit-board': '40px 40px, 40px 40px, 120px 120px, 120px 120px',
-              'hexagon-grid-pro': '100% 100%, 100% 100%, 100% 100%',
-              'hologram-scan': '100% 5px',
-              'matrix-rain': '2px 20px, 10px 10px',
-              'energy-waves': '100% 100%, 100% 100%, 100% 100%',
-              'cyberpunk-grid': '50px 50px, 50px 50px, 100% 100%',
-              'dots-pro': '25px 25px',
-              'grid-pro': '30px 30px, 30px 30px',
-              'diagonal-pro': '100% 100%',
-              'waves': '100% 100%',
+              'frosted-glass': '100% 100%, 100% 100%, 100% 100%, cover, 100% 100%',
+              'crystal-prism': '100% 100%, 100% 100%, 100% 100%, 100% 100%',
+              'ice-frost': '100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%',
+              'smoke-flow': '100% 100%, 100% 100%, 100% 100%, 100% 100%',
+              'water-ripple': '30px 30px, 50px 50px, 40px 40px, 100% 100%',
+              'carbon-fiber-pro': '6px 6px, 6px 6px, 100% 100%',
+              'brushed-aluminum': '2px 100%, 100% 100%, 100% 100%',
+              'brushed-titanium': '3px 3px, 100% 100%, 100% 100%',
+              'leather-grain': 'cover, 100% 100%, 100% 100%, 100% 100%',
+              'fabric-weave': '4px 4px, 4px 4px, 30px 30px, 100% 100%',
+              'wood-grain': '100% 40px, 100% 2px, 100% 100%',
+              'circuit-board': '40px 40px, 40px 40px, 120px 120px, 120px 120px, 100% 100%, 100% 100%, 100% 100%',
+              'hexagon-grid-pro': '100% 100%, 100% 100%, 100% 100%, 100% 100%',
+              'hologram-scan': '100% 5px, 100% 100%, 100% 100%',
+              'matrix-rain': '2px 20px, 10px 10px, 100% 100%, 100% 100%',
+              'energy-waves': '100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%',
+              'cyberpunk-grid': '50px 50px, 50px 50px, 100% 100%, 100% 100%',
+              'dots-pro': '25px 25px, 20px 20px, 100% 100%',
+              'grid-pro': '30px 30px, 30px 30px, 60px 60px, 60px 60px',
+              'diagonal-pro': '100% 100%, 100% 100%',
+              'waves': '100% 100%, 100% 100%',
               'triangles': '30px 30px, 30px 30px, 30px 30px, 30px 30px',
               'crosshatch': '100% 100%, 100% 100%',
-              'perlin-noise': 'cover',
-              'gradient-mesh': '100% 100%, 100% 100%, 100% 100%, 100% 100%'
+              'perlin-noise': 'cover, 100% 100%',
+              'gradient-mesh': '100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%'
           };
 
           const textureStyle = settings.textureStyle || 'none';
