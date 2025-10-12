@@ -10295,7 +10295,11 @@ async function initializeFirebase() {
   
               // Normal periodic refresh (no restock detected)
               // In-game purchases are now detected via sendMessage interception
-              renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
+              // ONLY refresh if no buttons are being hovered (prevents flickering)
+              const isHovering = itemsList.querySelector('.buy-btn:hover');
+              if (!isHovering) {
+                  renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
+              }
           }, 2000); // Check every 2 seconds for better responsiveness
       }
   
