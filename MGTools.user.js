@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.5.8
+// @version      3.5.9
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.5.8';  // Current version
+      const CURRENT_VERSION = '3.5.9';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -5697,11 +5697,11 @@ async function initializeFirebase() {
                           // Either development version (yellow) or update available (red)
                           if (versionComparison > 0) {
                               // Local version is newer - development version
-                              indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#ffff00'; // Blue for beta, yellow for stable dev
+                              indicatorElement.style.color = IS_LIVE_BETA ? '#06b6d4' : '#ffff00'; // Cyan for beta dev, yellow for stable dev
                               indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Development version (${branchName}: v${latestVersion})\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
                           } else {
                               // GitHub version is newer - update available
-                              indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#ff0000'; // Blue for beta, red for stable update
+                              indicatorElement.style.color = IS_LIVE_BETA ? '#a855f7' : '#ff0000'; // Purple for outdated beta, red for stable update
                               indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Update available: v${latestVersion}\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
                           }
                           indicatorElement.style.cursor = 'pointer';

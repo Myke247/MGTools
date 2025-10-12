@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.5.8** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.5.9** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.5.8-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.5.9-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -425,10 +425,10 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.5.8)
+### Latest Updates (v3.5.9)
+- **v3.5.9**: 🎨 **Smart Version Indicator** - Live Beta now shows PURPLE when outdated, BLUE when up-to-date, CYAN when dev. Seamless visual feedback!
 - **v3.5.8**: 🚨 **EMERGENCY FIX** - Auto-favorite was unfavoriting everything (pets, eggs, crops). Now crops-only, never removes favorites.
-- **v3.5.7**: 🎨 **Premium Texture System** - 25 professional texture overlays with intensity, scale, blend modes, and animation controls. Critical UI opacity fixes.
-- **v3.5.6**: 🐛 **Bug Fixes** - Fixed settings persistence, notification selections, and shop tab caching issues
+- **v3.5.7**: 🎨 **Premium Texture System** - 25 professional texture overlays with intensity, scale, blend modes, and animation controls.
 
 ---
 
