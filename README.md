@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.6.3** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.6.7** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.6.3-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.6.7-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -425,10 +425,10 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.6.3)
+### Latest Updates (v3.6.7)
+- **v3.6.7**: 🐛 **SHOP FLICKERING FIX!** - Fixed shop buttons pulsing/flickering when hovering. Added all 29 crops to auto-favorite!
 - **v3.6.3**: 🐛 **CRITICAL BUG FIX!** - Fixed duplicate function causing ALL notification settings to fail! Custom sounds now work!
 - **v3.6.2**: 🎉 **COMPLETE PERSISTENCE FIX!** - ALL settings now save! Themes, notifications, everything persists across refresh!
-- **v3.6.1**: ✅ **NOTIFICATION SETTINGS FIXED!** - Event handlers now properly attached - all notification settings save!
 
 ---
 

@@ -1,5 +1,29 @@
 # Changelog - MGTools
 
+## Version 3.6.7 (2025-10-12)
+
+### 🐛 Bug Fixes
+
+**Shop Button Flickering**
+- Fixed shop buttons pulsing/flickering when hovering over "1" or "All"
+- Shop now skips re-rendering while buttons are being hovered
+- Removed transform animations that caused cursor boundary issues
+
+### ✨ Enhancements
+
+**Auto-Favorite System**
+- Added all 29 crop species as checkboxes (previously only 7)
+- Removed broken "Add Custom Species" input
+- Improved layout with 3-column grid and scrollable container
+- Better display names (Tulip, Dawnbinder, Moonbinder)
+
+**Persistence System**
+- Added runtime safeguards to prevent future data loss
+- Warns developers if premature saves detected during initialization
+- Protects against accidental regression bugs
+
+---
+
 ## Version 3.6.3 (2025-10-12)
 
 ### 🐛 Critical Bug Fixes
