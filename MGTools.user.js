@@ -10356,18 +10356,18 @@ async function initializeFirebase() {
                   buyItem(id, type, amount, div);
               });
   
-              // Add hover effects
+              // Add hover effects (NO TRANSFORM - prevents flickering)
               if (stock > 0) {
                   btn.addEventListener('mouseenter', () => {
-                      btn.style.transform = 'translateY(-1px)';
-                      btn.style.background = 'rgba(9, 255, 0, 0.30)';
-                      btn.style.borderColor = 'rgba(9, 255, 0, 0.09)';
+                      btn.style.background = 'rgba(9, 255, 0, 0.5)';
+                      btn.style.borderColor = 'rgba(9, 255, 0, 0.8)';
+                      btn.style.boxShadow = '0 0 8px rgba(9, 255, 0, 0.4)';
                   });
                   btn.addEventListener('mouseleave', () => {
-                      btn.style.transform = '';
                       const isAllButton = btn.dataset.amount === 'all';
                       btn.style.background = isAllButton ? 'rgba(76, 175, 80, 0.3)' : 'rgba(74, 158, 255, 0.3)';
                       btn.style.borderColor = isAllButton ? 'rgba(76, 175, 80, 0.5)' : 'rgba(74, 158, 255, 0.5)';
+                      btn.style.boxShadow = '';
                   });
               }
           });
