@@ -1530,10 +1530,9 @@
           }
   
           .mga-btn:hover {
-              background: rgba(255, 255, 255, 0.15);
-              border-color: rgba(255, 255, 255, 0.3);
-              transform: scale(1.02);
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.40);
+              background: rgba(255, 255, 255, 0.2);
+              border-color: rgba(74, 158, 255, 0.6);
+              box-shadow: 0 0 12px rgba(74, 158, 255, 0.4);
           }
   
           .mga-input, .mga-select {
