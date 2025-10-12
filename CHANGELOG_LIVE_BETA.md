@@ -4,6 +4,39 @@ This is the **Live Beta** branch of MGTools. Changes here are experimental and m
 
 ---
 
+## v3.6.2 (2025-10-12)
+
+### ✅ COMPLETE PERSISTENCE FIX
+
+**All settings now save and persist correctly across page refresh!**
+
+### 🐛 Bug Fixes
+- **Theme Presets Now Save** - Added missing event handlers for all theme preset buttons
+- **Continuous Notifications Save** - Added missing handler to setupNotificationsTabHandlers
+- **Data Loading Consistency** - Fixed save/load mismatch - always uses MGA_data now
+- **All Settings Elements Have Handlers** - Every checkbox, slider, and button now properly saves
+
+### 🔧 Technical Improvements
+- Added comprehensive theme preset button handlers that save on click
+- Fixed data loading to always use MGA_data (no more fallback confusion)
+- Migrates legacy MGA_settings to MGA_data automatically
+- Added emergency save on page unload as fallback
+- Added `debugSettingsPersistence()` function for troubleshooting
+
+### 🎯 What Was Fixed
+- Theme preset buttons (Gaming, Minimal, Vibrant, etc.) - NOW SAVE
+- Continuous notification checkbox - NOW SAVES
+- All texture controls - NOW SAVE
+- Ultra-compact mode - NOW SAVES
+- Hide weather effects - NOW SAVES
+- Debug mode - NOW SAVES
+- Every single setting in Settings and Notifications tabs - NOW SAVES
+
+### 📝 Developer Note
+Use `debugSettingsPersistence()` in console to verify all settings are properly stored.
+
+---
+
 ## v3.6.1 (2025-10-12)
 
 ### 🐛 Bug Fixes
