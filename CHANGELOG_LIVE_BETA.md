@@ -11,6 +11,8 @@ This is the **Live Beta** branch of MGTools. Changes here are experimental and m
 - **Blue Beta Indicator** - Users on Live Beta see a blue version indicator instead of green/yellow/red
 - **Dual Download Options** - Shift+Click for Stable version, Shift+Alt+Click for Live Beta version
 - **Branch Display** - Version checker shows which branch you're on (Stable or Live Beta)
+- **Custom Sounds Notifications** - Now choose you custom sounds for each notification, add whatever you'd like.
+- **Auto Favoriting** - Automatically favorite your choice of crop by type.
 
 ### 🐛 Bug Fixes
 - **Fixed Grey Flip-Toggle Button** - Dock flip button now has proper subtle appearance instead of grey
