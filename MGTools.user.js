@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.5.9
+// @version      3.6.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.5.9';  // Current version
+      const CURRENT_VERSION = '3.6.0';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -5701,7 +5701,7 @@ async function initializeFirebase() {
                               indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Development version (${branchName}: v${latestVersion})\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
                           } else {
                               // GitHub version is newer - update available
-                              indicatorElement.style.color = IS_LIVE_BETA ? '#a855f7' : '#ff0000'; // Purple for outdated beta, red for stable update
+                              indicatorElement.style.color = IS_LIVE_BETA ? '#ff00ff' : '#ff0000'; // VIBRANT MAGENTA for outdated beta, red for stable update
                               indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Update available: v${latestVersion}\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
                           }
                           indicatorElement.style.cursor = 'pointer';
@@ -7370,10 +7370,9 @@ async function initializeFirebase() {
 
           // After rendering notification checkboxes in widget, reload saved state
           if (tabName === 'notifications') {
-              // Re-apply saved states to all checkboxes
-              const savedData = MGA_loadJSON('MGA_data');
-              if (savedData?.settings?.notifications) {
-                  const notifications = savedData.settings.notifications;
+              // Use already-loaded settings from UnifiedState (avoid double-load race condition)
+              const notifications = UnifiedState.data?.settings?.notifications;
+              if (notifications) {
 
                   // Apply ability notification settings
                   const abilityCheckbox = overlay.querySelector('#ability-notifications-enabled');

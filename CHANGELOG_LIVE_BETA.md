@@ -4,6 +4,19 @@ This is the **Live Beta** branch of MGTools. Changes here are experimental and m
 
 ---
 
+## v3.6.0 (2025-10-12)
+
+### 🐛 Bug Fixes
+- **Notification Settings Not Persisting** - Fixed race condition where notification settings wouldn't save on refresh
+- **Vibrant Purple Indicator** - Changed outdated Live Beta color from subtle purple to BRIGHT MAGENTA (#ff00ff) - impossible to miss!
+
+### 🔧 Technical Fixes
+- Removed duplicate `MGA_loadJSON` call that caused settings race condition
+- Notification settings now use already-loaded `UnifiedState.data` directly
+- Purple indicator now vibrant magenta (#a855f7 → #ff00ff) for maximum visibility
+
+---
+
 ## v3.5.9 (2025-10-12)
 
 ### ✨ Features
