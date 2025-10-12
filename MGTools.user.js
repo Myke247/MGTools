@@ -4,8 +4,8 @@
 // @version      3.5.7
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
-// @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
-// @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
+// @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
+// @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
 // @match        https://starweaver.org/r/*
