@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.0
+// @version      3.6.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.0';  // Current version
+      const CURRENT_VERSION = '3.6.1';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -6379,7 +6379,7 @@ async function initializeFirebase() {
                   break;
               case 'notifications':
                   popoutContent.innerHTML = getCachedTabContent('notifications', getNotificationsTabContent);
-                  setupNotificationSettingsHandlers(popout); // Pass popout context
+                  setupNotificationsTabHandlers(popout); // Pass popout context
                   break;
               case 'help':
                   popoutContent.innerHTML = getCachedTabContent('help', getHelpTabContent);
@@ -7508,6 +7508,9 @@ async function initializeFirebase() {
                           break;
                       case 'settings':
                           setupSettingsTabHandlers(overlay);
+                          break;
+                      case 'notifications':
+                          setupNotificationsTabHandlers(parentOverlay);
                           break;
                   }
               } catch (error) {
@@ -18013,6 +18016,168 @@ async function initializeFirebase() {
                   });
               });
           }
+      }
+
+      function setupNotificationsTabHandlers(context = document) {
+          productionLog('🔔 [NOTIFICATIONS] Setting up notification tab handlers');
+
+          // Pet Hunger Enabled checkbox
+          const petHungerEnabled = context.querySelector('#pet-hunger-enabled');
+          if (petHungerEnabled && !petHungerEnabled.hasAttribute('data-handler-setup')) {
+              petHungerEnabled.setAttribute('data-handler-setup', 'true');
+              petHungerEnabled.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.notifications.petHungerEnabled = e.target.checked;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog(`🔔 Pet hunger notifications ${e.target.checked ? 'enabled' : 'disabled'}`);
+              });
+          }
+
+          // Pet Hunger Threshold slider
+          const petHungerThreshold = context.querySelector('#pet-hunger-threshold');
+          if (petHungerThreshold && !petHungerThreshold.hasAttribute('data-handler-setup')) {
+              petHungerThreshold.setAttribute('data-handler-setup', 'true');
+              petHungerThreshold.addEventListener('input', (e) => {
+                  const value = parseInt(e.target.value);
+                  UnifiedState.data.settings.notifications.petHungerThreshold = value;
+                  // Update label
+                  const label = petHungerThreshold.parentElement.querySelector('.mga-label');
+                  if (label) {
+                      label.textContent = `Alert when hunger below: ${value}%`;
+                  }
+              });
+              petHungerThreshold.addEventListener('change', () => {
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog(`🔔 Pet hunger threshold updated: ${UnifiedState.data.settings.notifications.petHungerThreshold}%`);
+              });
+          }
+
+          // Ability Notifications Enabled checkbox
+          const abilityNotificationsEnabled = context.querySelector('#ability-notifications-enabled');
+          if (abilityNotificationsEnabled && !abilityNotificationsEnabled.hasAttribute('data-handler-setup')) {
+              abilityNotificationsEnabled.setAttribute('data-handler-setup', 'true');
+              abilityNotificationsEnabled.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.notifications.abilityNotificationsEnabled = e.target.checked;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog(`🔔 Ability notifications ${e.target.checked ? 'enabled' : 'disabled'}`);
+              });
+          }
+
+          // Ability Notification Sound select
+          const abilitySoundSelect = context.querySelector('#ability-notification-sound-select');
+          if (abilitySoundSelect && !abilitySoundSelect.hasAttribute('data-handler-setup')) {
+              abilitySoundSelect.setAttribute('data-handler-setup', 'true');
+              abilitySoundSelect.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.notifications.abilityNotificationSound = e.target.value;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog(`🔔 Ability notification sound changed to: ${e.target.value}`);
+              });
+          }
+
+          // Ability Notification Volume slider
+          const abilityVolumeSlider = context.querySelector('#ability-notification-volume-slider');
+          if (abilityVolumeSlider && !abilityVolumeSlider.hasAttribute('data-handler-setup')) {
+              abilityVolumeSlider.setAttribute('data-handler-setup', 'true');
+              abilityVolumeSlider.addEventListener('input', (e) => {
+                  const value = parseInt(e.target.value) / 100;
+                  UnifiedState.data.settings.notifications.abilityNotificationVolume = value;
+                  // Update label
+                  const label = abilityVolumeSlider.parentElement.querySelector('.mga-label');
+                  if (label) {
+                      label.textContent = `Ability Alert Volume: ${Math.round(value * 100)}%`;
+                  }
+              });
+              abilityVolumeSlider.addEventListener('change', () => {
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog(`🔔 Ability notification volume updated: ${Math.round(UnifiedState.data.settings.notifications.abilityNotificationVolume * 100)}%`);
+              });
+          }
+
+          // Individual Ability Checkboxes
+          const individualCheckboxes = context.querySelectorAll('.individual-ability-checkbox');
+          individualCheckboxes.forEach(checkbox => {
+              if (!checkbox.hasAttribute('data-handler-setup')) {
+                  checkbox.setAttribute('data-handler-setup', 'true');
+                  checkbox.addEventListener('change', (e) => {
+                      const abilityName = e.target.dataset.abilityName;
+                      if (!UnifiedState.data.settings.notifications.watchedAbilities) {
+                          UnifiedState.data.settings.notifications.watchedAbilities = [];
+                      }
+
+                      if (e.target.checked) {
+                          // Add to watched list
+                          if (!UnifiedState.data.settings.notifications.watchedAbilities.includes(abilityName)) {
+                              UnifiedState.data.settings.notifications.watchedAbilities.push(abilityName);
+                          }
+                      } else {
+                          // Remove from watched list
+                          const index = UnifiedState.data.settings.notifications.watchedAbilities.indexOf(abilityName);
+                          if (index > -1) {
+                              UnifiedState.data.settings.notifications.watchedAbilities.splice(index, 1);
+                          }
+                      }
+
+                      MGA_saveJSON('MGA_data', UnifiedState.data);
+                      productionLog(`🔔 Ability "${abilityName}" ${e.target.checked ? 'enabled' : 'disabled'} for notifications`);
+                  });
+              }
+          });
+
+          // Select All button
+          const selectAllBtn = context.querySelector('#select-all-individual-abilities');
+          if (selectAllBtn && !selectAllBtn.hasAttribute('data-handler-setup')) {
+              selectAllBtn.setAttribute('data-handler-setup', 'true');
+              selectAllBtn.addEventListener('click', () => {
+                  const checkboxes = context.querySelectorAll('.individual-ability-checkbox');
+                  checkboxes.forEach(cb => {
+                      cb.checked = true;
+                      const abilityName = cb.dataset.abilityName;
+                      if (!UnifiedState.data.settings.notifications.watchedAbilities) {
+                          UnifiedState.data.settings.notifications.watchedAbilities = [];
+                      }
+                      if (!UnifiedState.data.settings.notifications.watchedAbilities.includes(abilityName)) {
+                          UnifiedState.data.settings.notifications.watchedAbilities.push(abilityName);
+                      }
+                  });
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog('🔔 All abilities enabled for notifications');
+              });
+          }
+
+          // Select None button
+          const selectNoneBtn = context.querySelector('#select-none-individual-abilities');
+          if (selectNoneBtn && !selectNoneBtn.hasAttribute('data-handler-setup')) {
+              selectNoneBtn.setAttribute('data-handler-setup', 'true');
+              selectNoneBtn.addEventListener('click', () => {
+                  const checkboxes = context.querySelectorAll('.individual-ability-checkbox');
+                  checkboxes.forEach(cb => {
+                      cb.checked = false;
+                  });
+                  UnifiedState.data.settings.notifications.watchedAbilities = [];
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog('🔔 All abilities disabled for notifications');
+              });
+          }
+
+          // Ability Search Box
+          const abilitySearchBox = context.querySelector('#ability-search-box');
+          if (abilitySearchBox && !abilitySearchBox.hasAttribute('data-handler-setup')) {
+              abilitySearchBox.setAttribute('data-handler-setup', 'true');
+              abilitySearchBox.addEventListener('input', (e) => {
+                  const searchTerm = e.target.value.toLowerCase();
+                  const abilityItems = context.querySelectorAll('.ability-checkbox-item');
+
+                  abilityItems.forEach(item => {
+                      const abilityName = item.dataset.ability.toLowerCase();
+                      if (abilityName.includes(searchTerm)) {
+                          item.style.display = 'flex';
+                      } else {
+                          item.style.display = 'none';
+                      }
+                  });
+              });
+          }
+
+          productionLog('✅ [NOTIFICATIONS] All notification tab handlers set up successfully');
       }
 
       function setupSettingsTabHandlers(context = document) {

@@ -4,6 +4,21 @@ This is the **Live Beta** branch of MGTools. Changes here are experimental and m
 
 ---
 
+## v3.6.1 (2025-10-12)
+
+### 🐛 Bug Fixes
+- **Notification Settings NOW PERSIST!** - Fixed missing event handlers causing notification settings to not save
+- **Root Cause Found** - `setupNotificationsTabHandlers` function was never being called when notifications tab opened
+- **All Handlers Added** - Pet hunger, ability notifications, volume, sound type, and individual ability checkboxes now all save correctly
+
+### 🔧 Technical Fixes
+- Created comprehensive `setupNotificationsTabHandlers` function with proper event listeners
+- Added notifications case to all 3 switch statements (popouts, overlays, content-only)
+- Fixed call to non-existent `setupNotificationSettingsHandlers` at line 6382
+- All notification checkboxes now properly save to `UnifiedState.data` and persist with `MGA_saveJSON`
+
+---
+
 ## v3.6.0 (2025-10-12)
 
 ### 🐛 Bug Fixes
