@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.1
+// @version      3.6.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.1';  // Current version
+      const CURRENT_VERSION = '3.6.2';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -2184,7 +2184,33 @@
       targetWindow.UnifiedState = UnifiedState;
   
       /* CHECKPOINT removed: UNIFIED_STATE_COMPLETE */
-  
+
+      // ==================== DEBUG FUNCTIONS ====================
+      window.debugSettingsPersistence = function() {
+          console.log('=== SETTINGS PERSISTENCE DEBUG ===');
+          console.log('Current settings in memory:', UnifiedState.data.settings);
+          console.log('Settings in GM storage:', GM_getValue('MGA_data'));
+          console.log('Settings in localStorage:', localStorage.getItem('MGA_data'));
+          console.log('Handlers attached:', {
+              settings: !!document.querySelector('[data-handler-setup]'),
+              count: document.querySelectorAll('[data-handler-setup]').length
+          });
+          console.log('===================================');
+      };
+
+      // Emergency save on page unload
+      window.addEventListener('beforeunload', () => {
+          // Force save all settings before page unload
+          if (UnifiedState && UnifiedState.data) {
+              try {
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog('🚨 Emergency save triggered on page unload');
+              } catch (error) {
+                  console.error('Emergency save failed:', error);
+              }
+          }
+      });
+
       // ==================== ROOM STATUS & FIREBASE ====================
   
       const FIREBASE_CONFIG = {
@@ -18177,6 +18203,58 @@ async function initializeFirebase() {
               });
           }
 
+          // Continuous notifications checkbox
+          const continuousCheckbox = context.querySelector('#notification-continuous-checkbox');
+          if (continuousCheckbox && !continuousCheckbox.hasAttribute('data-handler-setup')) {
+              continuousCheckbox.setAttribute('data-handler-setup', 'true');
+
+              // On load: if continuous is already enabled, lock acknowledgment checkbox
+              if (UnifiedState.data.settings.notifications.continuousEnabled) {
+                  const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+                  if (acknowledgmentCheckbox) {
+                      acknowledgmentCheckbox.checked = true;
+                      acknowledgmentCheckbox.disabled = true;
+                      UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+                  }
+              }
+
+              continuousCheckbox.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.notifications.continuousEnabled = e.target.checked;
+
+                  // When enabling continuous mode, force acknowledgment to be enabled AND disabled (locked)
+                  const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+                  if (acknowledgmentCheckbox) {
+                      if (e.target.checked) {
+                          acknowledgmentCheckbox.checked = true;
+                          acknowledgmentCheckbox.disabled = true; // Lock it on
+                          UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+                          productionLog(`🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+                      } else {
+                          acknowledgmentCheckbox.disabled = false; // Unlock when continuous is off
+                      }
+                  }
+
+                  // Update dropdown state
+                  const notificationTypeSelect = context.querySelector('#notification-type-select');
+                  if (notificationTypeSelect) {
+                      const continuousOption = notificationTypeSelect.querySelector('option[value="continuous"]');
+                      if (continuousOption) {
+                          continuousOption.disabled = !e.target.checked;
+
+                          // If unchecking and continuous is selected, change to epic
+                          if (!e.target.checked && notificationTypeSelect.value === 'continuous') {
+                              notificationTypeSelect.value = 'epic';
+                              UnifiedState.data.settings.notifications.notificationType = 'epic';
+                              productionLog(`🔊 [NOTIFICATIONS] Continuous mode disabled, reverted to epic`);
+                          }
+                      }
+                  }
+
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog(`🔔 Continuous notifications ${e.target.checked ? 'enabled' : 'disabled'}`);
+              });
+          }
+
           productionLog('✅ [NOTIFICATIONS] All notification tab handlers set up successfully');
       }
 
@@ -18260,6 +18338,51 @@ async function initializeFirebase() {
                   MGA_saveJSON('MGA_data', UnifiedState.data);
               });
           }
+
+          // Theme preset buttons
+          const themePresetButtons = context.querySelectorAll('[data-preset]');
+          themePresetButtons.forEach(btn => {
+              if (!btn.hasAttribute('data-handler-setup')) {
+                  btn.setAttribute('data-handler-setup', 'true');
+                  btn.addEventListener('click', (e) => {
+                      const presetName = e.target.dataset.preset;
+
+                      // Apply the preset
+                      applyPreset(presetName);
+
+                      // Apply theme immediately
+                      applyTheme();
+
+                      // Save the settings
+                      MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                      // Update UI elements to reflect new values
+                      // Update opacity slider
+                      const opacitySlider = context.querySelector('#opacity-slider');
+                      if (opacitySlider) {
+                          opacitySlider.value = UnifiedState.data.settings.opacity;
+                          const label = opacitySlider.previousElementSibling;
+                          if (label) {
+                              label.textContent = `Main HUD Opacity: ${UnifiedState.data.settings.opacity}%`;
+                          }
+                      }
+
+                      // Update gradient select
+                      const gradientSelect = context.querySelector('#gradient-select');
+                      if (gradientSelect) {
+                          gradientSelect.value = UnifiedState.data.settings.gradientStyle;
+                      }
+
+                      // Update effect select
+                      const effectSelect = context.querySelector('#effect-select');
+                      if (effectSelect) {
+                          effectSelect.value = UnifiedState.data.settings.effectStyle;
+                      }
+
+                      productionLog(`🎨 Applied theme preset: ${presetName}`);
+                  });
+              }
+          });
 
           // Texture select
           const textureSelect = context.querySelector('#texture-select');
@@ -23196,38 +23319,50 @@ function initializeTurtleTimer() {
               productionLog('📝 [COMPAT] Both systems will run independently with separate storage');
           }
           // BUGFIX: Load from MGA_data instead of MGA_settings (saves use MGA_data)
+          // Always load from MGA_data first (this is where we save)
           const loadedData = MGA_loadJSON('MGA_data', null);
-  
+
           if (loadedData && loadedData.settings) {
               // If MGA_data exists, use it (this is where saves go)
               UnifiedState.data.settings = loadedData.settings;
               productionLog('📦 [STORAGE] Loaded settings from MGA_data');
           } else {
-              // Fallback to MGA_settings for backward compatibility
-              UnifiedState.data.settings = MGA_loadJSON('MGA_settings', {
-                  opacity: 95,
-                  popoutOpacity: 50,
-                  theme: 'default',
-                  gradientStyle: 'blue-purple',
-                  effectStyle: 'none',
-                  compactMode: false,
-                  ultraCompactMode: false,
-                  useInGameOverlays: true,
-                  debugMode: false,
-                  aggressiveIdlePrevention: true,
-                  notifications: {
-                      enabled: true,
-                      volume: 0.3,
-                      notificationType: 'epic',
-                      requiresAcknowledgment: false,
-                      continuousEnabled: false,
-                      watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
-                      watchedEggs: ["CommonEgg", "MythicalEgg"],
-                      lastSeenTimestamps: {}
-                  },
-                  detailedTimestamps: false
-              });
-              productionLog('📦 [STORAGE] Loaded settings from MGA_settings (fallback)');
+              // Try legacy MGA_settings for migration
+              const legacySettings = MGA_loadJSON('MGA_settings', null);
+              if (legacySettings) {
+                  UnifiedState.data.settings = legacySettings;
+                  // Immediately migrate to MGA_data
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  productionLog('📦 [STORAGE] Migrated settings from MGA_settings to MGA_data');
+              } else {
+                  // Use defaults for first run
+                  UnifiedState.data.settings = {
+                      opacity: 95,
+                      popoutOpacity: 50,
+                      theme: 'default',
+                      gradientStyle: 'blue-purple',
+                      effectStyle: 'none',
+                      compactMode: false,
+                      ultraCompactMode: false,
+                      useInGameOverlays: true,
+                      debugMode: false,
+                      aggressiveIdlePrevention: true,
+                      notifications: {
+                          enabled: true,
+                          volume: 0.3,
+                          notificationType: 'epic',
+                          requiresAcknowledgment: false,
+                          continuousEnabled: false,
+                          watchedSeeds: ["Carrot", "Sunflower", "Moonbinder", "Dawnbinder", "Starweaver"],
+                          watchedEggs: ["CommonEgg", "MythicalEgg"],
+                          lastSeenTimestamps: {}
+                      },
+                      detailedTimestamps: false
+                  };
+                  productionLog('📦 [STORAGE] Using default settings (first run)');
+                  // Save the defaults for next time
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+              }
           }
   
           // Ensure notifications object exists and has all required fields
