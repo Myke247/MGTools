@@ -4,6 +4,24 @@ This is the **Live Beta** branch of MGTools. Changes here are experimental and m
 
 ---
 
+## v3.5.9 (2025-10-12)
+
+### ✨ Features
+- **Smart Version Indicator Colors** - Live Beta now shows different colors based on update status:
+  - 🔵 BLUE - Up-to-date on Live Beta
+  - 🟣 PURPLE - Update available on Live Beta (needs update)
+  - 🔷 CYAN - Development version on Live Beta (local > remote)
+  - 🟢 GREEN - Up-to-date on Stable (unchanged)
+  - 🔴 RED - Update available on Stable (unchanged)
+  - 🟡 YELLOW - Development version on Stable (unchanged)
+
+### 🎨 Improvements
+- Version indicator now provides instant visual feedback for Live Beta users
+- No more confusion about whether you're on the latest Live Beta version
+- Seamless experience across both Stable and Live Beta branches
+
+---
+
 ## v3.5.8 (2025-10-12)
 
 ### 🚨 EMERGENCY FIX
