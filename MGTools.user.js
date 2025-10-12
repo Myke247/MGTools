@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.5
+// @version      3.6.6
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -154,7 +154,7 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.5';  // Current version
+      const CURRENT_VERSION = '3.6.6';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -1532,7 +1532,7 @@
           .mga-btn:hover {
               background: rgba(255, 255, 255, 0.15);
               border-color: rgba(255, 255, 255, 0.3);
-              transform: translateY(-1px);
+              transform: scale(1.02);
               box-shadow: 0 4px 12px rgba(0, 0, 0, 0.40);
           }
   
@@ -3430,7 +3430,18 @@ async function initializeFirebase() {
           console.trace();
           key = 'MGA_' + key;
       }
-  
+
+      // PERSISTENCE GUARD v3.6.6: Warn if saving during initialization (prevents data loss from premature saves)
+      if (window.MGA_PERSISTENCE_GUARD?.initializationSavesBlocked && key === 'MGA_data') {
+          const stack = new Error().stack;
+          if (stack && stack.includes('loadSavedData')) {
+              console.warn('⚠️ [PERSISTENCE-GUARD] Premature save during initialization detected!');
+              console.warn('⚠️ Only the final save at line ~23480 should execute during initialization.');
+              console.warn('⚠️ Premature saves can overwrite complete user data with partial initialization data.');
+              console.trace('Save attempted from within loadSavedData:');
+          }
+      }
+
       const MAX_RETRIES = 3;
       const RETRY_DELAY = 100;
   
@@ -10890,28 +10901,16 @@ async function initializeFirebase() {
                       <div style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
                           Automatically favorite these species when added to inventory:
                       </div>
-                      <div id="auto-favorite-species" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px;">
-                          ${['Starweaver', 'Moonbinder', 'Dawnbinder', 'Pepper', 'Lychee', 'DragonFruit', 'Starfruit']
+                      <div id="auto-favorite-species" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; max-height: 300px; overflow-y: auto; padding-right: 8px;">
+                          ${['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'OrangeTulip', 'Tomato', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail', 'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial']
                               .map(species => `
-                                  <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none;">
+                                  <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: pointer; user-select: none;">
                                       <input type="checkbox" value="${species}"
                                           ${UnifiedState.data.settings.autoFavorite.species.includes(species) ? 'checked' : ''}
                                           style="cursor: pointer;">
-                                      <span style="color: #e5e7eb;">${species}</span>
+                                      <span style="color: #e5e7eb;">${species.replace('OrangeTulip', 'Tulip').replace('DawnCelestial', 'Dawnbinder').replace('MoonCelestial', 'Moonbinder')}</span>
                                   </label>
                               `).join('')}
-                      </div>
-                      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                          <input type="text" id="auto-favorite-custom" placeholder="Add custom species..."
-                              style="flex: 1; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
-                              border-radius: 4px; color: white; font-size: 12px;">
-                          <button id="add-auto-favorite" class="mga-btn-primary"
-                              style="padding: 8px 16px; background: rgba(74, 158, 255, 0.48); border: 1px solid rgba(74, 158, 255, 0.4);
-                              border-radius: 4px; color: #4a9eff; font-size: 12px; cursor: pointer; white-space: nowrap;"
-                              onmouseover="this.style.background='rgba(74, 158, 255, 0.3)'"
-                              onmouseout="this.style.background='rgba(74, 158, 255, 0.48)'">
-                              Add Species
-                          </button>
                       </div>
                       <div style="font-size: 11px; color: #aaa; margin-bottom: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57); padding-top: 12px;">
                           Automatically favorite items with these mutations:
@@ -11017,35 +11016,6 @@ async function initializeFirebase() {
                   saveAutoFavoriteSettings();
               });
           });
-
-          // Add custom species
-          const addButton = context.querySelector('#add-auto-favorite');
-          const customInput = context.querySelector('#auto-favorite-custom');
-          if (addButton && customInput) {
-              addButton.addEventListener('click', () => {
-                  const species = customInput.value.trim();
-                  if (species && !UnifiedState.data.settings.autoFavorite.species.includes(species)) {
-                      UnifiedState.data.settings.autoFavorite.species.push(species);
-                      saveAutoFavoriteSettings();
-                      customInput.value = '';
-                      // Refresh the tab to show new species
-                      const valuesContent = getValuesTabContent();
-                      const tabContent = context.closest('.mga-tab-content, .tab-content');
-                      if (tabContent) {
-                          tabContent.innerHTML = valuesContent;
-                          setupValuesTabHandlers(context);
-                      }
-                      productionLog(`🌟 Added ${species} to auto-favorite list`);
-                  }
-              });
-
-              // Also trigger on Enter key
-              customInput.addEventListener('keypress', (e) => {
-                  if (e.key === 'Enter') {
-                      addButton.click();
-                  }
-              });
-          }
       }
   
       function getTimersTabContent() {
@@ -22866,6 +22836,14 @@ function initializeTurtleTimer() {
 
   
       function loadSavedData() {
+          // PERSISTENCE GUARD v3.6.6: Initialize guard to prevent premature saves during initialization
+          window.MGA_PERSISTENCE_GUARD = {
+              initializationSavesBlocked: true,
+              finalSaveLocation: 23480,
+              warningMessage: '⚠️ BLOCKED: Premature save during initialization detected! Only final save at line ~23480 is allowed.'
+          };
+          productionLog('🛡️ [PERSISTENCE-GUARD] Initialized - blocking premature saves during initialization');
+
           // Enhanced storage diagnostics
           productionLog('📦 [STORAGE] Starting comprehensive data loading with diagnostics...');
   
@@ -23479,6 +23457,13 @@ function initializeTurtleTimer() {
           // CRITICAL: Save AFTER all data has been loaded from loadedData to prevent data loss
           MGA_saveJSON('MGA_data', UnifiedState.data);
           productionLog('💾 [STORAGE] Saved complete merged state (settings, customRooms, seedsToDelete, lockedCrops, sellBlockThreshold)');
+
+          // PERSISTENCE GUARD v3.6.6: Clear guard - initialization complete, saves now allowed
+          if (window.MGA_PERSISTENCE_GUARD) {
+              window.MGA_PERSISTENCE_GUARD.initializationSavesBlocked = false;
+              productionLog('🛡️ [PERSISTENCE-GUARD] Cleared - saves now allowed outside initialization');
+          }
+
           // ==================== STORAGE LOADING SUMMARY ====================
           productionLog('📊 [STORAGE-SUMMARY] Data loading complete:', {
               petPresets: {
