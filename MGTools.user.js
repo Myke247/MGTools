@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.7.7
+// @version      3.7.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -23,7 +23,7 @@
 
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.7.7 - 41 Discord Rooms + Toolbar Bleed Fix! Expanded Discord room list with international servers');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.7.8 - Cycle Presets + Inventory Protection! Pet preset cycling hotkey with Crop Eater skip, shop inventory warnings');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -159,7 +159,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.8';  // Current version
+      const CURRENT_VERSION = '3.7.8';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -2361,6 +2361,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           data: {
               petPresets: {},
               petPresetsOrder: [],  // Array to maintain preset display order
+              currentPresetIndex: -1,  // Track position for cycling through presets
               petAbilityLogs: [],
               seedsToDelete: [],
               autoDeleteEnabled: false,
@@ -2460,7 +2461,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                       openValues: { name: 'Open Values Tab', custom: null },
                       openTimers: { name: 'Open Timers Tab', custom: null },
                       openRooms: { name: 'Open Rooms Tab', custom: null },
-                      openShop: { name: 'Open Shop Tab', custom: null }
+                      openShop: { name: 'Open Shop Tab', custom: null },
+                      cyclePresets: { name: 'Cycle Pet Presets', custom: null }
                   }
               },
               petPresetHotkeys: {},
@@ -7258,10 +7260,18 @@ async function initializeFirebase() {
               if (config.custom && matchesHotkey(e, config.custom)) {
                   e.preventDefault();
                   e.stopPropagation();
+
+                  // Handle cycle presets action
+                  if (action === 'cyclePresets') {
+                      cycleToNextPreset();
+                      return;
+                  }
+
+                  // Handle tab opening actions
                   const tabName = tabMap[action];
                   if (tabName === 'shop') {
                       toggleShopWindows();
-                  } else {
+                  } else if (tabName) {
                       openSidebarTab(tabName);
                   }
                   return;
@@ -9771,8 +9781,27 @@ async function initializeFirebase() {
               finalActivePets: activePets.length,
               activePetsData: activePets
           });
-  
+
+          // Get cycle presets hotkey status
+          const cycleHotkey = UnifiedState.data.hotkeys?.mgToolsKeys?.cyclePresets?.custom;
+          const totalPresets = Object.keys(petPresets).length;
+
           let html = `
+              ${totalPresets > 0 ? `
+                  <div class="mga-section" style="padding: 8px 12px; background: rgba(139, 92, 246, 0.15); border-left: 3px solid #8b5cf6; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                          <div style="flex: 1;">
+                              <div style="font-size: 11px; color: #a78bfa; font-weight: 600; margin-bottom: 2px;">🔄 CYCLE PRESETS</div>
+                              <div style="font-size: 10px; color: rgba(255,255,255,0.7);">
+                                  ${cycleHotkey ? `Hotkey: <span style="background: rgba(139, 92, 246, 0.4); padding: 1px 6px; border-radius: 3px; font-weight: 600;">${cycleHotkey.toUpperCase()}</span>` : 'No hotkey set'}
+                              </div>
+                          </div>
+                          <button class="mga-btn" id="set-cycle-hotkey-btn" style="padding: 4px 12px; font-size: 11px; white-space: nowrap; background: rgba(139, 92, 246, 0.4); border: 1px solid #8b5cf6;">
+                              ${cycleHotkey ? 'Change' : 'Set Key'}
+                          </button>
+                      </div>
+                  </div>
+              ` : ''}
               <div class="mga-section">
                   <div class="mga-section-title mga-pet-section-title">Active Pets</div>
                   <div class="mga-active-pets-display">
@@ -10357,7 +10386,20 @@ async function initializeFirebase() {
           const sidebar = targetDocument.createElement('div');
           sidebar.className = `mga-shop-sidebar mga-shop-sidebar-${side}`;
           sidebar.id = `mga-shop-${type}`;
-  
+
+          // Get current inventory count (includes bag + hotbar)
+          const inventory = UnifiedState.atoms.inventory;
+          const currentCount = inventory?.items?.length || 0;
+          const maxCount = 100; // 91 bag + 9 hotbar = 100 total
+
+          // Color code based on inventory fullness
+          let inventoryColor = '#4caf50'; // Green (< 95)
+          if (currentCount >= 100) {
+              inventoryColor = '#ff4444'; // Red (full)
+          } else if (currentCount >= 95) {
+              inventoryColor = '#ffa500'; // Yellow (95-99)
+          }
+
           sidebar.innerHTML = `
               <div class="mga-shop-sidebar-header">
                   <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🌱 ${title}</h3>
@@ -10366,6 +10408,25 @@ async function initializeFirebase() {
                       <button class="shop-close-btn" style="cursor: pointer; font-weight: 700; font-size: 20px; color: #cfcfcf; background: none; border: none; padding: 0 8px; transition: color 0.2s ease;">×</button>
                   </div>
               </div>
+
+              <!-- NEW v3.7.8: Inventory counter -->
+              <div class="shop-inventory-counter" style="
+                  font-size: 12px;
+                  font-weight: 600;
+                  color: ${inventoryColor};
+                  margin: 12px 12px 0 12px;
+                  padding: 8px 12px;
+                  background: rgba(255,255,255,0.05);
+                  border-radius: 6px;
+                  border-left: 3px solid ${inventoryColor};
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+              ">
+                  <span>📦</span>
+                  <span>Inventory: <span class="shop-inventory-count">${currentCount}</span>/${maxCount}</span>
+              </div>
+
               <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.57);">
                   <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                       <input type="checkbox" class="show-available-only" style="accent-color: #2afd23;">
@@ -10909,11 +10970,61 @@ async function initializeFirebase() {
   
           return div;
       }
-  
+
+      // Helper function to check if inventory is full (NEW v3.7.8)
+      function isInventoryFull() {
+          const inventory = UnifiedState.atoms.inventory;
+          if (!inventory || !inventory.items) return false;
+
+          // Magic Garden inventory: 91 bag slots + 9 hotbar slots = 100 total
+          // inventory.items.length includes BOTH bag and hotbar
+          const MAX_INVENTORY = 100;
+          const currentCount = inventory.items.length;
+
+          return currentCount >= MAX_INVENTORY;
+      }
+
+      // Visual feedback for full inventory (NEW v3.7.8)
+      function flashInventoryFullFeedback(element, message) {
+          // Flash red 3 times
+          let flashes = 0;
+          const flashInterval = setInterval(() => {
+              if (flashes >= 6) { // 3 full cycles (on/off)
+                  clearInterval(flashInterval);
+                  element.style.background = '';
+                  element.style.borderColor = '';
+                  element.style.boxShadow = '';
+                  return;
+              }
+
+              // Alternate between red and normal
+              if (flashes % 2 === 0) {
+                  element.style.background = 'rgba(255, 0, 0, 0.3)';
+                  element.style.borderColor = 'rgba(255, 0, 0, 0.8)';
+                  element.style.boxShadow = '0 0 15px rgba(255, 0, 0, 0.5)';
+              } else {
+                  element.style.background = '';
+                  element.style.borderColor = '';
+                  element.style.boxShadow = '';
+              }
+
+              flashes++;
+          }, 200); // Flash every 200ms
+
+          // Show message
+          productionLog(`❌ [SHOP] ${message}`);
+      }
+
       function buyItem(id, type, amount, itemEl) {
           const conn = targetWindow.MagicCircle_RoomConnection;
           if (!conn?.sendMessage) {
               alert('Connection not available');
+              return;
+          }
+
+          // NEW v3.7.8: Check if inventory is full before purchase
+          if (isInventoryFull()) {
+              flashInventoryFullFeedback(itemEl, `Inventory Full! (100/100) - Cannot purchase ${id}`);
               return;
           }
 
@@ -11166,14 +11277,45 @@ async function initializeFirebase() {
       // ==================== SHOP TAB (DEPRECATED - USING DUAL WINDOWS NOW) ====================
       function getShopTabContent() {
           const settings = UnifiedState.data.settings;
-  
+
+          // Get current inventory count (includes bag + hotbar)
+          const inventory = UnifiedState.atoms.inventory;
+          const currentCount = inventory?.items?.length || 0;
+          const maxCount = 100; // 91 bag + 9 hotbar = 100 total
+
+          // Color code based on inventory fullness
+          let inventoryColor = '#4caf50'; // Green (< 95)
+          if (currentCount >= 100) {
+              inventoryColor = '#ff4444'; // Red (full)
+          } else if (currentCount >= 95) {
+              inventoryColor = '#ffa500'; // Yellow (95-99)
+          }
+
           return `
               <div class="mga-section">
                   <div class="mga-section-title">🛒 Shop</div>
-                  <p style="font-size: 12px; color: #aaa; margin-bottom: 16px;">
+                  <p style="font-size: 12px; color: #aaa; margin-bottom: 8px;">
                       Quick buy seeds and eggs. Stock updates automatically when shop resets.
                   </p>
-  
+
+                  <!-- NEW v3.7.8: Inventory counter -->
+                  <div id="shop-inventory-counter" style="
+                      font-size: 13px;
+                      font-weight: 600;
+                      color: ${inventoryColor};
+                      margin-bottom: 16px;
+                      padding: 8px 12px;
+                      background: rgba(255,255,255,0.05);
+                      border-radius: 6px;
+                      border-left: 3px solid ${inventoryColor};
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                  ">
+                      <span>📦</span>
+                      <span>Inventory: <span id="shop-inventory-count">${currentCount}</span>/${maxCount}</span>
+                  </div>
+
                   <div style="margin-bottom: 20px;">
                       <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                           <input type="checkbox" id="shop-in-stock-only" class="mga-checkbox">
@@ -11291,7 +11433,13 @@ async function initializeFirebase() {
                   alert('Connection not available');
                   return;
               }
-  
+
+              // NEW v3.7.8: Check if inventory is full before purchase
+              if (isInventoryFull()) {
+                  flashInventoryFullFeedback(itemEl, `Inventory Full! (100/100) - Cannot purchase ${id}`);
+                  return;
+              }
+
               try {
                   for (let i = 0; i < amount; i++) {
                       let messageType, itemKey;
@@ -14056,7 +14204,40 @@ async function initializeFirebase() {
                           </div>
                       `).join('')}
                   </div>
-  
+
+                  <div class="mga-section">
+                      <div class="mga-section-title" style="font-size: 13px;">MGTools Navigation & Features</div>
+                      ${Object.entries(hotkeys.mgToolsKeys).map(([key, config]) => `
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+                              <span style="font-size: 12px; flex: 1;">${config.name}</span>
+                              <button class="hotkey-button-mgtools" data-key="${key}" style="
+                                  padding: 4px 8px;
+                                  background: ${config.custom ? 'rgba(100, 255, 100, 0.48)' : 'rgba(74, 158, 255, 0.48)'};
+                                  border: 1px solid ${config.custom ? '#64ff64' : '#4a9eff'};
+                                  border-radius: 4px;
+                                  color: white;
+                                  font-size: 11px;
+                                  min-width: 80px;
+                                  cursor: pointer;
+                              ">
+                                  ${config.custom ? config.custom.toUpperCase() : 'Not Set'}
+                              </button>
+                              ${config.custom ? `
+                                  <button class="hotkey-reset-mgtools" data-key="${key}" style="
+                                      margin-left: 5px;
+                                      padding: 2px 6px;
+                                      background: rgba(255, 100, 100, 0.48);
+                                      border: 1px solid #ff6464;
+                                      border-radius: 3px;
+                                      color: white;
+                                      font-size: 10px;
+                                      cursor: pointer;
+                                  ">↺</button>
+                              ` : ''}
+                          </div>
+                      `).join('')}
+                  </div>
+
                   <div style="display: flex; gap: 10px; margin-top: 15px;">
                       <button id="hotkeys-reset-all" class="mga-button" style="flex: 1;">
                           Reset All
@@ -15060,7 +15241,75 @@ async function initializeFirebase() {
               productionLog(`✅ [PETS] Backup refresh for preset "${presetName}"`);
           }, preset.length * 50 + 2500);
       }
-  
+
+      // Helper function to check if preset contains Worm with Crop Eater ability
+      // Uses same detection pattern as turtle timer (checks abilities array)
+      function presetHasCropEater(preset) {
+          if (!preset || !Array.isArray(preset)) {
+              return false;
+          }
+
+          // Filter for Worms with Crop Eater ability (same pattern as turtle timer)
+          const wormsWithCropEater = preset.filter(p =>
+              p &&
+              p.petSpecies === "Worm" &&
+              p.abilities?.some(a =>
+                  a === "Crop Eater" ||
+                  a === "CropEater" ||
+                  (typeof a === 'string' && a.toLowerCase().includes("crop") && a.toLowerCase().includes("eater"))
+              )
+          );
+
+          if (wormsWithCropEater.length > 0) {
+              productionLog(`[Crop Eater Check] Preset contains ${wormsWithCropEater.length} Worm(s) with Crop Eater - skipping`);
+          }
+
+          return wormsWithCropEater.length > 0;
+      }
+
+      // Cycle to next preset in the order list (NEW v3.7.8)
+      // Auto-skips presets with Crop Eater pets
+      function cycleToNextPreset() {
+          ensurePresetOrder(); // Ensure order array is up to date
+
+          if (UnifiedState.data.petPresetsOrder.length === 0) {
+              productionLog('[Cycle Presets] No presets available');
+              return;
+          }
+
+          const startIndex = UnifiedState.data.currentPresetIndex;
+          let attempts = 0;
+          const maxAttempts = UnifiedState.data.petPresetsOrder.length;
+
+          do {
+              // Move to next preset
+              UnifiedState.data.currentPresetIndex++;
+
+              // Loop back to start if at end
+              if (UnifiedState.data.currentPresetIndex >= UnifiedState.data.petPresetsOrder.length) {
+                  UnifiedState.data.currentPresetIndex = 0;
+              }
+
+              const presetName = UnifiedState.data.petPresetsOrder[UnifiedState.data.currentPresetIndex];
+              const preset = UnifiedState.data.petPresets[presetName];
+
+              attempts++;
+
+              // Check if preset has Crop Eater
+              if (preset && !presetHasCropEater(preset)) {
+                  productionLog(`[Cycle Presets] Loading: ${presetName} (${UnifiedState.data.currentPresetIndex + 1}/${UnifiedState.data.petPresetsOrder.length})`);
+                  placePetPreset(presetName);
+                  return; // Found valid preset
+              } else if (preset && presetHasCropEater(preset)) {
+                  productionLog(`[Cycle Presets] Skipping ${presetName} - contains Crop Eater`);
+              }
+
+          } while (attempts < maxAttempts);
+
+          // All presets have Crop Eater
+          productionLog('[Cycle Presets] All presets contain Crop Eater - cannot cycle');
+      }
+
       // ==================== PETS UI HELPER FUNCTIONS ====================
       function updatePetPresetDropdown(context) {
           const select = context.querySelector('#preset-quick-select');
@@ -15605,6 +15854,15 @@ async function initializeFirebase() {
               });
           }
   
+          // Cycle Presets Hotkey Button Handler
+          const setCycleHotkeyBtn = context.querySelector('#set-cycle-hotkey-btn');
+          if (setCycleHotkeyBtn && !setCycleHotkeyBtn.hasAttribute('data-handler-setup')) {
+              setCycleHotkeyBtn.setAttribute('data-handler-setup', 'true');
+              setCycleHotkeyBtn.addEventListener('click', () => {
+                  startRecordingHotkeyMGTools('cyclePresets', setCycleHotkeyBtn);
+              });
+          }
+
           // Quick Load Button Handler
           const quickLoadBtn = context.querySelector('#quick-load-btn');
           if (quickLoadBtn && !quickLoadBtn.hasAttribute('data-handler-setup')) {
@@ -15692,11 +15950,8 @@ async function initializeFirebase() {
                   const input = context.querySelector('#preset-name-input');
                   const name = input.value.trim();
                   if (name && UnifiedState.atoms.activePets && UnifiedState.atoms.activePets.length) {
-                      UnifiedState.data.petPresets[name] = UnifiedState.atoms.activePets.slice(0, 3).map(p => ({
-                          id: p.id,
-                          petSpecies: p.petSpecies,
-                          mutations: p.mutations || []
-                      }));
+                      // Save full pet data including abilities for Crop Eater detection
+                      UnifiedState.data.petPresets[name] = UnifiedState.atoms.activePets.slice(0, 3);
                       MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                       input.value = ''; // Clear input after successful add
   
@@ -17336,14 +17591,82 @@ async function initializeFirebase() {
   
       function stopRecordingHotkey(buttonElement, originalText) {
           if (!currentlyRecordingHotkey) return;
-  
+
           if (originalText) {
               buttonElement.textContent = originalText;
           }
           buttonElement.style.background = '';
           currentlyRecordingHotkey = null;
       }
-  
+
+      // MGTools hotkey recording (similar to game keys but for mgToolsKeys)
+      function startRecordingHotkeyMGTools(key, buttonElement) {
+          if (currentlyRecordingHotkey) return; // Already recording
+
+          currentlyRecordingHotkey = key;
+          const originalText = buttonElement.textContent;
+          buttonElement.textContent = 'Press any key...';
+          buttonElement.style.background = '#ff9900';
+
+          // Add one-time key listener
+          const recordHandler = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              // Skip modifier-only keys
+              if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+              // Allow ESC to cancel
+              if (e.key === 'Escape') {
+                  stopRecordingHotkey(buttonElement, originalText);
+                  document.removeEventListener('keydown', recordHandler, true);
+                  return;
+              }
+
+              // Build key combination string
+              let keyCombo = '';
+              if (e.ctrlKey) keyCombo += 'ctrl+';
+              if (e.altKey) keyCombo += 'alt+';
+              if (e.shiftKey) keyCombo += 'shift+';
+
+              // Handle special keys
+              const keyName = e.key === ' ' ? 'space' : e.key.toLowerCase();
+              keyCombo += keyName;
+
+              // Check for conflicts in both gameKeys and mgToolsKeys
+              const conflicts = [];
+              Object.entries(UnifiedState.data.hotkeys.gameKeys).forEach(([k, config]) => {
+                  if (config.custom && config.custom === keyCombo) {
+                      conflicts.push(config.name);
+                  }
+              });
+              Object.entries(UnifiedState.data.hotkeys.mgToolsKeys).forEach(([k, config]) => {
+                  if (k !== key && config.custom && config.custom === keyCombo) {
+                      conflicts.push(config.name);
+                  }
+              });
+
+              if (conflicts.length > 0) {
+                  alert(`Key "${keyCombo}" is already assigned to: ${conflicts.join(', ')}`);
+                  stopRecordingHotkey(buttonElement, originalText);
+                  document.removeEventListener('keydown', recordHandler, true);
+                  return;
+              }
+
+              // Save the new key
+              UnifiedState.data.hotkeys.mgToolsKeys[key].custom = keyCombo;
+              MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+
+              stopRecordingHotkey(buttonElement, null);
+              updateTabContent(); // Refresh display to show new key and reset button
+              document.removeEventListener('keydown', recordHandler, true);
+
+              productionLog(`🎮 [HOTKEYS] Set MGTools key ${key}: ${keyCombo}`);
+          };
+
+          document.addEventListener('keydown', recordHandler, true);
+      }
+
       // ==================== HOTKEY INTERCEPTION & SIMULATION ====================
   
       function isTypingInInput() {
@@ -17611,7 +17934,26 @@ async function initializeFirebase() {
                   productionLog(`🎮 [HOTKEYS] Reset ${key} to default`);
               });
           });
-  
+
+          // MGTools hotkey buttons
+          context.querySelectorAll('.hotkey-button-mgtools').forEach(button => {
+              button.addEventListener('click', function() {
+                  const key = this.dataset.key;
+                  startRecordingHotkeyMGTools(key, this);
+              });
+          });
+
+          // MGTools reset buttons
+          context.querySelectorAll('.hotkey-reset-mgtools').forEach(button => {
+              button.addEventListener('click', function() {
+                  const key = this.dataset.key;
+                  UnifiedState.data.hotkeys.mgToolsKeys[key].custom = null;
+                  MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+                  updateTabContent(); // Refresh display
+                  productionLog(`🎮 [HOTKEYS] Reset MGTools key ${key} to default`);
+              });
+          });
+
           // Reset all button
           const resetAllBtn = context.querySelector('#hotkeys-reset-all');
           if (resetAllBtn) {
@@ -17619,6 +17961,9 @@ async function initializeFirebase() {
                   if (confirm('Reset all hotkeys to defaults?')) {
                       Object.keys(UnifiedState.data.hotkeys.gameKeys).forEach(key => {
                           UnifiedState.data.hotkeys.gameKeys[key].custom = null;
+                      });
+                      Object.keys(UnifiedState.data.hotkeys.mgToolsKeys).forEach(key => {
+                          UnifiedState.data.hotkeys.mgToolsKeys[key].custom = null;
                       });
                       MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
                       updateTabContent();
@@ -21073,9 +21418,10 @@ async function initializeFirebase() {
                   return;
               }
   
-              // Additional validation: If timestamp is very recent (within 10 seconds), skip
+              // Additional validation: If timestamp is very recent (within 3 seconds), skip
+              // BUGFIX v3.7.8: Reduced from 10s to 3s to allow rapid abilities (Gold Granter → Rainbow Granter)
               // This prevents false triggers on page refresh when same ability state reloads
-              if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 10000) {
+              if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 3000) {
                   if (UnifiedState.data.settings?.debugMode) {
                       productionLog(`🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${Math.abs(currentTimestamp - lastKnown)}ms)`);
                   }
@@ -22373,11 +22719,17 @@ async function initializeFirebase() {
               }
           );
   
-          // Hook #2: Pet ABILITY data (for ability logs - monitoring handled by timer only)
+          // Hook #2: Pet ABILITY data (for ability logs - event-driven + polling)
           hookAtom(
               "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myPetSlotInfosAtom",
               "petAbility",
-              null // Removed duplicate monitorPetAbilities() call to prevent double logging
+              (value) => {
+                  // BUGFIX v3.7.8: Event-driven monitoring to catch abilities immediately
+                  // Polling still runs every 3s as backup for missed events
+                  if (value && typeof monitorPetAbilities === 'function') {
+                      monitorPetAbilities();
+                  }
+              }
           );
   
           // Hook inventory
@@ -26671,9 +27023,14 @@ function initializeTurtleTimer() {
   
     // ---------- Ability Logs: Sticky Clear + Proxy dedupe ----------
     const CLEAR_FLAG = 'MGA_logs_manually_cleared';
+    const SESSION_FLAG = 'MGA_logs_clear_session';
     function clearFlagIfNeededOnAdd(){
+      // BUGFIX v3.7.8: Clear BOTH flags when new logs are added
       if (localStorage.getItem(CLEAR_FLAG)==='true'){
         try{ localStorage.removeItem(CLEAR_FLAG);}catch{}
+      }
+      if (localStorage.getItem(SESSION_FLAG)){
+        try{ localStorage.removeItem(SESSION_FLAG);}catch{}
       }
     }
     function wrapLogsArray(arr){
@@ -27315,8 +27672,57 @@ function initializeTurtleTimer() {
         }
     })();
 
-    // DOM update popup monitor disabled - WebSocket code 4710 detection is reliable enough
-    // The DOM monitor was causing false positives by matching MGTools' own UI elements
+    // ==================== DOM UPDATE DETECTION (BACKUP METHOD) ====================
+    // BUGFIX v3.7.8: Re-enabled with smarter detection to avoid false positives
+    (function() {
+        let updateDetected = false; // Shared flag to prevent duplicate refreshes
+
+        function checkForGameUpdatePopup() {
+            if (updateDetected) return false;
+
+            // Look for Chakra UI alert dialog (game's update modal)
+            const popup = document.querySelector('section.chakra-modal__content[role="alertdialog"]');
+            if (!popup) return false;
+
+            // Ensure it's not an MGTools element
+            if (popup.closest('.mga-overlay, .mgh-sidebar, .mgh-dock, .mga-popout')) {
+                return false;
+            }
+
+            // Check for game update text in header
+            const header = popup.querySelector('header.chakra-modal__header');
+            if (header && /game update available/i.test(header.textContent)) {
+                updateDetected = true;
+                if (typeof productionLog === 'function') {
+                    productionLog('[DOM] Game update popup detected - triggering refresh');
+                }
+
+                // Trigger the same refresh logic as WebSocket code 4710
+                if (typeof scheduleReload === 'function') {
+                    scheduleReload(4710, true, 'DOM detection');
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        // MutationObserver to watch for popup appearance
+        const observer = new MutationObserver(() => {
+            if (!updateDetected) {
+                checkForGameUpdatePopup();
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Periodic check as backup (every 5 seconds)
+        setInterval(checkForGameUpdatePopup, 5000);
+
+        if (typeof productionLog === 'function') {
+            productionLog('✅ [DOM] Game update popup monitor initialized');
+        }
+    })();
 
   })();
 
@@ -27388,14 +27794,9 @@ function initializeTurtleTimer() {
     if (t){ hardClear(); }
   }, true);
 
-  // Startup sanitizer (short burst to defeat late rehydrations)
-  let n=0; const iv=setInterval(()=>{
-    if (localStorage.getItem(FLAG)==='true'){
-      try{ localStorage.setItem(LOG_MAIN,'[]'); localStorage.setItem(LOG_ARCH,'[]'); }catch{}
-      if (window.UnifiedState?.data) window.UnifiedState.data.petAbilityLogs = [];
-    }
-    if (++n>80) clearInterval(iv);
-  }, 200);
+  // REMOVED v3.7.8: Startup sanitizer was preventing ability logs from persisting
+  // The sanitizer ran for 16 seconds and cleared logs even after new abilities were added
+  // Proper flag management already exists in the proxy (line 26681-26685)
 })();
 
 
