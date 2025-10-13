@@ -1,5 +1,127 @@
 # Changelog - MGTools
 
+## Version 3.7.8 (2025-10-13)
+
+### ✨ Stability & Polish Update
+
+**Quick Summary (User-Friendly):**
+- **Cycle Pet Presets Hotkey**: Set a hotkey to cycle through all your presets sequentially (auto-skips Crop Eater presets!)
+- **Auto Game Updates**: Script now automatically detects and refreshes when game updates are available
+- **Bug Fixes**: Fixed ability logs occasionally not saving properly + improved ability detection reliability
+
+---
+
+### 🆕 **New Feature: Cycle Pet Presets**
+
+**What It Does:**
+- Set a single hotkey to cycle through ALL your pet presets
+- Press the hotkey repeatedly to loop through presets in order
+- Automatically wraps back to the first preset after reaching the end
+- Works with any presets (current, future, or newly created)
+- **🎯 Smart Skipping**: Automatically skips presets containing pets with "Crop Eater" ability
+
+**How to Use:**
+1. Go to Hotkeys tab (⌨️) OR Pets tab (top banner)
+2. Set a hotkey for "Cycle Pet Presets" (e.g., F1, Alt+Z, etc.)
+3. Press your hotkey in-game to cycle through all presets sequentially
+4. Presets with Crop Eater pets are automatically skipped
+
+**Technical Details:**
+- `UnifiedState.data.currentPresetIndex` tracks current position
+- Uses `petPresetsOrder` array for consistent ordering
+- `presetHasCropEater()` checks for "Crop Eater" ability in pet.abilities array
+- Auto-skips presets with Crop Eater, prevents infinite loops
+- Calls existing `placePetPreset()` function
+- MGTools.user.js:15126-15179
+
+---
+
+### 🐛 **Critical Fix #1: Ability Logs Persistence**
+
+**Problem:** Ability logs were being deleted on page refresh
+**Root Cause:** "Startup sanitizer" ran for 16 seconds after page load and continuously cleared logs
+
+**Fixes Applied:**
+
+1. **Removed Destructive Startup Sanitizer** (MGTools.user.js:27398-27401)
+   - Sanitizer ran 80 times over 16 seconds
+   - Cleared logs even after new abilities were added
+   - **Solution:** Removed entirely - proper flag management already exists
+
+2. **Fixed 24-Hour Session Lock** (MGTools.user.js:26681-26690)
+   - Clicking "Clear Logs" set a 24-hour lock that blocked ALL saves
+   - New abilities couldn't be saved for 24 hours after clearing
+   - **Solution:** Clear both flags when new logs are added
+
+```javascript
+// BEFORE: Only cleared one flag
+function clearFlagIfNeededOnAdd(){
+  if (localStorage.getItem(CLEAR_FLAG)==='true'){
+    try{ localStorage.removeItem(CLEAR_FLAG);}catch{}
+  }
+}
+
+// AFTER: Clears both flags
+function clearFlagIfNeededOnAdd(){
+  if (localStorage.getItem(CLEAR_FLAG)==='true'){
+    try{ localStorage.removeItem(CLEAR_FLAG);}catch{}
+  }
+  if (localStorage.getItem(SESSION_FLAG)){
+    try{ localStorage.removeItem(SESSION_FLAG);}catch{} // NEW
+  }
+}
+```
+
+3. **Event-Driven Monitoring** (MGTools.user.js:22380-22386)
+   - Abilities now detected immediately when triggered
+   - No 3-second delay
+
+4. **Reduced Duplicate Window** (MGTools.user.js:21076-21084)
+   - Changed from 10s to 3s to allow rapid abilities (Gold → Rainbow)
+
+---
+
+### 🎮 **Critical Fix #2: Game Update Auto-Detection**
+
+**Problem:** WebSocket code 4710 was only detection method - if it failed, updates were missed
+**Solution:** Added DOM monitoring as backup detection
+
+**How It Works:**
+```javascript
+// Method 1: WebSocket close code 4710 (primary)
+if (code === 4710) {
+    // Auto-refresh in 5 seconds
+}
+
+// Method 2: DOM popup detection (backup) - NEW in v3.7.8
+const popup = document.querySelector('section.chakra-modal__content[role="alertdialog"]');
+if (popup && header.textContent.includes('Game update available')) {
+    // Auto-refresh in 5 seconds
+}
+```
+
+**Features:**
+- ✅ Detects game's Chakra UI update modal
+- ✅ Checks every 5 seconds + MutationObserver
+- ✅ Avoids false positives (excludes MGTools UI)
+- ✅ Shows countdown toast before refreshing
+
+---
+
+### ✅ **What to Test**
+
+**Ability Logs:**
+1. ✅ Add ability logs → Refresh page → Logs still there
+2. ✅ Click "Clear Logs" → Add new logs → They persist
+3. ✅ Gold Granter + Rainbow Granter both log correctly
+4. ✅ Logs persist after closing browser
+
+**Game Updates:**
+- Next time devs push an update, page should auto-refresh with countdown toast
+- Check console for: `[DOM] Game update popup detected` or `[WebSocket] Version expired detected`
+
+---
+
 ## Version 3.7.7 (2025-10-13)
 
 ### 🌍 Discord Rooms Expansion + Critical Bugfixes
