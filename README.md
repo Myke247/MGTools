@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.6.7** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.7.6** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.6.7-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.7.6-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -425,10 +425,11 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.6.7)
-- **v3.6.7**: 🐛 **SHOP FLICKERING FIX!** - Fixed shop buttons pulsing/flickering when hovering. Added all 29 crops to auto-favorite!
-- **v3.6.3**: 🐛 **CRITICAL BUG FIX!** - Fixed duplicate function causing ALL notification settings to fail! Custom sounds now work!
-- **v3.6.2**: 🎉 **COMPLETE PERSISTENCE FIX!** - ALL settings now save! Themes, notifications, everything persists across refresh!
+### Latest Updates (v3.7.6)
+- **v3.7.6**: 🎉 **ROOMS TAB COMPLETE!** - Discord rooms restored (play1-play10), all bugs fixed, tab switching works, sidebar opens properly!
+- **v3.7.4**: 🐛 **ARCHITECTURAL FIX!** - Side-by-side tab bug eliminated with single container approach! Room names shortened (MG1-15), cleaner UI, no more CSS conflicts!
+- **v3.7.3**: 🐛 **ROOMS TAB FIX!** - Tab switching now works! MG rooms shown first, Discord rooms removed (can't join from browser). Complete rooms UI overhaul!
+- **v3.7.2**: 🐛 **COMPLETE PERSISTENCE FIX!** - Fixed asymmetric save/load bug! GM storage now prioritized, dual-write keeps localStorage in sync! All settings persist correctly!
 
 ---
 

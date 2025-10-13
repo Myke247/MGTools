@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.7
+// @version      3.7.7
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -9,10 +9,7 @@
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
 // @match        https://starweaver.org/r/*
-// @match        https://discord.com/channels/*
-// @match        https://canary.discord.com/channels/*
-// @match        https://ptb.discord.com/channels/*
-// @match        https://*.discordsays.com/*
+// @match        https://1227719606223765687.discordsays.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -23,6 +20,14 @@
 // @connect      *
 // @run-at       document-end
 // ==/UserScript==
+
+// === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
+console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.7.7 - 41 Discord Rooms + Toolbar Bleed Fix! Expanded Discord room list with international servers');
+console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
+console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
+console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
+console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : 'IFRAME');
 
 // === CSP Guard: Disable external Google Fonts in Discord/webview ===
 (function(){
@@ -154,15 +159,39 @@
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.7';  // Current version
+      const CURRENT_VERSION = '3.6.8';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
       const BETA_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js';
 
       // Detect if running Live Beta version (check @updateURL in script)
-      const IS_LIVE_BETA = GM_info?.script?.updateURL?.includes('Live-Beta') || false;
-  
+      // Safe check for Discord pop-out and console paste compatibility
+      const IS_LIVE_BETA = (() => {
+          try {
+              if (typeof GM_info === 'undefined') {
+                  return false;
+              }
+              return GM_info?.script?.updateURL?.includes('Live-Beta') || false;
+          } catch (e) {
+              console.warn('[MGTOOLS] Branch detection failed:', e.message);
+              return false;
+          }
+      })();
+
+      // Detect if running without Tampermonkey (console paste or incompatible environment)
+      const isRunningWithoutTampermonkey = typeof GM_info === 'undefined';
+
+      if (isRunningWithoutTampermonkey) {
+          console.error('%c⚠️ MGTOOLS INSTALLATION ERROR', 'font-size:16px;color:#ff0000;font-weight:bold');
+          console.error('%cMGTools MUST be installed via Tampermonkey!', 'font-size:14px;color:#ff9900');
+          console.error('%cDo NOT paste the script in console - it will not work correctly!', 'font-size:14px;color:#ff9900');
+          console.error('%c\n📋 Correct Installation:\n1. Install Tampermonkey: https://www.tampermonkey.net/\n2. Click: https://github.com/Myke247/MGTools/raw/main/MGTools.user.js\n3. Click "Install" button\n4. Refresh Magic Garden', 'font-size:12px;color:#00ffff');
+
+          // Try to continue anyway using localStorage fallback
+          console.warn('%c⚠️ Attempting to run in fallback mode (limited functionality)...', 'font-size:12px;color:#ffff00');
+      }
+
       // Semantic version comparison function
       function compareVersions(v1, v2) {
           // Returns: -1 if v1 < v2, 0 if v1 === v2, 1 if v1 > v2
@@ -245,11 +274,6 @@
           window.productionLog = productionLog;
           window.productionWarn = productionWarn;
           window.productionError = productionError;
-      }
-      if (typeof unsafeWindow !== 'undefined' && unsafeWindow !== window) {
-          unsafeWindow.productionLog = productionLog;
-          unsafeWindow.productionWarn = productionWarn;
-          unsafeWindow.productionError = productionError;
       }
 
       // ==================== COMPATIBILITY MODE SYSTEM ====================
@@ -550,16 +574,312 @@
       AssetManager.loadFonts();
 
       // ==================== SELECTIVE CONTEXT ISOLATION ====================
-      // Detect execution context and set up selective window/document references
+      // Detect userscript environment and use unsafeWindow for page access (like v3.5.7)
       const isUserscript = typeof unsafeWindow !== 'undefined';
       const targetWindow = isUserscript ? unsafeWindow : window;
       const targetDocument = targetWindow.document;
-  
+
       // Track which atoms have been hooked to prevent duplicates
       const hookedAtoms = new Set();
-  
+
       // Set context identifier for debugging (use window not targetWindow to avoid modifying page)
-      window.MGA_CONTEXT = isUserscript ? 'userscript' : 'console';
+      window.MGA_CONTEXT = 'userscript';
+
+      // ==================== JOTAI ATOM CACHE WATCHER ====================
+      // MutationObserver fallback to detect when jotaiAtomCache becomes available
+      let atomCacheWatcherCallbacks = [];
+
+      function watchForAtomCache(callback) {
+          // If already available, call immediately
+          if (targetWindow.jotaiAtomCache) {
+              callback();
+              return;
+          }
+
+          // Otherwise, register callback
+          atomCacheWatcherCallbacks.push(callback);
+
+          // Set up observer only once
+          if (atomCacheWatcherCallbacks.length === 1) {
+              const observer = new MutationObserver(() => {
+                  if (targetWindow.jotaiAtomCache) {
+                      console.log('✅ [ATOM-WATCH] jotaiAtomCache detected via MutationObserver');
+                      observer.disconnect();
+                      const callbacks = atomCacheWatcherCallbacks;
+                      atomCacheWatcherCallbacks = [];
+                      callbacks.forEach(cb => cb());
+                  }
+              });
+
+              // Watch for property additions to targetWindow
+              observer.observe(document.documentElement, {
+                  childList: true,
+                  subtree: true
+              });
+
+              // Also poll as backup (very infrequent)
+              const pollInterval = setInterval(() => {
+                  if (targetWindow.jotaiAtomCache) {
+                      clearInterval(pollInterval);
+                      observer.disconnect();
+                      console.log('✅ [ATOM-WATCH] jotaiAtomCache detected via polling');
+                      const callbacks = atomCacheWatcherCallbacks;
+                      atomCacheWatcherCallbacks = [];
+                      callbacks.forEach(cb => cb());
+                  }
+              }, 1000); // Check every 1 second as safety net
+
+              // Cleanup after 30 seconds
+              setTimeout(() => {
+                  clearInterval(pollInterval);
+                  observer.disconnect();
+              }, 30000);
+          }
+      }
+
+      // ==================== ADVANCED STORE CAPTURE SYSTEM ====================
+      // Robust Jotai atom store capture for cross-environment compatibility
+      const StoreCapture = {
+          store: null,
+          captureMethod: null,
+
+          // Method 1: Direct cache access (fastest when available)
+          tryDirectCache() {
+              // Check targetWindow first (unsafeWindow = page context), then fallback to window
+              const cache = targetWindow.jotaiAtomCache?.cache ||
+                            targetWindow.jotaiAtomCache ||
+                            window.jotaiAtomCache?.cache ||
+                            window.jotaiAtomCache;
+
+              if (cache && (cache.get || (typeof cache.size === 'number' && cache.size > 0))) {
+                  this.store = cache;
+                  this.captureMethod = 'direct';
+                  return true;
+              }
+              return false;
+          },
+
+          // Method 2: React DevTools Fiber Traversal (for iframes)
+          tryFiberTraversal() {
+              const hook = targetWindow.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+              if (!hook?.renderers?.size) return false;
+
+              for (const [rendererID] of hook.renderers) {
+                  const roots = hook.getFiberRoots?.(rendererID);
+                  if (!roots) continue;
+
+                  for (const root of roots) {
+                      const store = this.traverseFiber(root.current);
+                      if (store) {
+                          this.store = store;
+                          this.captureMethod = 'fiber';
+                          return true;
+                      }
+                  }
+              }
+              return false;
+          },
+
+          // Traverse React Fiber tree to find Jotai store provider
+          traverseFiber(fiber) {
+              const visited = new Set();
+              const queue = [fiber];
+
+              while (queue.length > 0) {
+                  const node = queue.shift();
+                  if (!node || visited.has(node)) continue;
+                  visited.add(node);
+
+                  // Check if this fiber node contains the Jotai store
+                  const storeValue = node?.pendingProps?.value;
+                  if (storeValue && typeof storeValue.get === 'function' &&
+                      typeof storeValue.set === 'function' &&
+                      typeof storeValue.sub === 'function') {
+                      return storeValue;
+                  }
+
+                  // Continue traversing child, sibling, and alternate fibers
+                  if (node.child) queue.push(node.child);
+                  if (node.sibling) queue.push(node.sibling);
+                  if (node.alternate) queue.push(node.alternate);
+              }
+              return null;
+          },
+
+          // Method 3: Write-intercept fallback (patches atom write functions)
+          async tryWriteIntercept(timeoutMs = 5000) {
+              const cache = targetWindow.jotaiAtomCache?.cache;
+              if (!cache) return false;
+
+              let capturedStore = null;
+              const patchedAtoms = [];
+
+              // Temporarily patch atom write functions to intercept store access
+              for (const atom of cache.values()) {
+                  if (!atom || typeof atom.write !== 'function') continue;
+
+                  const originalWrite = atom.write;
+                  atom.__mgtools_originalWrite = originalWrite;
+
+                  atom.write = function(get, set, ...args) {
+                      if (!capturedStore) {
+                          capturedStore = { get, set, sub: () => () => {} };
+                          // Restore all patched atoms immediately
+                          for (const a of patchedAtoms) {
+                              if (a.__mgtools_originalWrite) {
+                                  a.write = a.__mgtools_originalWrite;
+                                  delete a.__mgtools_originalWrite;
+                              }
+                          }
+                      }
+                      return originalWrite.call(this, get, set, ...args);
+                  };
+
+                  patchedAtoms.push(atom);
+              }
+
+              // Wait for capture or timeout
+              const startTime = Date.now();
+              while (!capturedStore && Date.now() - startTime < timeoutMs) {
+                  await new Promise(resolve => setTimeout(resolve, 50));
+              }
+
+              if (capturedStore) {
+                  this.store = capturedStore;
+                  this.captureMethod = 'intercept';
+                  return true;
+              }
+
+              // Cleanup if failed
+              for (const atom of patchedAtoms) {
+                  if (atom.__mgtools_originalWrite) {
+                      atom.write = atom.__mgtools_originalWrite;
+                      delete atom.__mgtools_originalWrite;
+                  }
+              }
+              return false;
+          },
+
+          // Main capture routine - tries all methods with retry logic
+          async capture(maxRetries = 20, retryDelay = 500) {
+              console.log('🔍 [STORE] Attempting to capture Jotai store...');
+
+              for (let attempt = 0; attempt < maxRetries; attempt++) {
+                  // Try direct cache access first (fastest)
+                  if (this.tryDirectCache()) {
+                      console.log(`✅ [STORE] Captured via direct cache (attempt ${attempt + 1}/${maxRetries})`);
+                      return true;
+                  }
+
+                  // Try Fiber traversal (works in iframes)
+                  if (this.tryFiberTraversal()) {
+                      console.log(`✅ [STORE] Captured via Fiber traversal (attempt ${attempt + 1}/${maxRetries})`);
+                      return true;
+                  }
+
+                  // Try write intercept as last resort (only on last few attempts)
+                  if (attempt >= maxRetries - 3) {
+                      if (await this.tryWriteIntercept(1000)) {
+                          console.log(`✅ [STORE] Captured via write intercept (attempt ${attempt + 1}/${maxRetries})`);
+                          return true;
+                      }
+                  }
+
+                  // Wait before next attempt (but not after last attempt)
+                  if (attempt < maxRetries - 1) {
+                      console.log(`⏳ [STORE] Waiting for Jotai store... (${attempt + 1}/${maxRetries})`);
+                      await new Promise(resolve => setTimeout(resolve, retryDelay));
+                  }
+              }
+
+              console.warn('⚠️ [STORE] Failed to capture store after max retries - atoms will not be available');
+              return false;
+          },
+
+          // Get the captured store (with fallback to direct cache check)
+          getStore() {
+              if (this.store) return this.store;
+              // Try direct access as fallback
+              if (this.tryDirectCache()) return this.store;
+              return null;
+          }
+      };
+
+      // ==================== STORAGE ABSTRACTION LAYER ====================
+      // Cross-environment storage with automatic fallback
+      const StorageManager = {
+          storageType: null,
+          _memoryStore: {},
+
+          detectStorage() {
+              // Try localStorage first
+              try {
+                  const testKey = '__mgtools_storage_test__';
+                  localStorage.setItem(testKey, '1');
+                  localStorage.removeItem(testKey);
+                  this.storageType = 'localStorage';
+                  console.log('✅ [STORAGE] Using localStorage');
+                  return true;
+              } catch (e) {}
+
+              // Fallback to sessionStorage
+              try {
+                  const testKey = '__mgtools_storage_test__';
+                  sessionStorage.setItem(testKey, '1');
+                  sessionStorage.removeItem(testKey);
+                  this.storageType = 'sessionStorage';
+                  console.warn('⚠️ [STORAGE] Fallback to sessionStorage (data will not persist across sessions)');
+                  return true;
+              } catch (e) {}
+
+              // Final fallback to memory storage
+              this.storageType = 'memory';
+              this._memoryStore = {};
+              console.warn('⚠️ [STORAGE] Fallback to memory storage (data will not persist)');
+              return true;
+          },
+
+          getItem(key) {
+              if (this.storageType === 'localStorage') return localStorage.getItem(key);
+              if (this.storageType === 'sessionStorage') return sessionStorage.getItem(key);
+              return this._memoryStore[key] || null;
+          },
+
+          setItem(key, value) {
+              try {
+                  if (this.storageType === 'localStorage') {
+                      localStorage.setItem(key, value);
+                  } else if (this.storageType === 'sessionStorage') {
+                      sessionStorage.setItem(key, value);
+                  } else {
+                      this._memoryStore[key] = value;
+                  }
+                  return true;
+              } catch (e) {
+                  console.error('[STORAGE] setItem failed:', e);
+                  return false;
+              }
+          },
+
+          removeItem(key) {
+              try {
+                  if (this.storageType === 'localStorage') {
+                      localStorage.removeItem(key);
+                  } else if (this.storageType === 'sessionStorage') {
+                      sessionStorage.removeItem(key);
+                  } else {
+                      delete this._memoryStore[key];
+                  }
+                  return true;
+              } catch (e) {
+                  console.error('[STORAGE] removeItem failed:', e);
+                  return false;
+              }
+          }
+      };
+
+      // Initialize storage immediately
+      StorageManager.detectStorage();
 
       // ==================== API BASE URL HELPER (MUST BE EARLY) ====================
       // This function MUST be defined early because roomsInfo() IIFE needs it immediately
@@ -768,7 +1088,7 @@
   
       logInfo('CONTEXT', 'Script context:', window.MGA_CONTEXT);
       logInfo('CONTEXT', 'GM API available:', isGMApiAvailable());
-      logInfo('CONTEXT', 'unsafeWindow available:', isUserscript);
+      logInfo('CONTEXT', 'Injection mode: page context (@inject-into page)');
       logInfo('CONTEXT', 'Selective isolation enabled - game modals preserved');
   
       // Add manual debug export command
@@ -863,7 +1183,6 @@
                   issue,
                   details,
                   context: {
-                      isUserscript,
                       targetWindow: targetWindow === window ? 'same' : 'different',
                       targetDocument: targetDocument === document ? 'same' : 'different',
                       gmApiAvailable: isGMApiAvailable()
@@ -900,7 +1219,7 @@
           logStage('DEBUG_SYSTEM_INITIALIZED', {
               userAgent: navigator.userAgent,
               url: window.location.href,
-              contextDetection: { isUserscript, targetWindow: targetWindow.constructor.name }
+              contextDetection: { targetWindow: targetWindow.constructor.name }
           });
   
           return window.MGA_DEBUG;
@@ -1015,7 +1334,7 @@
       }
 
       // Discord Fix: Use shorter delay for Discord, check for canvas existence
-      const initDelay = isDiscordEnv ? 500 : (isUserscript ? 3000 : 100);
+      const initDelay = isDiscordEnv ? 500 : 3000;
 
       // Helper function to check if game canvas is ready
       function isGameCanvasReady() {
@@ -2223,8 +2542,148 @@
       };
   
       const REPORT_INTERVAL = 5000; // Report room count every 5 seconds
-      const DEFAULT_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'SLAY']; // Default tracked rooms
-      const DISCORD_PLAY_ROOMS = ['play#1', 'play#2', 'play#3', 'play#4', 'play#5', 'play#6', 'play#7', 'play#8', 'play#9', 'play#10']; // Discord activity rooms
+      const DEFAULT_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'MG11', 'MG12', 'MG13', 'MG14', 'MG15', 'SLAY']; // Default tracked rooms
+      // REMOVED v3.7.3: Discord activity rooms removed - they use numeric IDs and can't be joined from external browser
+      // Discord users see play#1-40 natively in Discord's activity sidebar
+      // Browser users should use MG1-10 rooms instead
+      const DISCORD_PLAY_ROOMS = []; // Legacy constant kept for compatibility
+      
+      // ==================== ROOM REGISTRY ====================
+      // Centralized room data with categories for the 2-tab interface
+      const RoomRegistry = {
+          discord: [
+            // Garlic Bread's Server (play1-play10 - NO HYPHEN)
+            { id: 'i-1425232387037462538-gc-1399110335469977781-1411124424676999308', name: 'play1', category: 'discord' },
+            { id: 'i-1426213334721757305-gc-1399110335469977781-1411801827674030191', name: 'play2', category: 'discord' },
+            { id: 'i-1426696111514456277-gc-1399110335469977781-1411801899489034471', name: 'play3', category: 'discord' },
+            { id: 'i-1425131188074319992-gc-1399110335469977781-1411801931373875240', name: 'play4', category: 'discord' },
+            { id: 'i-1426523715059056691-gc-1399110335469977781-1411801958616141864', name: 'play5', category: 'discord' },
+            { id: 'i-1426962425999130785-gc-1399110335469977781-1411801990345916496', name: 'play6', category: 'discord' },
+            { id: 'i-1426782888900296754-gc-1399110335469977781-1411802027255660644', name: 'play7', category: 'discord' },
+            { id: 'i-1426963026216751124-gc-1399110335469977781-1411802063876128980', name: 'play8', category: 'discord' },
+            { id: 'i-1426736748104515747-gc-1399110335469977781-1411802098533666837', name: 'play9', category: 'discord' },
+            { id: 'i-1426972080355807252-gc-1399110335469977781-1411802136911548467', name: 'play10', category: 'discord' },
+
+            // Magic Circle Numbered Rooms (play-2 through play-50 - WITH HYPHEN)
+            { id: 'i-1416705483108257912-gc-808935495543160852-1389438720427425894', name: 'play-2', category: 'discord' },
+            { id: 'i-1414738624276205699-gc-808935495543160852-1389979453957996705', name: 'play-3', category: 'discord' },
+            { id: 'i-1426270545699405844-gc-808935495543160852-1389979475336233000', name: 'play-4', category: 'discord' },
+            { id: 'i-1424918072380231760-gc-808935495543160852-1391350549944733768', name: 'play-5', category: 'discord' },
+            { id: 'i-1424940435679477782-gc-808935495543160852-1391629723687452802', name: 'play-6', category: 'discord' },
+            { id: 'i-1414738652449345536-gc-808935495543160852-1392897701087019028', name: 'play-7', category: 'discord' },
+            { id: 'i-1426340656351150221-gc-808935495543160852-1417928182505672877', name: 'play-8', category: 'discord' },
+            { id: 'i-1426648328271167558-gc-808935495543160852-1392928961679331541', name: 'play-9', category: 'discord' },
+            { id: 'i-1424650709747499109-gc-808935495543160852-1394338319411970198', name: 'play-10', category: 'discord' },
+            { id: 'i-1421249275131859125-gc-808935495543160852-1394338344753959032', name: 'play-11', category: 'discord' },
+            { id: 'i-1417583142918950943-gc-808935495543160852-1394338361631703181', name: 'play-12', category: 'discord' },
+            { id: 'i-1426272039320158390-gc-808935495543160852-1394714064575271032', name: 'play-13', category: 'discord' },
+            { id: 'i-1421215237289545901-gc-808935495543160852-1394714079448399962', name: 'play-14', category: 'discord' },
+            { id: 'i-1426260441730125874-gc-808935495543160852-1394714101065974021', name: 'play-15', category: 'discord' },
+            { id: 'i-1425314797603520553-gc-808935495543160852-1394714159857270936', name: 'play-16', category: 'discord' },
+            { id: 'i-1422642064910319697-gc-808935495543160852-1395445292664488088', name: 'play-17', category: 'discord' },
+            { id: 'i-1425331756999118868-gc-808935495543160852-1395445357495718081', name: 'play-18', category: 'discord' },
+            { id: 'i-1426661481679945920-gc-808935495543160852-1421303964225372294', name: 'play-19', category: 'discord' },
+            { id: 'i-1425346474035646574-gc-808935495543160852-1395445408737788064', name: 'play-20', category: 'discord' },
+            { id: 'i-1426272183986163772-gc-808935495543160852-1406700719272104188', name: 'play-21', category: 'discord' },
+            { id: 'i-1418751419091124374-gc-808935495543160852-1413559836976873672', name: 'play-22', category: 'discord' },
+            { id: 'i-1426656896491978895-gc-808935495543160852-1414650590323277904', name: 'play-23', category: 'discord' },
+            { id: 'i-1424941680062369792-gc-808935495543160852-1414650614415102163', name: 'play-24', category: 'discord' },
+            { id: 'i-1426340142351781950-gc-808935495543160852-1414650635642732564', name: 'play-25', category: 'discord' },
+            { id: 'i-1426361682346901595-gc-808935495543160852-1415547820177625139', name: 'play-26', category: 'discord' },
+            { id: 'i-1426942108480180385-gc-808935495543160852-1415547932303687690', name: 'play-27', category: 'discord' },
+            { id: 'i-1425073932637048884-gc-808935495543160852-1415547947315236864', name: 'play-28', category: 'discord' },
+            { id: 'i-1426290019294908498-gc-808935495543160852-1415550373145350183', name: 'play-29', category: 'discord' },
+            { id: 'i-1425336873709998170-gc-808935495543160852-1420055125409661008', name: 'play-30', category: 'discord' },
+            { id: 'i-1426645924557361315-gc-808935495543160852-1415737760005755021', name: 'play-31', category: 'discord' },
+            { id: 'i-1426363145806418082-gc-808935495543160852-1415737783116628101', name: 'play-32', category: 'discord' },
+            { id: 'i-1424670769790586900-gc-808935495543160852-1415737800992751696', name: 'play-33', category: 'discord' },
+            { id: 'i-1426648937850474538-gc-808935495543160852-1415737817056940203', name: 'play-34', category: 'discord' },
+            { id: 'i-1426634638595592222-gc-808935495543160852-1415737832332329112', name: 'play-35', category: 'discord' },
+            { id: 'i-1426636340619116576-gc-808935495543160852-1415737848279335024', name: 'play-36', category: 'discord' },
+            { id: 'i-1426633119934582926-gc-808935495543160852-1415737865761194066', name: 'play-37', category: 'discord' },
+            { id: 'i-1426691900710322276-gc-808935495543160852-1415737879208001689', name: 'play-38', category: 'discord' },
+            { id: 'i-1426659673783930890-gc-808935495543160852-1415737894144053428', name: 'play-39', category: 'discord' },
+            { id: 'i-1421247473728622632-gc-808935495543160852-1415737913324605450', name: 'play-40', category: 'discord' },
+            { id: 'i-1426432879709392917-gc-808935495543160852-1426432790832087211', name: 'play-41', category: 'discord' },
+            { id: 'i-1426433582888648848-gc-808935495543160852-1426433415455965305', name: 'play-42', category: 'discord' },
+            { id: 'i-1426434402606387240-gc-808935495543160852-1426434222825930814', name: 'play-43', category: 'discord' },
+            { id: 'i-1426434430360227840-gc-808935495543160852-1426434241947893902', name: 'play-44', category: 'discord' },
+            { id: 'i-1426434453651193888-gc-808935495543160852-1426434265268097025', name: 'play-45', category: 'discord' },
+            { id: 'i-1426434474119397456-gc-808935495543160852-1426434292162101278', name: 'play-46', category: 'discord' },
+            { id: 'i-1426434494306455603-gc-808935495543160852-1426434306888171530', name: 'play-47', category: 'discord' },
+            { id: 'i-1426434520390832228-gc-808935495543160852-1426434330770804898', name: 'play-48', category: 'discord' },
+            { id: 'i-1426434545942659085-gc-808935495543160852-1426434349049577553', name: 'play-49', category: 'discord' },
+            { id: 'i-1426434571775381634-gc-808935495543160852-1426434382196904006', name: 'play-50', category: 'discord' },
+
+            // Magic Circle Country/Regional Rooms
+            { id: 'i-1426792268613816442-gc-808935495543160852-1413592763617775657', name: 'play-🇧🇩', category: 'discord' },
+            { id: 'i-1426912200731131945-gc-808935495543160852-1413628673810239550', name: 'play-🇧🇷', category: 'discord' },
+            { id: 'i-1426725151986286703-gc-808935495543160852-1413627931644661800', name: 'play-🇨🇦', category: 'discord' },
+            { id: 'i-1426827100626751498-gc-808935495543160852-1413586163511328839', name: 'play-🇩🇪', category: 'discord' },
+            { id: 'i-1426830750170484746-gc-808935495543160852-1413586384098427002', name: 'play-🇪🇸', category: 'discord' },
+            { id: 'i-1426946558137597963-gc-808935495543160852-1413589376025235508', name: 'play-🇫🇮', category: 'discord' },
+            { id: 'i-1426458931898617916-gc-808935495543160852-1413592562136252417', name: 'play-🇫🇷', category: 'discord' },
+            { id: 'i-1426814239305240627-gc-808935495543160852-1413586233791086745', name: 'play-🇬🇧', category: 'discord' },
+            { id: 'i-1426946909162967225-gc-808935495543160852-1414314377615642904', name: 'play-🇮🇩', category: 'discord' },
+            { id: 'i-1426491363075031082-gc-808935495543160852-1413618707871301712', name: 'play-🇮🇹', category: 'discord' },
+            { id: 'i-1424645601508851743-gc-808935495543160852-1413590129213309089', name: 'play-🇯🇵', category: 'discord' },
+            { id: 'i-1419121202450141266-gc-808935495543160852-1415708269762187294', name: 'play-🇰🇷', category: 'discord' },
+            { id: 'i-1426943939231092838-gc-808935495543160852-1413590246691569794', name: 'play-🇲🇳', category: 'discord' },
+            { id: 'i-1426972888908566672-gc-808935495543160852-1413622408766689373', name: 'play-🇲🇽', category: 'discord' },
+            { id: 'i-1424661883863953488-gc-808935495543160852-1413628856426635264', name: 'play-🇳🇱', category: 'discord' },
+            { id: 'i-1426816652437721092-gc-808935495543160852-1413628948064219236', name: 'play-🇵🇭', category: 'discord' },
+            { id: 'i-1426957485669175436-gc-808935495543160852-1413630205695512607', name: 'play-🇵🇱', category: 'discord' },
+            { id: 'i-1426901797056778311-gc-808935495543160852-1413630342379880468', name: 'play-🇵🇹', category: 'discord' },
+            { id: 'i-1426887346990665869-gc-808935495543160852-1413630567003844619', name: 'play-🇷🇴', category: 'discord' },
+            { id: 'i-1426939853031968799-gc-808935495543160852-1413630623656435742', name: 'play-🇷🇺', category: 'discord' },
+            { id: 'i-1421302686969557062-gc-808935495543160852-1413630845351010336', name: 'play-🇸🇪', category: 'discord' },
+            { id: 'i-1426974695889502248-gc-808935495543160852-1413593072447705118', name: 'play-🇹🇭', category: 'discord' },
+            { id: 'i-1426925686738731140-gc-808935495543160852-1413630992336257034', name: 'play-🇹🇷', category: 'discord' },
+            { id: 'i-1426975329226395671-gc-808935495543160852-1413631114369695744', name: 'play-🇺🇦', category: 'discord' },
+            { id: 'i-1426868636468084817-gc-808935495543160852-1413586285082361857', name: 'play-🇺🇸', category: 'discord' },
+            { id: 'i-1426956652857069662-gc-808935495543160852-1413631297003737108', name: 'play-🇻🇳', category: 'discord' },
+
+            // Magic Circle Special Rooms
+            { id: 'i-1424646014697267220-gc-808935495543160852-1417643699050270741', name: 'play-québec', category: 'discord' },
+            { id: 'i-1424646193404747847-gc-808935495543160852-1389442193931571271', name: 'play', category: 'discord' }
+        ],
+
+          // Magic Circle public rooms (v3.7.4: Renamed to short codes, added MG11-15)
+          magicCircle: [
+              { id: 'MG1', name: 'MG1', category: 'public' },
+              { id: 'MG2', name: 'MG2', category: 'public' },
+              { id: 'MG3', name: 'MG3', category: 'public' },
+              { id: 'MG4', name: 'MG4', category: 'public' },
+              { id: 'MG5', name: 'MG5', category: 'public' },
+              { id: 'MG6', name: 'MG6', category: 'public' },
+              { id: 'MG7', name: 'MG7', category: 'public' },
+              { id: 'MG8', name: 'MG8', category: 'public' },
+              { id: 'MG9', name: 'MG9', category: 'public' },
+              { id: 'MG10', name: 'MG10', category: 'public' },
+              { id: 'MG11', name: 'MG11', category: 'public' },
+              { id: 'MG12', name: 'MG12', category: 'public' },
+              { id: 'MG13', name: 'MG13', category: 'public' },
+              { id: 'MG14', name: 'MG14', category: 'public' },
+              { id: 'MG15', name: 'MG15', category: 'public' },
+              { id: 'SLAY', name: 'SLAY', category: 'special' }
+          ],
+
+          // Get all rooms (discord + MG + custom)
+          getAllRooms() {
+              const custom = (UnifiedState.data.customRooms || [])
+                  .filter(code => !this.discord.some(r => r.id === code) && !this.magicCircle.some(r => r.id === code))
+                  .map(code => ({ id: code, name: code, category: 'custom' }));
+              return [...this.discord, ...this.magicCircle, ...custom];
+          },
+
+          // Get combined MG + custom rooms
+          getMGAndCustomRooms() {
+              const custom = (UnifiedState.data.customRooms || [])
+                  .filter(code => !this.discord.some(r => r.id === code) && !this.magicCircle.some(r => r.id === code))
+                  .map(code => ({ id: code, name: code, category: 'custom' }));
+              return [...this.magicCircle, ...custom];
+          }
+      };
   
       // Detect if running in Discord environment
       function isDiscordEnvironment() {
@@ -2313,12 +2772,12 @@ async function initializeFirebase() {
                 const fetchInfo = async (room) => {
                     try{
                         // Use getGameApiBaseUrl from global scope with fallback
-                        const globalScope = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
+                        const globalScope = window;
                         const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
                         const apiBase = getApiBase();
                         const url = new URL(apiBase + '/info');
                         url.searchParams.set('room', room);
-                        const res = await fetch(url.toString(), {credentials:'include'});
+                        const res = await Network.fetch(url.toString(), {credentials:'include'});
                         if (!res.ok) throw new Error('HTTP '+res.status);
                         const j = await res.json().catch(()=>({}));
                         const online = (j?.players?.online ?? j?.players?.count ?? j?.online ?? j?.count ?? 0) || 0;
@@ -2504,49 +2963,37 @@ async function initializeFirebase() {
   
       // Update room status display
       function updateRoomStatusDisplay() {
-          const roomList = document.getElementById('room-status-list');
-          if (!roomList) return;
-  
-          const currentRoom = getCurrentRoomCode();
-          const roomCounts = UnifiedState.data.roomStatus.counts;
-  
-          roomList.innerHTML = UnifiedState.data.customRooms.map(roomCode => {
-              const count = roomCounts[roomCode] || 0;
-              const displayCount = Math.min(count, 6);
-              const isCurrentRoom = roomCode === currentRoom;
-  
-              let statusColor = '#94a3b8';
-              if (count > 0) statusColor = '#4ade80';
-              if (count >= 4) statusColor = '#fbbf24';
-              if (count >= 6) statusColor = '#ef4444';
-  
-              const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
-              const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
-  
-              return `
-                  <div class="room-item room-status-item" draggable="true" data-room="${roomCode}" data-room-code="${roomCode}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s; cursor: grab !important; user-select: none;">
-                      <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: grab !important;">
-                          <span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>
-                          <span class="room-code" style="font-weight: bold; color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'}; font-size: 14px; min-width: 45px; cursor: grab !important;">${roomCode}</span>
-                          <span style="font-weight: bold; color: ${statusColor}; font-size: 13px; min-width: 50px; cursor: grab !important;">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
-                      </div>
-                      <div style="display: flex; gap: 8px; align-items: center;">
-                          <button class="mga-button room-join-btn" data-room="${roomCode}" style="padding: 6px 14px; font-size: 12px; background: ${isCurrentRoom ? '#666' : '#4a9eff'}; color: white; border: none; border-radius: 4px; cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important; opacity: ${isCurrentRoom ? '0.5' : '1'};" ${isCurrentRoom ? 'disabled' : ''}>
-                              ${isCurrentRoom ? 'Current' : 'Join'}
-                          </button>
-                          <button class="room-delete-btn" data-room="${roomCode}" style="padding: 6px 10px; font-size: 14px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer !important; opacity: 0.8; transition: opacity 0.2s;" title="Remove room from list">
-                              ❌
-                          </button>
-                      </div>
-                  </div>
-              `;
-          }).join('');
-  
-          // Re-attach event listeners
-          setupRoomJoinButtons();
-  
+          // BUGFIX v3.7.3: Rewritten to properly handle 2-tab UI (MG vs Discord)
+          // OLD: Only updated single #room-status-list (broken for 2-tab layout)
+          // NEW: Re-renders entire rooms tab content for both tabs
+
+          // BUGFIX v3.7.7: Only update if rooms tab is currently active
+          if (UnifiedState.activeTab !== 'rooms') {
+              productionLog('[Rooms] Rooms tab not active - skipping update');
+              return;
+          }
+
+          // Find the main tab content container
+          const container = document.getElementById('mga-tab-content');
+          if (!container) {
+              productionLog('[Rooms] Tab content container not found - skipping update');
+              return;
+          }
+
+          // Re-generate complete rooms tab HTML with current state
+          const freshHTML = getRoomStatusTabContent();
+
+          // Update the container
+          container.innerHTML = freshHTML;
+
+          // Re-attach ALL event handlers after DOM update
+          setupRoomJoinButtons();        // Handle ALL room interactions (join, delete, drag-drop, search, add)
+          setupRoomsTabButtons();        // Handle MG/Discord tab switching
+
           // Update popout window if it exists
           refreshSeparateWindowPopouts('rooms');
+
+          productionLog('[Rooms] Room status display updated successfully');
       }
   
       // Setup join button handlers
@@ -2824,6 +3271,23 @@ async function initializeFirebase() {
                   updateRoomStatusDisplay();
 
                   productionLog(`[Rooms] Reordered: moved ${draggedRoomCode} to position ${insertIndex + 1}`);
+              });
+          });
+      }
+
+      // Setup rooms tab switching buttons
+      function setupRoomsTabButtons() {
+          document.querySelectorAll('.rooms-tab-btn:not([data-handler-attached])').forEach(btn => {
+              btn.setAttribute('data-handler-attached', 'true');
+              btn.addEventListener('click', () => {
+                  const tabName = btn.getAttribute('data-tab');
+
+                  // Update state
+                  UnifiedState.data.activeRoomsTab = tabName;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                  // Refresh the rooms display to show the correct tab
+                  updateRoomStatusDisplay();
               });
           });
       }
@@ -3299,18 +3763,29 @@ async function initializeFirebase() {
   
           let best = null;
           let bestSrc = 'none';
-          if (gmScore >= mnScore && gmScore >= tgScore) { best = gmParsed; bestSrc = 'GM'; }
-          else if (mnScore >= gmScore && mnScore >= tgScore) { best = mainParsed; bestSrc = 'WIN'; }
-          else { best = targParsed; bestSrc = 'TGT'; }
+          // BUGFIX v3.7.2: Prioritize GM storage (source of truth) instead of using score-based selection
+          // Priority 1: GM storage (always prefer if it has data - it's where saves go)
+          if (gmParsed && gmScore > 0) {
+              best = gmParsed;
+              bestSrc = 'GM';
+          }
+          // Priority 2: window.localStorage
+          else if (mainParsed && mnScore > 0) {
+              best = mainParsed;
+              bestSrc = 'WIN';
+          }
+          // Priority 3: targetWindow.localStorage
+          else if (targParsed && tgScore > 0) {
+              best = targParsed;
+              bestSrc = 'TGT';
+          }
   
           // Debug breadcrumb for tough environments (non-fatal)
           try { productionLog(`📦 [STORAGE-CHOICE] ${key}: gm=${gmScore} win=${mnScore} tgt=${tgScore} chosen=${bestSrc}`); } catch (_){}
   
           if (best && (typeof best === 'object' || Array.isArray(best))) {
-              const stable = JSON.stringify(best);
-              try { if (gmAvailable) GM_setValue(key, stable); } catch (e) {}
-              writeLS(lsMain, key, stable);
-              writeLS(lsTarg, key, stable);
+              // BUGFIX v3.7.0: Do NOT write during load - only read and return
+              // Writing during load was overwriting newer data with older data from other storage locations
               return best;
           }
   
@@ -3383,9 +3858,10 @@ async function initializeFirebase() {
                   const tgScore = score(targParsed);
   
                   let best = null;
-                  if (gmScore >= mnScore && gmScore >= tgScore) best = gmParsed;
-                  else if (mnScore >= gmScore && mnScore >= tgScore) best = mainParsed;
-                  else best = targParsed;
+                  // BUGFIX v3.7.2: Prioritize GM storage (source of truth)
+                  if (gmParsed && gmScore > 0) best = gmParsed;
+                  else if (mainParsed && mnScore > 0) best = mainParsed;
+                  else if (targParsed && tgScore > 0) best = targParsed;
   
                   if (best && (typeof best === 'object' || Array.isArray(best))) {
                       const stable = JSON.stringify(best);
@@ -3464,7 +3940,19 @@ async function initializeFirebase() {
           // Save using GM_setValue for reliable persistence
           GM_setValue(key, jsonString);
           productionLog(`💾 [GM-STORAGE] GM_setValue executed for ${key}`);
-  
+
+          // BUGFIX v3.7.2: Also write to localStorage to keep in sync
+          // This prevents stale localStorage data from overriding newer GM data on load
+          try {
+              if (typeof localStorage !== 'undefined' && localStorage) {
+                  localStorage.setItem(key, jsonString);
+                  productionLog(`💾 [GM-STORAGE] Also synced to localStorage for consistency`);
+              }
+          } catch (lsErr) {
+              // Non-fatal - GM storage is source of truth
+              productionWarn(`⚠️ [GM-STORAGE] Could not sync to localStorage (non-fatal):`, lsErr.message);
+          }
+
           // Enhanced verification with deep check
           const verification = GM_getValue(key, null);
           if (!verification) {
@@ -3572,15 +4060,15 @@ async function initializeFirebase() {
 
       try {
           const jsonString = JSON.stringify(value);
-          localStorage.setItem(key, jsonString);
-  
+          StorageManager.setItem(key, jsonString);
+
           // Simple verification
-          const verification = localStorage.getItem(key);
+          const verification = StorageManager.getItem(key);
           if (verification === jsonString) {
-              productionLog(`💾 [FALLBACK] Successfully saved ${key} to localStorage`);
+              productionLog(`💾 [FALLBACK] Successfully saved ${key} to ${StorageManager.storageType}`);
               return true;
           } else {
-              console.error(`❌ [FALLBACK] localStorage save verification failed for ${key}`);
+              console.error(`❌ [FALLBACK] ${StorageManager.storageType} save verification failed for ${key}`);
               return false;
           }
       } catch (error) {
@@ -4311,12 +4799,11 @@ async function initializeFirebase() {
                       MGA_saveJSON(`MGA_${key}`, criticalData[key]);
                   }
               });
-  
-              // Clear large arrays
-              if (window.UnifiedState.data?.petAbilityLogs) {
-                  productionLog(`🧹 [MEMORY] Clearing ${window.UnifiedState.data.petAbilityLogs.length} pet ability logs from memory`);
-                  window.UnifiedState.data.petAbilityLogs = [];
-              }
+
+              // BUGFIX v3.7.7: Don't clear ability logs during cleanup - they're persisted to storage
+              // The logs are automatically saved via debounced save system when new logs are added
+              // Clearing them here causes loss of logs on page refresh
+              // (Removed: window.UnifiedState.data.petAbilityLogs = [])
           }
   
           productionLog('✅ [MEMORY] MGA cleanup completed successfully');
@@ -4869,7 +5356,7 @@ async function initializeFirebase() {
       }
   
       function hookAtom(atomPath, windowKey, callback, retryCount = 0) {
-          const maxRetries = 20; // Max 10 seconds of retries
+          const maxRetries = 60; // Max 30 seconds (was 20/10s)
           const hookKey = `${atomPath}_${windowKey}`;
   
           // Prevent duplicate hooks - only check if retryCount is 0 (first attempt)
@@ -4877,19 +5364,58 @@ async function initializeFirebase() {
               productionLog(`[HOOK] Already hooked: ${windowKey} - skipping duplicate`);
               return;
           }
-  
-          // CRITICAL FIX: jotaiAtomCache is now an object with a .cache property
-          const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
+
+          // DIAGNOSTIC: Check multiple possible locations for jotaiAtomCache
+          if (retryCount === 0) {
+              console.log(`🔍 [ATOM-DIAG] Initial check for ${windowKey}:`);
+              console.log('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
+              console.log('  - isUserscript:', isUserscript, '(using unsafeWindow:', isUserscript ? 'YES' : 'NO)');
+              const jotaiKeys = Object.keys(targetWindow).filter(k => k.toLowerCase().includes('jotai'));
+              console.log('  - Keys with "jotai" on targetWindow:', jotaiKeys);
+          }
+
+          // Try multiple contexts for jotaiAtomCache (cascading fallback)
+          let atomCache = null;
+
+          // Priority 1: Check targetWindow (should be window in page context)
+          if (targetWindow.jotaiAtomCache) {
+              atomCache = targetWindow.jotaiAtomCache.cache || targetWindow.jotaiAtomCache;
+          }
+          // Priority 2: Check window directly
+          if (!atomCache && window.jotaiAtomCache) {
+              atomCache = window.jotaiAtomCache.cache || window.jotaiAtomCache;
+          }
+          // Priority 3: Check window.top (in case we're in iframe)
+          if (!atomCache && window.top && window.top.jotaiAtomCache) {
+              atomCache = window.top.jotaiAtomCache.cache || window.top.jotaiAtomCache;
+          }
           if (!atomCache || !atomCache.get) {
               if (retryCount >= maxRetries) {
-                  productionWarn(`⚠️ [ATOM-HOOK] Gave up waiting for jotaiAtomCache for ${windowKey} after ${maxRetries} retries`);
+                  console.error(`❌ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries (${maxRetries/2}s)`);
+                  console.error(`❌ [ATOM-HOOK] Final check - targetWindow.jotaiAtomCache:`, targetWindow.jotaiAtomCache);
+                  console.error(`❌ [ATOM-HOOK] Using unsafeWindow:`, isUserscript);
+                  console.error(`❌ [ATOM-HOOK] Script will continue with reduced functionality`);
+                  productionWarn(`⚠️ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries`);
                   productionWarn(`⚠️ [ATOM-HOOK] Script will continue with reduced functionality`);
                   return;
               }
-              productionLog(`⏳ Waiting for jotaiAtomCache for ${windowKey}... (${retryCount + 1}/${maxRetries})`);
-              setTimeout(() => hookAtom(atomPath, windowKey, callback, retryCount + 1), 500);
+              // Exponential backoff: 50ms → 100ms → 200ms → 500ms (cap at 500ms)
+              const delay = Math.min(50 * Math.pow(2, Math.min(retryCount, 3)), 500);
+
+              // Log every 5th retry to avoid console spam
+              if (retryCount % 5 === 0) {
+                  console.log(`⏳ [ATOM-HOOK] Waiting for atom store for ${windowKey}... (${retryCount + 1}/${maxRetries}, delay: ${delay}ms)`);
+              }
+
+              setTimeout(() => hookAtom(atomPath, windowKey, callback, retryCount + 1), delay);
               return;
           }
+
+          // Success - atomCache found!
+          if (retryCount > 0) {
+              console.log(`✅ [ATOM-HOOK] Found atom cache for ${windowKey} after ${retryCount} retries`);
+          }
+
           productionLog(`🔗 Attempting to hook atom: ${windowKey} at path: ${atomPath}`);
   
           try {
@@ -7027,6 +7553,7 @@ async function initializeFirebase() {
                           break;
                       case 'rooms':
                           setupRoomJoinButtons();
+                          setupRoomsTabButtons();
                           break;
                       case 'hotkeys':
                           setupHotkeysTabHandlers(popoutWindow.document);
@@ -7134,6 +7661,7 @@ async function initializeFirebase() {
                       break;
                   case 'rooms':
                       setupRoomJoinButtons();
+                      setupRoomsTabButtons();
                       break;
                   case 'hotkeys':
                       setupHotkeysTabHandlers(overlay);
@@ -8712,6 +9240,7 @@ async function initializeFirebase() {
                           break;
                       case 'rooms':
                           setupRoomJoinButtons();
+                          setupRoomsTabButtons();
                           break;
                       case 'hotkeys':
                           setupHotkeysTabHandlers(popoutWindow.document);
@@ -8920,7 +9449,9 @@ async function initializeFirebase() {
                   break;
               case 'rooms':
                   contentEl.innerHTML = getRoomStatusTabContent();
+                  contentEl.setAttribute('data-tab', 'rooms'); // BUGFIX v3.7.5: Enable rooms tab to be found by updateRoomStatusDisplay()
                   setupRoomJoinButtons();
+                  setupRoomsTabButtons();
                   break;
               case 'tools':
                   contentEl.innerHTML = getCachedTabContent('tools', getToolsTabContent);
@@ -11048,129 +11579,195 @@ async function initializeFirebase() {
       function getRoomStatusTabContent() {
           const currentRoom = getCurrentRoomCode();
           const roomCounts = UnifiedState.data.roomStatus?.counts || {};
+          const activeRoomsTab = UnifiedState.data.activeRoomsTab || 'mg'; // BUGFIX v3.7.3: Default to MG rooms (more useful for browser users)
+
+          // Helper function to render room card
+          const renderRoomCard = (room, allowDelete = false, allowDrag = false) => {
+              const count = roomCounts[room.id] || 0;
+              const displayCount = Math.min(count, 6);
+              const isCurrentRoom = room.id === currentRoom;
+
+              // Color based on player count
+              let statusColor = '#94a3b8'; // Gray for empty
+              if (count > 0) statusColor = '#4ade80'; // Green for active
+              if (count >= 4) statusColor = '#fbbf24'; // Yellow for busy
+              if (count >= 6) statusColor = '#ef4444'; // Red for full
+
+              const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
+              const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
+
+              return `
+                  <div class="room-item" ${allowDrag ? 'draggable="true"' : ''} data-room="${room.id}" style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      padding: 12px;
+                      background: ${bgColor};
+                      border: 1px solid ${borderColor};
+                      border-radius: 6px;
+                      transition: all 0.2s;
+                      cursor: ${allowDrag ? 'grab' : 'default'} !important;
+                      user-select: none;
+                  ">
+                      <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: ${allowDrag ? 'grab' : 'default'} !important;">
+                          ${allowDrag ? '<span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>' : ''}
+                          <span style="
+                              font-weight: bold;
+                              color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'};
+                              font-size: 14px;
+                              min-width: ${allowDrag ? '45px' : '70px'};
+                              cursor: ${allowDrag ? 'grab' : 'default'} !important;
+                          ">${room.name || room.id}</span>
+                          <span style="
+                              font-weight: bold;
+                              color: ${statusColor};
+                              font-size: 13px;
+                              min-width: 50px;
+                              cursor: ${allowDrag ? 'grab' : 'default'} !important;
+                          ">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
+                      </div>
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                          <button class="mga-button room-join-btn" data-room="${room.id}" style="
+                              padding: 6px 14px;
+                              font-size: 12px;
+                              background: ${isCurrentRoom ? '#666' : '#4a9eff'};
+                              color: white;
+                              border: none;
+                              border-radius: 4px;
+                              cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important;
+                              opacity: ${isCurrentRoom ? '0.5' : '1'};
+                          " ${isCurrentRoom ? 'disabled' : ''}>
+                              ${isCurrentRoom ? 'Current' : 'Join'}
+                          </button>
+                          ${allowDelete ? `
+                          <button class="room-delete-btn" data-room="${room.id}" style="
+                              padding: 6px 10px;
+                              font-size: 14px;
+                              background: #ef4444;
+                              color: white;
+                              border: none;
+                              border-radius: 4px;
+                              cursor: pointer !important;
+                              opacity: 0.8;
+                              transition: opacity 0.2s;
+                          " title="Remove room from list">
+                              ❌
+                          </button>` : ''}
+                      </div>
+                  </div>
+              `;
+          };
+
+          // Get MG & Custom rooms
+          const mgAndCustomRooms = RoomRegistry.getMGAndCustomRooms();
 
           return `
               <div class="mga-section">
                   <div class="mga-section-title">🎮 Live Room Status</div>
                   <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                      Real-time player counts for all Magic Garden rooms. Shows how many players are currently in each room. Click "Join" to navigate to that room instantly.
+                      Real-time player counts for Magic Garden rooms. Add custom rooms to track, or browse official MG1-10 servers.
                   </p>
-  
+
+                  <!-- Tab Selector (BUGFIX v3.7.3: MG tab first, Discord second) -->
+                  <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid rgba(255,255,255,0.1);">
+                      <button class="rooms-tab-btn" data-tab="mg" style="
+                          flex: 1;
+                          padding: 10px;
+                          background: ${activeRoomsTab === 'mg' ? 'rgba(34, 197, 94, 0.3)' : 'transparent'};
+                          border: none;
+                          border-bottom: 2px solid ${activeRoomsTab === 'mg' ? '#22c55e' : 'transparent'};
+                          color: ${activeRoomsTab === 'mg' ? '#fff' : '#aaa'};
+                          font-size: 13px;
+                          font-weight: bold;
+                          cursor: pointer;
+                          transition: all 0.2s;
+                          border-radius: 4px 4px 0 0;
+                      ">
+                          🌟 MG & Custom
+                      </button>
+                      <button class="rooms-tab-btn" data-tab="discord" style="
+                          flex: 1;
+                          padding: 10px;
+                          background: ${activeRoomsTab === 'discord' ? 'rgba(138, 43, 226, 0.3)' : 'transparent'};
+                          border: none;
+                          border-bottom: 2px solid ${activeRoomsTab === 'discord' ? '#8a2be2' : 'transparent'};
+                          color: ${activeRoomsTab === 'discord' ? '#fff' : '#aaa'};
+                          font-size: 13px;
+                          font-weight: bold;
+                          cursor: pointer;
+                          transition: all 0.2s;
+                          border-radius: 4px 4px 0 0;
+                      ">
+                          🎮 Discord Servers
+                      </button>
+                  </div>
+
+                  <!-- Search Bar -->
                   <div style="margin-bottom: 12px;">
-                      <input type="text" id="room-search-input" placeholder="Search room (e.g., SLAY)..."
+                      <input type="text" id="room-search-input" placeholder="Search room..."
                           style="width: 100%; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
                           border-radius: 4px; color: white; font-size: 12px;">
                   </div>
-  
-                  <div id="room-status-list" style="display: flex; flex-direction: column; gap: 8px;">
-                      ${UnifiedState.data.customRooms.map(roomCode => {
-                          const count = roomCounts[roomCode] || 0;
-                          const displayCount = Math.min(count, 6);
-                          const isCurrentRoom = roomCode === currentRoom;
-  
-                          // Color based on player count
-                          let statusColor = '#94a3b8'; // Gray for empty
-                          if (count > 0) statusColor = '#4ade80'; // Green for active
-                          if (count >= 4) statusColor = '#fbbf24'; // Yellow for busy
-                          if (count >= 6) statusColor = '#ef4444'; // Red for full
-  
-                          const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
-                          const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
-  
-                          return `
-                              <div class="room-item" draggable="true" data-room="${roomCode}" style="
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: space-between;
-                                  padding: 12px;
-                                  background: ${bgColor};
-                                  border: 1px solid ${borderColor};
-                                  border-radius: 6px;
-                                  transition: all 0.2s;
-                                  cursor: grab !important;
-                                  user-select: none;
-                              ">
-                                  <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: grab !important;">
-                                      <span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>
-                                      <span style="
-                                          font-weight: bold;
-                                          color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'};
-                                          font-size: 14px;
-                                          min-width: 45px;
-                                          cursor: grab !important;
-                                      ">${roomCode}</span>
-                                      <span style="
-                                          font-weight: bold;
-                                          color: ${statusColor};
-                                          font-size: 13px;
-                                          min-width: 50px;
-                                          cursor: grab !important;
-                                      ">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
-                                  </div>
-                                  <div style="display: flex; gap: 8px; align-items: center;">
-                                      <button class="mga-button room-join-btn" data-room="${roomCode}" style="
-                                          padding: 6px 14px;
-                                          font-size: 12px;
-                                          background: ${isCurrentRoom ? '#666' : '#4a9eff'};
-                                          color: white;
-                                          border: none;
-                                          border-radius: 4px;
-                                          cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important;
-                                          opacity: ${isCurrentRoom ? '0.5' : '1'};
-                                      " ${isCurrentRoom ? 'disabled' : ''}>
-                                          ${isCurrentRoom ? 'Current' : 'Join'}
-                                      </button>
-                                      <button class="room-delete-btn" data-room="${roomCode}" style="
-                                          padding: 6px 10px;
-                                          font-size: 14px;
-                                          background: #ef4444;
-                                          color: white;
-                                          border: none;
-                                          border-radius: 4px;
-                                          cursor: pointer !important;
-                                          opacity: 0.8;
-                                          transition: opacity 0.2s;
-                                      " title="Remove room from list">
-                                          ❌
-                                      </button>
-                                  </div>
-                              </div>
-                          `;
-                      }).join('')}
-                  </div>
-  
-                  <div style="margin-top: 16px; padding: 12px; background: rgba(59, 130, 246, 0.30); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
-                      <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
-                          <strong style="color: #60a5fa;">How it works:</strong><br>
-                          • Player counts update automatically every 5 seconds<br>
-                          • Shows actual players in each room (not just script users)<br>
-                          • 🟢 Green (1-3) = Active  •  🟡 Yellow (4-5) = Busy  •  🔴 Red (6+) = Full<br>
-                          • Your current room is highlighted in blue<br>
-                          • Click "Join" to navigate to any room instantly
-                      </div>
-                  </div>
-              </div>
 
-              <!-- Add Room Section -->
-              <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 6px;">
-                  <div style="font-weight: bold; color: #60a5fa; margin-bottom: 8px; font-size: 13px;">➕ Add Custom Room</div>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                      <input type="text" id="add-room-input" placeholder="Room code (e.g., MG11)"
-                          style="flex: 1; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
-                          border-radius: 4px; color: white; font-size: 12px; text-transform: uppercase;">
-                      <button id="add-room-btn" class="mga-button" style="
-                          padding: 8px 16px;
-                          font-size: 12px;
-                          background: #4ade80;
-                          color: white;
-                          border: none;
-                          border-radius: 4px;
-                          cursor: pointer;
-                          font-weight: bold;
-                      ">Add</button>
-                  </div>
-                  <div style="font-size: 10px; color: #888; margin-top: 6px;">
-                      Tip: Drag rooms to reorder, click ❌ to remove
+                  <!-- BUGFIX v3.7.4: Single container approach - swaps content instead of toggling display on two divs -->
+                  <!-- This fixes the side-by-side display bug where both tabs were showing simultaneously -->
+                  <div id="rooms-tab-content">
+                      ${activeRoomsTab === 'mg' ? `
+                          <!-- MG & Custom Tab Content -->
+                          <div id="room-status-list-mg" style="display: flex; flex-direction: column; gap: 8px;">
+                              ${mgAndCustomRooms.map(room => renderRoomCard(room, room.category === 'custom', room.category === 'custom')).join('')}
+                          </div>
+
+                          <!-- Add Custom Room Section -->
+                          <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 6px;">
+                              <div style="font-weight: bold; color: #60a5fa; margin-bottom: 8px; font-size: 13px;">➕ Add Custom Room</div>
+                              <div style="display: flex; gap: 8px; align-items: center;">
+                                  <input type="text" id="add-room-input" placeholder="Room code (e.g., MG16)"
+                                      style="flex: 1; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
+                                      border-radius: 4px; color: white; font-size: 12px; text-transform: uppercase;">
+                                  <button id="add-room-btn" class="mga-button" style="
+                                      padding: 8px 16px;
+                                      font-size: 12px;
+                                      background: #4ade80;
+                                      color: white;
+                                      border: none;
+                                      border-radius: 4px;
+                                      cursor: pointer;
+                                      font-weight: bold;
+                                  ">Add</button>
+                              </div>
+                              <div style="font-size: 10px; color: #888; margin-top: 6px;">
+                                  Tip: Drag custom rooms to reorder, click ❌ to remove
+                              </div>
+                          </div>
+
+                          <div style="margin-top: 16px; padding: 12px; background: rgba(34, 197, 94, 0.2); border-radius: 6px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                              <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                                  <strong style="color: #4ade80;">Magic Garden Rooms</strong><br>
+                                  • MG1-15 are public Magic Garden servers<br>
+                                  • Add your own custom rooms to track<br>
+                                  • Player counts update automatically every 5 seconds
+                              </div>
+                          </div>
+                      ` : `
+                          <!-- Discord Servers Tab Content -->
+                          <div id="room-status-list-discord" style="display: flex; flex-direction: column; gap: 8px;">
+                              ${RoomRegistry.discord.length > 0
+                                  ? RoomRegistry.discord.map(room => renderRoomCard(room, false, false)).join('')
+                                  : '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 13px;">No Discord rooms available</div>'
+                              }
+                          </div>
+                          <div style="margin-top: 16px; padding: 12px; background: rgba(138, 43, 226, 0.2); border-radius: 6px; border: 1px solid rgba(138, 43, 226, 0.3);">
+                              <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                                  <strong style="color: #a78bfa;">💡 Discord Activity Rooms (87 Total)</strong><br>
+                                  • Garlic Bread: play1-play10 (no hyphen) - 10 rooms<br>
+                                  • Magic Circle: play-2 to play-50 (with hyphen) - 49 rooms<br>
+                                  • Magic Circle: Country rooms (play-🇨🇦, play-🇬🇧, etc.) - 26 rooms<br>
+                                  • Special: play-québec, play - 2 rooms<br>
+                                  • <strong>Player counts via /api/rooms/{id}/info</strong> (same as community scripts)
+                              </div>
+                          </div>
+                      `}
                   </div>
               </div>
           `;
@@ -21632,7 +22229,7 @@ async function initializeFirebase() {
       // ==================== INITIALIZATION ====================
       function initializeAtoms() {
           productionLog('🔗 [SIMPLE-ATOMS] Starting simple atom initialization...');
-  
+
           // Start simple pet detection using room state
           productionLog('🐾 [SIMPLE-ATOMS] Setting up room state pet detection...');
           updateActivePetsFromRoomState(); // Get initial pets immediately
@@ -22768,8 +23365,7 @@ function initializeTurtleTimer() {
         console.log('=== MANUAL CROP DETECTION DEBUG ===');
 
         // Check atom cache
-        const atomCache = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).jotaiAtomCache?.cache ||
-                          (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).jotaiAtomCache;
+        const atomCache = window.jotaiAtomCache?.cache || window.jotaiAtomCache;
         console.log('atomCache exists:', !!atomCache);
 
         if (atomCache && atomCache.get) {
@@ -22795,7 +23391,7 @@ function initializeTurtleTimer() {
                     console.log('Atom.init:', atom.init);
 
                     // Try to find store and read it
-                    const tw = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                    const tw = window;
                     if (tw.__foundJotaiStore) {
                         console.log('Found store, trying to read...');
                         try {
@@ -22825,13 +23421,10 @@ function initializeTurtleTimer() {
     // Attach to multiple contexts
     try {
         window.debugCropDetection = debugCropDetectionFunc;
-        if (typeof unsafeWindow !== 'undefined' && unsafeWindow !== window) {
-            unsafeWindow.debugCropDetection = debugCropDetectionFunc;
-        }
         targetWindow.debugCropDetection = debugCropDetectionFunc;
 
         console.log('💡 TIP: Run window.debugCropDetection() in console to debug crop detection');
-        console.log('💡 Available in:', typeof unsafeWindow !== 'undefined' ? 'window, unsafeWindow, targetWindow' : 'window, targetWindow');
+        console.log('💡 Available in: window, targetWindow');
     } catch (e) {
         console.log('⚠️ Could not attach debugCropDetection:', e);
     }
@@ -24194,8 +24787,21 @@ function initializeTurtleTimer() {
           };
   
           document.addEventListener('keydown', (e) => {
-              // Skip if typing in input/textarea
+              // BUGFIX v3.7.5: Ignore controller-generated keyboard events to prevent conflicts
+              if (!e.isTrusted) return;
+              // Skip if typing in input/textarea or contenteditable
               if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+                  return;
+              }
+              // Skip if typing in contenteditable element (chat, etc.)
+              if (e.target.isContentEditable || e.target.getAttribute?.('contenteditable') === 'true') {
+                  return;
+              }
+              // Skip if active element is an input (chat focus)
+              if (document.activeElement && 
+                  (document.activeElement.tagName === 'INPUT' || 
+                   document.activeElement.tagName === 'TEXTAREA' ||
+                   document.activeElement.isContentEditable)) {
                   return;
               }
   
@@ -26185,6 +26791,7 @@ function initializeTurtleTimer() {
             c.innerHTML = html;
             if (typeof setupRoomJoinButtons === 'function') {
               setupRoomJoinButtons();
+              setupRoomsTabButtons();
             }
             updated = true;
           }
@@ -26199,8 +26806,8 @@ function initializeTurtleTimer() {
     // ---------- Rooms via /api/rooms/{code}/info with Fallbacks ----------
     (function roomsInfo(){
       // Get correct API base URL (handles Discord browser context)
-      // Access the function from global scope (unsafeWindow or window)
-      const globalScope = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
+      // Access the function from global scope (window)
+      const globalScope = window;
       const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
       const apiBase = getApiBase();
       const API_V1 = (name)=> `${apiBase}/api/rooms/${encodeURIComponent(name)}/info`;
