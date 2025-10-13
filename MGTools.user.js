@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.6.8
+// @version      3.7.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -14,15 +14,17 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_addElement
+// @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
 // @connect      *
-// @inject-into  page
-// @run-at       document-start
+// @run-at       document-end
 // ==/UserScript==
 
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.7.8 - Cycle Presets + Inventory Protection! Pet preset cycling hotkey with Crop Eater skip, shop inventory warnings');
+console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
 console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : 'IFRAME');
@@ -157,7 +159,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.6.8';  // Current version
+      const CURRENT_VERSION = '3.7.8';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -572,15 +574,312 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       AssetManager.loadFonts();
 
       // ==================== SELECTIVE CONTEXT ISOLATION ====================
-      // With @inject-into page, we run directly in page context - window is already the page window
-      let targetWindow = window;
-      let targetDocument = window.document;
+      // Detect userscript environment and use unsafeWindow for page access (like v3.5.7)
+      const isUserscript = typeof unsafeWindow !== 'undefined';
+      const targetWindow = isUserscript ? unsafeWindow : window;
+      const targetDocument = targetWindow.document;
 
       // Track which atoms have been hooked to prevent duplicates
       const hookedAtoms = new Set();
 
       // Set context identifier for debugging (use window not targetWindow to avoid modifying page)
-      window.MGA_CONTEXT = isUserscript ? 'userscript' : 'console';
+      window.MGA_CONTEXT = 'userscript';
+
+      // ==================== JOTAI ATOM CACHE WATCHER ====================
+      // MutationObserver fallback to detect when jotaiAtomCache becomes available
+      let atomCacheWatcherCallbacks = [];
+
+      function watchForAtomCache(callback) {
+          // If already available, call immediately
+          if (targetWindow.jotaiAtomCache) {
+              callback();
+              return;
+          }
+
+          // Otherwise, register callback
+          atomCacheWatcherCallbacks.push(callback);
+
+          // Set up observer only once
+          if (atomCacheWatcherCallbacks.length === 1) {
+              const observer = new MutationObserver(() => {
+                  if (targetWindow.jotaiAtomCache) {
+                      console.log('✅ [ATOM-WATCH] jotaiAtomCache detected via MutationObserver');
+                      observer.disconnect();
+                      const callbacks = atomCacheWatcherCallbacks;
+                      atomCacheWatcherCallbacks = [];
+                      callbacks.forEach(cb => cb());
+                  }
+              });
+
+              // Watch for property additions to targetWindow
+              observer.observe(document.documentElement, {
+                  childList: true,
+                  subtree: true
+              });
+
+              // Also poll as backup (very infrequent)
+              const pollInterval = setInterval(() => {
+                  if (targetWindow.jotaiAtomCache) {
+                      clearInterval(pollInterval);
+                      observer.disconnect();
+                      console.log('✅ [ATOM-WATCH] jotaiAtomCache detected via polling');
+                      const callbacks = atomCacheWatcherCallbacks;
+                      atomCacheWatcherCallbacks = [];
+                      callbacks.forEach(cb => cb());
+                  }
+              }, 1000); // Check every 1 second as safety net
+
+              // Cleanup after 30 seconds
+              setTimeout(() => {
+                  clearInterval(pollInterval);
+                  observer.disconnect();
+              }, 30000);
+          }
+      }
+
+      // ==================== ADVANCED STORE CAPTURE SYSTEM ====================
+      // Robust Jotai atom store capture for cross-environment compatibility
+      const StoreCapture = {
+          store: null,
+          captureMethod: null,
+
+          // Method 1: Direct cache access (fastest when available)
+          tryDirectCache() {
+              // Check targetWindow first (unsafeWindow = page context), then fallback to window
+              const cache = targetWindow.jotaiAtomCache?.cache ||
+                            targetWindow.jotaiAtomCache ||
+                            window.jotaiAtomCache?.cache ||
+                            window.jotaiAtomCache;
+
+              if (cache && (cache.get || (typeof cache.size === 'number' && cache.size > 0))) {
+                  this.store = cache;
+                  this.captureMethod = 'direct';
+                  return true;
+              }
+              return false;
+          },
+
+          // Method 2: React DevTools Fiber Traversal (for iframes)
+          tryFiberTraversal() {
+              const hook = targetWindow.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+              if (!hook?.renderers?.size) return false;
+
+              for (const [rendererID] of hook.renderers) {
+                  const roots = hook.getFiberRoots?.(rendererID);
+                  if (!roots) continue;
+
+                  for (const root of roots) {
+                      const store = this.traverseFiber(root.current);
+                      if (store) {
+                          this.store = store;
+                          this.captureMethod = 'fiber';
+                          return true;
+                      }
+                  }
+              }
+              return false;
+          },
+
+          // Traverse React Fiber tree to find Jotai store provider
+          traverseFiber(fiber) {
+              const visited = new Set();
+              const queue = [fiber];
+
+              while (queue.length > 0) {
+                  const node = queue.shift();
+                  if (!node || visited.has(node)) continue;
+                  visited.add(node);
+
+                  // Check if this fiber node contains the Jotai store
+                  const storeValue = node?.pendingProps?.value;
+                  if (storeValue && typeof storeValue.get === 'function' &&
+                      typeof storeValue.set === 'function' &&
+                      typeof storeValue.sub === 'function') {
+                      return storeValue;
+                  }
+
+                  // Continue traversing child, sibling, and alternate fibers
+                  if (node.child) queue.push(node.child);
+                  if (node.sibling) queue.push(node.sibling);
+                  if (node.alternate) queue.push(node.alternate);
+              }
+              return null;
+          },
+
+          // Method 3: Write-intercept fallback (patches atom write functions)
+          async tryWriteIntercept(timeoutMs = 5000) {
+              const cache = targetWindow.jotaiAtomCache?.cache;
+              if (!cache) return false;
+
+              let capturedStore = null;
+              const patchedAtoms = [];
+
+              // Temporarily patch atom write functions to intercept store access
+              for (const atom of cache.values()) {
+                  if (!atom || typeof atom.write !== 'function') continue;
+
+                  const originalWrite = atom.write;
+                  atom.__mgtools_originalWrite = originalWrite;
+
+                  atom.write = function(get, set, ...args) {
+                      if (!capturedStore) {
+                          capturedStore = { get, set, sub: () => () => {} };
+                          // Restore all patched atoms immediately
+                          for (const a of patchedAtoms) {
+                              if (a.__mgtools_originalWrite) {
+                                  a.write = a.__mgtools_originalWrite;
+                                  delete a.__mgtools_originalWrite;
+                              }
+                          }
+                      }
+                      return originalWrite.call(this, get, set, ...args);
+                  };
+
+                  patchedAtoms.push(atom);
+              }
+
+              // Wait for capture or timeout
+              const startTime = Date.now();
+              while (!capturedStore && Date.now() - startTime < timeoutMs) {
+                  await new Promise(resolve => setTimeout(resolve, 50));
+              }
+
+              if (capturedStore) {
+                  this.store = capturedStore;
+                  this.captureMethod = 'intercept';
+                  return true;
+              }
+
+              // Cleanup if failed
+              for (const atom of patchedAtoms) {
+                  if (atom.__mgtools_originalWrite) {
+                      atom.write = atom.__mgtools_originalWrite;
+                      delete atom.__mgtools_originalWrite;
+                  }
+              }
+              return false;
+          },
+
+          // Main capture routine - tries all methods with retry logic
+          async capture(maxRetries = 20, retryDelay = 500) {
+              console.log('🔍 [STORE] Attempting to capture Jotai store...');
+
+              for (let attempt = 0; attempt < maxRetries; attempt++) {
+                  // Try direct cache access first (fastest)
+                  if (this.tryDirectCache()) {
+                      console.log(`✅ [STORE] Captured via direct cache (attempt ${attempt + 1}/${maxRetries})`);
+                      return true;
+                  }
+
+                  // Try Fiber traversal (works in iframes)
+                  if (this.tryFiberTraversal()) {
+                      console.log(`✅ [STORE] Captured via Fiber traversal (attempt ${attempt + 1}/${maxRetries})`);
+                      return true;
+                  }
+
+                  // Try write intercept as last resort (only on last few attempts)
+                  if (attempt >= maxRetries - 3) {
+                      if (await this.tryWriteIntercept(1000)) {
+                          console.log(`✅ [STORE] Captured via write intercept (attempt ${attempt + 1}/${maxRetries})`);
+                          return true;
+                      }
+                  }
+
+                  // Wait before next attempt (but not after last attempt)
+                  if (attempt < maxRetries - 1) {
+                      console.log(`⏳ [STORE] Waiting for Jotai store... (${attempt + 1}/${maxRetries})`);
+                      await new Promise(resolve => setTimeout(resolve, retryDelay));
+                  }
+              }
+
+              console.warn('⚠️ [STORE] Failed to capture store after max retries - atoms will not be available');
+              return false;
+          },
+
+          // Get the captured store (with fallback to direct cache check)
+          getStore() {
+              if (this.store) return this.store;
+              // Try direct access as fallback
+              if (this.tryDirectCache()) return this.store;
+              return null;
+          }
+      };
+
+      // ==================== STORAGE ABSTRACTION LAYER ====================
+      // Cross-environment storage with automatic fallback
+      const StorageManager = {
+          storageType: null,
+          _memoryStore: {},
+
+          detectStorage() {
+              // Try localStorage first
+              try {
+                  const testKey = '__mgtools_storage_test__';
+                  localStorage.setItem(testKey, '1');
+                  localStorage.removeItem(testKey);
+                  this.storageType = 'localStorage';
+                  console.log('✅ [STORAGE] Using localStorage');
+                  return true;
+              } catch (e) {}
+
+              // Fallback to sessionStorage
+              try {
+                  const testKey = '__mgtools_storage_test__';
+                  sessionStorage.setItem(testKey, '1');
+                  sessionStorage.removeItem(testKey);
+                  this.storageType = 'sessionStorage';
+                  console.warn('⚠️ [STORAGE] Fallback to sessionStorage (data will not persist across sessions)');
+                  return true;
+              } catch (e) {}
+
+              // Final fallback to memory storage
+              this.storageType = 'memory';
+              this._memoryStore = {};
+              console.warn('⚠️ [STORAGE] Fallback to memory storage (data will not persist)');
+              return true;
+          },
+
+          getItem(key) {
+              if (this.storageType === 'localStorage') return localStorage.getItem(key);
+              if (this.storageType === 'sessionStorage') return sessionStorage.getItem(key);
+              return this._memoryStore[key] || null;
+          },
+
+          setItem(key, value) {
+              try {
+                  if (this.storageType === 'localStorage') {
+                      localStorage.setItem(key, value);
+                  } else if (this.storageType === 'sessionStorage') {
+                      sessionStorage.setItem(key, value);
+                  } else {
+                      this._memoryStore[key] = value;
+                  }
+                  return true;
+              } catch (e) {
+                  console.error('[STORAGE] setItem failed:', e);
+                  return false;
+              }
+          },
+
+          removeItem(key) {
+              try {
+                  if (this.storageType === 'localStorage') {
+                      localStorage.removeItem(key);
+                  } else if (this.storageType === 'sessionStorage') {
+                      sessionStorage.removeItem(key);
+                  } else {
+                      delete this._memoryStore[key];
+                  }
+                  return true;
+              } catch (e) {
+                  console.error('[STORAGE] removeItem failed:', e);
+                  return false;
+              }
+          }
+      };
+
+      // Initialize storage immediately
+      StorageManager.detectStorage();
 
       // ==================== API BASE URL HELPER (MUST BE EARLY) ====================
       // This function MUST be defined early because roomsInfo() IIFE needs it immediately
@@ -884,7 +1183,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   issue,
                   details,
                   context: {
-                      isUserscript,
                       targetWindow: targetWindow === window ? 'same' : 'different',
                       targetDocument: targetDocument === document ? 'same' : 'different',
                       gmApiAvailable: isGMApiAvailable()
@@ -921,7 +1219,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           logStage('DEBUG_SYSTEM_INITIALIZED', {
               userAgent: navigator.userAgent,
               url: window.location.href,
-              contextDetection: { isUserscript, targetWindow: targetWindow.constructor.name }
+              contextDetection: { targetWindow: targetWindow.constructor.name }
           });
   
           return window.MGA_DEBUG;
@@ -1036,7 +1334,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Discord Fix: Use shorter delay for Discord, check for canvas existence
-      const initDelay = isDiscordEnv ? 500 : (isUserscript ? 3000 : 100);
+      const initDelay = isDiscordEnv ? 500 : 3000;
 
       // Helper function to check if game canvas is ready
       function isGameCanvasReady() {
@@ -2063,6 +2361,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           data: {
               petPresets: {},
               petPresetsOrder: [],  // Array to maintain preset display order
+              currentPresetIndex: -1,  // Track position for cycling through presets
               petAbilityLogs: [],
               seedsToDelete: [],
               autoDeleteEnabled: false,
@@ -2162,7 +2461,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                       openValues: { name: 'Open Values Tab', custom: null },
                       openTimers: { name: 'Open Timers Tab', custom: null },
                       openRooms: { name: 'Open Rooms Tab', custom: null },
-                      openShop: { name: 'Open Shop Tab', custom: null }
+                      openShop: { name: 'Open Shop Tab', custom: null },
+                      cyclePresets: { name: 'Cycle Pet Presets', custom: null }
                   }
               },
               petPresetHotkeys: {},
@@ -2244,8 +2544,148 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       };
   
       const REPORT_INTERVAL = 5000; // Report room count every 5 seconds
-      const DEFAULT_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'SLAY']; // Default tracked rooms
-      const DISCORD_PLAY_ROOMS = ['play#1', 'play#2', 'play#3', 'play#4', 'play#5', 'play#6', 'play#7', 'play#8', 'play#9', 'play#10']; // Discord activity rooms
+      const DEFAULT_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'MG11', 'MG12', 'MG13', 'MG14', 'MG15', 'SLAY']; // Default tracked rooms
+      // REMOVED v3.7.3: Discord activity rooms removed - they use numeric IDs and can't be joined from external browser
+      // Discord users see play#1-40 natively in Discord's activity sidebar
+      // Browser users should use MG1-10 rooms instead
+      const DISCORD_PLAY_ROOMS = []; // Legacy constant kept for compatibility
+      
+      // ==================== ROOM REGISTRY ====================
+      // Centralized room data with categories for the 2-tab interface
+      const RoomRegistry = {
+          discord: [
+            // Garlic Bread's Server (play1-play10 - NO HYPHEN)
+            { id: 'i-1425232387037462538-gc-1399110335469977781-1411124424676999308', name: 'play1', category: 'discord' },
+            { id: 'i-1426213334721757305-gc-1399110335469977781-1411801827674030191', name: 'play2', category: 'discord' },
+            { id: 'i-1426696111514456277-gc-1399110335469977781-1411801899489034471', name: 'play3', category: 'discord' },
+            { id: 'i-1425131188074319992-gc-1399110335469977781-1411801931373875240', name: 'play4', category: 'discord' },
+            { id: 'i-1426523715059056691-gc-1399110335469977781-1411801958616141864', name: 'play5', category: 'discord' },
+            { id: 'i-1426962425999130785-gc-1399110335469977781-1411801990345916496', name: 'play6', category: 'discord' },
+            { id: 'i-1426782888900296754-gc-1399110335469977781-1411802027255660644', name: 'play7', category: 'discord' },
+            { id: 'i-1426963026216751124-gc-1399110335469977781-1411802063876128980', name: 'play8', category: 'discord' },
+            { id: 'i-1426736748104515747-gc-1399110335469977781-1411802098533666837', name: 'play9', category: 'discord' },
+            { id: 'i-1426972080355807252-gc-1399110335469977781-1411802136911548467', name: 'play10', category: 'discord' },
+
+            // Magic Circle Numbered Rooms (play-2 through play-50 - WITH HYPHEN)
+            { id: 'i-1416705483108257912-gc-808935495543160852-1389438720427425894', name: 'play-2', category: 'discord' },
+            { id: 'i-1414738624276205699-gc-808935495543160852-1389979453957996705', name: 'play-3', category: 'discord' },
+            { id: 'i-1426270545699405844-gc-808935495543160852-1389979475336233000', name: 'play-4', category: 'discord' },
+            { id: 'i-1424918072380231760-gc-808935495543160852-1391350549944733768', name: 'play-5', category: 'discord' },
+            { id: 'i-1424940435679477782-gc-808935495543160852-1391629723687452802', name: 'play-6', category: 'discord' },
+            { id: 'i-1414738652449345536-gc-808935495543160852-1392897701087019028', name: 'play-7', category: 'discord' },
+            { id: 'i-1426340656351150221-gc-808935495543160852-1417928182505672877', name: 'play-8', category: 'discord' },
+            { id: 'i-1426648328271167558-gc-808935495543160852-1392928961679331541', name: 'play-9', category: 'discord' },
+            { id: 'i-1424650709747499109-gc-808935495543160852-1394338319411970198', name: 'play-10', category: 'discord' },
+            { id: 'i-1421249275131859125-gc-808935495543160852-1394338344753959032', name: 'play-11', category: 'discord' },
+            { id: 'i-1417583142918950943-gc-808935495543160852-1394338361631703181', name: 'play-12', category: 'discord' },
+            { id: 'i-1426272039320158390-gc-808935495543160852-1394714064575271032', name: 'play-13', category: 'discord' },
+            { id: 'i-1421215237289545901-gc-808935495543160852-1394714079448399962', name: 'play-14', category: 'discord' },
+            { id: 'i-1426260441730125874-gc-808935495543160852-1394714101065974021', name: 'play-15', category: 'discord' },
+            { id: 'i-1425314797603520553-gc-808935495543160852-1394714159857270936', name: 'play-16', category: 'discord' },
+            { id: 'i-1422642064910319697-gc-808935495543160852-1395445292664488088', name: 'play-17', category: 'discord' },
+            { id: 'i-1425331756999118868-gc-808935495543160852-1395445357495718081', name: 'play-18', category: 'discord' },
+            { id: 'i-1426661481679945920-gc-808935495543160852-1421303964225372294', name: 'play-19', category: 'discord' },
+            { id: 'i-1425346474035646574-gc-808935495543160852-1395445408737788064', name: 'play-20', category: 'discord' },
+            { id: 'i-1426272183986163772-gc-808935495543160852-1406700719272104188', name: 'play-21', category: 'discord' },
+            { id: 'i-1418751419091124374-gc-808935495543160852-1413559836976873672', name: 'play-22', category: 'discord' },
+            { id: 'i-1426656896491978895-gc-808935495543160852-1414650590323277904', name: 'play-23', category: 'discord' },
+            { id: 'i-1424941680062369792-gc-808935495543160852-1414650614415102163', name: 'play-24', category: 'discord' },
+            { id: 'i-1426340142351781950-gc-808935495543160852-1414650635642732564', name: 'play-25', category: 'discord' },
+            { id: 'i-1426361682346901595-gc-808935495543160852-1415547820177625139', name: 'play-26', category: 'discord' },
+            { id: 'i-1426942108480180385-gc-808935495543160852-1415547932303687690', name: 'play-27', category: 'discord' },
+            { id: 'i-1425073932637048884-gc-808935495543160852-1415547947315236864', name: 'play-28', category: 'discord' },
+            { id: 'i-1426290019294908498-gc-808935495543160852-1415550373145350183', name: 'play-29', category: 'discord' },
+            { id: 'i-1425336873709998170-gc-808935495543160852-1420055125409661008', name: 'play-30', category: 'discord' },
+            { id: 'i-1426645924557361315-gc-808935495543160852-1415737760005755021', name: 'play-31', category: 'discord' },
+            { id: 'i-1426363145806418082-gc-808935495543160852-1415737783116628101', name: 'play-32', category: 'discord' },
+            { id: 'i-1424670769790586900-gc-808935495543160852-1415737800992751696', name: 'play-33', category: 'discord' },
+            { id: 'i-1426648937850474538-gc-808935495543160852-1415737817056940203', name: 'play-34', category: 'discord' },
+            { id: 'i-1426634638595592222-gc-808935495543160852-1415737832332329112', name: 'play-35', category: 'discord' },
+            { id: 'i-1426636340619116576-gc-808935495543160852-1415737848279335024', name: 'play-36', category: 'discord' },
+            { id: 'i-1426633119934582926-gc-808935495543160852-1415737865761194066', name: 'play-37', category: 'discord' },
+            { id: 'i-1426691900710322276-gc-808935495543160852-1415737879208001689', name: 'play-38', category: 'discord' },
+            { id: 'i-1426659673783930890-gc-808935495543160852-1415737894144053428', name: 'play-39', category: 'discord' },
+            { id: 'i-1421247473728622632-gc-808935495543160852-1415737913324605450', name: 'play-40', category: 'discord' },
+            { id: 'i-1426432879709392917-gc-808935495543160852-1426432790832087211', name: 'play-41', category: 'discord' },
+            { id: 'i-1426433582888648848-gc-808935495543160852-1426433415455965305', name: 'play-42', category: 'discord' },
+            { id: 'i-1426434402606387240-gc-808935495543160852-1426434222825930814', name: 'play-43', category: 'discord' },
+            { id: 'i-1426434430360227840-gc-808935495543160852-1426434241947893902', name: 'play-44', category: 'discord' },
+            { id: 'i-1426434453651193888-gc-808935495543160852-1426434265268097025', name: 'play-45', category: 'discord' },
+            { id: 'i-1426434474119397456-gc-808935495543160852-1426434292162101278', name: 'play-46', category: 'discord' },
+            { id: 'i-1426434494306455603-gc-808935495543160852-1426434306888171530', name: 'play-47', category: 'discord' },
+            { id: 'i-1426434520390832228-gc-808935495543160852-1426434330770804898', name: 'play-48', category: 'discord' },
+            { id: 'i-1426434545942659085-gc-808935495543160852-1426434349049577553', name: 'play-49', category: 'discord' },
+            { id: 'i-1426434571775381634-gc-808935495543160852-1426434382196904006', name: 'play-50', category: 'discord' },
+
+            // Magic Circle Country/Regional Rooms
+            { id: 'i-1426792268613816442-gc-808935495543160852-1413592763617775657', name: 'play-🇧🇩', category: 'discord' },
+            { id: 'i-1426912200731131945-gc-808935495543160852-1413628673810239550', name: 'play-🇧🇷', category: 'discord' },
+            { id: 'i-1426725151986286703-gc-808935495543160852-1413627931644661800', name: 'play-🇨🇦', category: 'discord' },
+            { id: 'i-1426827100626751498-gc-808935495543160852-1413586163511328839', name: 'play-🇩🇪', category: 'discord' },
+            { id: 'i-1426830750170484746-gc-808935495543160852-1413586384098427002', name: 'play-🇪🇸', category: 'discord' },
+            { id: 'i-1426946558137597963-gc-808935495543160852-1413589376025235508', name: 'play-🇫🇮', category: 'discord' },
+            { id: 'i-1426458931898617916-gc-808935495543160852-1413592562136252417', name: 'play-🇫🇷', category: 'discord' },
+            { id: 'i-1426814239305240627-gc-808935495543160852-1413586233791086745', name: 'play-🇬🇧', category: 'discord' },
+            { id: 'i-1426946909162967225-gc-808935495543160852-1414314377615642904', name: 'play-🇮🇩', category: 'discord' },
+            { id: 'i-1426491363075031082-gc-808935495543160852-1413618707871301712', name: 'play-🇮🇹', category: 'discord' },
+            { id: 'i-1424645601508851743-gc-808935495543160852-1413590129213309089', name: 'play-🇯🇵', category: 'discord' },
+            { id: 'i-1419121202450141266-gc-808935495543160852-1415708269762187294', name: 'play-🇰🇷', category: 'discord' },
+            { id: 'i-1426943939231092838-gc-808935495543160852-1413590246691569794', name: 'play-🇲🇳', category: 'discord' },
+            { id: 'i-1426972888908566672-gc-808935495543160852-1413622408766689373', name: 'play-🇲🇽', category: 'discord' },
+            { id: 'i-1424661883863953488-gc-808935495543160852-1413628856426635264', name: 'play-🇳🇱', category: 'discord' },
+            { id: 'i-1426816652437721092-gc-808935495543160852-1413628948064219236', name: 'play-🇵🇭', category: 'discord' },
+            { id: 'i-1426957485669175436-gc-808935495543160852-1413630205695512607', name: 'play-🇵🇱', category: 'discord' },
+            { id: 'i-1426901797056778311-gc-808935495543160852-1413630342379880468', name: 'play-🇵🇹', category: 'discord' },
+            { id: 'i-1426887346990665869-gc-808935495543160852-1413630567003844619', name: 'play-🇷🇴', category: 'discord' },
+            { id: 'i-1426939853031968799-gc-808935495543160852-1413630623656435742', name: 'play-🇷🇺', category: 'discord' },
+            { id: 'i-1421302686969557062-gc-808935495543160852-1413630845351010336', name: 'play-🇸🇪', category: 'discord' },
+            { id: 'i-1426974695889502248-gc-808935495543160852-1413593072447705118', name: 'play-🇹🇭', category: 'discord' },
+            { id: 'i-1426925686738731140-gc-808935495543160852-1413630992336257034', name: 'play-🇹🇷', category: 'discord' },
+            { id: 'i-1426975329226395671-gc-808935495543160852-1413631114369695744', name: 'play-🇺🇦', category: 'discord' },
+            { id: 'i-1426868636468084817-gc-808935495543160852-1413586285082361857', name: 'play-🇺🇸', category: 'discord' },
+            { id: 'i-1426956652857069662-gc-808935495543160852-1413631297003737108', name: 'play-🇻🇳', category: 'discord' },
+
+            // Magic Circle Special Rooms
+            { id: 'i-1424646014697267220-gc-808935495543160852-1417643699050270741', name: 'play-québec', category: 'discord' },
+            { id: 'i-1424646193404747847-gc-808935495543160852-1389442193931571271', name: 'play', category: 'discord' }
+        ],
+
+          // Magic Circle public rooms (v3.7.4: Renamed to short codes, added MG11-15)
+          magicCircle: [
+              { id: 'MG1', name: 'MG1', category: 'public' },
+              { id: 'MG2', name: 'MG2', category: 'public' },
+              { id: 'MG3', name: 'MG3', category: 'public' },
+              { id: 'MG4', name: 'MG4', category: 'public' },
+              { id: 'MG5', name: 'MG5', category: 'public' },
+              { id: 'MG6', name: 'MG6', category: 'public' },
+              { id: 'MG7', name: 'MG7', category: 'public' },
+              { id: 'MG8', name: 'MG8', category: 'public' },
+              { id: 'MG9', name: 'MG9', category: 'public' },
+              { id: 'MG10', name: 'MG10', category: 'public' },
+              { id: 'MG11', name: 'MG11', category: 'public' },
+              { id: 'MG12', name: 'MG12', category: 'public' },
+              { id: 'MG13', name: 'MG13', category: 'public' },
+              { id: 'MG14', name: 'MG14', category: 'public' },
+              { id: 'MG15', name: 'MG15', category: 'public' },
+              { id: 'SLAY', name: 'SLAY', category: 'special' }
+          ],
+
+          // Get all rooms (discord + MG + custom)
+          getAllRooms() {
+              const custom = (UnifiedState.data.customRooms || [])
+                  .filter(code => !this.discord.some(r => r.id === code) && !this.magicCircle.some(r => r.id === code))
+                  .map(code => ({ id: code, name: code, category: 'custom' }));
+              return [...this.discord, ...this.magicCircle, ...custom];
+          },
+
+          // Get combined MG + custom rooms
+          getMGAndCustomRooms() {
+              const custom = (UnifiedState.data.customRooms || [])
+                  .filter(code => !this.discord.some(r => r.id === code) && !this.magicCircle.some(r => r.id === code))
+                  .map(code => ({ id: code, name: code, category: 'custom' }));
+              return [...this.magicCircle, ...custom];
+          }
+      };
   
       // Detect if running in Discord environment
       function isDiscordEnvironment() {
@@ -2525,49 +2965,37 @@ async function initializeFirebase() {
   
       // Update room status display
       function updateRoomStatusDisplay() {
-          const roomList = document.getElementById('room-status-list');
-          if (!roomList) return;
-  
-          const currentRoom = getCurrentRoomCode();
-          const roomCounts = UnifiedState.data.roomStatus.counts;
-  
-          roomList.innerHTML = UnifiedState.data.customRooms.map(roomCode => {
-              const count = roomCounts[roomCode] || 0;
-              const displayCount = Math.min(count, 6);
-              const isCurrentRoom = roomCode === currentRoom;
-  
-              let statusColor = '#94a3b8';
-              if (count > 0) statusColor = '#4ade80';
-              if (count >= 4) statusColor = '#fbbf24';
-              if (count >= 6) statusColor = '#ef4444';
-  
-              const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
-              const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
-  
-              return `
-                  <div class="room-item room-status-item" draggable="true" data-room="${roomCode}" data-room-code="${roomCode}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 6px; transition: all 0.2s; cursor: grab !important; user-select: none;">
-                      <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: grab !important;">
-                          <span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>
-                          <span class="room-code" style="font-weight: bold; color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'}; font-size: 14px; min-width: 45px; cursor: grab !important;">${roomCode}</span>
-                          <span style="font-weight: bold; color: ${statusColor}; font-size: 13px; min-width: 50px; cursor: grab !important;">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
-                      </div>
-                      <div style="display: flex; gap: 8px; align-items: center;">
-                          <button class="mga-button room-join-btn" data-room="${roomCode}" style="padding: 6px 14px; font-size: 12px; background: ${isCurrentRoom ? '#666' : '#4a9eff'}; color: white; border: none; border-radius: 4px; cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important; opacity: ${isCurrentRoom ? '0.5' : '1'};" ${isCurrentRoom ? 'disabled' : ''}>
-                              ${isCurrentRoom ? 'Current' : 'Join'}
-                          </button>
-                          <button class="room-delete-btn" data-room="${roomCode}" style="padding: 6px 10px; font-size: 14px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer !important; opacity: 0.8; transition: opacity 0.2s;" title="Remove room from list">
-                              ❌
-                          </button>
-                      </div>
-                  </div>
-              `;
-          }).join('');
-  
-          // Re-attach event listeners
-          setupRoomJoinButtons();
-  
+          // BUGFIX v3.7.3: Rewritten to properly handle 2-tab UI (MG vs Discord)
+          // OLD: Only updated single #room-status-list (broken for 2-tab layout)
+          // NEW: Re-renders entire rooms tab content for both tabs
+
+          // BUGFIX v3.7.7: Only update if rooms tab is currently active
+          if (UnifiedState.activeTab !== 'rooms') {
+              productionLog('[Rooms] Rooms tab not active - skipping update');
+              return;
+          }
+
+          // Find the main tab content container
+          const container = document.getElementById('mga-tab-content');
+          if (!container) {
+              productionLog('[Rooms] Tab content container not found - skipping update');
+              return;
+          }
+
+          // Re-generate complete rooms tab HTML with current state
+          const freshHTML = getRoomStatusTabContent();
+
+          // Update the container
+          container.innerHTML = freshHTML;
+
+          // Re-attach ALL event handlers after DOM update
+          setupRoomJoinButtons();        // Handle ALL room interactions (join, delete, drag-drop, search, add)
+          setupRoomsTabButtons();        // Handle MG/Discord tab switching
+
           // Update popout window if it exists
           refreshSeparateWindowPopouts('rooms');
+
+          productionLog('[Rooms] Room status display updated successfully');
       }
   
       // Setup join button handlers
@@ -2845,6 +3273,23 @@ async function initializeFirebase() {
                   updateRoomStatusDisplay();
 
                   productionLog(`[Rooms] Reordered: moved ${draggedRoomCode} to position ${insertIndex + 1}`);
+              });
+          });
+      }
+
+      // Setup rooms tab switching buttons
+      function setupRoomsTabButtons() {
+          document.querySelectorAll('.rooms-tab-btn:not([data-handler-attached])').forEach(btn => {
+              btn.setAttribute('data-handler-attached', 'true');
+              btn.addEventListener('click', () => {
+                  const tabName = btn.getAttribute('data-tab');
+
+                  // Update state
+                  UnifiedState.data.activeRoomsTab = tabName;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+
+                  // Refresh the rooms display to show the correct tab
+                  updateRoomStatusDisplay();
               });
           });
       }
@@ -3320,18 +3765,29 @@ async function initializeFirebase() {
   
           let best = null;
           let bestSrc = 'none';
-          if (gmScore >= mnScore && gmScore >= tgScore) { best = gmParsed; bestSrc = 'GM'; }
-          else if (mnScore >= gmScore && mnScore >= tgScore) { best = mainParsed; bestSrc = 'WIN'; }
-          else { best = targParsed; bestSrc = 'TGT'; }
+          // BUGFIX v3.7.2: Prioritize GM storage (source of truth) instead of using score-based selection
+          // Priority 1: GM storage (always prefer if it has data - it's where saves go)
+          if (gmParsed && gmScore > 0) {
+              best = gmParsed;
+              bestSrc = 'GM';
+          }
+          // Priority 2: window.localStorage
+          else if (mainParsed && mnScore > 0) {
+              best = mainParsed;
+              bestSrc = 'WIN';
+          }
+          // Priority 3: targetWindow.localStorage
+          else if (targParsed && tgScore > 0) {
+              best = targParsed;
+              bestSrc = 'TGT';
+          }
   
           // Debug breadcrumb for tough environments (non-fatal)
           try { productionLog(`📦 [STORAGE-CHOICE] ${key}: gm=${gmScore} win=${mnScore} tgt=${tgScore} chosen=${bestSrc}`); } catch (_){}
   
           if (best && (typeof best === 'object' || Array.isArray(best))) {
-              const stable = JSON.stringify(best);
-              try { if (gmAvailable) GM_setValue(key, stable); } catch (e) {}
-              writeLS(lsMain, key, stable);
-              writeLS(lsTarg, key, stable);
+              // BUGFIX v3.7.0: Do NOT write during load - only read and return
+              // Writing during load was overwriting newer data with older data from other storage locations
               return best;
           }
   
@@ -3404,9 +3860,10 @@ async function initializeFirebase() {
                   const tgScore = score(targParsed);
   
                   let best = null;
-                  if (gmScore >= mnScore && gmScore >= tgScore) best = gmParsed;
-                  else if (mnScore >= gmScore && mnScore >= tgScore) best = mainParsed;
-                  else best = targParsed;
+                  // BUGFIX v3.7.2: Prioritize GM storage (source of truth)
+                  if (gmParsed && gmScore > 0) best = gmParsed;
+                  else if (mainParsed && mnScore > 0) best = mainParsed;
+                  else if (targParsed && tgScore > 0) best = targParsed;
   
                   if (best && (typeof best === 'object' || Array.isArray(best))) {
                       const stable = JSON.stringify(best);
@@ -3485,7 +3942,19 @@ async function initializeFirebase() {
           // Save using GM_setValue for reliable persistence
           GM_setValue(key, jsonString);
           productionLog(`💾 [GM-STORAGE] GM_setValue executed for ${key}`);
-  
+
+          // BUGFIX v3.7.2: Also write to localStorage to keep in sync
+          // This prevents stale localStorage data from overriding newer GM data on load
+          try {
+              if (typeof localStorage !== 'undefined' && localStorage) {
+                  localStorage.setItem(key, jsonString);
+                  productionLog(`💾 [GM-STORAGE] Also synced to localStorage for consistency`);
+              }
+          } catch (lsErr) {
+              // Non-fatal - GM storage is source of truth
+              productionWarn(`⚠️ [GM-STORAGE] Could not sync to localStorage (non-fatal):`, lsErr.message);
+          }
+
           // Enhanced verification with deep check
           const verification = GM_getValue(key, null);
           if (!verification) {
@@ -3593,15 +4062,15 @@ async function initializeFirebase() {
 
       try {
           const jsonString = JSON.stringify(value);
-          localStorage.setItem(key, jsonString);
-  
+          StorageManager.setItem(key, jsonString);
+
           // Simple verification
-          const verification = localStorage.getItem(key);
+          const verification = StorageManager.getItem(key);
           if (verification === jsonString) {
-              productionLog(`💾 [FALLBACK] Successfully saved ${key} to localStorage`);
+              productionLog(`💾 [FALLBACK] Successfully saved ${key} to ${StorageManager.storageType}`);
               return true;
           } else {
-              console.error(`❌ [FALLBACK] localStorage save verification failed for ${key}`);
+              console.error(`❌ [FALLBACK] ${StorageManager.storageType} save verification failed for ${key}`);
               return false;
           }
       } catch (error) {
@@ -4332,12 +4801,11 @@ async function initializeFirebase() {
                       MGA_saveJSON(`MGA_${key}`, criticalData[key]);
                   }
               });
-  
-              // Clear large arrays
-              if (window.UnifiedState.data?.petAbilityLogs) {
-                  productionLog(`🧹 [MEMORY] Clearing ${window.UnifiedState.data.petAbilityLogs.length} pet ability logs from memory`);
-                  window.UnifiedState.data.petAbilityLogs = [];
-              }
+
+              // BUGFIX v3.7.7: Don't clear ability logs during cleanup - they're persisted to storage
+              // The logs are automatically saved via debounced save system when new logs are added
+              // Clearing them here causes loss of logs on page refresh
+              // (Removed: window.UnifiedState.data.petAbilityLogs = [])
           }
   
           productionLog('✅ [MEMORY] MGA cleanup completed successfully');
@@ -4890,7 +5358,7 @@ async function initializeFirebase() {
       }
   
       function hookAtom(atomPath, windowKey, callback, retryCount = 0) {
-          const maxRetries = 20; // Max 10 seconds of retries
+          const maxRetries = 60; // Max 30 seconds (was 20/10s)
           const hookKey = `${atomPath}_${windowKey}`;
   
           // Prevent duplicate hooks - only check if retryCount is 0 (first attempt)
@@ -4898,19 +5366,58 @@ async function initializeFirebase() {
               productionLog(`[HOOK] Already hooked: ${windowKey} - skipping duplicate`);
               return;
           }
-  
-          // CRITICAL FIX: jotaiAtomCache is now an object with a .cache property
-          const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
+
+          // DIAGNOSTIC: Check multiple possible locations for jotaiAtomCache
+          if (retryCount === 0) {
+              console.log(`🔍 [ATOM-DIAG] Initial check for ${windowKey}:`);
+              console.log('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
+              console.log('  - isUserscript:', isUserscript, '(using unsafeWindow:', isUserscript ? 'YES' : 'NO)');
+              const jotaiKeys = Object.keys(targetWindow).filter(k => k.toLowerCase().includes('jotai'));
+              console.log('  - Keys with "jotai" on targetWindow:', jotaiKeys);
+          }
+
+          // Try multiple contexts for jotaiAtomCache (cascading fallback)
+          let atomCache = null;
+
+          // Priority 1: Check targetWindow (should be window in page context)
+          if (targetWindow.jotaiAtomCache) {
+              atomCache = targetWindow.jotaiAtomCache.cache || targetWindow.jotaiAtomCache;
+          }
+          // Priority 2: Check window directly
+          if (!atomCache && window.jotaiAtomCache) {
+              atomCache = window.jotaiAtomCache.cache || window.jotaiAtomCache;
+          }
+          // Priority 3: Check window.top (in case we're in iframe)
+          if (!atomCache && window.top && window.top.jotaiAtomCache) {
+              atomCache = window.top.jotaiAtomCache.cache || window.top.jotaiAtomCache;
+          }
           if (!atomCache || !atomCache.get) {
               if (retryCount >= maxRetries) {
-                  productionWarn(`⚠️ [ATOM-HOOK] Gave up waiting for jotaiAtomCache for ${windowKey} after ${maxRetries} retries`);
+                  console.error(`❌ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries (${maxRetries/2}s)`);
+                  console.error(`❌ [ATOM-HOOK] Final check - targetWindow.jotaiAtomCache:`, targetWindow.jotaiAtomCache);
+                  console.error(`❌ [ATOM-HOOK] Using unsafeWindow:`, isUserscript);
+                  console.error(`❌ [ATOM-HOOK] Script will continue with reduced functionality`);
+                  productionWarn(`⚠️ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries`);
                   productionWarn(`⚠️ [ATOM-HOOK] Script will continue with reduced functionality`);
                   return;
               }
-              productionLog(`⏳ Waiting for jotaiAtomCache for ${windowKey}... (${retryCount + 1}/${maxRetries})`);
-              setTimeout(() => hookAtom(atomPath, windowKey, callback, retryCount + 1), 500);
+              // Exponential backoff: 50ms → 100ms → 200ms → 500ms (cap at 500ms)
+              const delay = Math.min(50 * Math.pow(2, Math.min(retryCount, 3)), 500);
+
+              // Log every 5th retry to avoid console spam
+              if (retryCount % 5 === 0) {
+                  console.log(`⏳ [ATOM-HOOK] Waiting for atom store for ${windowKey}... (${retryCount + 1}/${maxRetries}, delay: ${delay}ms)`);
+              }
+
+              setTimeout(() => hookAtom(atomPath, windowKey, callback, retryCount + 1), delay);
               return;
           }
+
+          // Success - atomCache found!
+          if (retryCount > 0) {
+              console.log(`✅ [ATOM-HOOK] Found atom cache for ${windowKey} after ${retryCount} retries`);
+          }
+
           productionLog(`🔗 Attempting to hook atom: ${windowKey} at path: ${atomPath}`);
   
           try {
@@ -5690,8 +6197,11 @@ async function initializeFirebase() {
                   const url = urls[i];
                   const isGitHubAPI = url.includes('api.github.com');
                   const isJSON = url.includes('.json');
-  
-                  const response = await fetch(url, {
+
+                  // Add cache-busting timestamp to URL
+                  const cacheBustUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+
+                  const response = await fetch(cacheBustUrl, {
                       method: 'GET',
                       cache: 'no-cache',
                       headers: isGitHubAPI ? {
@@ -6753,10 +7263,18 @@ async function initializeFirebase() {
               if (config.custom && matchesHotkey(e, config.custom)) {
                   e.preventDefault();
                   e.stopPropagation();
+
+                  // Handle cycle presets action
+                  if (action === 'cyclePresets') {
+                      cycleToNextPreset();
+                      return;
+                  }
+
+                  // Handle tab opening actions
                   const tabName = tabMap[action];
                   if (tabName === 'shop') {
                       toggleShopWindows();
-                  } else {
+                  } else if (tabName) {
                       openSidebarTab(tabName);
                   }
                   return;
@@ -7048,6 +7566,7 @@ async function initializeFirebase() {
                           break;
                       case 'rooms':
                           setupRoomJoinButtons();
+                          setupRoomsTabButtons();
                           break;
                       case 'hotkeys':
                           setupHotkeysTabHandlers(popoutWindow.document);
@@ -7155,6 +7674,7 @@ async function initializeFirebase() {
                       break;
                   case 'rooms':
                       setupRoomJoinButtons();
+                      setupRoomsTabButtons();
                       break;
                   case 'hotkeys':
                       setupHotkeysTabHandlers(overlay);
@@ -8733,6 +9253,7 @@ async function initializeFirebase() {
                           break;
                       case 'rooms':
                           setupRoomJoinButtons();
+                          setupRoomsTabButtons();
                           break;
                       case 'hotkeys':
                           setupHotkeysTabHandlers(popoutWindow.document);
@@ -8941,7 +9462,9 @@ async function initializeFirebase() {
                   break;
               case 'rooms':
                   contentEl.innerHTML = getRoomStatusTabContent();
+                  contentEl.setAttribute('data-tab', 'rooms'); // BUGFIX v3.7.5: Enable rooms tab to be found by updateRoomStatusDisplay()
                   setupRoomJoinButtons();
+                  setupRoomsTabButtons();
                   break;
               case 'tools':
                   contentEl.innerHTML = getCachedTabContent('tools', getToolsTabContent);
@@ -9261,8 +9784,27 @@ async function initializeFirebase() {
               finalActivePets: activePets.length,
               activePetsData: activePets
           });
-  
+
+          // Get cycle presets hotkey status
+          const cycleHotkey = UnifiedState.data.hotkeys?.mgToolsKeys?.cyclePresets?.custom;
+          const totalPresets = Object.keys(petPresets).length;
+
           let html = `
+              ${totalPresets > 0 ? `
+                  <div class="mga-section" style="padding: 8px 12px; background: rgba(139, 92, 246, 0.15); border-left: 3px solid #8b5cf6; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                          <div style="flex: 1;">
+                              <div style="font-size: 11px; color: #a78bfa; font-weight: 600; margin-bottom: 2px;">🔄 CYCLE PRESETS</div>
+                              <div style="font-size: 10px; color: rgba(255,255,255,0.7);">
+                                  ${cycleHotkey ? `Hotkey: <span style="background: rgba(139, 92, 246, 0.4); padding: 1px 6px; border-radius: 3px; font-weight: 600;">${cycleHotkey.toUpperCase()}</span>` : 'No hotkey set'}
+                              </div>
+                          </div>
+                          <button class="mga-btn" id="set-cycle-hotkey-btn" style="padding: 4px 12px; font-size: 11px; white-space: nowrap; background: rgba(139, 92, 246, 0.4); border: 1px solid #8b5cf6;">
+                              ${cycleHotkey ? 'Change' : 'Set Key'}
+                          </button>
+                      </div>
+                  </div>
+              ` : ''}
               <div class="mga-section">
                   <div class="mga-section-title mga-pet-section-title">Active Pets</div>
                   <div class="mga-active-pets-display">
@@ -9847,7 +10389,20 @@ async function initializeFirebase() {
           const sidebar = targetDocument.createElement('div');
           sidebar.className = `mga-shop-sidebar mga-shop-sidebar-${side}`;
           sidebar.id = `mga-shop-${type}`;
-  
+
+          // Get current inventory count (includes bag + hotbar)
+          const inventory = UnifiedState.atoms.inventory;
+          const currentCount = inventory?.items?.length || 0;
+          const maxCount = 100; // 91 bag + 9 hotbar = 100 total
+
+          // Color code based on inventory fullness
+          let inventoryColor = '#4caf50'; // Green (< 95)
+          if (currentCount >= 100) {
+              inventoryColor = '#ff4444'; // Red (full)
+          } else if (currentCount >= 95) {
+              inventoryColor = '#ffa500'; // Yellow (95-99)
+          }
+
           sidebar.innerHTML = `
               <div class="mga-shop-sidebar-header">
                   <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🌱 ${title}</h3>
@@ -9856,6 +10411,25 @@ async function initializeFirebase() {
                       <button class="shop-close-btn" style="cursor: pointer; font-weight: 700; font-size: 20px; color: #cfcfcf; background: none; border: none; padding: 0 8px; transition: color 0.2s ease;">×</button>
                   </div>
               </div>
+
+              <!-- NEW v3.7.8: Inventory counter -->
+              <div class="shop-inventory-counter" style="
+                  font-size: 12px;
+                  font-weight: 600;
+                  color: ${inventoryColor};
+                  margin: 12px 12px 0 12px;
+                  padding: 8px 12px;
+                  background: rgba(255,255,255,0.05);
+                  border-radius: 6px;
+                  border-left: 3px solid ${inventoryColor};
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+              ">
+                  <span>📦</span>
+                  <span>Inventory: <span class="shop-inventory-count">${currentCount}</span>/${maxCount}</span>
+              </div>
+
               <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.57);">
                   <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                       <input type="checkbox" class="show-available-only" style="accent-color: #2afd23;">
@@ -10399,11 +10973,61 @@ async function initializeFirebase() {
   
           return div;
       }
-  
+
+      // Helper function to check if inventory is full (NEW v3.7.8)
+      function isInventoryFull() {
+          const inventory = UnifiedState.atoms.inventory;
+          if (!inventory || !inventory.items) return false;
+
+          // Magic Garden inventory: 91 bag slots + 9 hotbar slots = 100 total
+          // inventory.items.length includes BOTH bag and hotbar
+          const MAX_INVENTORY = 100;
+          const currentCount = inventory.items.length;
+
+          return currentCount >= MAX_INVENTORY;
+      }
+
+      // Visual feedback for full inventory (NEW v3.7.8)
+      function flashInventoryFullFeedback(element, message) {
+          // Flash red 3 times
+          let flashes = 0;
+          const flashInterval = setInterval(() => {
+              if (flashes >= 6) { // 3 full cycles (on/off)
+                  clearInterval(flashInterval);
+                  element.style.background = '';
+                  element.style.borderColor = '';
+                  element.style.boxShadow = '';
+                  return;
+              }
+
+              // Alternate between red and normal
+              if (flashes % 2 === 0) {
+                  element.style.background = 'rgba(255, 0, 0, 0.3)';
+                  element.style.borderColor = 'rgba(255, 0, 0, 0.8)';
+                  element.style.boxShadow = '0 0 15px rgba(255, 0, 0, 0.5)';
+              } else {
+                  element.style.background = '';
+                  element.style.borderColor = '';
+                  element.style.boxShadow = '';
+              }
+
+              flashes++;
+          }, 200); // Flash every 200ms
+
+          // Show message
+          productionLog(`❌ [SHOP] ${message}`);
+      }
+
       function buyItem(id, type, amount, itemEl) {
           const conn = targetWindow.MagicCircle_RoomConnection;
           if (!conn?.sendMessage) {
               alert('Connection not available');
+              return;
+          }
+
+          // NEW v3.7.8: Check if inventory is full before purchase
+          if (isInventoryFull()) {
+              flashInventoryFullFeedback(itemEl, `Inventory Full! (100/100) - Cannot purchase ${id}`);
               return;
           }
 
@@ -10656,14 +11280,45 @@ async function initializeFirebase() {
       // ==================== SHOP TAB (DEPRECATED - USING DUAL WINDOWS NOW) ====================
       function getShopTabContent() {
           const settings = UnifiedState.data.settings;
-  
+
+          // Get current inventory count (includes bag + hotbar)
+          const inventory = UnifiedState.atoms.inventory;
+          const currentCount = inventory?.items?.length || 0;
+          const maxCount = 100; // 91 bag + 9 hotbar = 100 total
+
+          // Color code based on inventory fullness
+          let inventoryColor = '#4caf50'; // Green (< 95)
+          if (currentCount >= 100) {
+              inventoryColor = '#ff4444'; // Red (full)
+          } else if (currentCount >= 95) {
+              inventoryColor = '#ffa500'; // Yellow (95-99)
+          }
+
           return `
               <div class="mga-section">
                   <div class="mga-section-title">🛒 Shop</div>
-                  <p style="font-size: 12px; color: #aaa; margin-bottom: 16px;">
+                  <p style="font-size: 12px; color: #aaa; margin-bottom: 8px;">
                       Quick buy seeds and eggs. Stock updates automatically when shop resets.
                   </p>
-  
+
+                  <!-- NEW v3.7.8: Inventory counter -->
+                  <div id="shop-inventory-counter" style="
+                      font-size: 13px;
+                      font-weight: 600;
+                      color: ${inventoryColor};
+                      margin-bottom: 16px;
+                      padding: 8px 12px;
+                      background: rgba(255,255,255,0.05);
+                      border-radius: 6px;
+                      border-left: 3px solid ${inventoryColor};
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                  ">
+                      <span>📦</span>
+                      <span>Inventory: <span id="shop-inventory-count">${currentCount}</span>/${maxCount}</span>
+                  </div>
+
                   <div style="margin-bottom: 20px;">
                       <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                           <input type="checkbox" id="shop-in-stock-only" class="mga-checkbox">
@@ -10781,7 +11436,13 @@ async function initializeFirebase() {
                   alert('Connection not available');
                   return;
               }
-  
+
+              // NEW v3.7.8: Check if inventory is full before purchase
+              if (isInventoryFull()) {
+                  flashInventoryFullFeedback(itemEl, `Inventory Full! (100/100) - Cannot purchase ${id}`);
+                  return;
+              }
+
               try {
                   for (let i = 0; i < amount; i++) {
                       let messageType, itemKey;
@@ -11069,129 +11730,195 @@ async function initializeFirebase() {
       function getRoomStatusTabContent() {
           const currentRoom = getCurrentRoomCode();
           const roomCounts = UnifiedState.data.roomStatus?.counts || {};
+          const activeRoomsTab = UnifiedState.data.activeRoomsTab || 'mg'; // BUGFIX v3.7.3: Default to MG rooms (more useful for browser users)
+
+          // Helper function to render room card
+          const renderRoomCard = (room, allowDelete = false, allowDrag = false) => {
+              const count = roomCounts[room.id] || 0;
+              const displayCount = Math.min(count, 6);
+              const isCurrentRoom = room.id === currentRoom;
+
+              // Color based on player count
+              let statusColor = '#94a3b8'; // Gray for empty
+              if (count > 0) statusColor = '#4ade80'; // Green for active
+              if (count >= 4) statusColor = '#fbbf24'; // Yellow for busy
+              if (count >= 6) statusColor = '#ef4444'; // Red for full
+
+              const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
+              const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
+
+              return `
+                  <div class="room-item" ${allowDrag ? 'draggable="true"' : ''} data-room="${room.id}" style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      padding: 12px;
+                      background: ${bgColor};
+                      border: 1px solid ${borderColor};
+                      border-radius: 6px;
+                      transition: all 0.2s;
+                      cursor: ${allowDrag ? 'grab' : 'default'} !important;
+                      user-select: none;
+                  ">
+                      <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: ${allowDrag ? 'grab' : 'default'} !important;">
+                          ${allowDrag ? '<span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>' : ''}
+                          <span style="
+                              font-weight: bold;
+                              color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'};
+                              font-size: 14px;
+                              min-width: ${allowDrag ? '45px' : '70px'};
+                              cursor: ${allowDrag ? 'grab' : 'default'} !important;
+                          ">${room.name || room.id}</span>
+                          <span style="
+                              font-weight: bold;
+                              color: ${statusColor};
+                              font-size: 13px;
+                              min-width: 50px;
+                              cursor: ${allowDrag ? 'grab' : 'default'} !important;
+                          ">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
+                      </div>
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                          <button class="mga-button room-join-btn" data-room="${room.id}" style="
+                              padding: 6px 14px;
+                              font-size: 12px;
+                              background: ${isCurrentRoom ? '#666' : '#4a9eff'};
+                              color: white;
+                              border: none;
+                              border-radius: 4px;
+                              cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important;
+                              opacity: ${isCurrentRoom ? '0.5' : '1'};
+                          " ${isCurrentRoom ? 'disabled' : ''}>
+                              ${isCurrentRoom ? 'Current' : 'Join'}
+                          </button>
+                          ${allowDelete ? `
+                          <button class="room-delete-btn" data-room="${room.id}" style="
+                              padding: 6px 10px;
+                              font-size: 14px;
+                              background: #ef4444;
+                              color: white;
+                              border: none;
+                              border-radius: 4px;
+                              cursor: pointer !important;
+                              opacity: 0.8;
+                              transition: opacity 0.2s;
+                          " title="Remove room from list">
+                              ❌
+                          </button>` : ''}
+                      </div>
+                  </div>
+              `;
+          };
+
+          // Get MG & Custom rooms
+          const mgAndCustomRooms = RoomRegistry.getMGAndCustomRooms();
 
           return `
               <div class="mga-section">
                   <div class="mga-section-title">🎮 Live Room Status</div>
                   <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                      Real-time player counts for all Magic Garden rooms. Shows how many players are currently in each room. Click "Join" to navigate to that room instantly.
+                      Real-time player counts for Magic Garden rooms. Add custom rooms to track, or browse official MG1-10 servers.
                   </p>
-  
+
+                  <!-- Tab Selector (BUGFIX v3.7.3: MG tab first, Discord second) -->
+                  <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid rgba(255,255,255,0.1);">
+                      <button class="rooms-tab-btn" data-tab="mg" style="
+                          flex: 1;
+                          padding: 10px;
+                          background: ${activeRoomsTab === 'mg' ? 'rgba(34, 197, 94, 0.3)' : 'transparent'};
+                          border: none;
+                          border-bottom: 2px solid ${activeRoomsTab === 'mg' ? '#22c55e' : 'transparent'};
+                          color: ${activeRoomsTab === 'mg' ? '#fff' : '#aaa'};
+                          font-size: 13px;
+                          font-weight: bold;
+                          cursor: pointer;
+                          transition: all 0.2s;
+                          border-radius: 4px 4px 0 0;
+                      ">
+                          🌟 MG & Custom
+                      </button>
+                      <button class="rooms-tab-btn" data-tab="discord" style="
+                          flex: 1;
+                          padding: 10px;
+                          background: ${activeRoomsTab === 'discord' ? 'rgba(138, 43, 226, 0.3)' : 'transparent'};
+                          border: none;
+                          border-bottom: 2px solid ${activeRoomsTab === 'discord' ? '#8a2be2' : 'transparent'};
+                          color: ${activeRoomsTab === 'discord' ? '#fff' : '#aaa'};
+                          font-size: 13px;
+                          font-weight: bold;
+                          cursor: pointer;
+                          transition: all 0.2s;
+                          border-radius: 4px 4px 0 0;
+                      ">
+                          🎮 Discord Servers
+                      </button>
+                  </div>
+
+                  <!-- Search Bar -->
                   <div style="margin-bottom: 12px;">
-                      <input type="text" id="room-search-input" placeholder="Search room (e.g., SLAY)..."
+                      <input type="text" id="room-search-input" placeholder="Search room..."
                           style="width: 100%; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
                           border-radius: 4px; color: white; font-size: 12px;">
                   </div>
-  
-                  <div id="room-status-list" style="display: flex; flex-direction: column; gap: 8px;">
-                      ${UnifiedState.data.customRooms.map(roomCode => {
-                          const count = roomCounts[roomCode] || 0;
-                          const displayCount = Math.min(count, 6);
-                          const isCurrentRoom = roomCode === currentRoom;
-  
-                          // Color based on player count
-                          let statusColor = '#94a3b8'; // Gray for empty
-                          if (count > 0) statusColor = '#4ade80'; // Green for active
-                          if (count >= 4) statusColor = '#fbbf24'; // Yellow for busy
-                          if (count >= 6) statusColor = '#ef4444'; // Red for full
-  
-                          const bgColor = isCurrentRoom ? 'rgba(59, 130, 246, 0.40)' : 'rgba(255, 255, 255, 0.03)';
-                          const borderColor = isCurrentRoom ? '#3b82f6' : 'rgba(255, 255, 255, 0.57)';
-  
-                          return `
-                              <div class="room-item" draggable="true" data-room="${roomCode}" style="
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: space-between;
-                                  padding: 12px;
-                                  background: ${bgColor};
-                                  border: 1px solid ${borderColor};
-                                  border-radius: 6px;
-                                  transition: all 0.2s;
-                                  cursor: grab !important;
-                                  user-select: none;
-                              ">
-                                  <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: grab !important;">
-                                      <span style="color: #666; font-size: 16px; cursor: grab !important;" title="Drag to reorder">⋮⋮</span>
-                                      <span style="
-                                          font-weight: bold;
-                                          color: ${isCurrentRoom ? '#60a5fa' : '#e5e7eb'};
-                                          font-size: 14px;
-                                          min-width: 45px;
-                                          cursor: grab !important;
-                                      ">${roomCode}</span>
-                                      <span style="
-                                          font-weight: bold;
-                                          color: ${statusColor};
-                                          font-size: 13px;
-                                          min-width: 50px;
-                                          cursor: grab !important;
-                                      ">${displayCount}/6 ${isCurrentRoom ? '(You)' : ''}</span>
-                                  </div>
-                                  <div style="display: flex; gap: 8px; align-items: center;">
-                                      <button class="mga-button room-join-btn" data-room="${roomCode}" style="
-                                          padding: 6px 14px;
-                                          font-size: 12px;
-                                          background: ${isCurrentRoom ? '#666' : '#4a9eff'};
-                                          color: white;
-                                          border: none;
-                                          border-radius: 4px;
-                                          cursor: ${isCurrentRoom ? 'not-allowed' : 'pointer'} !important;
-                                          opacity: ${isCurrentRoom ? '0.5' : '1'};
-                                      " ${isCurrentRoom ? 'disabled' : ''}>
-                                          ${isCurrentRoom ? 'Current' : 'Join'}
-                                      </button>
-                                      <button class="room-delete-btn" data-room="${roomCode}" style="
-                                          padding: 6px 10px;
-                                          font-size: 14px;
-                                          background: #ef4444;
-                                          color: white;
-                                          border: none;
-                                          border-radius: 4px;
-                                          cursor: pointer !important;
-                                          opacity: 0.8;
-                                          transition: opacity 0.2s;
-                                      " title="Remove room from list">
-                                          ❌
-                                      </button>
-                                  </div>
-                              </div>
-                          `;
-                      }).join('')}
-                  </div>
-  
-                  <div style="margin-top: 16px; padding: 12px; background: rgba(59, 130, 246, 0.30); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
-                      <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
-                          <strong style="color: #60a5fa;">How it works:</strong><br>
-                          • Player counts update automatically every 5 seconds<br>
-                          • Shows actual players in each room (not just script users)<br>
-                          • 🟢 Green (1-3) = Active  •  🟡 Yellow (4-5) = Busy  •  🔴 Red (6+) = Full<br>
-                          • Your current room is highlighted in blue<br>
-                          • Click "Join" to navigate to any room instantly
-                      </div>
-                  </div>
-              </div>
 
-              <!-- Add Room Section -->
-              <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 6px;">
-                  <div style="font-weight: bold; color: #60a5fa; margin-bottom: 8px; font-size: 13px;">➕ Add Custom Room</div>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                      <input type="text" id="add-room-input" placeholder="Room code (e.g., MG11)"
-                          style="flex: 1; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
-                          border-radius: 4px; color: white; font-size: 12px; text-transform: uppercase;">
-                      <button id="add-room-btn" class="mga-button" style="
-                          padding: 8px 16px;
-                          font-size: 12px;
-                          background: #4ade80;
-                          color: white;
-                          border: none;
-                          border-radius: 4px;
-                          cursor: pointer;
-                          font-weight: bold;
-                      ">Add</button>
-                  </div>
-                  <div style="font-size: 10px; color: #888; margin-top: 6px;">
-                      Tip: Drag rooms to reorder, click ❌ to remove
+                  <!-- BUGFIX v3.7.4: Single container approach - swaps content instead of toggling display on two divs -->
+                  <!-- This fixes the side-by-side display bug where both tabs were showing simultaneously -->
+                  <div id="rooms-tab-content">
+                      ${activeRoomsTab === 'mg' ? `
+                          <!-- MG & Custom Tab Content -->
+                          <div id="room-status-list-mg" style="display: flex; flex-direction: column; gap: 8px;">
+                              ${mgAndCustomRooms.map(room => renderRoomCard(room, room.category === 'custom', room.category === 'custom')).join('')}
+                          </div>
+
+                          <!-- Add Custom Room Section -->
+                          <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 6px;">
+                              <div style="font-weight: bold; color: #60a5fa; margin-bottom: 8px; font-size: 13px;">➕ Add Custom Room</div>
+                              <div style="display: flex; gap: 8px; align-items: center;">
+                                  <input type="text" id="add-room-input" placeholder="Room code (e.g., MG16)"
+                                      style="flex: 1; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57);
+                                      border-radius: 4px; color: white; font-size: 12px; text-transform: uppercase;">
+                                  <button id="add-room-btn" class="mga-button" style="
+                                      padding: 8px 16px;
+                                      font-size: 12px;
+                                      background: #4ade80;
+                                      color: white;
+                                      border: none;
+                                      border-radius: 4px;
+                                      cursor: pointer;
+                                      font-weight: bold;
+                                  ">Add</button>
+                              </div>
+                              <div style="font-size: 10px; color: #888; margin-top: 6px;">
+                                  Tip: Drag custom rooms to reorder, click ❌ to remove
+                              </div>
+                          </div>
+
+                          <div style="margin-top: 16px; padding: 12px; background: rgba(34, 197, 94, 0.2); border-radius: 6px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                              <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                                  <strong style="color: #4ade80;">Magic Garden Rooms</strong><br>
+                                  • MG1-15 are public Magic Garden servers<br>
+                                  • Add your own custom rooms to track<br>
+                                  • Player counts update automatically every 5 seconds
+                              </div>
+                          </div>
+                      ` : `
+                          <!-- Discord Servers Tab Content -->
+                          <div id="room-status-list-discord" style="display: flex; flex-direction: column; gap: 8px;">
+                              ${RoomRegistry.discord.length > 0
+                                  ? RoomRegistry.discord.map(room => renderRoomCard(room, false, false)).join('')
+                                  : '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 13px;">No Discord rooms available</div>'
+                              }
+                          </div>
+                          <div style="margin-top: 16px; padding: 12px; background: rgba(138, 43, 226, 0.2); border-radius: 6px; border: 1px solid rgba(138, 43, 226, 0.3);">
+                              <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                                  <strong style="color: #a78bfa;">💡 Discord Activity Rooms (87 Total)</strong><br>
+                                  • Garlic Bread: play1-play10 (no hyphen) - 10 rooms<br>
+                                  • Magic Circle: play-2 to play-50 (with hyphen) - 49 rooms<br>
+                                  • Magic Circle: Country rooms (play-🇨🇦, play-🇬🇧, etc.) - 26 rooms<br>
+                                  • Special: play-québec, play - 2 rooms<br>
+                                  • <strong>Player counts via /api/rooms/{id}/info</strong> (same as community scripts)
+                              </div>
+                          </div>
+                      `}
                   </div>
               </div>
           `;
@@ -13480,7 +14207,40 @@ async function initializeFirebase() {
                           </div>
                       `).join('')}
                   </div>
-  
+
+                  <div class="mga-section">
+                      <div class="mga-section-title" style="font-size: 13px;">MGTools Navigation & Features</div>
+                      ${Object.entries(hotkeys.mgToolsKeys).map(([key, config]) => `
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+                              <span style="font-size: 12px; flex: 1;">${config.name}</span>
+                              <button class="hotkey-button-mgtools" data-key="${key}" style="
+                                  padding: 4px 8px;
+                                  background: ${config.custom ? 'rgba(100, 255, 100, 0.48)' : 'rgba(74, 158, 255, 0.48)'};
+                                  border: 1px solid ${config.custom ? '#64ff64' : '#4a9eff'};
+                                  border-radius: 4px;
+                                  color: white;
+                                  font-size: 11px;
+                                  min-width: 80px;
+                                  cursor: pointer;
+                              ">
+                                  ${config.custom ? config.custom.toUpperCase() : 'Not Set'}
+                              </button>
+                              ${config.custom ? `
+                                  <button class="hotkey-reset-mgtools" data-key="${key}" style="
+                                      margin-left: 5px;
+                                      padding: 2px 6px;
+                                      background: rgba(255, 100, 100, 0.48);
+                                      border: 1px solid #ff6464;
+                                      border-radius: 3px;
+                                      color: white;
+                                      font-size: 10px;
+                                      cursor: pointer;
+                                  ">↺</button>
+                              ` : ''}
+                          </div>
+                      `).join('')}
+                  </div>
+
                   <div style="display: flex; gap: 10px; margin-top: 15px;">
                       <button id="hotkeys-reset-all" class="mga-button" style="flex: 1;">
                           Reset All
@@ -14484,7 +15244,75 @@ async function initializeFirebase() {
               productionLog(`✅ [PETS] Backup refresh for preset "${presetName}"`);
           }, preset.length * 50 + 2500);
       }
-  
+
+      // Helper function to check if preset contains Worm with Crop Eater ability
+      // Uses same detection pattern as turtle timer (checks abilities array)
+      function presetHasCropEater(preset) {
+          if (!preset || !Array.isArray(preset)) {
+              return false;
+          }
+
+          // Filter for Worms with Crop Eater ability (same pattern as turtle timer)
+          const wormsWithCropEater = preset.filter(p =>
+              p &&
+              p.petSpecies === "Worm" &&
+              p.abilities?.some(a =>
+                  a === "Crop Eater" ||
+                  a === "CropEater" ||
+                  (typeof a === 'string' && a.toLowerCase().includes("crop") && a.toLowerCase().includes("eater"))
+              )
+          );
+
+          if (wormsWithCropEater.length > 0) {
+              productionLog(`[Crop Eater Check] Preset contains ${wormsWithCropEater.length} Worm(s) with Crop Eater - skipping`);
+          }
+
+          return wormsWithCropEater.length > 0;
+      }
+
+      // Cycle to next preset in the order list (NEW v3.7.8)
+      // Auto-skips presets with Crop Eater pets
+      function cycleToNextPreset() {
+          ensurePresetOrder(); // Ensure order array is up to date
+
+          if (UnifiedState.data.petPresetsOrder.length === 0) {
+              productionLog('[Cycle Presets] No presets available');
+              return;
+          }
+
+          const startIndex = UnifiedState.data.currentPresetIndex;
+          let attempts = 0;
+          const maxAttempts = UnifiedState.data.petPresetsOrder.length;
+
+          do {
+              // Move to next preset
+              UnifiedState.data.currentPresetIndex++;
+
+              // Loop back to start if at end
+              if (UnifiedState.data.currentPresetIndex >= UnifiedState.data.petPresetsOrder.length) {
+                  UnifiedState.data.currentPresetIndex = 0;
+              }
+
+              const presetName = UnifiedState.data.petPresetsOrder[UnifiedState.data.currentPresetIndex];
+              const preset = UnifiedState.data.petPresets[presetName];
+
+              attempts++;
+
+              // Check if preset has Crop Eater
+              if (preset && !presetHasCropEater(preset)) {
+                  productionLog(`[Cycle Presets] Loading: ${presetName} (${UnifiedState.data.currentPresetIndex + 1}/${UnifiedState.data.petPresetsOrder.length})`);
+                  placePetPreset(presetName);
+                  return; // Found valid preset
+              } else if (preset && presetHasCropEater(preset)) {
+                  productionLog(`[Cycle Presets] Skipping ${presetName} - contains Crop Eater`);
+              }
+
+          } while (attempts < maxAttempts);
+
+          // All presets have Crop Eater
+          productionLog('[Cycle Presets] All presets contain Crop Eater - cannot cycle');
+      }
+
       // ==================== PETS UI HELPER FUNCTIONS ====================
       function updatePetPresetDropdown(context) {
           const select = context.querySelector('#preset-quick-select');
@@ -15029,6 +15857,15 @@ async function initializeFirebase() {
               });
           }
   
+          // Cycle Presets Hotkey Button Handler
+          const setCycleHotkeyBtn = context.querySelector('#set-cycle-hotkey-btn');
+          if (setCycleHotkeyBtn && !setCycleHotkeyBtn.hasAttribute('data-handler-setup')) {
+              setCycleHotkeyBtn.setAttribute('data-handler-setup', 'true');
+              setCycleHotkeyBtn.addEventListener('click', () => {
+                  startRecordingHotkeyMGTools('cyclePresets', setCycleHotkeyBtn);
+              });
+          }
+
           // Quick Load Button Handler
           const quickLoadBtn = context.querySelector('#quick-load-btn');
           if (quickLoadBtn && !quickLoadBtn.hasAttribute('data-handler-setup')) {
@@ -15116,11 +15953,8 @@ async function initializeFirebase() {
                   const input = context.querySelector('#preset-name-input');
                   const name = input.value.trim();
                   if (name && UnifiedState.atoms.activePets && UnifiedState.atoms.activePets.length) {
-                      UnifiedState.data.petPresets[name] = UnifiedState.atoms.activePets.slice(0, 3).map(p => ({
-                          id: p.id,
-                          petSpecies: p.petSpecies,
-                          mutations: p.mutations || []
-                      }));
+                      // Save full pet data including abilities for Crop Eater detection
+                      UnifiedState.data.petPresets[name] = UnifiedState.atoms.activePets.slice(0, 3);
                       MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
                       input.value = ''; // Clear input after successful add
   
@@ -16760,14 +17594,82 @@ async function initializeFirebase() {
   
       function stopRecordingHotkey(buttonElement, originalText) {
           if (!currentlyRecordingHotkey) return;
-  
+
           if (originalText) {
               buttonElement.textContent = originalText;
           }
           buttonElement.style.background = '';
           currentlyRecordingHotkey = null;
       }
-  
+
+      // MGTools hotkey recording (similar to game keys but for mgToolsKeys)
+      function startRecordingHotkeyMGTools(key, buttonElement) {
+          if (currentlyRecordingHotkey) return; // Already recording
+
+          currentlyRecordingHotkey = key;
+          const originalText = buttonElement.textContent;
+          buttonElement.textContent = 'Press any key...';
+          buttonElement.style.background = '#ff9900';
+
+          // Add one-time key listener
+          const recordHandler = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              // Skip modifier-only keys
+              if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+              // Allow ESC to cancel
+              if (e.key === 'Escape') {
+                  stopRecordingHotkey(buttonElement, originalText);
+                  document.removeEventListener('keydown', recordHandler, true);
+                  return;
+              }
+
+              // Build key combination string
+              let keyCombo = '';
+              if (e.ctrlKey) keyCombo += 'ctrl+';
+              if (e.altKey) keyCombo += 'alt+';
+              if (e.shiftKey) keyCombo += 'shift+';
+
+              // Handle special keys
+              const keyName = e.key === ' ' ? 'space' : e.key.toLowerCase();
+              keyCombo += keyName;
+
+              // Check for conflicts in both gameKeys and mgToolsKeys
+              const conflicts = [];
+              Object.entries(UnifiedState.data.hotkeys.gameKeys).forEach(([k, config]) => {
+                  if (config.custom && config.custom === keyCombo) {
+                      conflicts.push(config.name);
+                  }
+              });
+              Object.entries(UnifiedState.data.hotkeys.mgToolsKeys).forEach(([k, config]) => {
+                  if (k !== key && config.custom && config.custom === keyCombo) {
+                      conflicts.push(config.name);
+                  }
+              });
+
+              if (conflicts.length > 0) {
+                  alert(`Key "${keyCombo}" is already assigned to: ${conflicts.join(', ')}`);
+                  stopRecordingHotkey(buttonElement, originalText);
+                  document.removeEventListener('keydown', recordHandler, true);
+                  return;
+              }
+
+              // Save the new key
+              UnifiedState.data.hotkeys.mgToolsKeys[key].custom = keyCombo;
+              MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+
+              stopRecordingHotkey(buttonElement, null);
+              updateTabContent(); // Refresh display to show new key and reset button
+              document.removeEventListener('keydown', recordHandler, true);
+
+              productionLog(`🎮 [HOTKEYS] Set MGTools key ${key}: ${keyCombo}`);
+          };
+
+          document.addEventListener('keydown', recordHandler, true);
+      }
+
       // ==================== HOTKEY INTERCEPTION & SIMULATION ====================
   
       function isTypingInInput() {
@@ -17035,7 +17937,26 @@ async function initializeFirebase() {
                   productionLog(`🎮 [HOTKEYS] Reset ${key} to default`);
               });
           });
-  
+
+          // MGTools hotkey buttons
+          context.querySelectorAll('.hotkey-button-mgtools').forEach(button => {
+              button.addEventListener('click', function() {
+                  const key = this.dataset.key;
+                  startRecordingHotkeyMGTools(key, this);
+              });
+          });
+
+          // MGTools reset buttons
+          context.querySelectorAll('.hotkey-reset-mgtools').forEach(button => {
+              button.addEventListener('click', function() {
+                  const key = this.dataset.key;
+                  UnifiedState.data.hotkeys.mgToolsKeys[key].custom = null;
+                  MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
+                  updateTabContent(); // Refresh display
+                  productionLog(`🎮 [HOTKEYS] Reset MGTools key ${key} to default`);
+              });
+          });
+
           // Reset all button
           const resetAllBtn = context.querySelector('#hotkeys-reset-all');
           if (resetAllBtn) {
@@ -17043,6 +17964,9 @@ async function initializeFirebase() {
                   if (confirm('Reset all hotkeys to defaults?')) {
                       Object.keys(UnifiedState.data.hotkeys.gameKeys).forEach(key => {
                           UnifiedState.data.hotkeys.gameKeys[key].custom = null;
+                      });
+                      Object.keys(UnifiedState.data.hotkeys.mgToolsKeys).forEach(key => {
+                          UnifiedState.data.hotkeys.mgToolsKeys[key].custom = null;
                       });
                       MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
                       updateTabContent();
@@ -20497,9 +21421,10 @@ async function initializeFirebase() {
                   return;
               }
   
-              // Additional validation: If timestamp is very recent (within 10 seconds), skip
+              // Additional validation: If timestamp is very recent (within 3 seconds), skip
+              // BUGFIX v3.7.8: Reduced from 10s to 3s to allow rapid abilities (Gold Granter → Rainbow Granter)
               // This prevents false triggers on page refresh when same ability state reloads
-              if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 10000) {
+              if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 3000) {
                   if (UnifiedState.data.settings?.debugMode) {
                       productionLog(`🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${Math.abs(currentTimestamp - lastKnown)}ms)`);
                   }
@@ -21653,7 +22578,7 @@ async function initializeFirebase() {
       // ==================== INITIALIZATION ====================
       function initializeAtoms() {
           productionLog('🔗 [SIMPLE-ATOMS] Starting simple atom initialization...');
-  
+
           // Start simple pet detection using room state
           productionLog('🐾 [SIMPLE-ATOMS] Setting up room state pet detection...');
           updateActivePetsFromRoomState(); // Get initial pets immediately
@@ -21797,11 +22722,17 @@ async function initializeFirebase() {
               }
           );
   
-          // Hook #2: Pet ABILITY data (for ability logs - monitoring handled by timer only)
+          // Hook #2: Pet ABILITY data (for ability logs - event-driven + polling)
           hookAtom(
               "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myPetSlotInfosAtom",
               "petAbility",
-              null // Removed duplicate monitorPetAbilities() call to prevent double logging
+              (value) => {
+                  // BUGFIX v3.7.8: Event-driven monitoring to catch abilities immediately
+                  // Polling still runs every 3s as backup for missed events
+                  if (value && typeof monitorPetAbilities === 'function') {
+                      monitorPetAbilities();
+                  }
+              }
           );
   
           // Hook inventory
@@ -24211,8 +25142,21 @@ function initializeTurtleTimer() {
           };
   
           document.addEventListener('keydown', (e) => {
-              // Skip if typing in input/textarea
+              // BUGFIX v3.7.5: Ignore controller-generated keyboard events to prevent conflicts
+              if (!e.isTrusted) return;
+              // Skip if typing in input/textarea or contenteditable
               if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+                  return;
+              }
+              // Skip if typing in contenteditable element (chat, etc.)
+              if (e.target.isContentEditable || e.target.getAttribute?.('contenteditable') === 'true') {
+                  return;
+              }
+              // Skip if active element is an input (chat focus)
+              if (document.activeElement && 
+                  (document.activeElement.tagName === 'INPUT' || 
+                   document.activeElement.tagName === 'TEXTAREA' ||
+                   document.activeElement.isContentEditable)) {
                   return;
               }
   
@@ -26082,9 +27026,14 @@ function initializeTurtleTimer() {
   
     // ---------- Ability Logs: Sticky Clear + Proxy dedupe ----------
     const CLEAR_FLAG = 'MGA_logs_manually_cleared';
+    const SESSION_FLAG = 'MGA_logs_clear_session';
     function clearFlagIfNeededOnAdd(){
+      // BUGFIX v3.7.8: Clear BOTH flags when new logs are added
       if (localStorage.getItem(CLEAR_FLAG)==='true'){
         try{ localStorage.removeItem(CLEAR_FLAG);}catch{}
+      }
+      if (localStorage.getItem(SESSION_FLAG)){
+        try{ localStorage.removeItem(SESSION_FLAG);}catch{}
       }
     }
     function wrapLogsArray(arr){
@@ -26202,6 +27151,7 @@ function initializeTurtleTimer() {
             c.innerHTML = html;
             if (typeof setupRoomJoinButtons === 'function') {
               setupRoomJoinButtons();
+              setupRoomsTabButtons();
             }
             updated = true;
           }
@@ -26725,8 +27675,57 @@ function initializeTurtleTimer() {
         }
     })();
 
-    // DOM update popup monitor disabled - WebSocket code 4710 detection is reliable enough
-    // The DOM monitor was causing false positives by matching MGTools' own UI elements
+    // ==================== DOM UPDATE DETECTION (BACKUP METHOD) ====================
+    // BUGFIX v3.7.8: Re-enabled with smarter detection to avoid false positives
+    (function() {
+        let updateDetected = false; // Shared flag to prevent duplicate refreshes
+
+        function checkForGameUpdatePopup() {
+            if (updateDetected) return false;
+
+            // Look for Chakra UI alert dialog (game's update modal)
+            const popup = document.querySelector('section.chakra-modal__content[role="alertdialog"]');
+            if (!popup) return false;
+
+            // Ensure it's not an MGTools element
+            if (popup.closest('.mga-overlay, .mgh-sidebar, .mgh-dock, .mga-popout')) {
+                return false;
+            }
+
+            // Check for game update text in header
+            const header = popup.querySelector('header.chakra-modal__header');
+            if (header && /game update available/i.test(header.textContent)) {
+                updateDetected = true;
+                if (typeof productionLog === 'function') {
+                    productionLog('[DOM] Game update popup detected - triggering refresh');
+                }
+
+                // Trigger the same refresh logic as WebSocket code 4710
+                if (typeof scheduleReload === 'function') {
+                    scheduleReload(4710, true, 'DOM detection');
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        // MutationObserver to watch for popup appearance
+        const observer = new MutationObserver(() => {
+            if (!updateDetected) {
+                checkForGameUpdatePopup();
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Periodic check as backup (every 5 seconds)
+        setInterval(checkForGameUpdatePopup, 5000);
+
+        if (typeof productionLog === 'function') {
+            productionLog('✅ [DOM] Game update popup monitor initialized');
+        }
+    })();
 
   })();
 
@@ -26798,14 +27797,269 @@ function initializeTurtleTimer() {
     if (t){ hardClear(); }
   }, true);
 
-  // Startup sanitizer (short burst to defeat late rehydrations)
-  let n=0; const iv=setInterval(()=>{
-    if (localStorage.getItem(FLAG)==='true'){
-      try{ localStorage.setItem(LOG_MAIN,'[]'); localStorage.setItem(LOG_ARCH,'[]'); }catch{}
-      if (window.UnifiedState?.data) window.UnifiedState.data.petAbilityLogs = [];
+  // REMOVED v3.7.8: Startup sanitizer was preventing ability logs from persisting
+  // The sanitizer ran for 16 seconds and cleared logs even after new abilities were added
+  // Proper flag management already exists in the proxy (line 26681-26685)
+})();
+
+
+// ==================== INSTANT FEED BUTTONS ====================
+(function() {
+    'use strict';
+
+    // Pet species and their compatible crops
+    const PET_CATALOG = {
+        'Worm': ['Carrot', 'Strawberry', 'Aloe', 'Tomato', 'Apple'],
+        'Snail': ['Blueberry', 'Tomato', 'Corn', 'Daffodil'],
+        'Bee': ['Strawberry', 'Blueberry', 'OrangeTulip', 'Daffodil', 'Lily'],
+        'Chicken': ['Aloe', 'Corn', 'Watermelon', 'Pumpkin'],
+        'Bunny': ['Carrot', 'Strawberry', 'Blueberry', 'Echeveria'],
+        'Dragonfly': ['Apple', 'OrangeTulip', 'Echeveria'],
+        'Pig': ['Watermelon', 'Pumpkin', 'Mushroom', 'Bamboo'],
+        'Cow': ['Coconut', 'Banana', 'BurrosTail', 'Mushroom'],
+        'Squirrel': ['Pumpkin', 'Banana', 'Grape'],
+        'Turtle': ['Watermelon', 'BurrosTail', 'Bamboo', 'Pepper'],
+        'Goat': ['Pumpkin', 'Coconut', 'Cactus', 'Pepper'],
+        'Butterfly': ['Daffodil', 'Lily', 'Grape', 'Lemon', 'Sunflower'],
+        'Capybara': ['Lemon', 'PassionFruit', 'DragonFruit', 'Lychee'],
+        'Peacock': ['Cactus', 'Sunflower', 'Lychee'],
+        'Copycat': [] // Special pet handling if needed
+    };
+
+    // Create instant feed button with game-native styling
+    function createInstantFeedButton(petIndex) {
+        const btn = document.createElement('button');
+        btn.className = 'mgtools-instant-feed-btn';
+        btn.textContent = 'Feed';
+        btn.setAttribute('data-pet-index', petIndex);
+
+        btn.style.cssText = `
+            position: absolute;
+            right: -52px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 24px;
+            border: 2px solid #FFC83D;
+            background: rgba(0, 0, 0, 0.75);
+            color: rgb(205, 200, 193);
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 9999;
+            transition: all 0.2s ease;
+            pointer-events: auto;
+        `;
+
+        btn.addEventListener('mouseenter', () => {
+            btn.style.boxShadow = '0 0 8px rgba(255, 200, 61, 0.6)';
+            btn.style.transform = 'translateY(-50%) scale(1.05)';
+        });
+
+        btn.addEventListener('mouseleave', () => {
+            btn.style.boxShadow = 'none';
+            btn.style.transform = 'translateY(-50%) scale(1)';
+        });
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleInstantFeed(petIndex, btn);
+        });
+
+        return btn;
     }
-    if (++n>80) clearInterval(iv);
-  }, 200);
+
+    // Handle instant feed logic with auto-favorite protection
+    function handleInstantFeed(petIndex, buttonEl) {
+        try {
+            // Get pet from UnifiedState
+            if (!window.UnifiedState || !window.UnifiedState.atoms || !window.UnifiedState.atoms.activePets) {
+                return flashButton(buttonEl, 'error');
+            }
+
+            const pets = window.UnifiedState.atoms.activePets;
+            if (!Array.isArray(pets) || !pets[petIndex]) {
+                return flashButton(buttonEl, 'error');
+            }
+
+            const pet = pets[petIndex];
+            if (!pet || !pet.slot || !pet.slot.petSpecies) {
+                return flashButton(buttonEl, 'error');
+            }
+
+            const species = pet.slot.petSpecies;
+            const petItemId = pet.slot.id;
+
+            // Get compatible crops for this pet species
+            const compatibleCrops = PET_CATALOG[species];
+            if (!compatibleCrops || compatibleCrops.length === 0) {
+                return flashButton(buttonEl, 'error');
+            }
+
+            // Get player's inventory
+            if (!window.UnifiedState.atoms.inventory || !window.UnifiedState.atoms.inventory.items) {
+                return flashButton(buttonEl, 'error');
+            }
+
+            const inventory = window.UnifiedState.atoms.inventory.items;
+            if (!Array.isArray(inventory) || inventory.length === 0) {
+                return flashButton(buttonEl, 'error');
+            }
+
+            // Get favorited species from auto-favorite system
+            const favoritedSpecies = (window.UnifiedState.data &&
+                                      window.UnifiedState.data.autoFavorite &&
+                                      window.UnifiedState.data.autoFavorite.selectedSpecies) || [];
+
+            // Filter inventory: must be compatible AND not favorited
+            const feedableCrops = inventory.filter(item => {
+                if (!item || !item.species) return false;
+                const isCompatible = compatibleCrops.includes(item.species);
+                const isFavorited = favoritedSpecies.includes(item.species);
+                return isCompatible && !isFavorited;
+            });
+
+            if (feedableCrops.length === 0) {
+                // No valid crops available (either no compatible crops or all are favorited)
+                return flashButton(buttonEl, 'error');
+            }
+
+            // Feed the first available compatible, non-favorited crop
+            const cropToFeed = feedableCrops[0];
+
+            // Send feed message to game
+            if (typeof window.sendToGame === 'function') {
+                window.sendToGame({
+                    type: "FeedPet",
+                    petItemId: petItemId,
+                    cropItemId: cropToFeed.id
+                });
+                flashButton(buttonEl, 'success');
+            } else {
+                flashButton(buttonEl, 'error');
+            }
+
+        } catch (error) {
+            console.error('[MGTools] Instant feed error:', error);
+            flashButton(buttonEl, 'error');
+        }
+    }
+
+    // Visual feedback for feed action
+    function flashButton(btn, type) {
+        const color = type === 'success' ? '#4CAF50' : '#F44336';
+        const originalBorder = btn.style.borderColor;
+        const originalShadow = btn.style.boxShadow;
+
+        btn.style.borderColor = color;
+        btn.style.boxShadow = `0 0 10px ${color}`;
+
+        setTimeout(() => {
+            btn.style.borderColor = originalBorder || '#FFC83D';
+            btn.style.boxShadow = originalShadow || 'none';
+        }, 300);
+    }
+
+    // Inject instant feed buttons next to pet avatars
+    function injectInstantFeedButtons() {
+        try {
+            // Strategy 1: Try finding by specific data attributes or classes
+            let petContainers = document.querySelectorAll('[data-pet-slot], [class*="pet-slot"], [class*="PetSlot"]');
+
+            // Strategy 2: Find by structure - look for divs on left side with STR text and canvas/img
+            if (petContainers.length === 0) {
+                const viewportWidth = window.innerWidth;
+                const leftThreshold = viewportWidth * 0.15; // Left 15% of viewport (zoom-independent)
+
+                const allStacks = Array.from(document.querySelectorAll('.chakra-stack, div[class*="css-"]'));
+                petContainers = allStacks.filter(el => {
+                    const rect = el.getBoundingClientRect();
+                    const isOnLeftSide = rect.left < leftThreshold;
+                    const hasSTRText = /STR\s+\d+/.test(el.textContent); // "STR 94", "STR 95", etc.
+                    const hasINTText = /INT\s+\d+/.test(el.textContent); // Also check for INT
+                    const hasCanvas = el.querySelector('canvas');
+                    const hasImg = el.querySelector('img');
+
+                    return isOnLeftSide && (hasSTRText || hasINTText) && (hasCanvas || hasImg);
+                });
+            }
+
+            // Strategy 3: More aggressive - find any element with STR/INT pattern on left side
+            if (petContainers.length === 0) {
+                const viewportWidth = window.innerWidth;
+                const leftThreshold = viewportWidth * 0.15;
+                const widthThreshold = viewportWidth * 0.15;
+
+                const allDivs = Array.from(document.querySelectorAll('div'));
+                petContainers = allDivs.filter(el => {
+                    const rect = el.getBoundingClientRect();
+                    const isOnLeftSide = rect.left < leftThreshold && rect.width < widthThreshold;
+                    const hasSTRText = /STR\s+\d+/.test(el.textContent);
+                    const hasINTText = /INT\s+\d+/.test(el.textContent);
+
+                    return isOnLeftSide && (hasSTRText || hasINTText) && !el.querySelector('.mgtools-instant-feed-btn');
+                });
+            }
+
+            if (typeof productionLog === 'function') {
+                productionLog(`[MGTools] Found ${petContainers.length} pet containers`);
+            }
+
+            // Inject buttons into found containers
+            Array.from(petContainers).slice(0, 3).forEach((container, index) => {
+                if (!container.querySelector('.mgtools-instant-feed-btn')) {
+                    // Make sure container is positioned
+                    const currentPosition = window.getComputedStyle(container).position;
+                    if (currentPosition === 'static') {
+                        container.style.position = 'relative';
+                    }
+
+                    const btn = createInstantFeedButton(index);
+                    container.appendChild(btn);
+
+                    if (typeof productionLog === 'function') {
+                        productionLog(`[MGTools] Injected feed button ${index + 1}`);
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('[MGTools] Error injecting instant feed buttons:', error);
+        }
+    }
+
+    // Wait for game to load before injecting buttons
+    function waitForGameLoad() {
+        if (document.querySelector('.chakra-stack') && window.UnifiedState) {
+            injectInstantFeedButtons();
+
+            // Set up MutationObserver to keep buttons visible
+            const observer = new MutationObserver(() => {
+                injectInstantFeedButtons();
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            if (typeof productionLog === 'function') {
+                productionLog('✅ [MGTools] Instant feed buttons initialized');
+            }
+        } else {
+            setTimeout(waitForGameLoad, 1000);
+        }
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', waitForGameLoad);
+    } else {
+        waitForGameLoad();
+    }
+
 })();
 
 
