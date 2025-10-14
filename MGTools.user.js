@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.8.0
+// @version      3.8.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -159,7 +159,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const localStorage = safeStorage;
 
       // ==================== VERSION INFO ====================
-      const CURRENT_VERSION = '3.7.8';  // Current version
+      const CURRENT_VERSION = '3.8.1';  // Current version
       const VERSION_CHECK_URL_STABLE = 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js';
       const VERSION_CHECK_URL_BETA = 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js';
       const STABLE_DOWNLOAD_URL = 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js';
@@ -2518,11 +2518,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   },
                   detailedTimestamps: true,  // Show HH:MM:SS 24-hour format instead of 12-hour AM/PM
                   debugMode: false,  // Enable debug logging for troubleshooting
+                  roomDebugMode: false,  // Enable detailed room API logging for troubleshooting
                   hideWeather: false,  // Hide weather visual effects (snow, rain, etc)
                   autoFavorite: {
                       enabled: false,
                       species: [],  // List of species names to auto-favorite
-                      mutations: []  // List of mutations to auto-favorite (Rainbow, Gold, Frozen, etc)
+                      mutations: []  // List of mutations to auto-favorite (Rainbow, Gold, Frozen, Dawnlit, Amberlit, Dawnbound, Amberbound, etc)
                   }
               },
               hotkeys: {
@@ -2778,7 +2779,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               return [...this.magicCircle, ...custom];
           }
       };
-  
+
+      // Expose RoomRegistry to correct window for room polling system
+      // Use targetWindow (unsafeWindow in Tampermonkey, window in regular browser)
+      targetWindow.RoomRegistry = RoomRegistry;
+
       // Detect if running in Discord environment
       function isDiscordEnvironment() {
           try {
@@ -2818,7 +2823,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           try {
               const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
               if (!roomState?.child?.data?.userSlots) {
-                  if (UnifiedState.data.settings.debugMode) {
+                  if (UnifiedState.data.settings.roomDebugMode) {
                       console.log('[Room Status] No userSlots data available', {
                           hasRoomConnection: !!targetWindow.MagicCircle_RoomConnection,
                           hasRoomState: !!roomState,
@@ -2830,7 +2835,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               }
               const userSlots = roomState.child.data.userSlots;
               const count = userSlots.filter(slot => slot !== null && slot !== undefined).length;
-              if (UnifiedState.data.settings.debugMode) {
+              if (UnifiedState.data.settings.roomDebugMode) {
                   console.log('[Room Status] Player count:', count, 'userSlots:', userSlots);
               }
               return count;
@@ -2852,8 +2857,37 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           return UnifiedState.data.roomStatus.reporterId;
       }
   
+      // Room API helpers - matches endpoint used by community scripts
+      function buildRoomApiUrl(roomIdOrCode, endpoint = 'info') {
+          return `${location.origin}/api/rooms/${encodeURIComponent(roomIdOrCode)}/${endpoint}`;
+      }
+
+      async function requestRoomEndpoint(roomIdOrCode, options = {}) {
+          const endpoint = options.endpoint ?? 'info';
+          const url = buildRoomApiUrl(roomIdOrCode, endpoint);
+          const timeoutMs = options.timeoutMs ?? 10000;
+
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+          try {
+              const res = await Network.fetch(url, {
+                  method: 'GET',
+                  credentials: 'include',
+                  signal: controller.signal
+              });
+              const body = await res.text();
+              const parsed = res.ok ? JSON.parse(body) : undefined;
+              return { status: res.status, ok: res.ok, body, parsed };
+          } catch (err) {
+              throw new Error(`Room endpoint fetch failed: ${err.message}`);
+          } finally {
+              clearTimeout(timeout);
+          }
+      }
+
       // Load Firebase SDK and initialize with authentication
-      
+
 async function initializeFirebase() {
     // Replaced Firebase with /info poller stub - integrates with existing listener
     try {
@@ -2865,25 +2899,39 @@ async function initializeFirebase() {
                 let abort = false;
                 const fetchInfo = async (room) => {
                     try{
-                        // Use getGameApiBaseUrl from global scope with fallback
-                        const globalScope = window;
-                        const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
-                        const apiBase = getApiBase();
-                        const url = new URL(apiBase + '/info');
-                        url.searchParams.set('room', room);
-                        const res = await Network.fetch(url.toString(), {credentials:'include'});
-                        if (!res.ok) throw new Error('HTTP '+res.status);
-                        const j = await res.json().catch(()=>({}));
-                        const online = (j?.players?.online ?? j?.players?.count ?? j?.online ?? j?.count ?? 0) || 0;
-                        return { count: Number(online)||0, lastUpdate: Date.now(), reporter: getReporterId() };
-                    }catch{ return { count: 0, lastUpdate: Date.now(), reporter: getReporterId() }; }
+                        // Use /api/rooms/{id}/info endpoint - works for both simple codes and Discord IDs
+                        const response = await requestRoomEndpoint(room, { endpoint: 'info', timeoutMs: 10000 });
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                        const payload = response.parsed;
+                        // Extract numPlayers from response (friendscript pattern)
+                        const players = typeof payload?.numPlayers === 'number' ? payload.numPlayers : 0;
+                        const count = Math.max(0, Math.min(6, Math.floor(players)));
+
+                        return { count, lastUpdate: Date.now(), reporter: getReporterId() };
+                    }catch(err){
+                        if (UnifiedState.data.settings?.roomDebugMode) {
+                            console.warn(`[Room API] Failed to fetch ${room}:`, err.message);
+                        }
+                        return { count: 0, lastUpdate: Date.now(), reporter: getReporterId() };
+                    }
                 };
                 async function tick(){
                     if (abort) return;
                     const out = {};
+
+                    // Poll custom rooms (MG1-15, SLAY, user-added)
                     for (const rc of UnifiedState.data.customRooms){
                         out[rc] = await fetchInfo(rc);
                     }
+
+                    // Poll Discord rooms (play1-play50, country rooms)
+                    if (RoomRegistry && RoomRegistry.discord) {
+                        for (const room of RoomRegistry.discord){
+                            out[room.id] = await fetchInfo(room.id);
+                        }
+                    }
+
                     const snapshot = { val: () => out };
                     try{ callback(snapshot); }catch(e){ console.error('rooms onValue cb error', e); }
                 }
@@ -2928,7 +2976,7 @@ async function initializeFirebase() {
                   await new Promise(resolve => setTimeout(resolve, 500));
                   count = getActualPlayerCount();
                   retryCount++;
-                  if (UnifiedState.data.settings.debugMode) {
+                  if (UnifiedState.data.settings.roomDebugMode) {
                       console.log(`[Room Status] Retry ${retryCount}/${maxRetries} for ${roomCode}...`);
                   }
               }
@@ -2967,7 +3015,7 @@ async function initializeFirebase() {
   
                       // Skip if we don't have valid data yet
                       if (currentCount === null) {
-                          if (UnifiedState.data.settings.debugMode) {
+                          if (UnifiedState.data.settings.roomDebugMode) {
                               console.log('[Room Status] Skipping report - no player data available yet');
                           }
                           return;
@@ -2995,7 +3043,7 @@ async function initializeFirebase() {
                       // Update local state immediately
                       UnifiedState.data.roomStatus.counts[roomCode] = currentCount;
   
-                      if (UnifiedState.data.settings.debugMode) {
+                      if (UnifiedState.data.settings.roomDebugMode) {
                           console.log(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount}, forced: ${shouldForceReport})`);
                       }
                   } catch (err) {
@@ -11723,7 +11771,7 @@ async function initializeFirebase() {
                           Automatically favorite items with these mutations:
                       </div>
                       <div id="auto-favorite-mutations" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                          ${['Rainbow', 'Gold', 'Frozen', 'Wet', 'Chilled']
+                          ${['Rainbow', 'Gold', 'Frozen', 'Wet', 'Chilled', 'Dawnlit', 'Amberlit', 'Dawnbound', 'Amberbound']
                               .map(mutation => `
                                   <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none;">
                                       <input type="checkbox" value="${mutation}"
@@ -11856,7 +11904,8 @@ async function initializeFirebase() {
 
           // Helper function to render room card
           const renderRoomCard = (room, allowDelete = false, allowDrag = false) => {
-              const count = roomCounts[room.id] || 0;
+              // Try name first (Discord rooms stored as 'PLAY1'), fallback to id (MG rooms stored as 'MG1')
+              const count = roomCounts[room.name?.toUpperCase()] || roomCounts[room.id] || 0;
               const displayCount = Math.min(count, 6);
               const isCurrentRoom = room.id === currentRoom;
 
@@ -14086,9 +14135,9 @@ async function initializeFirebase() {
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">💰 Sell Protection</div>
+                  <div class="mga-section-title">💰 Crop Sell Protection</div>
                   <div style="margin-bottom: 12px;">
-                      <label style="display: block; margin-bottom: 8px; font-weight: 600;">Minimum Friend Bonus to Allow Selling:</label>
+                      <label style="display: block; margin-bottom: 8px; font-weight: 600;">Minimum Friend Bonus to Allow Selling Crops:</label>
                       <div style="display: flex; align-items: center; gap: 12px;">
                           <input type="range" id="protect-sell-threshold" min="1.0" max="1.5" step="0.05" value="${sellThreshold}"
                               style="flex: 1; height: 6px; background: rgba(74,158,255,0.3); border-radius: 3px; outline: none;">
@@ -14097,6 +14146,37 @@ async function initializeFirebase() {
                       <p style="font-size: 11px; color: #888; margin-top: 8px;">
                           Set to 1.0x to allow selling anytime. Max 1.5x (50% bonus). Higher values require better friend bonus.
                       </p>
+                      <p style="font-size: 11px; color: #4a9eff; margin-top: 8px; font-weight: 600;">
+                          Note: Friend bonus does NOT affect pet selling in the game.
+                      </p>
+                  </div>
+              </div>
+
+              <div class="mga-section">
+                  <div class="mga-section-title">🐾 Pet Protection</div>
+                  <div style="padding: 12px; background: rgba(74, 158, 255, 0.30); border-radius: 6px; border-left: 3px solid #4a9eff; margin-bottom: 16px;">
+                      <p style="margin-bottom: 4px; font-size: 12px;">• Lock pets by ability to prevent accidental selling</p>
+                      <p style="margin-bottom: 4px; font-size: 12px;">• Protect valuable pets with rare abilities</p>
+                  </div>
+                  <div style="margin-bottom: 12px;">
+                      <label style="display: block; margin-bottom: 8px; font-weight: 600;">Lock Pets with These Abilities:</label>
+                      <div id="protect-pet-abilities-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
+                          <!-- Pet ability checkboxes will be generated here -->
+                      </div>
+                  </div>
+              </div>
+
+              <div class="mga-section">
+                  <div class="mga-section-title">🏛️ Decor Protection</div>
+                  <div style="padding: 12px; background: rgba(74, 158, 255, 0.30); border-radius: 6px; border-left: 3px solid #4a9eff; margin-bottom: 16px;">
+                      <p style="margin-bottom: 4px; font-size: 12px;">• Lock decor items to prevent accidental pickup</p>
+                      <p style="margin-bottom: 4px; font-size: 12px;">• All decor is <strong>unlocked by default</strong></p>
+                  </div>
+                  <div style="margin-bottom: 12px;">
+                      <label style="display: block; margin-bottom: 8px; font-weight: 600;">Lock by Decor Type:</label>
+                      <div id="protect-decor-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 300px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                          <!-- Decor checkboxes will be generated here -->
+                      </div>
                   </div>
               </div>
   
@@ -15246,7 +15326,19 @@ async function initializeFirebase() {
                           Shows detailed console logs for troubleshooting pet hunger, notifications, and more.
                       </p>
                   </div>
-  
+
+                  <div style="margin-bottom: 12px;">
+                      <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                          <input type="checkbox" id="room-debug-mode-checkbox" class="mga-checkbox"
+                                 ${settings.roomDebugMode ? 'checked' : ''}
+                                 style="accent-color: #4a9eff;">
+                          <span>🌐 Enable Room Debug Mode</span>
+                      </label>
+                      <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                          Shows detailed console logs for room API requests and player count fetching.
+                      </p>
+                  </div>
+
                   <div style="margin-bottom: 12px;">
                       <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                           <input type="checkbox" id="hide-weather-checkbox" class="mga-checkbox"
@@ -18117,7 +18209,7 @@ async function initializeFirebase() {
       function setupProtectTabHandlers(context = document) {
           // Actual game crop species (from shop)
           const cropSpecies = ['Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
-          const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'Lock All Mutations', 'Lock Only Non-Mutated'];
+          const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'Dawnlit', 'Amberlit', 'Dawnbound', 'Amberbound', 'Lock All Mutations', 'Lock Only Non-Mutated'];
 
           // Add new setting for frozen exception
           if (!UnifiedState.data.protectionSettings) {
@@ -18132,6 +18224,14 @@ async function initializeFirebase() {
           }
           if (!UnifiedState.data.sellBlockThreshold) {
               UnifiedState.data.sellBlockThreshold = 1.0;
+          }
+          // Initialize locked decor if not exists
+          if (!UnifiedState.data.lockedDecor) {
+              UnifiedState.data.lockedDecor = [];
+          }
+          // Initialize locked pet abilities if not exists
+          if (!UnifiedState.data.lockedPetAbilities) {
+              UnifiedState.data.lockedPetAbilities = [];
           }
   
           const lockedCrops = UnifiedState.data.lockedCrops;
@@ -18161,6 +18261,33 @@ async function initializeFirebase() {
                   </label>
               `).join('');
           }
+
+          // Generate pet ability checkboxes
+          const petAbilities = ['Rainbow Granter', 'Gold Granter'];
+          const petAbilitiesList = context.querySelector('#protect-pet-abilities-list');
+          if (petAbilitiesList) {
+              petAbilitiesList.innerHTML = petAbilities.map(ability => `
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
+                      <input type="checkbox" class="protect-pet-ability-checkbox" value="${ability}"
+                          ${UnifiedState.data.lockedPetAbilities?.includes(ability) ? 'checked' : ''}
+                          style="cursor: pointer;">
+                      <span style="font-size: 12px;">${ability}</span>
+                  </label>
+              `).join('');
+          }
+
+          // Generate decor checkboxes
+          const decorList = context.querySelector('#protect-decor-list');
+          if (decorList) {
+              decorList.innerHTML = DECOR_ITEMS.map(decor => `
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
+                      <input type="checkbox" class="protect-decor-checkbox" value="${decor.id}"
+                          ${UnifiedState.data.lockedDecor?.includes(decor.id) ? 'checked' : ''}
+                          style="cursor: pointer;">
+                      <span style="font-size: 11px;">${decor.name}</span>
+                  </label>
+              `).join('');
+          }
   
           // Handle species checkbox changes
           context.querySelectorAll('.protect-species-checkbox').forEach(checkbox => {
@@ -18187,7 +18314,7 @@ async function initializeFirebase() {
                   // Special handling for "Lock All Mutations" - it's a "select all" toggle
                   if (mutation === 'Lock All Mutations') {
                       const allMutationCheckboxes = context.querySelectorAll('.protect-mutation-checkbox');
-                      const otherMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold'];
+                      const otherMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'Dawnlit', 'Amberlit', 'Dawnbound', 'Amberbound'];
 
                       if (e.target.checked) {
                           // Check all other mutation checkboxes
@@ -18238,20 +18365,54 @@ async function initializeFirebase() {
                   applyHarvestRule();
               });
           });
-  
+
+          // Handle pet ability checkbox changes
+          context.querySelectorAll('.protect-pet-ability-checkbox').forEach(checkbox => {
+              checkbox.addEventListener('change', (e) => {
+                  const ability = e.target.value;
+                  if (e.target.checked) {
+                      if (!UnifiedState.data.lockedPetAbilities.includes(ability)) {
+                          UnifiedState.data.lockedPetAbilities.push(ability);
+                      }
+                  } else {
+                      UnifiedState.data.lockedPetAbilities = UnifiedState.data.lockedPetAbilities.filter(a => a !== ability);
+                  }
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  updateProtectStatus(context);
+              });
+          });
+
+          // Handle decor checkbox changes
+          context.querySelectorAll('.protect-decor-checkbox').forEach(checkbox => {
+              checkbox.addEventListener('change', (e) => {
+                  const decorId = e.target.value;
+                  if (e.target.checked) {
+                      if (!UnifiedState.data.lockedDecor.includes(decorId)) {
+                          UnifiedState.data.lockedDecor.push(decorId);
+                      }
+                  } else {
+                      UnifiedState.data.lockedDecor = UnifiedState.data.lockedDecor.filter(d => d !== decorId);
+                  }
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  updateProtectStatus(context);
+              });
+          });
+
           // Clear all button
           const clearButton = context.querySelector('#protect-clear-all');
           if (clearButton) {
               clearButton.addEventListener('click', () => {
                   lockedCrops.species = [];
                   lockedCrops.mutations = [];
+                  UnifiedState.data.lockedDecor = [];
+                  UnifiedState.data.lockedPetAbilities = [];
                   MGA_saveJSON('MGA_data', UnifiedState.data);
-  
+
                   // Uncheck all checkboxes
-                  context.querySelectorAll('.protect-species-checkbox, .protect-mutation-checkbox').forEach(cb => {
+                  context.querySelectorAll('.protect-species-checkbox, .protect-mutation-checkbox, .protect-decor-checkbox, .protect-pet-ability-checkbox').forEach(cb => {
                       cb.checked = false;
                   });
-  
+
                   updateProtectStatus(context);
                   applyHarvestRule();
               });
@@ -18295,23 +18456,35 @@ async function initializeFirebase() {
       function updateProtectStatus(context = document) {
           const statusDisplay = context.querySelector('#protect-status-display');
           if (!statusDisplay) return;
-  
+
           const lockedCrops = UnifiedState.data.lockedCrops || { species: [], mutations: [] };
-          const hasLocks = lockedCrops.species.length > 0 || lockedCrops.mutations.length > 0;
-  
+          const lockedDecor = UnifiedState.data.lockedDecor || [];
+          const lockedPetAbilities = UnifiedState.data.lockedPetAbilities || [];
+          const hasLocks = lockedCrops.species.length > 0 || lockedCrops.mutations.length > 0 || lockedDecor.length > 0 || lockedPetAbilities.length > 0;
+
           if (!hasLocks) {
-              statusDisplay.innerHTML = '<div style="color: #888;">No crops are currently locked.</div>';
+              statusDisplay.innerHTML = '<div style="color: #888;">No protections are currently active.</div>';
               return;
           }
-  
+
           let html = '';
           if (lockedCrops.species.length > 0) {
-              html += `<div style="margin-bottom: 8px;"><strong>🔒 Locked Species:</strong> ${lockedCrops.species.join(', ')}</div>`;
+              html += `<div style="margin-bottom: 8px;"><strong>🔒 Locked Crop Species:</strong> ${lockedCrops.species.join(', ')}</div>`;
           }
           if (lockedCrops.mutations.length > 0) {
-              html += `<div><strong>🔒 Locked Mutations:</strong> ${lockedCrops.mutations.join(', ')}</div>`;
+              html += `<div style="margin-bottom: 8px;"><strong>🔒 Locked Mutations:</strong> ${lockedCrops.mutations.join(', ')}</div>`;
           }
-  
+          if (lockedPetAbilities.length > 0) {
+              html += `<div style="margin-bottom: 8px;"><strong>🐾 Locked Pet Abilities:</strong> ${lockedPetAbilities.join(', ')}</div>`;
+          }
+          if (lockedDecor.length > 0) {
+              const decorNames = lockedDecor.map(id => {
+                  const decor = DECOR_ITEMS.find(d => d.id === id);
+                  return decor ? decor.name : id;
+              }).join(', ');
+              html += `<div><strong>🏛️ Locked Decor:</strong> ${decorNames}</div>`;
+          }
+
           statusDisplay.innerHTML = html;
       }
   
@@ -18404,7 +18577,7 @@ async function initializeFirebase() {
   
                       const friendBonus = targetWindow.friendBonus ?? 1.5;
                       const msgType = message.type;
-                      const isSellMessage = msgType === "SellAllCrops" || msgType.toLowerCase().startsWith("sellpet");
+                      const isSellMessage = msgType === "SellAllCrops"; // Only check crops - friend bonus doesn't work for pets
 
                       // Detect in-game shop purchases
                       if (msgType === "PurchaseSeed" && message.species) {
@@ -18460,7 +18633,126 @@ async function initializeFirebase() {
                               console.warn(`[HarvestCheck] No slot data found for slot ${message.slot}, index ${message.slotsIndex}`);
                           }
                       }
-  
+
+                      // Check pet sell blocking by ability (using mutation-based detection)
+                      if (msgType.toLowerCase().includes("pet") && msgType.toLowerCase().includes("sell")) {
+                          // Debug logging for pet sell attempts
+                          console.log(`🐾 [PetSellDebug] Message type: ${msgType}`, message);
+
+                          const lockedAbilities = UnifiedState.data.lockedPetAbilities || [];
+                          console.log(`🐾 [PetSellDebug] Locked abilities:`, lockedAbilities);
+
+                          // CRITICAL FIX: Game uses 'itemId' not 'petId' in SellPet messages
+                          const petId = message.itemId || message.petId;
+
+                          if (lockedAbilities.length > 0 && petId) {
+                              // Find the pet being sold
+                              let pet = null;
+
+                              // Check active pets
+                              if (UnifiedState.atoms.activePets) {
+                                  pet = UnifiedState.atoms.activePets.find(p => p.id === petId);
+                              }
+
+                              // Check inventory if not found in active pets
+                              if (!pet && UnifiedState.atoms.inventory?.items) {
+                                  pet = UnifiedState.atoms.inventory.items.find(item => item.id === petId && item.itemType === 'Pet');
+                              }
+
+                              console.log(`🐾 [PetSellDebug] Found pet:`, pet);
+
+                              if (pet) {
+                                  // BETTER APPROACH: Check pet mutations instead of petAbility atom
+                                  // Gold/Rainbow mutations are ALWAYS present, unlike ability data which may not be populated
+                                  const petMutations = pet.mutations || [];
+                                  console.log(`🐾 [PetSellDebug] Pet mutations:`, petMutations);
+
+                                  // Check petAbility atom as backup
+                                  let abilityFromAtom = null;
+                                  if (UnifiedState.atoms.petAbility && UnifiedState.atoms.petAbility[petId]) {
+                                      const abilityData = UnifiedState.atoms.petAbility[petId];
+                                      abilityFromAtom = abilityData.lastAbilityTrigger?.abilityId;
+                                      console.log(`🐾 [PetSellDebug] Pet ability from atom:`, abilityFromAtom);
+                                  }
+
+                                  // Check if pet has Gold or Rainbow mutation
+                                  const hasGoldMutation = petMutations.includes('Gold');
+                                  const hasRainbowMutation = petMutations.includes('Rainbow');
+
+                                  console.log(`🐾 [PetSellDebug] Has Gold mutation: ${hasGoldMutation}, Has Rainbow mutation: ${hasRainbowMutation}`);
+
+                                  // Block if mutation matches locked ability
+                                  const isGoldGranterLocked = lockedAbilities.includes('Gold Granter');
+                                  const isRainbowGranterLocked = lockedAbilities.includes('Rainbow Granter');
+
+                                  const shouldBlockGold = hasGoldMutation && isGoldGranterLocked;
+                                  const shouldBlockRainbow = hasRainbowMutation && isRainbowGranterLocked;
+
+                                  console.log(`🐾 [PetSellDebug] Should block gold: ${shouldBlockGold}, Should block rainbow: ${shouldBlockRainbow}`);
+
+                                  if (shouldBlockGold || shouldBlockRainbow) {
+                                      const blockedType = shouldBlockGold ? 'Gold' : 'Rainbow';
+                                      console.warn(`🐾 [PetLock] ❌ BLOCKED selling ${blockedType} pet (${blockedType} Granter is locked)`);
+                                      return; // Block the sale
+                                  } else {
+                                      console.log(`🐾 [PetSellDebug] ✅ Pet mutations not locked, allowing sale`);
+                                  }
+                              } else {
+                                  console.log(`🐾 [PetSellDebug] ⚠️ Could not find pet with ID ${petId}`);
+                              }
+                          }
+                      }
+
+                      // Check decor removal blocking
+                      // CRITICAL: PickupDecor message doesn't include decorId, only localTileIndex!
+                      // We need to look up what's at that position in the garden
+                      if (msgType === "PickupDecor") {
+                          console.log(`🏛️ [DecorCheck] PickupDecor message:`, JSON.stringify(message, null, 2));
+
+                          const lockedDecor = UnifiedState.data.lockedDecor || [];
+
+                          if (lockedDecor.length > 0) {
+                              // Extract tile information from message
+                              const tileType = message.tileType;
+                              const tileIndex = message.localTileIndex;
+
+                              console.log(`🏛️ [DecorCheck] Looking for decor at ${tileType} tile ${tileIndex}`);
+
+                              // Look up what decor is at this tile position
+                              let decorAtPosition = null;
+
+                              if (targetWindow.myGarden?.garden) {
+                                  const garden = targetWindow.myGarden.garden;
+
+                                  // Check the appropriate tile collection based on tileType
+                                  if (tileType === "Boardwalk" && garden.boardwalkTileObjects) {
+                                      const tile = garden.boardwalkTileObjects[tileIndex];
+                                      if (tile && tile.objectType === 'decor' && tile.decorId) {
+                                          decorAtPosition = tile.decorId;
+                                      }
+                                  } else if (tileType === "Garden" && garden.tileObjects) {
+                                      const tile = garden.tileObjects[tileIndex];
+                                      if (tile && tile.objectType === 'decor' && tile.decorId) {
+                                          decorAtPosition = tile.decorId;
+                                      }
+                                  }
+                              }
+
+                              console.log(`🏛️ [DecorCheck] Decor at position: "${decorAtPosition}"`);
+                              console.log(`🏛️ [DecorCheck] Locked decor list:`, lockedDecor);
+
+                              // Block if this decor is locked
+                              if (decorAtPosition && lockedDecor.includes(decorAtPosition)) {
+                                  console.warn(`🏛️ [DecorLock] ❌ BLOCKED pickup of "${decorAtPosition}"`);
+                                  return; // Block the pickup
+                              } else if (decorAtPosition) {
+                                  console.log(`🏛️ [DecorCheck] ✅ Decor "${decorAtPosition}" not locked, allowing pickup`);
+                              } else {
+                                  console.log(`🏛️ [DecorCheck] ⚠️ Could not find decor at tile position`);
+                              }
+                          }
+                      }
+
                       return originalSendMessage(message, ...rest);
   
                   } catch (err) {
@@ -19310,6 +19602,16 @@ async function initializeFirebase() {
                   UnifiedState.data.settings.debugMode = e.target.checked;
                   MGA_saveJSON('MGA_data', UnifiedState.data);
                   productionLog(`🐛 Debug mode ${e.target.checked ? 'enabled' : 'disabled'}`);
+              });
+          }
+
+          // Room debug mode checkbox
+          const roomDebugModeCheckbox = context.querySelector('#room-debug-mode-checkbox');
+          if (roomDebugModeCheckbox) {
+              roomDebugModeCheckbox.addEventListener('change', (e) => {
+                  UnifiedState.data.settings.roomDebugMode = e.target.checked;
+                  MGA_saveJSON('MGA_data', UnifiedState.data);
+                  console.log(`[MGTools] Room debug mode ${e.target.checked ? 'enabled' : 'disabled'}`);
               });
           }
   
@@ -24190,6 +24492,8 @@ function initializeTurtleTimer() {
                   hasCustomRooms: !!loadedData.customRooms,
                   hasSeedsToDelete: !!loadedData.seedsToDelete,
                   hasLockedCrops: !!loadedData.lockedCrops,
+                  hasLockedDecor: !!loadedData.lockedDecor,
+                  hasLockedPetAbilities: !!loadedData.lockedPetAbilities,
                   topLevelKeys: Object.keys(loadedData),
                   settingsKeys: loadedData.settings ? Object.keys(loadedData.settings).length : 0
               });
@@ -24512,7 +24816,25 @@ function initializeTurtleTimer() {
               UnifiedState.data.lockedCrops = { species: [], mutations: [] };
               productionLog('📦 [STORAGE] Initialized crop protection with defaults');
           }
-  
+
+          // Load decor protection settings from MGA_data
+          if (loadedData && loadedData.lockedDecor && Array.isArray(loadedData.lockedDecor)) {
+              UnifiedState.data.lockedDecor = loadedData.lockedDecor;
+              productionLog('📦 [STORAGE] Loaded decor protection locks from MGA_data:', UnifiedState.data.lockedDecor.length);
+          } else {
+              UnifiedState.data.lockedDecor = [];
+              productionLog('📦 [STORAGE] Initialized decor protection with defaults');
+          }
+
+          // Load pet abilities protection settings from MGA_data
+          if (loadedData && loadedData.lockedPetAbilities && Array.isArray(loadedData.lockedPetAbilities)) {
+              UnifiedState.data.lockedPetAbilities = loadedData.lockedPetAbilities;
+              productionLog('📦 [STORAGE] Loaded pet abilities protection locks from MGA_data:', UnifiedState.data.lockedPetAbilities.length);
+          } else {
+              UnifiedState.data.lockedPetAbilities = [];
+              productionLog('📦 [STORAGE] Initialized pet abilities protection with defaults');
+          }
+
           if (loadedData && loadedData.sellBlockThreshold !== undefined) {
               UnifiedState.data.sellBlockThreshold = loadedData.sellBlockThreshold;
               productionLog('📦 [STORAGE] Loaded sell block threshold:', UnifiedState.data.sellBlockThreshold);
@@ -25865,17 +26187,8 @@ function initializeTurtleTimer() {
               productionLog('💾 Loading saved data...');
               loadSavedData();
   
-              // Firebase removed - using /info endpoint instead
-              productionLog('📡 Room tracking initialized via /info endpoint');
-              // initializeFirebase().then(firebase => {
-              //     if (firebase) {
-              //         startRoomReporting(firebase);
-              //         startRoomListener(firebase);
-              //         productionLog('✅ Room tracking active');
-              //     }
-              // }).catch(err => {
-              //     console.error('Firebase initialization error:', err);
-              // });
+              // Room polling handled by anonymous IIFE system (lines 28200-28365)
+              // This system already polls all rooms including Discord rooms
 
               // ==================== INSTANT FEED BUTTONS ====================
               // Pet species and their compatible crops (from game data)
@@ -25962,16 +26275,23 @@ function initializeTurtleTimer() {
                   buttonEl.style.opacity = '0.6';
 
                   try {
+                      // Ensure jotaiStore is captured (fixes first-click issue)
+                      if (!jotaiStore) {
+                          jotaiStore = captureJotaiStore();
+                      }
+
                       // Try to get FRESH pet data from Jotai store (if available)
                       let pet = null;
                       const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
                       if (freshPetSlots && freshPetSlots[petIndex]) {
                           pet = freshPetSlots[petIndex];
+                          console.log('[MGTools Feed] Using fresh pet data from Jotai');
                       } else {
-                          // Fallback to cached pets
-                          const cachedPets = UnifiedState.atoms.activePets;
-                          if (cachedPets && cachedPets[petIndex]) {
+                          // CRITICAL: Direct fallback to cached pets if Jotai not ready
+                          const cachedPets = UnifiedState.atoms.activePets || [];
+                          if (cachedPets[petIndex]) {
                               pet = cachedPets[petIndex];
+                              console.log('[MGTools Feed] Using cached pet data (Jotai not ready)');
                           }
                       }
 
@@ -26040,18 +26360,27 @@ function initializeTurtleTimer() {
                           return;
                       }
 
-                      // Mark this crop as used
+                      // Mark this crop as used BEFORE sending (in case sendToGame is synchronous)
                       usedCropIds.add(cropToFeed.id);
 
-                      // Send feed message - let game handle everything else!
-                      sendToGame({
+                      // Send feed message - sendToGame() handles connection checks internally
+                      const feedSuccess = sendToGame({
                           type: "FeedPet",
                           petItemId: petItemId,
                           cropItemId: cropToFeed.id
                       });
 
-                      // Show success immediately
-                      flashButton(buttonEl, 'success');
+                      // Show feedback based on result
+                      if (feedSuccess) {
+                          flashButton(buttonEl, 'success');
+                          console.log(`[MGTools Feed] ✅ Fed ${species} with ${cropToFeed.species}`);
+                      } else {
+                          // sendToGame() already logged the reason for failure
+                          console.warn('[MGTools Feed] ⚠️ Feed failed - game connection may not be ready');
+                          flashButton(buttonEl, 'error');
+                          // Remove from used set since feed failed
+                          usedCropIds.delete(cropToFeed.id);
+                      }
 
                   } catch (error) {
                       console.error('[MGTools Feed] Error:', error);
@@ -26264,6 +26593,7 @@ function initializeTurtleTimer() {
                               candidates.sort((a, b) => a.area - b.area);
                               const targetContainer = candidates[0].element;
 
+                              console.log(`[MGTools Feed] 📐 Selected container:`, {
                                   width: candidates[0].width.toFixed(1),
                                   height: candidates[0].height.toFixed(1),
                                   tagName: targetContainer.tagName
@@ -26303,6 +26633,25 @@ function initializeTurtleTimer() {
               // Initialize instant feed buttons with polling (reliable for CSS visibility changes)
               function initializeInstantFeedButtons() {
                   console.log('[MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...');
+
+                  // Pre-capture jotaiStore to ensure first click works - retry up to 5 times
+                  if (!jotaiStore) {
+                      let retries = 0;
+                      const maxRetries = 5;
+                      const retryInterval = setInterval(() => {
+                          jotaiStore = captureJotaiStore();
+                          if (jotaiStore) {
+                              console.log('[MGTools Feed] ✅ Jotai store captured for instant feed');
+                              clearInterval(retryInterval);
+                          } else {
+                              retries++;
+                              if (retries >= maxRetries) {
+                                  console.warn('[MGTools Feed] ⚠️ Jotai store not available after 5 retries - will use cached data');
+                                  clearInterval(retryInterval);
+                              }
+                          }
+                      }, 500); // Retry every 500ms
+                  }
 
                   // Helper to find all visible pet containers
                   function findVisiblePetContainers() {
@@ -27863,22 +28212,23 @@ function initializeTurtleTimer() {
   
     // ---------- Rooms via /api/rooms/{code}/info with Fallbacks ----------
     (function roomsInfo(){
+      // CRITICAL: Detect correct window scope (Tampermonkey uses unsafeWindow)
+      // This IIFE is in separate scope from main script, so we need to detect which window has our data
+      const isUserscript = typeof unsafeWindow !== 'undefined';
+      const correctWindow = isUserscript ? unsafeWindow : window;
+
       // Get correct API base URL (handles Discord browser context)
-      // Access the function from global scope (window)
-      const globalScope = window;
+      const globalScope = correctWindow;
       const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
       const apiBase = getApiBase();
       const API_V1 = (name)=> `${apiBase}/api/rooms/${encodeURIComponent(name)}/info`;
-      const API_V2 = (name)=> `${apiBase}/info?room=${encodeURIComponent(name)}`;
-      const TRACKED = (window.UnifiedState?.data?.customRooms || window.TRACKED_ROOMS || ['MG1','MG2','MG3','MG4','MG5','MG6','MG7','MG8','MG9','MG10','SLAY']);
+      const TRACKED = (correctWindow.UnifiedState?.data?.customRooms || correctWindow.TRACKED_ROOMS || ['MG1','MG2','MG3','MG4','MG5','MG6','MG7','MG8','MG9','MG10','SLAY']);
       let extra = new Set();
       const counts = {};
 
-      // Log API base for debugging Discord browser issues
-      productionLog(`🔗 [ROOMS-API] Using API base: ${apiBase}`);
-      if (apiBase !== location.origin) {
-          productionLog(`🔗 [ROOMS-API] Discord context detected - using magiccircle.gg APIs instead of ${location.origin}`);
-      }
+      // Build reverse lookup: Discord room ID -> display name
+      // This allows us to store counts by name (e.g., 'PLAY1') instead of by ID
+      const roomIdToName = {};
 
       // Parse player count from various API response formats
       function parsePlayerCount(data) {
@@ -27944,48 +28294,152 @@ function initializeTurtleTimer() {
         });
       }
 
-      async function fetchOne(name){
+      async function fetchOne(roomIdOrName){
+        const roomDebugMode = correctWindow.UnifiedState?.data?.settings?.roomDebugMode;
+        const isDiscordRoom = roomIdOrName.includes('i-') && roomIdOrName.includes('-gc-');
+
         try {
           let data = null;
 
-          // Try API v1: /api/rooms/{code}/info
+          // Try /api/rooms/{code}/info endpoint (works for both simple codes and Discord IDs)
           try {
-            const url1 = API_V1(name);
-            data = await fetchWithFetch(url1, name);
+            const url1 = API_V1(roomIdOrName);
+            data = await fetchWithFetch(url1, roomIdOrName);
+            if (roomDebugMode) {
+              console.log(`[ROOMS] ✅ Fetch succeeded for ${roomIdOrName}:`, data);
+            }
           } catch (e1) {
-            // Try API v2: /info?room={code}
+            // Try GM_xmlhttpRequest fallback if fetch fails
             try {
-              const url2 = API_V2(name);
-              data = await fetchWithFetch(url2, name);
-            } catch (e2) {
-              // Try GM_xmlhttpRequest fallback
-              try {
-                const url1 = API_V1(name);
-                data = await fetchWithGM(url1, name);
-              } catch (e3) {
-                throw new Error(`All methods failed`);
+              const url1 = API_V1(roomIdOrName);
+              if (roomDebugMode) {
+                console.log(`[ROOMS] 🔄 Retrying ${roomIdOrName} with GM_xmlhttpRequest`);
               }
+              data = await fetchWithGM(url1, roomIdOrName);
+              if (roomDebugMode) {
+                console.log(`[ROOMS] ✅ GM fetch succeeded for ${roomIdOrName}:`, data);
+              }
+            } catch (e2) {
+              // Log error if Room Debug Mode is enabled
+              if (roomDebugMode) {
+                console.warn(`[ROOMS] ❌ Failed to fetch ${roomIdOrName}:`, e1.message);
+              }
+              throw new Error(`All methods failed for ${roomIdOrName}`);
             }
           }
 
           // Parse the count from whichever API succeeded
           const online = parsePlayerCount(data);
-          counts[name.toUpperCase()] = online;
+
+          // CRITICAL: For Discord rooms, store by DISPLAY NAME, not ID
+          // This allows UI to find counts by looking up 'PLAY1' instead of long ID
+          let storageKey;
+          if (isDiscordRoom && roomIdToName[roomIdOrName]) {
+            storageKey = roomIdToName[roomIdOrName].toUpperCase();
+            if (roomDebugMode && online > 0) {
+              console.log(`[ROOMS] 📊 Discord room ${roomIdToName[roomIdOrName]}: ${online} players`);
+            }
+          } else {
+            storageKey = roomIdOrName.toUpperCase();
+            if (roomDebugMode && online > 0) {
+              console.log(`[ROOMS] 📊 ${roomIdOrName}: ${online} players`);
+            }
+          }
+
+          counts[storageKey] = online;
         } catch(e) {
-          counts[name.toUpperCase()] = 0;
+          // Store failure as 0, using same key logic
+          let storageKey;
+          if (isDiscordRoom && roomIdToName[roomIdOrName]) {
+            storageKey = roomIdToName[roomIdOrName].toUpperCase();
+          } else {
+            storageKey = roomIdOrName.toUpperCase();
+          }
+          counts[storageKey] = 0;
+
+          // Log failures only in debug mode
+          if (roomDebugMode) {
+            console.warn(`[ROOMS] ⚠️ ${isDiscordRoom ? 'Discord room' : 'Room'} ${roomIdOrName.substring(0, 30)}... failed:`, e.message);
+          }
         }
       }
 
+      // Track last poll time when UI was hidden (for reduced frequency)
+      let lastTickWhenHidden = 0;
+
       async function tick(){
-        const names = [...TRACKED, ...extra];
-        await Promise.all(names.map(fetchOne));
+        const roomDebugMode = correctWindow.UnifiedState?.data?.settings?.roomDebugMode;
+
+        // SMART POLLING: Reduce frequency when Rooms UI is closed (not skip entirely)
+        const roomsUIVisible = document.querySelector('.mga-sidebar[data-visible="true"] [data-tab="rooms"]') ||
+                               document.querySelector('#room-status-list') ||
+                               document.querySelector('[data-mga-popout="rooms"]');
+
+        // If UI not visible, only poll every 30 seconds instead of every 5 seconds
+        if (!roomsUIVisible) {
+          const now = Date.now();
+          // Skip this tick if we polled less than 30 seconds ago while hidden
+          if (lastTickWhenHidden > 0 && (now - lastTickWhenHidden < 30000)) {
+            if (roomDebugMode) {
+              const secondsSinceLastPoll = Math.floor((now - lastTickWhenHidden) / 1000);
+              console.log(`[ROOMS] ⏸️ Skipping tick - UI hidden (last poll ${secondsSinceLastPoll}s ago)`);
+            }
+            return;
+          }
+          lastTickWhenHidden = now;
+          if (roomDebugMode) {
+            console.log('[ROOMS] 🔄 Polling while UI hidden (30s interval)');
+          }
+        } else {
+          // Reset hidden timer when UI is visible
+          lastTickWhenHidden = 0;
+        }
+
+        // Include Discord rooms from RoomRegistry for play1-play50 and country rooms
+        const discordRoomIds = (typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord)
+          ? correctWindow.RoomRegistry.discord.map(r => r.id)
+          : [];
+
+        // CRITICAL: Build roomId -> name lookup for Discord rooms
+        // This allows us to store counts by display name (e.g., 'PLAY1') instead of long ID
+        if (correctWindow.RoomRegistry?.discord && Object.keys(roomIdToName).length === 0) {
+          correctWindow.RoomRegistry.discord.forEach(room => {
+            roomIdToName[room.id] = room.name;
+          });
+          if (roomDebugMode) {
+            console.log('[ROOMS] 🗺️ Built Discord room lookup map:', Object.keys(roomIdToName).length, 'rooms');
+          }
+        }
+
+        const names = [...TRACKED, ...extra, ...discordRoomIds];
+
+        if (roomDebugMode) {
+          console.log(`[ROOMS] 🔄 Tick running: ${names.length} total rooms (${TRACKED.length} MG/Custom, ${discordRoomIds.length} Discord)`);
+        }
+
+        try {
+          await Promise.all(names.map(fetchOne));
+
+          // Show sample of Discord room counts if debug mode enabled
+          if (roomDebugMode) {
+            const discordKeys = Object.keys(counts).filter(k => k.startsWith('PLAY'));
+            if (discordKeys.length > 0) {
+              console.log('[ROOMS] 📝 Sample Discord room counts:', discordKeys.slice(0, 5).map(k => `${k}:${counts[k]}`).join(', '));
+            }
+          }
+        } catch (e) {
+          console.error('[ROOMS] ❌ Tick error:', e);
+        }
 
         // write into UnifiedState so UI updates
-        // BUGFIX: Use UnifiedState directly (not window.UnifiedState) since it's defined in same scope
-        if (typeof UnifiedState !== 'undefined' && UnifiedState?.data){
-          UnifiedState.data.roomStatus = UnifiedState.data.roomStatus || {};
+        if (typeof correctWindow.UnifiedState !== 'undefined' && correctWindow.UnifiedState?.data){
+          correctWindow.UnifiedState.data.roomStatus = correctWindow.UnifiedState.data.roomStatus || {};
           // CRITICAL: Directly replace counts to ensure fresh data
-          UnifiedState.data.roomStatus.counts = {...counts};
+          correctWindow.UnifiedState.data.roomStatus.counts = {...counts};
+
+          if (roomDebugMode) {
+            console.log(`[ROOMS] ✅ Updated ${Object.keys(counts).length} room counts in UnifiedState`);
+          }
 
           // refresh any open rooms views
           if (typeof window.refreshSeparateWindowPopouts === 'function'){
@@ -28006,7 +28460,7 @@ function initializeTurtleTimer() {
               list.querySelectorAll('.room-row').forEach(row=>{
                 const code = (row.getAttribute('data-room')||'').toUpperCase();
                 const span = row.querySelector('.room-count');
-                if (span && code){ span.textContent = String(counts[code] ?? UnifiedState.data.roomStatus.counts[code] ?? 0); }
+                if (span && code){ span.textContent = String(counts[code] ?? window.UnifiedState.data.roomStatus.counts[code] ?? 0); }
               });
             }
           }
@@ -28025,9 +28479,51 @@ function initializeTurtleTimer() {
       });
       obs.observe(document.documentElement, {subtree:true, childList:true});
 
-      // Start fetching
-      setTimeout(tick, 1000); // First tick after 1 second
-      setInterval(tick, 5000); // Then every 5 seconds
+      // Wait for UnifiedState and RoomRegistry to be ready before starting polling
+      function startPollingWhenReady() {
+        const hasUnifiedState = typeof correctWindow.UnifiedState !== 'undefined' && correctWindow.UnifiedState?.data;
+        const hasRoomRegistry = typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord;
+
+        if (hasUnifiedState && hasRoomRegistry) {
+          // Start room polling with Discord rooms included
+          setTimeout(tick, 1000); // First tick after 1 second
+          setInterval(tick, 5000); // Then every 5 seconds
+        } else {
+          setTimeout(startPollingWhenReady, 500);
+        }
+      }
+
+      startPollingWhenReady();
+
+      // Expose diagnostic function for testing
+      // Usage: testDiscordRoomFetch() or testDiscordRoomFetch('room-id')
+      correctWindow.testDiscordRoomFetch = async function(roomId) {
+        const testId = roomId || 'i-1425232387037462538-gc-1399110335469977781-1411124424676999308';
+        const url = `${apiBase}/api/rooms/${encodeURIComponent(testId)}/info`;
+
+        console.log('[ROOMS TEST] Testing:', testId.substring(0, 40) + '...');
+        console.log('[ROOMS TEST] URL:', url);
+
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {'Accept':'application/json'}
+          });
+
+          if (!response.ok) {
+            const text = await response.text();
+            console.error('[ROOMS TEST] ❌ HTTP', response.status, '-', text);
+            return;
+          }
+
+          const data = await response.json();
+          console.log('[ROOMS TEST] ✅ Success! Players:', data.numPlayers ?? 'NOT FOUND', '| Full data:', data);
+
+        } catch (e) {
+          console.error('[ROOMS TEST] ❌ Fetch failed:', e);
+        }
+      };
     })();
   
     // ==================== ENHANCED WEBSOCKET AUTO-RECONNECT SYSTEM ====================
