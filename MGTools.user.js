@@ -644,7 +644,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               if (!jotaiStore) {
                   jotaiStore = captureJotaiStore();
                   if (!jotaiStore) {
-                      console.warn(`[STORE] Cannot query atom '${atomLabel}' - store not captured`);
                       return null;
                   }
               }
@@ -652,7 +651,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               // Get atom from cache by label
               const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
               if (!atomCache) {
-                  console.warn(`[STORE] Atom cache not available`);
                   return null;
               }
 
@@ -667,13 +665,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               }
 
               if (!targetAtom) {
-                  console.warn(`[STORE] Atom '${atomLabel}' not found in cache`);
                   return null;
               }
 
               // Query the store for fresh value
               const value = await jotaiStore.get(targetAtom);
-              console.log(`[STORE] 🔄 Got fresh value for '${atomLabel}'`);
               return value;
 
           } catch (error) {
@@ -867,27 +863,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               for (let attempt = 0; attempt < maxRetries; attempt++) {
                   // Try direct cache access first (fastest)
                   if (this.tryDirectCache()) {
-                      console.log(`✅ [STORE] Captured via direct cache (attempt ${attempt + 1}/${maxRetries})`);
                       return true;
                   }
 
                   // Try Fiber traversal (works in iframes)
                   if (this.tryFiberTraversal()) {
-                      console.log(`✅ [STORE] Captured via Fiber traversal (attempt ${attempt + 1}/${maxRetries})`);
                       return true;
                   }
 
                   // Try write intercept as last resort (only on last few attempts)
                   if (attempt >= maxRetries - 3) {
                       if (await this.tryWriteIntercept(1000)) {
-                          console.log(`✅ [STORE] Captured via write intercept (attempt ${attempt + 1}/${maxRetries})`);
                           return true;
                       }
                   }
 
                   // Wait before next attempt (but not after last attempt)
                   if (attempt < maxRetries - 1) {
-                      console.log(`⏳ [STORE] Waiting for Jotai store... (${attempt + 1}/${maxRetries})`);
                       await new Promise(resolve => setTimeout(resolve, retryDelay));
                   }
               }
@@ -5494,7 +5486,6 @@ async function initializeFirebase() {
 
           // DIAGNOSTIC: Check multiple possible locations for jotaiAtomCache
           if (retryCount === 0) {
-              console.log(`🔍 [ATOM-DIAG] Initial check for ${windowKey}:`);
               console.log('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
               console.log('  - isUserscript:', isUserscript, '(using unsafeWindow:', isUserscript ? 'YES' : 'NO)');
               const jotaiKeys = Object.keys(targetWindow).filter(k => k.toLowerCase().includes('jotai'));
@@ -5531,7 +5522,6 @@ async function initializeFirebase() {
 
               // Log every 5th retry to avoid console spam
               if (retryCount % 5 === 0) {
-                  console.log(`⏳ [ATOM-HOOK] Waiting for atom store for ${windowKey}... (${retryCount + 1}/${maxRetries}, delay: ${delay}ms)`);
               }
 
               setTimeout(() => hookAtom(atomPath, windowKey, callback, retryCount + 1), delay);
@@ -5540,7 +5530,6 @@ async function initializeFirebase() {
 
           // Success - atomCache found!
           if (retryCount > 0) {
-              console.log(`✅ [ATOM-HOOK] Found atom cache for ${windowKey} after ${retryCount} retries`);
           }
 
           productionLog(`🔗 Attempting to hook atom: ${windowKey} at path: ${atomPath}`);
@@ -22762,9 +22751,7 @@ async function initializeFirebase() {
                   if (Array.isArray(actualPetSlots)) {
                       // DEBUG: Log raw slot data to understand structure
                       if (UnifiedState.data.settings?.debugMode) {
-                          console.log('🐾 [ATOM-DEBUG] Raw pet slots:', actualPetSlots);
                           actualPetSlots.forEach((slot, i) => {
-                              console.log(`🐾 [ATOM-DEBUG] Slot ${i}:`, slot);
                           });
                       }
   
@@ -22789,7 +22776,6 @@ async function initializeFirebase() {
                               };
   
                               if (UnifiedState.data.settings?.debugMode) {
-                                  console.log(`🐾 [ATOM-DEBUG] Extracted pet ${index}:`, extracted);
                               }
   
                               return extracted;
@@ -25959,7 +25945,6 @@ function initializeTurtleTimer() {
                       handleInstantFeed(petIndex, btn);
                   });
 
-                  console.log(`[MGTools Feed] Created button ${petIndex + 1} with container-relative positioning`);
 
                   return btn;
               }
@@ -25982,13 +25967,11 @@ function initializeTurtleTimer() {
                       const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
                       if (freshPetSlots && freshPetSlots[petIndex]) {
                           pet = freshPetSlots[petIndex];
-                          console.log(`[MGTools Feed] 🔄 Using FRESH pet data from store`);
                       } else {
                           // Fallback to cached pets
                           const cachedPets = UnifiedState.atoms.activePets;
                           if (cachedPets && cachedPets[petIndex]) {
                               pet = cachedPets[petIndex];
-                              console.log(`[MGTools Feed] 📦 Using cached pet data`);
                           }
                       }
 
@@ -26020,13 +26003,11 @@ function initializeTurtleTimer() {
                       const freshInventory = await getAtomValue('myCropInventoryAtom');
                       if (freshInventory && freshInventory.items) {
                           inventoryItems = freshInventory.items;
-                          console.log(`[MGTools Feed] 🔄 Using FRESH inventory from store (${inventoryItems.length} items)`);
                       } else {
                           // Fallback to cached inventory
                           const cached = targetWindow.myData?.inventory?.items || UnifiedState.atoms.inventory?.items;
                           if (cached) {
                               inventoryItems = cached;
-                              console.log(`[MGTools Feed] 📦 Using cached inventory (${inventoryItems.length} items)`);
                           }
                       }
 
@@ -26061,7 +26042,6 @@ function initializeTurtleTimer() {
 
                       // Mark this crop as used
                       usedCropIds.add(cropToFeed.id);
-                      console.log(`[MGTools Feed] 🌾 Feeding ${cropToFeed.species} (ID: ${cropToFeed.id.substring(0, 8)}...) to ${species}`);
 
                       // Send feed message - let game handle everything else!
                       sendToGame({
@@ -26072,7 +26052,6 @@ function initializeTurtleTimer() {
 
                       // Show success immediately
                       flashButton(buttonEl, 'success');
-                      console.log(`[MGTools Feed] ✅ Sent FeedPet message`);
 
                   } catch (error) {
                       console.error('[MGTools Feed] Error:', error);
@@ -26206,17 +26185,14 @@ function initializeTurtleTimer() {
                       });
 
                       if (existingIndices.size === 3) {
-                          console.log(`[MGTools Feed] ✅ All 3 buttons exist (indices: ${Array.from(existingIndices).join(', ')}), skipping`);
                           isInjecting = false;
                           return;
                       }
 
                       const missingIndices = [0, 1, 2].filter(i => !existingIndices.has(i));
-                      console.log(`[MGTools Feed] Missing button indices: ${missingIndices.join(', ')} - will inject them`);
 
                       // Find ALL canvas elements
                       const allCanvases = Array.from(targetDocument.querySelectorAll('canvas'));
-                      console.log(`[MGTools Feed] Found ${allCanvases.length} total canvas elements`);
 
                       // Filter to pet avatar canvases (left 15% of screen, reasonable size)
                       const viewportWidth = targetWindow.innerWidth;
@@ -26233,7 +26209,6 @@ function initializeTurtleTimer() {
                           const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
 
                           if (isOnScreen && hasReasonableSize && isInValidVerticalRange) {
-                              console.log(`[MGTools Feed] 🎯 Pet canvas: left=${rect.left.toFixed(1)}px, top=${rect.top.toFixed(1)}px, size=${rect.width.toFixed(1)}x${rect.height.toFixed(1)}px`);
                           }
 
                           return isOnScreen && hasReasonableSize && isInValidVerticalRange;
@@ -26241,7 +26216,6 @@ function initializeTurtleTimer() {
                       .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
                       .slice(0, 3);
 
-                      console.log(`[MGTools Feed] ✅ Found ${petAvatarCanvases.length} pet avatar canvases`);
 
                       if (petAvatarCanvases.length === 0) {
                           console.warn('[MGTools Feed] ⚠️ No pet avatar canvases found!');
@@ -26254,7 +26228,6 @@ function initializeTurtleTimer() {
                           try {
                               // Skip if button already exists
                               if (existingIndices.has(index)) {
-                                  console.log(`[MGTools Feed] Button ${index + 1} already exists, skipping`);
                                   return;
                               }
 
@@ -26291,7 +26264,6 @@ function initializeTurtleTimer() {
                               candidates.sort((a, b) => a.area - b.area);
                               const targetContainer = candidates[0].element;
 
-                              console.log(`[MGTools Feed] Found container for pet ${index + 1}:`, {
                                   width: candidates[0].width.toFixed(1),
                                   height: candidates[0].height.toFixed(1),
                                   tagName: targetContainer.tagName
@@ -26299,7 +26271,6 @@ function initializeTurtleTimer() {
 
                               // Check if button already exists in this container
                               if (targetContainer.querySelector('.mgtools-instant-feed-btn')) {
-                                  console.log(`[MGTools Feed] Button already in container ${index + 1}, skipping`);
                                   return;
                               }
 
@@ -26307,14 +26278,12 @@ function initializeTurtleTimer() {
                               const currentPosition = targetWindow.getComputedStyle(targetContainer).position;
                               if (currentPosition === 'static') {
                                   targetContainer.style.position = 'relative';
-                                  console.log(`[MGTools Feed] Set container ${index + 1} to position: relative`);
                               }
 
                               // Create and append button
                               const btn = createInstantFeedButton(index);
                               targetContainer.appendChild(btn);
 
-                              console.log(`[MGTools Feed] ✅ Injected button ${index + 1} into container`);
                               productionLog(`[MGTools Feed] Injected feed button ${index + 1}`);
 
                           } catch (err) {
@@ -26417,7 +26386,6 @@ function initializeTurtleTimer() {
                           const btn = createInstantFeedButton(index);
                           container.appendChild(btn);
 
-                          console.log(`[MGTools Feed] ✅ Injected button ${index + 1}`);
                           return true;
                       } catch (err) {
                           console.error(`[MGTools Feed] Error injecting button ${index + 1}:`, err);
@@ -26443,7 +26411,6 @@ function initializeTurtleTimer() {
 
                       // Log if buttons were re-injected (means they disappeared and came back)
                       if (injectedCount > 0) {
-                          console.log(`[MGTools Feed] 🔄 Re-injected ${injectedCount} button(s) after visibility change`);
                       }
                   }
 
