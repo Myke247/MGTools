@@ -2,42 +2,65 @@
 
 ## Version 3.8.1 (2025-10-14)
 
-### Discord Room Support + Performance
-
 **New Features:**
-- All Discord activity rooms now display player counts
-- Instant feed buttons work reliably on first click
-- Smart network optimization reduces bandwidth usage
+- Enhanced room tracking for better connectivity monitoring
+- Improved pet feeding system reliability
+- Smart performance optimizations
 
 **Improvements:**
-- Improved room status polling efficiency
-- Better game connection detection
-- Optimized network traffic when features not in use
+- Better status polling efficiency
+- Optimized bandwidth usage
+- Enhanced game connection detection
 
 ---
 
 ## Version 3.8.0 (2025-10-13)
 
-### Instant Pet Feeding
-
 **New Features:**
-- Instant feed buttons appear next to active pets
-- One-click pet feeding with automatic crop selection
-- Smart crop selection respects favorited items
+- Instant pet feed buttons for quick feeding
+- Smart crop selection system
+- One-click feeding integration
 
 **Quality of Life:**
-- Visual feedback for feed actions
-- Buttons automatically reappear when needed
-- Seamless integration with game inventory
+- Visual feedback for actions
+- Automatic button positioning
+- Seamless inventory integration
+
+---
+
+## Version 3.9.0 (2025-10-13)
+
+**Advanced Protection Systems:**
+- Decor Protection - Lock decor items to prevent accidental pickup
+  - Supports all 20 decor types (benches, arches, lamp posts, etc.)
+  - Works for both Garden and Boardwalk tiles
+  - All decor unlocked by default
+
+- Pet Protection - Lock valuable pets with rare abilities
+  - Lock pets with Gold Granter ability
+  - Lock pets with Rainbow Granter ability
+  - Protection persists across sessions
+
+**Enhanced Mutation Support:**
+- Added 4 new mutation types to protection systems:
+  - Dawnlit - Dawn celestial mutation
+  - Amberlit - Amber celestial mutation
+  - Dawnbound - Dawn charged mutation
+  - Amberbound - Amber charged mutation
+- Now supports all 9 crop mutations in the game
+
+**How Protection Works:**
+- Access Protect tab in MGTools
+- Select items or abilities you want to protect
+- Locked items cannot be picked up or sold until unlocked
+- Settings automatically save and persist
 
 ---
 
 ## Version 3.7.8 (2025-10-13)
 
-### Stability Update
-
 **New Features:**
-- Cycle through pet presets with custom hotkey
+- Pet preset cycling hotkey
 - Automatic game update detection
 
 **Improvements:**
@@ -49,22 +72,11 @@
 
 ## Version 3.7.6 (2025-10-12)
 
-### Rooms Tab Enhancement
-
 **Improvements:**
-- Custom room management (add/delete/reorder)
-- Enhanced search functionality
-- Discord room integration
-- All room features working properly
+- Enhanced room management features
+- Better search functionality
+- UI polish and bug fixes
 
 ---
 
-## Earlier Versions
-
-See full version history and details at [GitHub Releases](https://github.com/Myke247/MGTools/releases)
-
----
-
-**Installation:** [Click here to install MGTools](https://github.com/Myke247/MGTools/raw/Live-Beta/MGTools.user.js)
-
-**Need Help?** Check the [README](README.md) for setup instructions and troubleshooting.
+For installation and full feature list, see [README](README.md)
