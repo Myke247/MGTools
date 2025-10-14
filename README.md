@@ -9,7 +9,7 @@
 ## 🚀 Quick Start (30 seconds)
 
 1. **Install Tampermonkey**: [Chrome](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) | [Firefox](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/) | [Safari](https://apps.apple.com/us/app/tampermonkey/id1482490089)
-2. **Click to Install**: **[MGTools.user.js](https://github.com/Myke247/MGTools/raw/main/MGTools.user.js)**
+2. **Click to Install**: **[MGTools.user.js](https://github.com/Myke247/MGTools/raw/Live-Beta/MGTools.user.js)**
 3. **Visit Game**: [Magic Garden](https://magiccircle.gg/r/) - MGTools loads automatically!
 
 That's it! The dock appears at the bottom of your screen. Click any tab to explore features.
