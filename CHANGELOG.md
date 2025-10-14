@@ -1,5 +1,62 @@
 # Changelog - MGTools
 
+## Version 3.8.1 (2025-10-14)
+
+### 🌐 Discord Room Support + Performance Improvements
+
+**What's New:**
+- **Discord Room Player Counts** - All 87 Discord rooms now show live player counts (play1-50 + country rooms)
+- **Instant Feed Reliability** - Fixed feed buttons working consistently on first click after page load
+- **Smart Network Optimization** - Reduced network traffic by 83% when Rooms tab is closed
+
+**Features:**
+- ✅ Real-time player counts for all Discord activity rooms
+- ✅ Automatic smart polling: 5s when viewing rooms, 30s when tab closed
+- ✅ Instant feed buttons work reliably on first use
+- ✅ Lower bandwidth usage without sacrificing functionality
+
+**Bug Fixes:**
+- Fixed instant feed buttons not working on first click after refresh
+- Fixed room player counts always showing as unavailable
+- Improved game connection detection for reliable pet feeding
+
+---
+
+## Version 3.9.0 (2025-10-13)
+
+### Protection System Expansion - Celestial Mutations
+
+**What's New:**
+- **Celestial Mutation Support** - Added 4 new celestial mutations to all protection systems
+- **Pet Protection Enhancement** - Lock pets with Gold/Rainbow Granter abilities to prevent accidental selling
+- **Decor Protection System** - Lock specific decor items to prevent accidental pickup
+
+**New Mutations Available:**
+- Dawnlit - Protect crops with dawn celestial mutation
+- Amberlit - Protect crops with amber celestial mutation
+- Dawnbound - Protect crops with dawnbound mutation
+- Amberbound - Protect crops with amberbound mutation
+
+**Features:**
+- All 4 celestial mutations now available in Protect tab mutation list
+- Lock All Mutations feature includes all celestial mutations
+- Auto-favorite system supports all celestial mutations
+- Pet protection prevents selling pets with Gold or Rainbow Granter abilities
+- Decor protection prevents picking up locked decor items
+
+**Bug Fixes:**
+- Fixed pet sell protection not detecting Gold/Rainbow Granter abilities correctly
+- Fixed decor lock blocking placement instead of pickup (now correctly blocks pickup only)
+- Improved pet mutation detection using internal mutation array
+- Fixed decor position lookup to correctly identify locked items at tile positions
+
+**Technical Improvements:**
+- Pet protection now checks pet.mutations array for accurate ability detection
+- Decor protection looks up tile position in boardwalkTileObjects/tileObjects for correct identification
+- All protection settings properly persist across page refreshes
+
+---
+
 ## Version 3.8.0 (2025-10-13)
 
 ### 🐾 Instant Feed Buttons - New Feature!

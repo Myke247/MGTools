@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.8.0** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.8.1** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.8.0-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.8.1-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -60,11 +60,11 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - Shop refresh tracker
 
 ### 🏠 Room Monitor & Management
-- **NEW: Custom Room Management** - Add, delete, and reorder your tracked rooms
-- **NEW: Discord Auto-Detection** - Automatically adds Discord play rooms (play#1-10)
-- **NEW: Drag & Drop Reordering** - Organize rooms in your preferred order
+- **Discord Room Support** - All 87 Discord rooms show live player counts (play1-50 + country rooms)
+- **Smart Network Optimization** - 83% reduced traffic when Rooms tab is closed
+- **Custom Room Management** - Add, delete, and reorder your tracked rooms
 - **Enhanced Search** - Type any room code to quickly find and join
-- Firebase integration for real-time room status
+- Real-time player counts for all rooms (5s when viewing, 30s when hidden)
 - Track room activity and player presence with live counts
 - All changes save automatically and persist across sessions
 
@@ -432,11 +432,10 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.8.0)
+### Latest Updates (v3.8.1)
+- **v3.8.1**: 🌐 **DISCORD ROOMS + OPTIMIZATION!** - All 87 Discord rooms now show player counts! Instant feed reliability improved. 83% less network traffic when tabs closed!
 - **v3.8.0**: 🐾 **INSTANT FEED BUTTONS!** - Click "Feed" next to each pet for quick feeding! Automatically selects compatible crops and respects favorites.
-- **v3.7.9**: 🔧 Pet feeding improvements and bug fixes
 - **v3.7.8**: ⚡ **STABILITY UPDATE!** - Cycle Pet Presets hotkey, auto game updates, ability log fixes
-- **v3.7.6**: 🎉 **ROOMS TAB COMPLETE!** - Discord rooms restored (play1-play10), all bugs fixed, tab switching works, sidebar opens properly!
 
 ---
 
