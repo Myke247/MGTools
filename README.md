@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.7.6** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.8.0** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.7.6-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.8.0-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -27,10 +27,12 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 ## ✨ Key Features
 
 ### 🐾 Pet Management
+- **NEW: Instant Feed Buttons** - Click "Feed" next to each pet to instantly feed them compatible crops
 - Save unlimited pet loadout presets
 - Quick-swap with custom hotkeys
 - Real-time hunger timers with color-coded alerts
 - Drag-and-drop preset organization
+- Auto-respects MGTools favorited crops
 
 ### ⚡ Ability Tracking
 - Real-time ability logs with timestamps
@@ -208,6 +210,11 @@ The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) 
 **Load Pet Preset**:
 - Click preset name in Pets tab
 - Or set custom hotkey in Settings
+
+**Feed Pets Instantly**:
+- Look for "Feed" button next to each active pet
+- Click to automatically feed compatible crops
+- Respects your MGTools favorited crops
 
 **Open Shop**:
 - Press **Alt+B** to toggle seed/egg shop
@@ -425,11 +432,11 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.7.6)
+### Latest Updates (v3.8.0)
+- **v3.8.0**: 🐾 **INSTANT FEED BUTTONS!** - Click "Feed" next to each pet for quick feeding! Automatically selects compatible crops and respects favorites.
+- **v3.7.9**: 🔧 Pet feeding improvements and bug fixes
+- **v3.7.8**: ⚡ **STABILITY UPDATE!** - Cycle Pet Presets hotkey, auto game updates, ability log fixes
 - **v3.7.6**: 🎉 **ROOMS TAB COMPLETE!** - Discord rooms restored (play1-play10), all bugs fixed, tab switching works, sidebar opens properly!
-- **v3.7.4**: 🐛 **ARCHITECTURAL FIX!** - Side-by-side tab bug eliminated with single container approach! Room names shortened (MG1-15), cleaner UI, no more CSS conflicts!
-- **v3.7.3**: 🐛 **ROOMS TAB FIX!** - Tab switching now works! MG rooms shown first, Discord rooms removed (can't join from browser). Complete rooms UI overhaul!
-- **v3.7.2**: 🐛 **COMPLETE PERSISTENCE FIX!** - Fixed asymmetric save/load bug! GM storage now prioritized, dual-write keeps localStorage in sync! All settings persist correctly!
 
 ---
 
