@@ -1,5 +1,75 @@
 # Changelog - MGTools
 
+## Version 3.8.0 (2025-10-13)
+
+### 🐾 Instant Feed Buttons - New Feature!
+
+**What's New:**
+- **Instant Feed Buttons** appear next to each active pet in-game
+- Click "Feed" to automatically feed your pets with compatible crops
+- Smart crop selection automatically avoids favorited items
+- Buttons stay visible and automatically reappear when opening/closing inventory
+
+**Features:**
+- ✅ One-click feeding for all active pets
+- ✅ Automatically selects compatible crops for each pet species
+- ✅ Respects MGTools auto-favorite settings
+- ✅ Visual feedback (green flash on success, red on error)
+- ✅ Buttons positioned to the right of pet panels
+
+**Quality of Life:**
+- Feed buttons work seamlessly with game inventory
+- No need to manually open inventory and click crops
+- Saves time when feeding multiple pets
+- Clean, non-intrusive button design
+
+**Bug Fixes:**
+- Improved feed button reliability
+- Enhanced inventory synchronization
+- Better error handling
+
+---
+
+## Version 3.7.9 (2025-10-13)
+
+### 🐾 Instant Pet Feed Buttons - CRITICAL Infinite Loop Fixes
+
+**🚨 CRITICAL BUG FIXES:**
+- **REMOVED MutationObserver**: Was triggering 3,825+ times in seconds, causing game freeze
+- **Fixed off-screen canvas detection**: Excluded canvases with negative left positions (off-screen)
+- **Fixed remove/re-inject death loop**: Added visibility check to prevent endless button cycling
+- **Fixed sendToGame scope error**: Corrected function call to use MGTools scope instead of targetWindow
+- **Optimized interval timing**: Changed from 3sec to 5sec for better performance
+
+**VERIFIED WORKING:**
+- ✅ Feeding functionality confirmed working (sendToGame sends proper FeedPet messages)
+- ✅ Dual favorite checking works (both MGTools species-level and game item-level)
+- ✅ Button flash feedback works (green = success, red = error)
+
+**Technical Changes:**
+- **REMOVED** MutationObserver entirely (lines 26168-26169) - was causing infinite loops by observing entire body
+- Changed `setInterval` from 3sec → 5sec (line 26172)
+- Added `left >= 0` filter to exclude off-screen canvases (line 26005)
+- Improved button existence check with visibility validation (lines 25981-25995)
+- Added re-entry guard to prevent concurrent execution (lines 25964-25972)
+- Changed `targetWindow.sendToGame()` → `sendToGame()` (lines 25924-25941)
+- Added header exclusion filter: `top > 80px` to skip menu/header canvases (line 26000)
+- Added vertical position sorting before selecting canvases (lines 26016-26019)
+
+**What Was Causing The Freeze:**
+1. **MutationObserver on entire body** triggered on EVERY DOM change (animations, stats, crop growth)
+2. Even with re-entry guard skipping quickly, calling function thousands of times/second froze browser
+3. Opening shop caused DOM changes that hid canvases, triggering **remove/re-inject death loop**
+4. **Off-screen canvas** (left=-268.7px) was being selected first, causing wrong button positions
+
+**The Fix:**
+- Completely removed MutationObserver (nuclear overkill for this use case)
+- 5-second interval is sufficient for maintaining buttons
+- Visibility check prevents infinite removal loops
+- On-screen filter ensures correct canvas detection
+
+---
+
 ## Version 3.7.8 (2025-10-13)
 
 ### ✨ Stability & Polish Update

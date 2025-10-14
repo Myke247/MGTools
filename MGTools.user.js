@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.7.8
+// @version      3.8.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -581,6 +581,106 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Track which atoms have been hooked to prevent duplicates
       const hookedAtoms = new Set();
+
+      // Store references to hooked atoms for re-querying (CRITICAL for fresh data)
+      const atomReferences = new Map(); // Maps windowKey -> {atom, atomCache, atomPath}
+
+      // Store the Jotai store object (has get/set/sub methods for querying atoms)
+      let jotaiStore = null;
+
+      // Capture Jotai store from React fiber tree
+      function captureJotaiStore() {
+          if (jotaiStore) return jotaiStore;
+
+          try {
+              const hook = targetWindow.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+              if (!hook?.renderers?.size) {
+                  productionLog('⏳ [STORE] React DevTools hook not ready');
+                  return null;
+              }
+
+              for (const [rid] of hook.renderers) {
+                  const roots = hook.getFiberRoots?.(rid);
+                  if (!roots) continue;
+
+                  for (const root of roots) {
+                      const seen = new Set();
+                      const stack = [root.current];
+
+                      while (stack.length) {
+                          const fiber = stack.pop();
+                          if (!fiber || seen.has(fiber)) continue;
+                          seen.add(fiber);
+
+                          // Look for Jotai Provider's store in pendingProps.value
+                          const value = fiber?.pendingProps?.value;
+                          if (value && typeof value.get === 'function' &&
+                              typeof value.set === 'function' &&
+                              typeof value.sub === 'function') {
+                              jotaiStore = value;
+                              console.log('✅ [STORE] Captured Jotai store from React fiber tree');
+                              return jotaiStore;
+                          }
+
+                          if (fiber.child) stack.push(fiber.child);
+                          if (fiber.sibling) stack.push(fiber.sibling);
+                          if (fiber.alternate) stack.push(fiber.alternate);
+                      }
+                  }
+              }
+
+              productionLog('⏳ [STORE] Store not found in fiber tree yet');
+              return null;
+          } catch (error) {
+              console.error('[STORE] Error capturing Jotai store:', error);
+              return null;
+          }
+      }
+
+      // Get fresh value from an atom using the store
+      async function getAtomValue(atomLabel) {
+          try {
+              // Ensure we have the store
+              if (!jotaiStore) {
+                  jotaiStore = captureJotaiStore();
+                  if (!jotaiStore) {
+                      console.warn(`[STORE] Cannot query atom '${atomLabel}' - store not captured`);
+                      return null;
+                  }
+              }
+
+              // Get atom from cache by label
+              const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
+              if (!atomCache) {
+                  console.warn(`[STORE] Atom cache not available`);
+                  return null;
+              }
+
+              // Find atom with matching label
+              let targetAtom = null;
+              for (const atom of atomCache.values()) {
+                  const label = atom?.debugLabel || atom?.label || '';
+                  if (label === atomLabel || label.includes(atomLabel)) {
+                      targetAtom = atom;
+                      break;
+                  }
+              }
+
+              if (!targetAtom) {
+                  console.warn(`[STORE] Atom '${atomLabel}' not found in cache`);
+                  return null;
+              }
+
+              // Query the store for fresh value
+              const value = await jotaiStore.get(targetAtom);
+              console.log(`[STORE] 🔄 Got fresh value for '${atomLabel}'`);
+              return value;
+
+          } catch (error) {
+              console.error(`[STORE] Error getting atom '${atomLabel}':`, error);
+              return null;
+          }
+      }
 
       // Set context identifier for debugging (use window not targetWindow to avoid modifying page)
       window.MGA_CONTEXT = 'userscript';
@@ -5357,6 +5457,31 @@ async function initializeFirebase() {
           }
       }
   
+      // Function to get FRESH data from a hooked atom (bypasses cached data)
+      function getAtomValueFresh(windowKey) {
+          const ref = atomReferences.get(windowKey);
+          if (!ref) {
+              console.warn(`[MGTools] No atom reference stored for '${windowKey}'`);
+              return null;
+          }
+
+          try {
+              // Force a fresh read from the atom cache
+              const currentState = ref.atomCache.get(ref.atomPath);
+              if (!currentState || !currentState.v) {
+                  console.warn(`[MGTools] Atom '${windowKey}' has no current state`);
+                  return null;
+              }
+
+              // Return the current value directly from the atom cache
+              console.log(`[MGTools] 🔄 Got fresh data for '${windowKey}' from atom cache`);
+              return currentState.v;
+          } catch (error) {
+              console.error(`[MGTools] Error getting fresh atom value for '${windowKey}':`, error);
+              return null;
+          }
+      }
+
       function hookAtom(atomPath, windowKey, callback, retryCount = 0) {
           const maxRetries = 60; // Max 30 seconds (was 20/10s)
           const hookKey = `${atomPath}_${windowKey}`;
@@ -5475,9 +5600,17 @@ async function initializeFirebase() {
               };
   
               productionLog(`✅ hookAtom: Successfully hooked ${windowKey}`);
-  
+
               // Mark this hook as successful to prevent duplicates
               hookedAtoms.add(hookKey);
+
+              // Store atom reference for later re-querying (CRITICAL for fresh data)
+              atomReferences.set(windowKey, {
+                  atom: atom,
+                  atomCache: atomCache,
+                  atomPath: atomPath
+              });
+              productionLog(`📦 Stored atom reference for ${windowKey} (can now re-query for fresh data)`);
   
               // Don't force an initial read - it might trigger game modals
               // Instead, wait for the game to naturally read the atom
@@ -6197,8 +6330,11 @@ async function initializeFirebase() {
                   const url = urls[i];
                   const isGitHubAPI = url.includes('api.github.com');
                   const isJSON = url.includes('.json');
-  
-                  const response = await fetch(url, {
+
+                  // Add cache-busting timestamp to URL
+                  const cacheBustUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+
+                  const response = await fetch(cacheBustUrl, {
                       method: 'GET',
                       cache: 'no-cache',
                       headers: isGitHubAPI ? {
@@ -22816,7 +22952,17 @@ async function initializeFirebase() {
           );
   
           productionLog('✅ [SIMPLE-ATOMS] Simple atom initialization complete (including shop atoms)');
-  
+
+          // Capture Jotai store for fresh data queries
+          setTimeout(() => {
+              const store = captureJotaiStore();
+              if (store) {
+                  productionLog('✅ [STORE] Jotai store captured successfully');
+              } else {
+                  productionWarn('⚠️ [STORE] Could not capture Jotai store, will retry on demand');
+              }
+          }, 1000); // Wait 1 second for React to mount
+
           // CRITICAL: Check if window.activePets already exists after hooks are set up
           setTimeout(() => {
               if (window.activePets && Array.isArray(window.activePets) && window.activePets.length > 0) {
@@ -25744,7 +25890,586 @@ function initializeTurtleTimer() {
               // }).catch(err => {
               //     console.error('Firebase initialization error:', err);
               // });
-  
+
+              // ==================== INSTANT FEED BUTTONS ====================
+              // Pet species and their compatible crops (from game data)
+              const PET_FEED_CATALOG = {
+                  'Worm': ['Carrot', 'Strawberry', 'Aloe', 'Tomato', 'Apple'],
+                  'Snail': ['Blueberry', 'Tomato', 'Corn', 'Daffodil'],
+                  'Bee': ['Strawberry', 'Blueberry', 'OrangeTulip', 'Daffodil', 'Lily'],
+                  'Chicken': ['Aloe', 'Corn', 'Watermelon', 'Pumpkin'],
+                  'Bunny': ['Carrot', 'Strawberry', 'Blueberry', 'Echeveria'],
+                  'Dragonfly': ['Apple', 'OrangeTulip', 'Echeveria'],
+                  'Pig': ['Watermelon', 'Pumpkin', 'Mushroom', 'Bamboo'],
+                  'Cow': ['Coconut', 'Banana', 'BurrosTail', 'Mushroom'],
+                  'Squirrel': ['Pumpkin', 'Banana', 'Grape'],
+                  'Turtle': ['Watermelon', 'BurrosTail', 'Bamboo', 'Pepper'],
+                  'Goat': ['Pumpkin', 'Coconut', 'Cactus', 'Pepper'],
+                  'Butterfly': ['Daffodil', 'Lily', 'Grape', 'Lemon', 'Sunflower'],
+                  'Capybara': ['Lemon', 'PassionFruit', 'DragonFruit', 'Lychee'],
+                  'Peacock': ['Cactus', 'Sunflower', 'Lychee'],
+                  'Copycat': []
+              };
+
+              // Create instant feed button with game-native styling
+              function createInstantFeedButton(petIndex) {
+                  const btn = targetDocument.createElement('button');
+                  btn.className = 'mgtools-instant-feed-btn';
+                  btn.textContent = 'Feed';
+                  btn.setAttribute('data-pet-index', petIndex);
+                  btn.setAttribute('data-cooldown', 'false'); // Track cooldown state
+
+                  // Use ABSOLUTE positioning relative to pet panel container
+                  // This scales with zoom and hides when container is hidden
+                  btn.style.cssText = `
+                      position: absolute !important;
+                      right: -50px !important;
+                      top: 50% !important;
+                      transform: translateY(-50%) !important;
+                      width: 48px !important;
+                      height: 24px !important;
+                      border: 2px solid #FFC83D !important;
+                      background: rgba(0, 0, 0, 0.75) !important;
+                      color: rgb(205, 200, 193) !important;
+                      border-radius: 6px !important;
+                      font-size: 11px !important;
+                      font-weight: bold !important;
+                      cursor: pointer !important;
+                      z-index: 9999 !important;
+                      transition: all 0.2s ease !important;
+                      pointer-events: auto !important;
+                      display: block !important;
+                      visibility: visible !important;
+                      opacity: 1 !important;
+                  `;
+
+                  btn.addEventListener('mouseenter', () => {
+                      btn.style.setProperty('box-shadow', '0 0 8px rgba(255, 200, 61, 0.6)', 'important');
+                      btn.style.setProperty('transform', 'translateY(-50%) scale(1.05)', 'important');
+                  });
+
+                  btn.addEventListener('mouseleave', () => {
+                      btn.style.setProperty('box-shadow', 'none', 'important');
+                      btn.style.setProperty('transform', 'translateY(-50%) scale(1)', 'important');
+                  });
+
+                  btn.addEventListener('click', (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleInstantFeed(petIndex, btn);
+                  });
+
+                  console.log(`[MGTools Feed] Created button ${petIndex + 1} with container-relative positioning`);
+
+                  return btn;
+              }
+
+              // Track used crop IDs to avoid feeding same crop twice
+              const usedCropIds = new Set();
+
+              // Handle instant feed logic with auto-favorite protection (ASYNC)
+              // SIMPLE INSTANT FEED - Just like native button
+              async function handleInstantFeed(petIndex, buttonEl) {
+                  if (buttonEl.disabled) return;
+
+                  buttonEl.disabled = true;
+                  buttonEl.textContent = '...';
+                  buttonEl.style.opacity = '0.6';
+
+                  try {
+                      // Try to get FRESH pet data from Jotai store (if available)
+                      let pet = null;
+                      const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
+                      if (freshPetSlots && freshPetSlots[petIndex]) {
+                          pet = freshPetSlots[petIndex];
+                          console.log(`[MGTools Feed] 🔄 Using FRESH pet data from store`);
+                      } else {
+                          // Fallback to cached pets
+                          const cachedPets = UnifiedState.atoms.activePets;
+                          if (cachedPets && cachedPets[petIndex]) {
+                              pet = cachedPets[petIndex];
+                              console.log(`[MGTools Feed] 📦 Using cached pet data`);
+                          }
+                      }
+
+                      if (!pet) {
+                          console.error('[MGTools Feed] No pet at index', petIndex);
+                          flashButton(buttonEl, 'error');
+                          return;
+                      }
+
+                      const species = pet.petSpecies;
+                      const petItemId = pet.id;
+
+                      console.log(`[MGTools Feed] 🐾 Pet:`, {
+                          species,
+                          petItemId: petItemId.substring(0, 8) + '...',
+                          hunger: pet.hunger
+                      });
+
+                      // Get compatible crops
+                      const compatibleCrops = PET_FEED_CATALOG[species];
+                      if (!compatibleCrops || compatibleCrops.length === 0) {
+                          console.error('[MGTools Feed] No compatible crops for', species);
+                          flashButton(buttonEl, 'error');
+                          return;
+                      }
+
+                      // Try to get FRESH inventory from Jotai store (if available)
+                      let inventoryItems = null;
+                      const freshInventory = await getAtomValue('myCropInventoryAtom');
+                      if (freshInventory && freshInventory.items) {
+                          inventoryItems = freshInventory.items;
+                          console.log(`[MGTools Feed] 🔄 Using FRESH inventory from store (${inventoryItems.length} items)`);
+                      } else {
+                          // Fallback to cached inventory
+                          const cached = targetWindow.myData?.inventory?.items || UnifiedState.atoms.inventory?.items;
+                          if (cached) {
+                              inventoryItems = cached;
+                              console.log(`[MGTools Feed] 📦 Using cached inventory (${inventoryItems.length} items)`);
+                          }
+                      }
+
+                      if (!inventoryItems || inventoryItems.length === 0) {
+                          console.error('[MGTools Feed] No inventory');
+                          flashButton(buttonEl, 'error');
+                          return;
+                      }
+
+                      // Get MGTools favorited species
+                      const favoritedSpecies = UnifiedState.data?.autoFavorite?.selectedSpecies || [];
+
+                      // Find first compatible, non-favorited crop that we haven't used yet
+                      const cropToFeed = inventoryItems.find(item => {
+                          if (!item || !item.species || !item.id) return false;
+                          const isCompatible = compatibleCrops.includes(item.species);
+                          const isFavorited = favoritedSpecies.includes(item.species);
+                          const notUsed = !usedCropIds.has(item.id);
+                          return isCompatible && !isFavorited && notUsed;
+                      });
+
+                      if (!cropToFeed) {
+                          console.error('[MGTools Feed] No feedable crops (compatible, non-favorited, unused)');
+                          console.log('[MGTools Feed] Compatible species:', compatibleCrops);
+                          console.log('[MGTools Feed] Favorited species:', favoritedSpecies);
+                          console.log('[MGTools Feed] Used crop IDs:', Array.from(usedCropIds));
+                          // Clear used crops and try again
+                          usedCropIds.clear();
+                          flashButton(buttonEl, 'error');
+                          return;
+                      }
+
+                      // Mark this crop as used
+                      usedCropIds.add(cropToFeed.id);
+                      console.log(`[MGTools Feed] 🌾 Feeding ${cropToFeed.species} (ID: ${cropToFeed.id.substring(0, 8)}...) to ${species}`);
+
+                      // Send feed message - let game handle everything else!
+                      sendToGame({
+                          type: "FeedPet",
+                          petItemId: petItemId,
+                          cropItemId: cropToFeed.id
+                      });
+
+                      // Show success immediately
+                      flashButton(buttonEl, 'success');
+                      console.log(`[MGTools Feed] ✅ Sent FeedPet message`);
+
+                  } catch (error) {
+                      console.error('[MGTools Feed] Error:', error);
+                      flashButton(buttonEl, 'error');
+                  } finally {
+                      // Re-enable after short delay
+                      setTimeout(() => {
+                          buttonEl.disabled = false;
+                          buttonEl.textContent = 'Feed';
+                          buttonEl.style.opacity = '1';
+                      }, 300);
+                  }
+              }
+
+              // Visual feedback for feed action
+              function flashButton(btn, type) {
+                  const color = type === 'success' ? '#4CAF50' : '#F44336';
+                  const originalBorder = btn.style.borderColor;
+                  const originalShadow = btn.style.boxShadow;
+
+                  btn.style.borderColor = color;
+                  btn.style.boxShadow = `0 0 10px ${color}`;
+
+                  setTimeout(() => {
+                      btn.style.borderColor = originalBorder || '#FFC83D';
+                      btn.style.boxShadow = originalShadow || 'none';
+                  }, 300);
+              }
+
+              // Wait for pet hunger to increase (like reference implementation does)
+              async function waitForHungerIncrease(petIndex, previousHunger, timeout = 2000) {
+                  const startTime = performance.now();
+                  const HUNGER_EPSILON = 0.1; // Minimum hunger increase to consider success (0.1%)
+
+                  // Small initial delay to let server process
+                  await new Promise(resolve => setTimeout(resolve, 150));
+
+                  while (performance.now() - startTime < timeout) {
+                      try {
+                          // Get TRULY FRESH pet data using stored atom reference
+                          const freshPets = getAtomValueFresh('activePets');
+                          const pets = freshPets || UnifiedState.atoms.activePets;
+
+                          if (!pets || !pets[petIndex]) {
+                              await new Promise(resolve => setTimeout(resolve, 100));
+                              continue;
+                          }
+
+                          const currentPet = pets[petIndex];
+                          const currentHunger = currentPet.hunger;
+
+                          if (currentHunger !== undefined && previousHunger !== undefined) {
+                              // Check if hunger decreased by at least epsilon (hunger goes DOWN when fed)
+                              const hungerChange = previousHunger - currentHunger;
+
+                              if (hungerChange >= HUNGER_EPSILON || currentHunger <= 1) {
+                                  // Hunger decreased (pet was fed) or pet is full
+                                  console.log(`[MGTools Feed] Pet ${petIndex + 1} hunger decreased by ${hungerChange.toFixed(2)}ms (${previousHunger.toFixed(2)}ms → ${currentHunger.toFixed(2)}ms)`);
+                                  return {success: true, hungerBefore: previousHunger, hungerAfter: currentHunger};
+                              }
+                          }
+                      } catch (err) {
+                          console.warn('[MGTools Feed] Error checking hunger:', err);
+                      }
+
+                      // Wait 100ms before checking again
+                      await new Promise(resolve => setTimeout(resolve, 100));
+                  }
+
+                  // Timeout - operation may have failed
+                  console.warn(`[MGTools Feed] Timeout waiting for pet ${petIndex + 1} hunger to change from ${previousHunger?.toFixed(2)}ms`);
+                  return {success: false, hungerBefore: previousHunger, hungerAfter: previousHunger};
+              }
+
+              // Get TRULY FRESH inventory data using stored atom reference
+              async function getFreshInventoryFromAtoms() {
+                  try {
+                      // Use getAtomValueFresh to get fresh inventory from the hooked atom
+                      const freshInventory = getAtomValueFresh('inventory');
+
+                      if (freshInventory && freshInventory.items && Array.isArray(freshInventory.items)) {
+                          console.log(`[MGTools Feed] 🔄 Got FRESH inventory from hooked atom: ${freshInventory.items.length} items`);
+                          return freshInventory.items;
+                      }
+
+                      // Fallback: Try to get from UnifiedState.atoms (might be stale but better than nothing)
+                      console.warn('[MGTools Feed] Could not get fresh inventory from atom, trying UnifiedState...');
+                      if (UnifiedState.atoms.inventory?.items) {
+                          console.warn('[MGTools Feed] Using UnifiedState.atoms.inventory (might be stale)');
+                          return UnifiedState.atoms.inventory.items;
+                      }
+
+                      // Last resort: targetWindow.myData
+                      if (targetWindow.myData?.inventory?.items) {
+                          console.warn('[MGTools Feed] Using targetWindow.myData.inventory (likely stale)');
+                          return targetWindow.myData.inventory.items;
+                      }
+
+                      console.error('[MGTools Feed] No inventory data available from any source!');
+                      return [];
+
+                  } catch (error) {
+                      console.error('[MGTools Feed] Error getting fresh inventory:', error);
+                      // Final fallback
+                      return UnifiedState.atoms.inventory?.items || targetWindow.myData?.inventory?.items || [];
+                  }
+              }
+
+              // Re-entry guard to prevent infinite loop
+              let isInjecting = false;
+
+              // Inject instant feed buttons next to pet avatars
+              function injectInstantFeedButtons() {
+                  // Prevent re-entry while already injecting (avoids MutationObserver infinite loop)
+                  if (isInjecting) {
+                      return;
+                  }
+
+                  try {
+                      isInjecting = true;
+                      console.log('[MGTools Feed] 🔍 Starting container-based injection...');
+
+                      // Check which buttons already exist by data-pet-index
+                      const existingButtons = targetDocument.querySelectorAll('.mgtools-instant-feed-btn');
+                      const existingIndices = new Set();
+                      existingButtons.forEach(btn => {
+                          const index = btn.getAttribute('data-pet-index');
+                          if (index !== null) {
+                              existingIndices.add(parseInt(index, 10));
+                          }
+                      });
+
+                      if (existingIndices.size === 3) {
+                          console.log(`[MGTools Feed] ✅ All 3 buttons exist (indices: ${Array.from(existingIndices).join(', ')}), skipping`);
+                          isInjecting = false;
+                          return;
+                      }
+
+                      const missingIndices = [0, 1, 2].filter(i => !existingIndices.has(i));
+                      console.log(`[MGTools Feed] Missing button indices: ${missingIndices.join(', ')} - will inject them`);
+
+                      // Find ALL canvas elements
+                      const allCanvases = Array.from(targetDocument.querySelectorAll('canvas'));
+                      console.log(`[MGTools Feed] Found ${allCanvases.length} total canvas elements`);
+
+                      // Filter to pet avatar canvases (left 15% of screen, reasonable size)
+                      const viewportWidth = targetWindow.innerWidth;
+                      const viewportHeight = targetWindow.innerHeight;
+                      const leftThreshold = viewportWidth * 0.15;
+                      const minTop = 80;
+                      const maxTop = viewportHeight - 100;
+
+                      const petAvatarCanvases = allCanvases.filter(canvas => {
+                          const rect = canvas.getBoundingClientRect();
+                          const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
+                          const hasReasonableSize = rect.width > 20 && rect.width < 200 &&
+                                                    rect.height > 20 && rect.height < 200;
+                          const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
+
+                          if (isOnScreen && hasReasonableSize && isInValidVerticalRange) {
+                              console.log(`[MGTools Feed] 🎯 Pet canvas: left=${rect.left.toFixed(1)}px, top=${rect.top.toFixed(1)}px, size=${rect.width.toFixed(1)}x${rect.height.toFixed(1)}px`);
+                          }
+
+                          return isOnScreen && hasReasonableSize && isInValidVerticalRange;
+                      })
+                      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+                      .slice(0, 3);
+
+                      console.log(`[MGTools Feed] ✅ Found ${petAvatarCanvases.length} pet avatar canvases`);
+
+                      if (petAvatarCanvases.length === 0) {
+                          console.warn('[MGTools Feed] ⚠️ No pet avatar canvases found!');
+                          isInjecting = false;
+                          return;
+                      }
+
+                      // For EACH canvas, find its pet panel container and inject button
+                      petAvatarCanvases.forEach((canvas, index) => {
+                          try {
+                              // Skip if button already exists
+                              if (existingIndices.has(index)) {
+                                  console.log(`[MGTools Feed] Button ${index + 1} already exists, skipping`);
+                                  return;
+                              }
+
+                              // Find the SMALLEST container with STR/INT text (the pet panel)
+                              let container = canvas.parentElement;
+                              let levelsUp = 0;
+                              const maxLevels = 10;
+                              const candidates = [];
+
+                              while (container && levelsUp < maxLevels && container !== targetDocument.body) {
+                                  const hasStats = /STR\s+\d+|INT\s+\d+/.test(container.textContent);
+                                  const rect = container.getBoundingClientRect();
+
+                                  if (hasStats && rect.width < 200 && rect.height < 200) {
+                                      // Valid small container with stats
+                                      candidates.push({
+                                          element: container,
+                                          area: rect.width * rect.height,
+                                          width: rect.width,
+                                          height: rect.height
+                                      });
+                                  }
+
+                                  container = container.parentElement;
+                                  levelsUp++;
+                              }
+
+                              if (candidates.length === 0) {
+                                  console.warn(`[MGTools Feed] ⚠️ No valid container found for pet ${index + 1}`);
+                                  return;
+                              }
+
+                              // Use SMALLEST container (most direct parent)
+                              candidates.sort((a, b) => a.area - b.area);
+                              const targetContainer = candidates[0].element;
+
+                              console.log(`[MGTools Feed] Found container for pet ${index + 1}:`, {
+                                  width: candidates[0].width.toFixed(1),
+                                  height: candidates[0].height.toFixed(1),
+                                  tagName: targetContainer.tagName
+                              });
+
+                              // Check if button already exists in this container
+                              if (targetContainer.querySelector('.mgtools-instant-feed-btn')) {
+                                  console.log(`[MGTools Feed] Button already in container ${index + 1}, skipping`);
+                                  return;
+                              }
+
+                              // Set container to position: relative
+                              const currentPosition = targetWindow.getComputedStyle(targetContainer).position;
+                              if (currentPosition === 'static') {
+                                  targetContainer.style.position = 'relative';
+                                  console.log(`[MGTools Feed] Set container ${index + 1} to position: relative`);
+                              }
+
+                              // Create and append button
+                              const btn = createInstantFeedButton(index);
+                              targetContainer.appendChild(btn);
+
+                              console.log(`[MGTools Feed] ✅ Injected button ${index + 1} into container`);
+                              productionLog(`[MGTools Feed] Injected feed button ${index + 1}`);
+
+                          } catch (err) {
+                              console.error(`[MGTools Feed] Error processing canvas ${index + 1}:`, err);
+                          }
+                      });
+
+                      // Reset flag after successful injection
+                      isInjecting = false;
+
+                  } catch (error) {
+                      console.error('[MGTools Feed] Error in injectInstantFeedButtons:', error);
+                      isInjecting = false; // Reset flag even on error
+                  }
+              }
+
+              // Initialize instant feed buttons with polling (reliable for CSS visibility changes)
+              function initializeInstantFeedButtons() {
+                  console.log('[MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...');
+
+                  // Helper to find all visible pet containers
+                  function findVisiblePetContainers() {
+                      const allCanvases = Array.from(targetDocument.querySelectorAll('canvas'));
+                      const viewportWidth = targetWindow.innerWidth;
+                      const viewportHeight = targetWindow.innerHeight;
+                      const leftThreshold = viewportWidth * 0.15;
+                      const minTop = 80;
+                      const maxTop = viewportHeight - 100;
+
+                      // Filter to pet avatar canvases (left side, reasonable size, visible)
+                      const petAvatarCanvases = allCanvases.filter(canvas => {
+                          const rect = canvas.getBoundingClientRect();
+
+                          // Check if visible (not hidden with CSS)
+                          const computedStyle = targetWindow.getComputedStyle(canvas);
+                          const isVisible = computedStyle.display !== 'none' &&
+                                           computedStyle.visibility !== 'hidden' &&
+                                           rect.width > 0 && rect.height > 0;
+
+                          if (!isVisible) return false;
+
+                          const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
+                          const hasReasonableSize = rect.width > 20 && rect.width < 200 &&
+                                                    rect.height > 20 && rect.height < 200;
+                          const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
+
+                          return isOnScreen && hasReasonableSize && isInValidVerticalRange;
+                      })
+                      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+                      .slice(0, 3);
+
+                      // Find containers for each canvas
+                      const containers = [];
+                      petAvatarCanvases.forEach((canvas) => {
+                          let container = canvas.parentElement;
+                          let levelsUp = 0;
+                          const maxLevels = 10;
+                          const candidates = [];
+
+                          while (container && levelsUp < maxLevels && container !== targetDocument.body) {
+                              const hasStats = /STR\s+\d+|INT\s+\d+/.test(container.textContent);
+                              const rect = container.getBoundingClientRect();
+
+                              if (hasStats && rect.width < 200 && rect.height < 200 && rect.width > 0) {
+                                  candidates.push({
+                                      element: container,
+                                      area: rect.width * rect.height
+                                  });
+                              }
+
+                              container = container.parentElement;
+                              levelsUp++;
+                          }
+
+                          if (candidates.length > 0) {
+                              // Use smallest container (most direct parent)
+                              candidates.sort((a, b) => a.area - b.area);
+                              containers.push(candidates[0].element);
+                          }
+                      });
+
+                      return containers;
+                  }
+
+                  // Helper to inject button into container
+                  function injectButton(container, index) {
+                      // Skip if button already exists
+                      if (container.querySelector('.mgtools-instant-feed-btn')) {
+                          return false;
+                      }
+
+                      try {
+                          // Set container to position: relative
+                          const currentPosition = targetWindow.getComputedStyle(container).position;
+                          if (currentPosition === 'static') {
+                              container.style.position = 'relative';
+                          }
+
+                          // Create and append button
+                          const btn = createInstantFeedButton(index);
+                          container.appendChild(btn);
+
+                          console.log(`[MGTools Feed] ✅ Injected button ${index + 1}`);
+                          return true;
+                      } catch (err) {
+                          console.error(`[MGTools Feed] Error injecting button ${index + 1}:`, err);
+                          return false;
+                      }
+                  }
+
+                  // Main polling function - checks and injects buttons if needed
+                  function checkAndInjectButtons() {
+                      const containers = findVisiblePetContainers();
+
+                      if (containers.length === 0) {
+                          // No visible pet containers - buttons will be checked again next poll
+                          return;
+                      }
+
+                      // Check if we need to inject any buttons
+                      let injectedCount = 0;
+                      containers.forEach((container, index) => {
+                          const injected = injectButton(container, index);
+                          if (injected) injectedCount++;
+                      });
+
+                      // Log if buttons were re-injected (means they disappeared and came back)
+                      if (injectedCount > 0) {
+                          console.log(`[MGTools Feed] 🔄 Re-injected ${injectedCount} button(s) after visibility change`);
+                      }
+                  }
+
+                  // Initial injection
+                  checkAndInjectButtons();
+
+                  // Poll every 500ms to check if buttons need re-injection
+                  // This handles CSS visibility changes that MutationObserver can't detect
+                  const pollInterval = setInterval(() => {
+                      try {
+                          checkAndInjectButtons();
+                      } catch (err) {
+                          console.error('[MGTools Feed] Error in polling:', err);
+                      }
+                  }, 500);
+
+                  // Store interval ID for potential cleanup
+                  if (!targetWindow.MGToolsIntervals) {
+                      targetWindow.MGToolsIntervals = [];
+                  }
+                  targetWindow.MGToolsIntervals.push(pollInterval);
+
+                  console.log('[MGTools Feed] ✅ Polling active (500ms) - buttons will auto-reappear when containers become visible');
+                  productionLog('✅ [MGTools] Instant feed buttons initialized with polling detection');
+              }
+
               // Verify data loaded before UI creation
               // productionLog('🔍 [STARTUP-VERIFY] Data loaded before UI creation:', {
               //     petPresets: Object.keys(UnifiedState.data.petPresets).length,
@@ -25777,6 +26502,15 @@ function initializeTurtleTimer() {
                           window.MGA_DEBUG.performanceMetrics.uiCreated = performance.now();
                       }
                   }
+
+                  // Initialize instant feed buttons after UI is created
+                  setTimeout(() => {
+                      try {
+                          initializeInstantFeedButtons();
+                      } catch (error) {
+                          console.error('[MGTools] Error initializing instant feed buttons:', error);
+                      }
+                  }, 1000); // Small delay to ensure game DOM is fully ready
               } catch (error) {
                   console.error('❌ Error creating UI:', error);
 
@@ -27798,6 +28532,7 @@ function initializeTurtleTimer() {
   // The sanitizer ran for 16 seconds and cleared logs even after new abilities were added
   // Proper flag management already exists in the proxy (line 26681-26685)
 })();
+
 
 
 /* WebSocket reconnect handled by enhanced implementation above (lines 22603+) */
