@@ -1,4 +1,4 @@
-# Live Beta Changelog
+# Outdated
 
 This is the **Live Beta** branch of MGTools. Changes here are experimental and may be unstable.
 
