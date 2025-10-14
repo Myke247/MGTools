@@ -1,8 +1,7 @@
 # Ignore everything
 *
 
-# Except these files
+# Except these files (ONLY public-facing files)
 !MGTools.user.js
-!CHANGELOG.md
 !README.md
 !.gitignore
