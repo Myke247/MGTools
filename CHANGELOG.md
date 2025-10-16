@@ -1,5 +1,32 @@
 # Changelog - MGTools
 
+## Version 3.8.4 (2025-10-16)
+
+**Sort Button - Final Fix:**
+- Rewrote inventory detection using ORIGINAL working script approach
+  - Uses exact same window search logic that worked in console
+  - Loops through all window keys to find inventory object
+  - No more reliance on UnifiedState or Jotai for this feature
+- Professional styling improvements:
+  - Gradient button background with hover effects
+  - Better spacing (16px margin, cleaner alignment)
+  - Color feedback: Blue (sorting) → Green (✓ success) → Red (✗ error)
+  - Changed container from div to span for better inline flow
+
+**Technical Details:**
+- Copied working console script's detection logic exactly
+- Non-async event handler (simpler, more reliable)
+- Visual states: "Sorting..." → "✓" or "✗"
+- Shift+Click for XP sorting works perfectly
+
+**Confirmed Working:**
+- Issue A: Feed buttons ✓
+- Issue B: Hide feed buttons setting ✓
+- Issue C: Shop purchase validation ✓
+- Issue D: Sort Inventory button ✓ (NOW FUNCTIONAL!)
+
+---
+
 ## Version 3.8.3 (2025-10-16)
 
 **Critical Bug Fixes:**

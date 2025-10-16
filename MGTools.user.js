@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.8.3
+// @version      3.8.4
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -23,7 +23,7 @@
 
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.3 - Critical Fixes! Feed buttons always work with 3-tier fallback, Sort button functional with improved inventory detection');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.4 - Final Fix! Sort button now works perfectly with original script approach');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -26349,80 +26349,104 @@ function initializeTurtleTimer() {
                   clearButtons.forEach(clearButton => {
                       if (clearButton.dataset.sortBtnAdded === 'true') return;
 
-                      // FIX ISSUE D: Improved container styling to prevent overlaps
-                      const container = targetDocument.createElement('div');
+                      // FIX ISSUE D: Professional styling
+                      const container = targetDocument.createElement('span');
                       container.className = 'custom-sort-container';
                       container.style.cssText = `
+                          margin-left: 16px;
                           display: inline-block;
-                          margin-left: 12px;
                           vertical-align: middle;
                       `;
 
                       const label = targetDocument.createElement('span');
                       label.textContent = 'Sort:';
                       label.style.cssText = `
-                          color: white;
-                          font-size: 13px;
+                          color: rgba(255, 255, 255, 0.75);
+                          font-size: 14px;
+                          font-weight: 500;
+                          margin-right: 8px;
                           user-select: none;
-                          margin-right: 6px;
                       `;
 
-                      // FIX ISSUE D: Match CLEAR FILTERS button style without transform
+                      // FIX ISSUE D: Professional button with gradient and hover
                       const btn = targetDocument.createElement('button');
                       btn.className = 'custom-sort-button';
                       btn.textContent = 'Sort Inventory';
-                      btn.title = 'Click to sort (Shift+Click to sort pets by XP instead of rarity)';
-                      Object.assign(btn.style, {
-                          background: '#2b2a2a',
-                          color: 'white',
-                          border: '1px solid #555',
-                          borderRadius: '6px',
-                          padding: '6px 10px',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          marginLeft: '0',
-                          verticalAlign: 'middle'
+                      btn.title = 'Sort inventory (Shift+Click: by XP)';
+                      btn.style.cssText = `
+                          background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+                          color: #ffffff;
+                          border: 1px solid rgba(255, 255, 255, 0.15);
+                          border-radius: 4px;
+                          padding: 6px 14px;
+                          cursor: pointer;
+                          font-size: 13px;
+                          font-weight: 500;
+                          transition: all 0.2s ease;
+                          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+                          vertical-align: middle;
+                      `;
+
+                      // Hover effect
+                      btn.addEventListener('mouseenter', () => {
+                          if (!btn.disabled) {
+                              btn.style.background = 'linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%)';
+                              btn.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                          }
+                      });
+                      btn.addEventListener('mouseleave', () => {
+                          if (!btn.disabled) {
+                              btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
+                              btn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                          }
                       });
 
-                      btn.addEventListener('click', async (ev) => {
+                      btn.addEventListener('click', (ev) => {
                           const petSortBy = ev.shiftKey ? 'xp' : 'rarity';
 
-                          // FIX ISSUE D: 3-tier fallback for inventory
-                          let inventoryObj = null;
+                          // FIX ISSUE D: Use ORIGINAL script's inventory detection (EXACT copy from working script)
+                          const inventoryObj = targetWindow.inventory || targetWindow.Inventory || targetWindow.gameInventory || (typeof inventory !== 'undefined' && inventory) || null;
 
-                          // Tier 1: UnifiedState.atoms.inventory (always up-to-date via subscriptions)
-                          if (UnifiedState.atoms.inventory?.items) {
-                              inventoryObj = UnifiedState.atoms.inventory;
-                              console.log('[MGTOOLS-FIX-D] Using UnifiedState.atoms.inventory (Tier 1)');
-                          }
+                          if (!inventoryObj || !Array.isArray(inventoryObj.items)) {
+                              // Try to find inventory in window object (ORIGINAL script approach)
+                              for (const k of Object.keys(targetWindow)) {
+                                  try {
+                                      const candidate = targetWindow[k];
+                                      if (candidate && candidate.items && Array.isArray(candidate.items)) {
+                                          console.log(`[MGTOOLS-FIX-D] Found inventory at window.${k}`);
 
-                          // Tier 2: Try Jotai store (if ready)
-                          if (!inventoryObj?.items && jotaiStore && targetWindow.jotaiAtomCache) {
-                              try {
-                                  const freshInventory = await getAtomValue('myCropInventoryAtom');
-                                  if (freshInventory?.items) {
-                                      inventoryObj = freshInventory;
-                                      console.log('[MGTOOLS-FIX-D] Using Jotai inventory (Tier 2)');
-                                  }
-                              } catch (e) {
-                                  console.warn('[MGTOOLS-FIX-D] Tier 2 (Jotai) failed:', e.message);
+                                          // Show feedback
+                                          const originalText = btn.textContent;
+                                          btn.textContent = 'Sorting...';
+                                          btn.disabled = true;
+                                          btn.style.background = 'linear-gradient(180deg, #4a6fa5 0%, #3a5f95 100%)';
+
+                                          try {
+                                              sortInventoryKeepHeadAndSendMovesOptimized(candidate, { fixedCount: 9, petSortBy });
+                                              btn.textContent = '✓';
+                                              btn.style.background = 'linear-gradient(180deg, #4a9a5a 0%, #3a8a4a 100%)';
+                                              console.log(`[MGTOOLS-FIX-D] ✅ Sorted by ${petSortBy}`);
+                                              setTimeout(() => {
+                                                  btn.textContent = originalText;
+                                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
+                                                  btn.disabled = false;
+                                              }, 1000);
+                                          } catch (e) {
+                                              console.error('[MGTOOLS-FIX-D] Sort failed:', e);
+                                              btn.textContent = '✗';
+                                              btn.style.background = 'linear-gradient(180deg, #9a4a4a 0%, #8a3a3a 100%)';
+                                              setTimeout(() => {
+                                                  btn.textContent = originalText;
+                                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
+                                                  btn.disabled = false;
+                                              }, 1000);
+                                          }
+                                          return;
+                                      }
+                                  } catch (e) {}
                               }
-                          }
-
-                          // Tier 3: window search
-                          if (!inventoryObj?.items) {
-                              inventoryObj = targetWindow.myData?.inventory ||
-                                           targetWindow.inventory ||
-                                           targetWindow.Inventory ||
-                                           null;
-                              if (inventoryObj?.items) {
-                                  console.log('[MGTOOLS-FIX-D] Using window inventory (Tier 3)');
-                              }
-                          }
-
-                          if (!inventoryObj?.items || !Array.isArray(inventoryObj.items)) {
-                              console.error('[MGTOOLS-FIX-D] ❌ No inventory found from any source');
-                              alert('Could not find inventory. Please make sure inventory is open and try again.');
+                              console.error('[MGTOOLS-FIX-D] Could not find inventory object.');
+                              alert('Could not find inventory. Please make sure inventory is open.');
                               return;
                           }
 
@@ -26430,18 +26454,27 @@ function initializeTurtleTimer() {
                           const originalText = btn.textContent;
                           btn.textContent = 'Sorting...';
                           btn.disabled = true;
+                          btn.style.background = 'linear-gradient(180deg, #4a6fa5 0%, #3a5f95 100%)';
 
                           try {
                               sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, { fixedCount: 9, petSortBy });
-                              btn.textContent = '✓ Sorted';
-                              console.log(`[MGTOOLS-FIX-D] ✅ Sort completed (${petSortBy})`);
-                              setTimeout(() => { btn.textContent = originalText; }, 1500);
+                              btn.textContent = '✓';
+                              btn.style.background = 'linear-gradient(180deg, #4a9a5a 0%, #3a8a4a 100%)';
+                              console.log(`[MGTOOLS-FIX-D] ✅ Sorted by ${petSortBy}`);
+                              setTimeout(() => {
+                                  btn.textContent = originalText;
+                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
+                                  btn.disabled = false;
+                              }, 1000);
                           } catch (e) {
-                              console.error('[MGTOOLS-FIX-D] ❌ Sort failed:', e);
-                              btn.textContent = '✗ Failed';
-                              setTimeout(() => { btn.textContent = originalText; }, 1500);
-                          } finally {
-                              btn.disabled = false;
+                              console.error('[MGTOOLS-FIX-D] Sort failed:', e);
+                              btn.textContent = '✗';
+                              btn.style.background = 'linear-gradient(180deg, #9a4a4a 0%, #8a3a3a 100%)';
+                              setTimeout(() => {
+                                  btn.textContent = originalText;
+                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
+                                  btn.disabled = false;
+                              }, 1000);
                           }
                       });
 
