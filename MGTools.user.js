@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.8.4
+// @version      3.8.5
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -23,7 +23,7 @@
 
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.4 - Final Fix! Sort button now works perfectly with original script approach');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.5 - Sort button EXACT autosort.txt implementation (positioning + no gradients)');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -26349,136 +26349,53 @@ function initializeTurtleTimer() {
                   clearButtons.forEach(clearButton => {
                       if (clearButton.dataset.sortBtnAdded === 'true') return;
 
-                      // FIX ISSUE D: Professional styling
-                      const container = targetDocument.createElement('span');
+                      // FIX ISSUE D: EXACT copy from autosort.txt
+                      const container = targetDocument.createElement('div');
                       container.className = 'custom-sort-container';
-                      container.style.cssText = `
-                          margin-left: 16px;
-                          display: inline-block;
-                          vertical-align: middle;
-                      `;
+                      container.style.display = 'inline-flex';
+                      container.style.alignItems = 'center';
+                      container.style.gap = '6px';
+                      container.style.marginLeft = '6px';
 
-                      const label = targetDocument.createElement('span');
-                      label.textContent = 'Sort:';
-                      label.style.cssText = `
-                          color: rgba(255, 255, 255, 0.75);
-                          font-size: 14px;
-                          font-weight: 500;
-                          margin-right: 8px;
-                          user-select: none;
-                      `;
-
-                      // FIX ISSUE D: Professional button with gradient and hover
+                      // FIX ISSUE D: Button with EXACT autosort.txt styling
                       const btn = targetDocument.createElement('button');
                       btn.className = 'custom-sort-button';
                       btn.textContent = 'Sort Inventory';
-                      btn.title = 'Sort inventory (Shift+Click: by XP)';
-                      btn.style.cssText = `
-                          background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
-                          color: #ffffff;
-                          border: 1px solid rgba(255, 255, 255, 0.15);
-                          border-radius: 4px;
-                          padding: 6px 14px;
-                          cursor: pointer;
-                          font-size: 13px;
-                          font-weight: 500;
-                          transition: all 0.2s ease;
-                          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-                          vertical-align: middle;
-                      `;
-
-                      // Hover effect
-                      btn.addEventListener('mouseenter', () => {
-                          if (!btn.disabled) {
-                              btn.style.background = 'linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%)';
-                              btn.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                          }
-                      });
-                      btn.addEventListener('mouseleave', () => {
-                          if (!btn.disabled) {
-                              btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
-                              btn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                          }
+                      btn.title = 'Click to sort (Shift+Click to sort pets by XP)';
+                      Object.assign(btn.style, {
+                          background: '#2b2a2a',
+                          color: 'white',
+                          border: '1px solid #555',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          transform: 'translateX(calc(-1 * var(--offset, -200%)))'
                       });
 
+                      // FIX ISSUE D: EXACT click handler from autosort.txt
                       btn.addEventListener('click', (ev) => {
                           const petSortBy = ev.shiftKey ? 'xp' : 'rarity';
-
-                          // FIX ISSUE D: Use ORIGINAL script's inventory detection (EXACT copy from working script)
                           const inventoryObj = targetWindow.inventory || targetWindow.Inventory || targetWindow.gameInventory || (typeof inventory !== 'undefined' && inventory) || null;
 
                           if (!inventoryObj || !Array.isArray(inventoryObj.items)) {
-                              // Try to find inventory in window object (ORIGINAL script approach)
+                              console.error('[MGTOOLS-FIX-D] Could not find inventory object.');
+                              // Try to find any object on window with .items array (best-effort)
                               for (const k of Object.keys(targetWindow)) {
                                   try {
                                       const candidate = targetWindow[k];
                                       if (candidate && candidate.items && Array.isArray(candidate.items)) {
-                                          console.log(`[MGTOOLS-FIX-D] Found inventory at window.${k}`);
-
-                                          // Show feedback
-                                          const originalText = btn.textContent;
-                                          btn.textContent = 'Sorting...';
-                                          btn.disabled = true;
-                                          btn.style.background = 'linear-gradient(180deg, #4a6fa5 0%, #3a5f95 100%)';
-
-                                          try {
-                                              sortInventoryKeepHeadAndSendMovesOptimized(candidate, { fixedCount: 9, petSortBy });
-                                              btn.textContent = '✓';
-                                              btn.style.background = 'linear-gradient(180deg, #4a9a5a 0%, #3a8a4a 100%)';
-                                              console.log(`[MGTOOLS-FIX-D] ✅ Sorted by ${petSortBy}`);
-                                              setTimeout(() => {
-                                                  btn.textContent = originalText;
-                                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
-                                                  btn.disabled = false;
-                                              }, 1000);
-                                          } catch (e) {
-                                              console.error('[MGTOOLS-FIX-D] Sort failed:', e);
-                                              btn.textContent = '✗';
-                                              btn.style.background = 'linear-gradient(180deg, #9a4a4a 0%, #8a3a3a 100%)';
-                                              setTimeout(() => {
-                                                  btn.textContent = originalText;
-                                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
-                                                  btn.disabled = false;
-                                              }, 1000);
-                                          }
+                                          console.log(`[MGTOOLS-FIX-D] Using inventory from window["${k}"]`);
+                                          sortInventoryKeepHeadAndSendMovesOptimized(candidate, { fixedCount: 9, petSortBy });
                                           return;
                                       }
-                                  } catch (e) {}
+                                  } catch (e) { /* ignore */ }
                               }
-                              console.error('[MGTOOLS-FIX-D] Could not find inventory object.');
-                              alert('Could not find inventory. Please make sure inventory is open.');
                               return;
                           }
-
-                          // Show feedback
-                          const originalText = btn.textContent;
-                          btn.textContent = 'Sorting...';
-                          btn.disabled = true;
-                          btn.style.background = 'linear-gradient(180deg, #4a6fa5 0%, #3a5f95 100%)';
-
-                          try {
-                              sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, { fixedCount: 9, petSortBy });
-                              btn.textContent = '✓';
-                              btn.style.background = 'linear-gradient(180deg, #4a9a5a 0%, #3a8a4a 100%)';
-                              console.log(`[MGTOOLS-FIX-D] ✅ Sorted by ${petSortBy}`);
-                              setTimeout(() => {
-                                  btn.textContent = originalText;
-                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
-                                  btn.disabled = false;
-                              }, 1000);
-                          } catch (e) {
-                              console.error('[MGTOOLS-FIX-D] Sort failed:', e);
-                              btn.textContent = '✗';
-                              btn.style.background = 'linear-gradient(180deg, #9a4a4a 0%, #8a3a3a 100%)';
-                              setTimeout(() => {
-                                  btn.textContent = originalText;
-                                  btn.style.background = 'linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)';
-                                  btn.disabled = false;
-                              }, 1000);
-                          }
+                          sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, { fixedCount: 9, petSortBy });
                       });
 
-                      container.appendChild(label);
                       container.appendChild(btn);
                       clearButton.insertAdjacentElement('afterend', container);
                       clearButton.dataset.sortBtnAdded = 'true';

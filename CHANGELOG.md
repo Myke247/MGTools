@@ -1,5 +1,26 @@
 # Changelog - MGTools
 
+## Version 3.8.5 (2025-10-16)
+
+**Sort Button - EXACT Autosort.txt Implementation:**
+- Complete rewrite using EXACT code from working autosort.txt
+- Container: div with inline-flex (not span)
+- Styling: Simple background #2b2a2a (no gradients)
+- Positioning: `transform: translateX(calc(-1 * var(--offset, -200%)))`
+  - This shifts button far left to appear above inventory grid
+- Click handler: Simplified, no visual feedback colors
+- Removed color gradients (blue/green/red)
+- Removed label "Sort:"
+- Matches working console script exactly
+
+**Technical:**
+- Using same inventory detection as autosort.txt
+- Shift+Click for XP sort preserved
+- Simple console.log for debugging
+- No fancy animations or state changes
+
+---
+
 ## Version 3.8.4 (2025-10-16)
 
 **Sort Button - Final Fix:**
