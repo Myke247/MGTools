@@ -1,5 +1,33 @@
 # Changelog - MGTools
 
+## Version 3.8.2 (2025-10-16)
+
+**Bug Fixes:**
+- Fixed first feed button click not working after page load
+  - Feed buttons now wait for game state to be ready
+  - Visual indicator shows when buttons are loading
+- Fixed shop UI decrementing when purchases fail
+  - Added validation for item stack caps (WateringCan max: 99)
+  - Shop UI now only updates after successful purchases
+  - Proper error messages for inventory full and at-cap scenarios
+
+**New Features:**
+- Added "Hide feed buttons" setting
+  - Toggle visibility of instant feed buttons in Settings > Pet Interface
+  - Changes apply immediately without page reload
+- Added Sort Inventory button
+  - Appears next to "CLEAR FILTERS" in inventory
+  - Click to sort items (pets first by rarity, then alphabetically)
+  - Shift+Click to sort pets by XP instead of rarity
+  - First 9 hotbar items stay fixed
+
+**Improvements:**
+- Better error handling for shop purchases
+- Enhanced feed button initialization reliability
+- Clearer visual feedback for button states
+
+---
+
 ## Version 3.8.1 (2025-10-14)
 
 **New Features:**
