@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.8.2
+// @version      3.8.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -23,7 +23,7 @@
 
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.2 - Bug Fixes! First feed click works, hide feed buttons setting, shop cap validation, sort inventory button');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.3 - Critical Fixes! Feed buttons always work with 3-tier fallback, Sort button functional with improved inventory detection');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -26349,20 +26349,25 @@ function initializeTurtleTimer() {
                   clearButtons.forEach(clearButton => {
                       if (clearButton.dataset.sortBtnAdded === 'true') return;
 
+                      // FIX ISSUE D: Improved container styling to prevent overlaps
                       const container = targetDocument.createElement('div');
                       container.className = 'custom-sort-container';
-                      container.style.display = 'inline-flex';
-                      container.style.alignItems = 'center';
-                      container.style.gap = '6px';
-                      container.style.position = 'relative';
-                      container.style.marginLeft = '6px';
+                      container.style.cssText = `
+                          display: inline-block;
+                          margin-left: 12px;
+                          vertical-align: middle;
+                      `;
 
                       const label = targetDocument.createElement('span');
                       label.textContent = 'Sort:';
-                      label.style.color = 'white';
-                      label.style.fontSize = '13px';
-                      label.style.userSelect = 'none';
+                      label.style.cssText = `
+                          color: white;
+                          font-size: 13px;
+                          user-select: none;
+                          margin-right: 6px;
+                      `;
 
+                      // FIX ISSUE D: Match CLEAR FILTERS button style without transform
                       const btn = targetDocument.createElement('button');
                       btn.className = 'custom-sort-button';
                       btn.textContent = 'Sort Inventory';
@@ -26375,30 +26380,69 @@ function initializeTurtleTimer() {
                           padding: '6px 10px',
                           cursor: 'pointer',
                           fontSize: '13px',
-                          transform: 'translateX(-20%)'
+                          marginLeft: '0',
+                          verticalAlign: 'middle'
                       });
 
-                      btn.addEventListener('click', (ev) => {
+                      btn.addEventListener('click', async (ev) => {
                           const petSortBy = ev.shiftKey ? 'xp' : 'rarity';
-                          const inventoryObj = targetWindow.inventory || targetWindow.Inventory || targetWindow.gameInventory || (typeof inventory !== 'undefined' && inventory) || null;
 
-                          if (!inventoryObj || !Array.isArray(inventoryObj.items)) {
-                              // Try to find inventory in window object
-                              for (const k of Object.keys(targetWindow)) {
-                                  try {
-                                      const candidate = targetWindow[k];
-                                      if (candidate && candidate.items && Array.isArray(candidate.items)) {
-                                          console.log(`[MGTOOLS-FIX-D] Found inventory at window.${k}`);
-                                          sortInventoryKeepHeadAndSendMovesOptimized(candidate, { fixedCount: 9, petSortBy });
-                                          return;
-                                      }
-                                  } catch (e) {}
+                          // FIX ISSUE D: 3-tier fallback for inventory
+                          let inventoryObj = null;
+
+                          // Tier 1: UnifiedState.atoms.inventory (always up-to-date via subscriptions)
+                          if (UnifiedState.atoms.inventory?.items) {
+                              inventoryObj = UnifiedState.atoms.inventory;
+                              console.log('[MGTOOLS-FIX-D] Using UnifiedState.atoms.inventory (Tier 1)');
+                          }
+
+                          // Tier 2: Try Jotai store (if ready)
+                          if (!inventoryObj?.items && jotaiStore && targetWindow.jotaiAtomCache) {
+                              try {
+                                  const freshInventory = await getAtomValue('myCropInventoryAtom');
+                                  if (freshInventory?.items) {
+                                      inventoryObj = freshInventory;
+                                      console.log('[MGTOOLS-FIX-D] Using Jotai inventory (Tier 2)');
+                                  }
+                              } catch (e) {
+                                  console.warn('[MGTOOLS-FIX-D] Tier 2 (Jotai) failed:', e.message);
                               }
-                              console.error('[MGTOOLS-FIX-D] Could not find inventory object');
-                              alert('Could not find inventory. Please make sure inventory is open.');
+                          }
+
+                          // Tier 3: window search
+                          if (!inventoryObj?.items) {
+                              inventoryObj = targetWindow.myData?.inventory ||
+                                           targetWindow.inventory ||
+                                           targetWindow.Inventory ||
+                                           null;
+                              if (inventoryObj?.items) {
+                                  console.log('[MGTOOLS-FIX-D] Using window inventory (Tier 3)');
+                              }
+                          }
+
+                          if (!inventoryObj?.items || !Array.isArray(inventoryObj.items)) {
+                              console.error('[MGTOOLS-FIX-D] ❌ No inventory found from any source');
+                              alert('Could not find inventory. Please make sure inventory is open and try again.');
                               return;
                           }
-                          sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, { fixedCount: 9, petSortBy });
+
+                          // Show feedback
+                          const originalText = btn.textContent;
+                          btn.textContent = 'Sorting...';
+                          btn.disabled = true;
+
+                          try {
+                              sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, { fixedCount: 9, petSortBy });
+                              btn.textContent = '✓ Sorted';
+                              console.log(`[MGTOOLS-FIX-D] ✅ Sort completed (${petSortBy})`);
+                              setTimeout(() => { btn.textContent = originalText; }, 1500);
+                          } catch (e) {
+                              console.error('[MGTOOLS-FIX-D] ❌ Sort failed:', e);
+                              btn.textContent = '✗ Failed';
+                              setTimeout(() => { btn.textContent = originalText; }, 1500);
+                          } finally {
+                              btn.disabled = false;
+                          }
                       });
 
                       container.appendChild(label);
@@ -26455,17 +26499,9 @@ function initializeTurtleTimer() {
               function createInstantFeedButton(petIndex) {
                   const btn = targetDocument.createElement('button');
                   btn.className = 'mgtools-instant-feed-btn';
-                  btn.textContent = 'Feed';
+                  btn.textContent = 'Feed'; // Always start with "Feed" text
                   btn.setAttribute('data-pet-index', petIndex);
                   btn.setAttribute('data-cooldown', 'false'); // Track cooldown state
-
-                  // FIX ISSUE A: Start disabled if jotaiStore not captured yet
-                  if (!jotaiStore) {
-                      btn.disabled = true;
-                      btn.textContent = '...';
-                      btn.setAttribute('data-waiting-store', 'true');
-                      console.log('[MGTOOLS-FIX-A] Button created in disabled state, waiting for jotaiStore');
-                  }
 
                   // FIX ISSUE B: Check if feed buttons should be hidden
                   const shouldHide = UnifiedState.data.settings.hideFeedButtons;
@@ -26485,13 +26521,13 @@ function initializeTurtleTimer() {
                       border-radius: 6px !important;
                       font-size: 11px !important;
                       font-weight: bold !important;
-                      cursor: ${!jotaiStore ? 'wait' : 'pointer'} !important;
+                      cursor: pointer !important;
                       z-index: 9999 !important;
                       transition: all 0.2s ease !important;
                       pointer-events: auto !important;
                       display: ${shouldHide ? 'none' : 'block'} !important;
                       visibility: visible !important;
-                      opacity: ${!jotaiStore ? '0.5' : '1'} !important;
+                      opacity: 1 !important;
                   `;
 
                   btn.addEventListener('mouseenter', () => {
@@ -26522,33 +26558,43 @@ function initializeTurtleTimer() {
               async function handleInstantFeed(petIndex, buttonEl) {
                   if (buttonEl.disabled) return;
 
+                  // Show loading state AFTER click (not before)
                   buttonEl.disabled = true;
                   buttonEl.textContent = '...';
                   buttonEl.style.opacity = '0.6';
 
                   try {
-                      // Ensure jotaiStore is captured (fixes first-click issue)
-                      if (!jotaiStore) {
-                          jotaiStore = captureJotaiStore();
-                      }
-
-                      // Try to get FRESH pet data from Jotai store (if available)
+                      // FIX ISSUE A: 3-tier fallback for pet data
                       let pet = null;
-                      const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
-                      if (freshPetSlots && freshPetSlots[petIndex]) {
-                          pet = freshPetSlots[petIndex];
-                          console.log('[MGTools Feed] Using fresh pet data from Jotai');
-                      } else {
-                          // CRITICAL: Direct fallback to cached pets if Jotai not ready
-                          const cachedPets = UnifiedState.atoms.activePets || [];
-                          if (cachedPets[petIndex]) {
-                              pet = cachedPets[petIndex];
-                              console.log('[MGTools Feed] Using cached pet data (Jotai not ready)');
+
+                      // Tier 1: Try Jotai store (if both store and cache are ready)
+                      if (jotaiStore && targetWindow.jotaiAtomCache) {
+                          try {
+                              const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
+                              if (freshPetSlots?.[petIndex]) {
+                                  pet = freshPetSlots[petIndex];
+                                  console.log('[MGTOOLS-FIX-A] Using fresh pet data from Jotai (Tier 1)');
+                              }
+                          } catch (e) {
+                              console.warn('[MGTOOLS-FIX-A] Tier 1 (Jotai) failed:', e.message);
                           }
                       }
 
+                      // Tier 2: UnifiedState atoms (updated by subscriptions)
+                      if (!pet && UnifiedState.atoms.activePets?.[petIndex]) {
+                          pet = UnifiedState.atoms.activePets[petIndex];
+                          console.log('[MGTOOLS-FIX-A] Using UnifiedState atoms (Tier 2)');
+                      }
+
+                      // Tier 3: window.myData (game global)
+                      if (!pet && targetWindow.myData?.petSlots?.[petIndex]) {
+                          pet = targetWindow.myData.petSlots[petIndex];
+                          console.log('[MGTOOLS-FIX-A] Using window.myData (Tier 3)');
+                      }
+
                       if (!pet) {
-                          console.error('[MGTools Feed] No pet at index', petIndex);
+                          console.error('[MGTOOLS-FIX-A] ❌ No pet data available from any source');
+                          alert('Pet data not ready. Please wait a moment and try again.');
                           flashButton(buttonEl, 'error');
                           return;
                       }
@@ -26570,21 +26616,37 @@ function initializeTurtleTimer() {
                           return;
                       }
 
-                      // Try to get FRESH inventory from Jotai store (if available)
+                      // FIX ISSUE A: 3-tier fallback for inventory data
                       let inventoryItems = null;
-                      const freshInventory = await getAtomValue('myCropInventoryAtom');
-                      if (freshInventory && freshInventory.items) {
-                          inventoryItems = freshInventory.items;
-                      } else {
-                          // Fallback to cached inventory
-                          const cached = targetWindow.myData?.inventory?.items || UnifiedState.atoms.inventory?.items;
-                          if (cached) {
-                              inventoryItems = cached;
+
+                      // Tier 1: Try Jotai store (if ready)
+                      if (jotaiStore && targetWindow.jotaiAtomCache) {
+                          try {
+                              const freshInventory = await getAtomValue('myCropInventoryAtom');
+                              if (freshInventory?.items) {
+                                  inventoryItems = freshInventory.items;
+                                  console.log('[MGTOOLS-FIX-A] Using fresh inventory from Jotai (Tier 1)');
+                              }
+                          } catch (e) {
+                              console.warn('[MGTOOLS-FIX-A] Inventory Tier 1 failed:', e.message);
                           }
                       }
 
+                      // Tier 2: UnifiedState atoms
+                      if (!inventoryItems && UnifiedState.atoms.inventory?.items) {
+                          inventoryItems = UnifiedState.atoms.inventory.items;
+                          console.log('[MGTOOLS-FIX-A] Using UnifiedState inventory (Tier 2)');
+                      }
+
+                      // Tier 3: window.myData
+                      if (!inventoryItems && targetWindow.myData?.inventory?.items) {
+                          inventoryItems = targetWindow.myData.inventory.items;
+                          console.log('[MGTOOLS-FIX-A] Using window.myData inventory (Tier 3)');
+                      }
+
                       if (!inventoryItems || inventoryItems.length === 0) {
-                          console.error('[MGTools Feed] No inventory');
+                          console.error('[MGTOOLS-FIX-A] ❌ No inventory data available from any source');
+                          alert('Inventory not ready. Please wait a moment.');
                           flashButton(buttonEl, 'error');
                           return;
                       }
@@ -26882,47 +26944,18 @@ function initializeTurtleTimer() {
                   }
               }
 
-              // FIX ISSUE A: Enable all feed buttons once store is ready
-              function enableAllFeedButtons() {
-                  const waitingButtons = targetDocument.querySelectorAll('.mgtools-instant-feed-btn[data-waiting-store="true"]');
-                  console.log(`[MGTOOLS-FIX-A] Enabling ${waitingButtons.length} waiting feed buttons`);
-
-                  waitingButtons.forEach(btn => {
-                      btn.disabled = false;
-                      btn.textContent = 'Feed';
-                      btn.removeAttribute('data-waiting-store');
-                      btn.style.setProperty('cursor', 'pointer', 'important');
-                      btn.style.setProperty('opacity', '1', 'important');
-                  });
-
-                  console.log('[MGTOOLS-FIX-A] ✅ All feed buttons enabled and ready');
-              }
-
               // Initialize instant feed buttons with polling (reliable for CSS visibility changes)
               function initializeInstantFeedButtons() {
                   console.log('[MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...');
 
-                  // Pre-capture jotaiStore to ensure first click works - retry up to 5 times
+                  // Try to capture jotaiStore early (but don't block if unavailable)
                   if (!jotaiStore) {
-                      let retries = 0;
-                      const maxRetries = 5;
-                      const retryInterval = setInterval(() => {
-                          jotaiStore = captureJotaiStore();
-                          if (jotaiStore) {
-                              console.log('[MGTools Feed] ✅ Jotai store captured for instant feed');
-                              clearInterval(retryInterval);
-                              // FIX ISSUE A: Enable all waiting buttons now that store is ready
-                              enableAllFeedButtons();
-                          } else {
-                              retries++;
-                              if (retries >= maxRetries) {
-                                  console.warn('[MGTools Feed] ⚠️ Jotai store not available after 5 retries - will use cached data');
-                                  clearInterval(retryInterval);
-                                  // FIX ISSUE A: Enable buttons anyway as fallback (will use cached pet data)
-                                  enableAllFeedButtons();
-                              }
-                          }
-                      }, 500); // Retry every 500ms
+                      jotaiStore = captureJotaiStore();
+                      if (jotaiStore) {
+                          console.log('[MGTools Feed] ✅ Jotai store captured at initialization');
+                      } else {
+                          console.log('[MGTools Feed] ⏳ Jotai store not ready yet - will use fallback data');
+                      }
                   }
 
                   // Helper to find all visible pet containers

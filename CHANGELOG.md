@@ -1,6 +1,32 @@
 # Changelog - MGTools
 
-## Version 3.8.2 (2025-10-16)
+## Version 3.8.3 (2025-10-16)
+
+**Critical Bug Fixes:**
+- Fixed feed buttons completely - now work on first click every time
+  - Removed broken disabled state logic
+  - Implemented 3-tier data fallback (Jotai → UnifiedState → window.myData)
+  - Button text no longer disappears after opening/closing inventory or shop
+  - Always shows "Feed" text and works immediately
+
+- Fixed Sort Inventory button completely - now functional
+  - Fixed inventory detection using 3-tier fallback system
+  - Removed overlapping transform, cleaned up positioning
+  - Added visual feedback ("Sorting..." → "✓ Sorted" or "✗ Failed")
+  - Shift+Click to sort pets by XP works correctly
+
+**Technical Improvements:**
+- Simplified feed button initialization (no more complex retry logic)
+- Better error messages with specific tier information
+- Consistent data access patterns across all features
+
+**Known Working:**
+- Issue B: Hide feed buttons setting ✓
+- Issue C: Shop purchase validation and caps ✓
+
+---
+
+## Version 3.8.2 (2025-10-16) [SUPERSEDED]
 
 **Bug Fixes:**
 - Fixed first feed button click not working after page load
