@@ -97,13 +97,11 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 10: Version Check Controller (controller/version-check.js)
-// import {
-//   runVersionCheck,
-//   scheduleVersionChecks,
-//   checkAndPromptUpdate,
-//   detectCurrentBranch
-// } from './controller/version-check.js';
+// Module 11: Shortcuts (controller/shortcuts.js)
+// import { ShortcutsController, formatShortcut, getShortcutsByCategory } from './controller/shortcuts.js';
+
+// Module 11 UI: Hotkey help (ui/hotkey-help.js)
+// import { showHotkeyHelp, hideHotkeyHelp } from './ui/hotkey-help.js';
 
 // ... more imports as modules are extracted
 
