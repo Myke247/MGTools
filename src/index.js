@@ -97,8 +97,8 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 13: Core Orchestrator (controller/app-core.js)
-// import { AppCore } from './controller/app-core.js';
+// Module 14: Init / Bootstrap (init/bootstrap.js)
+// import { bootstrapStart, bootstrapStop } from './init/bootstrap.js';
 
 // ... more imports as modules are extracted
 
