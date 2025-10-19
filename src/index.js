@@ -97,13 +97,13 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 6: State (state/unified-state.js)
+// Module 7: UI Framework (ui/ui.js)
 // import {
-//   UnifiedState,
-//   initState,
-//   snapshotState,
-//   restoreState
-// } from './state/unified-state.js';
+//   ensureStyles,
+//   toast,
+//   on, off, emit,
+//   el, qs
+// } from './ui/ui.js';
 
 // ... more imports as modules are extracted
 
