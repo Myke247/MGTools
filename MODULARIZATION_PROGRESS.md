@@ -347,26 +347,28 @@ export {
 
 ---
 
-### Module 8: ui/version-badge.js ✅ COMPLETE
-**Status:** Extracted (pure UI: badge + click handlers via callbacks)
-**File:** `src/ui/version-badge.js` (~310 lines)
+### Module 9: ui/connection-status.js ✅ COMPLETE
+**Status:** Extracted (pure UI; connection HUD + toasts)
+**File:** `src/ui/connection-status.js` (~300 lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **renderVersionBadge(container, meta)** - Render current/available version badge with inline styles
-- **wireVersionSwitchHandlers(container, { onSwitch })** - Attach click handlers for branch switching (callback-based)
-- **showVersionOutdatedToast(meta)** - Display update notification using M7 toast system
-- **teardownVersionUI(container)** - Safe cleanup of badge elements and event handlers
-- **renderBranchSwitcherModal(options)** - Optional modal UI for explicit branch switching
+- **renderConnectionStatus(container, initialState)** - Render connection status HUD with state indicator
+- **updateConnectionStatus(container, state)** - Update HUD visuals for state transitions
+- **attachConnectionHandlers(container, { onReconnect, onRefresh })** - Wire action buttons to callbacks
+- **showConnectionToast(state, options)** - Display connection state change notifications using M7 toast
+- **teardownConnectionStatus(container)** - Safe cleanup of HUD elements and event handlers
+- **CONNECTION_STATES** - Exported constants for state management
 
 **Exported Symbols:**
 ```javascript
 export {
-  renderVersionBadge,          // Render version badge
-  wireVersionSwitchHandlers,   // Wire click handlers
-  showVersionOutdatedToast,    // Show update toast
-  teardownVersionUI,           // Clean up UI
-  renderBranchSwitcherModal    // Optional modal UI
+  renderConnectionStatus,      // Render HUD
+  updateConnectionStatus,       // Update state
+  attachConnectionHandlers,     // Wire callbacks
+  showConnectionToast,          // Show toast
+  teardownConnectionStatus,     // Clean up UI
+  CONNECTION_STATES             // State constants
 };
 ```
 
@@ -379,23 +381,24 @@ export {
 - ✅ UI-only: zero network calls (no fetch/GM_xmlhttpRequest/WebSocket)
 - ✅ Zero UnifiedState access (pure view layer)
 - ✅ Uses M7 toast & DOM helpers
-- ✅ Inline CSS only (CSP/Discord safe, no external fonts)
-- ✅ All actions delegated via callbacks
+- ✅ Inline CSS only (CSP/Discord safe)
+- ✅ Callback-based actions (no side effects beyond UI)
 - ✅ No behavior changes
 
 **Features:**
-- Gradient-styled version badge with branch indicator
-- Visual feedback for outdated versions (warning colors, pulse animation)
-- Callback-based architecture (no direct state/network coupling)
+- Four connection states: connected, reconnecting, offline, expired4710
+- State-specific colors, gradients, and icons
+- Animated transitions (spin for reconnecting, pulse for warnings)
+- Reconnect/refresh action buttons (callback-driven)
+- Toast notifications for state changes
 - Safe event handler cleanup
-- Optional modal for explicit user confirmation
 
 ---
 
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 8 / 13
-**Lines Extracted:** ~3,143 / ~29,600 (10.6%)
+**Modules Extracted:** 9 / 13
+**Lines Extracted:** ~3,443 / ~29,600 (11.6%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -408,12 +411,13 @@ export {
 - ✅ Module 6: state/unified-state.js (330 lines)
 - ✅ Module 7: ui/ui.js (370 lines)
 - ✅ Module 8: ui/version-badge.js (310 lines)
+- ✅ Module 9: ui/connection-status.js (300 lines)
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 9-13: Feature modules (pets, shop, abilities, etc.)
+1. Extract Module 10-13: Feature modules (pets, shop, abilities, etc.)
 2. Extract Module 14: Init/bootstrap module
 3. Switch to esbuild bundling once all modules extracted
 4. Final integration testing
