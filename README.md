@@ -449,7 +449,7 @@ Open Source - Free to use, modify, and share!
 ## 🙏 Credits
 
 **Created by**: Myke247
-*8Normie, Daserix, & Ghastly
+*Normie, Daserix, & Ghastly
 **Community**: Magic Garden players
 
 Special thanks to all contributors and testers!
