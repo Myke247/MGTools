@@ -347,75 +347,51 @@ export {
 
 ---
 
-### Module 6: state/unified-state.js ✅ COMPLETE
-**Status:** Extracted (pure state container; no DOM/network/timers)
-**File:** `src/state/unified-state.js` (~330 lines)
+### Module 7: ui/ui.js ✅ COMPLETE
+**Status:** Extracted (pure UI layer; no network/state)
+**File:** `src/ui/ui.js` (~370 lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **UnifiedState object** - Complete application state container with deterministic structure
-- **initState()** - Initialize state with optional defaults, load from storage
-- **snapshotState()** - Create deep copy snapshot for serialization
-- **restoreState()** - Restore state from snapshot
+- **Toast System** - Info/warn/error toasts with queue management, auto-dismiss, manual dismissal
+- **UI Event Bus** - Lightweight event system (on/off/emit) for decoupled UI communication
+- **DOM Helpers** - `el()` for element creation, `qs()` for querySelector, `qsa()` for querySelectorAll
+- **Style Injection** - `ensureStyles()` for CSP/Discord-safe inline CSS (no external fonts)
 
 **Exported Symbols:**
 ```javascript
 export {
-  UnifiedState,      // Main state container object
-  initState,         // Initialize state with defaults
-  snapshotState,     // Create state snapshot
-  restoreState       // Restore from snapshot
+  ensureStyles,   // Inject toast/UI styles
+  toast,          // { info, warn, error, dismiss, dismissAll }
+  on, off, emit,  // UI event bus
+  el, qs, qsa     // DOM helpers
 };
 ```
 
-**State Structure:**
-- `initialized`, `jotaiReady`, `atomsSubscribed` - Initialization flags
-- `panels` - UI panel references (structure only, no DOM)
-- `activeTab` - Current active tab
-- `intervals` - Interval ID tracking (structure only, no execution)
-- `popoutWindows` - Set of popout window references
-- `firebase` - Firebase connection tracking (structure only)
-- `data` - Application data:
-  - Pet presets, ability logs, timestamps
-  - Seeds to delete, auto-delete state
-  - Inventory/garden/tile values
-  - Room status, custom rooms
-  - Timers (seed, egg, tool, lunar)
-  - Settings (opacity, theme, notifications, hotkeys, etc.)
-  - Filters (ability filters, pet filters)
-  - Popouts tracking
-- `atoms` - Game state atom references
-
 **Dependencies:**
-- `Storage` from `../core/storage.js` (for persistence)
-- `Logger` from `../core/logging.js` (for debug logging)
+- `Logger` from `../core/logging.js` (for diagnostics)
+- `CompatibilityMode` from `../core/compat.js` (read-only, for Discord detection)
 
 **Acceptance Criteria:**
-- ✅ Zero DOM manipulation
-- ✅ Zero network calls
-- ✅ Zero timers (structure only, no setInterval/setTimeout)
-- ✅ Deterministic structure
-- ✅ Pure data container with snapshot/restore
-- ✅ No behavior changes
+- ✅ UI-only: no network calls (no fetch/GM_xmlhttpRequest/WebSocket)
+- ✅ No UnifiedState access (pure view layer)
+- ✅ Safe in CSP/Discord environments (inline CSS only, no external assets)
+- ✅ Minimal, composable DOM helpers
+- ✅ No behavior changes to userscript output
 
-**Source Line Ranges:**
-- UnifiedState object: MGTools.user.js lines 2970-3139
-- Emergency save handler: lines 3159-3169 (deferred to init module)
-- Debug functions: lines 3147-3157 (deferred to init module)
-- Window export: line 3142 (deferred to init module)
-
-**Excluded (deferred to Init module):**
-- beforeunload event listener (DOM event)
-- Debug function window assignment
-- Actual interval timer execution
-- Network-triggered state updates
+**Features:**
+- Toast queue with auto-dismiss timers
+- Graceful animations (slide-in, fade-out)
+- Discord iframe z-index handling
+- CSP-compliant (no external fonts/images)
+- Event-driven architecture for UI decoupling
 
 ---
 
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 6 / 13
-**Lines Extracted:** ~2,463 / ~29,600 (8.3%)
+**Modules Extracted:** 7 / 13
+**Lines Extracted:** ~2,833 / ~29,600 (9.6%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -424,18 +400,18 @@ export {
 - ✅ Module 2: utils/constants.js (196 lines)
 - ✅ Module 3: core/logging.js (162 lines)
 - ✅ Module 4: core/compat.js (278 lines)
-- ✅ Module 5: core/network.js (520 lines) - Pure transport layer
-- ✅ Module 6: state/unified-state.js (330 lines) - Pure state container
+- ✅ Module 5: core/network.js (520 lines)
+- ✅ Module 6: state/unified-state.js (330 lines)
+- ✅ Module 7: ui/ui.js (370 lines)
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 7: UI framework (base styles, components)
-2. Extract Module 8-13: Feature modules (pets, shop, abilities, etc.)
-3. Extract Module 14: Init/bootstrap module
-4. Switch to esbuild bundling once all modules extracted
-5. Final integration testing
+1. Extract Module 8-13: Feature modules (pets, shop, abilities, etc.)
+2. Extract Module 14: Init/bootstrap module
+3. Switch to esbuild bundling once all modules extracted
+4. Final integration testing
 
 ---
 
