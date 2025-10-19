@@ -363,41 +363,42 @@ export {
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
-### Module 12: controller/room-poll.js ✅ COMPLETE
+### Module 13: controller/app-core.js ✅ COMPLETE
 **Status:** Extracted and ready for bundling
-**File:** `src/controller/room-poll.js` (260+ lines)
+**File:** `src/controller/app-core.js` (280+ lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **RoomPollController** - Event-driven room polling with backoff and jitter
-- Interval-based polling using M5 network helpers
-- Exponential backoff on errors with configurable max
-- Jitter for distributed load
-- Event emission for UI (M9) to subscribe
+- **AppCore** - Pure orchestrator that wires controllers without side effects on import
+- Lifecycle management (start/stop) for child controllers
+- Event bus wiring between M10 (version), M11 (shortcuts), M12 (room poll) and M7-M9 UI
+- No DOM, no network, no timers (children own their timers)
 
 **Exported Symbols:**
 ```javascript
 export {
-  RoomPollController  // Controller with start/stop/on/off API
+  AppCore  // Orchestrator with start/stop/getStatus API
 };
 ```
 
 **API:**
-- `start({ roomIdOrCode, intervalMs, jitterMs, maxBackoffMs })` - Start polling
-- `stop()` - Stop polling and clear timers
-- `on(event, handler)` - Register event handler ('open', 'update', 'error', 'close')
-- `off(event, handler)` - Unregister event handler
-- `getStatus()` - Get current status
+- `start({ roomIdOrCode, pollIntervalMs, jitterMs, versionBadgeRoot, isLiveBeta, onSwitchBranch, versionCheckIntervalMs })` - Start and wire all controllers
+- `stop()` - Stop all controllers and unregister event handlers
+- `getStatus()` - Get current orchestrator status
 
 **Dependencies:**
 - `Logger` from `../core/logging.js` (M2)
-- `fetchRoomInfo`, `parsePlayerCount` from `../core/network.js` (M5)
+- `RoomPollController` from `./room-poll.js` (M12)
+- `scheduleVersionChecks` from `./version-check.js` (M10)
+- `ShortcutsController` from `./shortcuts.js` (M11)
+- `on`, `off`, `emit` from `../ui/ui.js` (M7 event bus)
 
 **Guarantees:**
 - Zero DOM manipulation
+- Zero direct network calls
 - Zero UnifiedState writes
-- Zero direct network calls (only uses M5 exports)
-- Owns and cleans up all timers
+- Zero timers owned here (child controllers own their timers)
+- No side effects on import (pure module)
 
 ---
 
