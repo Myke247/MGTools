@@ -1,8 +1,16 @@
-# Ignore everything
-*
-
-# Except these files (ONLY public-facing files)
-!MGTools.user.js
-!README.md
-!CHANGELOG.md
-!.gitignore
+node_modules/
+dist/
+*.log
+*.tmp
+mgtools.user.js.backup
+consolelogs.txt consolelogs2.txt
+*.backup
+consolelogs*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+mgdebug*
+debug*
+.ops/
