@@ -28319,14 +28319,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
                 // Verify in background (non-blocking) for debugging
                 feedPetEnsureSync(reboundPetItemId, cropItemId, petIndex, false)
-                  .then((result) => {
+                  .then(result => {
                     if (!result?.verified) {
                       console.warn('[MGTools Feed] ⚠️ Background verification failed (feed may have worked anyway)');
                     } else {
                       console.log('[MGTools Feed] ✅ Background verification succeeded');
                     }
                   })
-                  .catch((err) => console.warn('[MGTools Feed] Background verification error:', err));
+                  .catch(err => console.warn('[MGTools Feed] Background verification error:', err));
               } catch (err) {
                 console.warn('[MGTools Feed] ⚠️ Feed failed:', err.message);
                 flashButton(buttonEl, 'error');
