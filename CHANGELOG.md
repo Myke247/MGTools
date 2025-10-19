@@ -1,5 +1,16 @@
 # Changelog - MGTools
 
+## Version 3.8.8 (2025-10-18)
+
+**Improvements:**
+- Shop UI improvements for better inventory management
+- Fixed stock display accuracy in custom shop
+- Import/Export pet presets now fully functional
+- Performance optimizations and reduced console spam
+- Various bug fixes and stability improvements
+
+---
+
 ## Version 3.8.1 (2025-10-14)
 
 **New Features:**
