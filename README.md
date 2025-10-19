@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.8.1** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.8.8** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.8.1-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.8.8-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -432,7 +432,8 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.8.1)
+### Latest Updates (v3.8.8)
+- **v3.8.8**: 🛒 **SHOP UI IMPROVEMENTS!** - Better inventory management, accurate stock display, pet preset import/export now working!
 - **v3.8.1**: 🌐 **DISCORD ROOMS + OPTIMIZATION!** - All 87 Discord rooms now show player counts! Instant feed reliability improved. 83% less network traffic when tabs closed!
 - **v3.8.0**: 🐾 **INSTANT FEED BUTTONS!** - Click "Feed" next to each pet for quick feeding! Automatically selects compatible crops and respects favorites.
 - **v3.7.8**: ⚡ **STABILITY UPDATE!** - Cycle Pet Presets hotkey, auto game updates, ability log fixes
