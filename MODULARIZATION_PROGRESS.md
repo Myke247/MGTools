@@ -347,62 +347,75 @@ export {
 
 ---
 
-### Module 5: core/network.js ⏳ READY TO EXTRACT
-**Status:** Extracted (pure transport layer, no DOM/UI)
-**File:** `src/core/network.js` (~520 lines)
+### Module 6: state/unified-state.js ✅ COMPLETE
+**Status:** Extracted (pure state container; no DOM/network/timers)
+**File:** `src/state/unified-state.js` (~330 lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **Network object** - CSP-aware HTTP wrapper (GM_xmlhttpRequest for cross-origin when needed)
-- **Room API helpers** - Pure URL builders and fetch functions (no state mutations)
-- **Version metadata fetcher** - Multi-source fetch with no DOM manipulation
-- **WebSocket manager** - Event-based reconnection logic with exponential backoff (no UI)
+- **UnifiedState object** - Complete application state container with deterministic structure
+- **initState()** - Initialize state with optional defaults, load from storage
+- **snapshotState()** - Create deep copy snapshot for serialization
+- **restoreState()** - Restore state from snapshot
 
 **Exported Symbols:**
 ```javascript
 export {
-  Network,                  // { request(), get(), post() }
-  apiV1RoomInfoUrl,         // Room API URL builder
-  fetchRoomInfo,            // Pure room info fetcher
-  parsePlayerCount,         // Player count parser
-  fetchLatestVersionMeta,   // Version fetch (no DOM)
-  WebSocketManager          // { connect(), send(), close(), on() }
+  UnifiedState,      // Main state container object
+  initState,         // Initialize state with defaults
+  snapshotState,     // Create state snapshot
+  restoreState       // Restore from snapshot
 };
 ```
 
+**State Structure:**
+- `initialized`, `jotaiReady`, `atomsSubscribed` - Initialization flags
+- `panels` - UI panel references (structure only, no DOM)
+- `activeTab` - Current active tab
+- `intervals` - Interval ID tracking (structure only, no execution)
+- `popoutWindows` - Set of popout window references
+- `firebase` - Firebase connection tracking (structure only)
+- `data` - Application data:
+  - Pet presets, ability logs, timestamps
+  - Seeds to delete, auto-delete state
+  - Inventory/garden/tile values
+  - Room status, custom rooms
+  - Timers (seed, egg, tool, lunar)
+  - Settings (opacity, theme, notifications, hotkeys, etc.)
+  - Filters (ability filters, pet filters)
+  - Popouts tracking
+- `atoms` - Game state atom references
+
 **Dependencies:**
-- `CONFIG` from `../utils/constants.js` (API endpoints, version URLs)
-- `Logger` from `./logging.js` (Logger.info/warn/error/debug only)
-- `CompatibilityMode` from `./compat.js` (CSP/WebSocket flags)
-- Global: `GM_xmlhttpRequest`, `fetch`, `AbortSignal`, `WebSocket`, `location`
+- `Storage` from `../core/storage.js` (for persistence)
+- `Logger` from `../core/logging.js` (for debug logging)
 
 **Acceptance Criteria:**
-- ✅ Zero DOM manipulation (no createElement, getElementById, etc.)
-- ✅ Zero UnifiedState reads/writes
-- ✅ No UI side effects (no toast creation, no click handlers)
-- ✅ Pure transport layer (returns data, emits events)
-- ✅ All API URLs use CONFIG.API.BASE_URL_PRIMARY
-- ✅ Logger usage only (no productionLog imports)
+- ✅ Zero DOM manipulation
+- ✅ Zero network calls
+- ✅ Zero timers (structure only, no setInterval/setTimeout)
+- ✅ Deterministic structure
+- ✅ Pure data container with snapshot/restore
+- ✅ No behavior changes
 
 **Source Line Ranges:**
-- Network.request: 1054-1092 (refactored to .request/.get/.post)
-- apiV1RoomInfoUrl: 3406-3407, 30399 (merged, uses CONFIG)
-- fetchRoomInfo: 3410-3432, 30425-30540 (pure version, no state)
-- parsePlayerCount: 30408-30422 (unchanged)
-- fetchLatestVersionMeta: 7597-7650 (refactored, no DOM)
-- WebSocketManager: 30704-31044 (refactored, event-based, no toasts)
+- UnifiedState object: MGTools.user.js lines 2970-3139
+- Emergency save handler: lines 3159-3169 (deferred to init module)
+- Debug functions: lines 3147-3157 (deferred to init module)
+- Window export: line 3142 (deferred to init module)
 
-**Excluded (deferred to UI/Init modules):**
-- Version badge UI and click handlers (lines 7660-7737)
-- WebSocket toast notifications (lines 30772-30837)
-- UnifiedState integration logic
+**Excluded (deferred to Init module):**
+- beforeunload event listener (DOM event)
+- Debug function window assignment
+- Actual interval timer execution
+- Network-triggered state updates
 
 ---
 
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 5 / 13
-**Lines Extracted:** ~2,133 / ~29,600 (7.2%)
+**Modules Extracted:** 6 / 13
+**Lines Extracted:** ~2,463 / ~29,600 (8.3%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -412,15 +425,17 @@ export {
 - ✅ Module 3: core/logging.js (162 lines)
 - ✅ Module 4: core/compat.js (278 lines)
 - ✅ Module 5: core/network.js (520 lines) - Pure transport layer
+- ✅ Module 6: state/unified-state.js (330 lines) - Pure state container
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 6: State management (UnifiedState)
-2. Continue incremental extraction (Modules 6-13)
-3. Switch to esbuild bundling once all modules extracted
-4. Final integration testing
+1. Extract Module 7: UI framework (base styles, components)
+2. Extract Module 8-13: Feature modules (pets, shop, abilities, etc.)
+3. Extract Module 14: Init/bootstrap module
+4. Switch to esbuild bundling once all modules extracted
+5. Final integration testing
 
 ---
 
