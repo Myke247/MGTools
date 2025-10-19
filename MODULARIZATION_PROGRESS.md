@@ -347,62 +347,10 @@ export {
 
 ---
 
-### Module 11: controller/shortcuts.js + ui/hotkey-help.js ✅ COMPLETE
-**Status:** Extracted (keyboard shortcuts controller + help UI)
-**Files:** `src/controller/shortcuts.js` (~220 lines), `src/ui/hotkey-help.js` (~230 lines)
-**Date:** 2025-10-19
-
-**Extracted Components:**
-- **ShortcutsController** - Keyboard shortcut management with start/stop lifecycle
-- **formatShortcut(shortcut)** - Format shortcut for display
-- **getShortcutsByCategory()** - Get shortcuts grouped by category
-- **showHotkeyHelp(options)** - Display hotkey help overlay
-- **hideHotkeyHelp()** - Hide help overlay
-
-**Exported Symbols:**
-```javascript
-// controller/shortcuts.js
-export {
-  ShortcutsController,      // Main controller class
-  formatShortcut,           // Shortcut formatter
-  getShortcutsByCategory    // Category grouping
-};
-
-// ui/hotkey-help.js
-export {
-  showHotkeyHelp,          // Show help overlay
-  hideHotkeyHelp           // Hide help overlay
-};
-```
-
-**Dependencies:**
-- `Logger` from `../core/logging.js` (diagnostics)
-- `CompatibilityMode` from `../core/compat.js` (read-only)
-- `on, off, emit` from `../ui/ui.js` (M7 event bus)
-- `el, qs, ensureStyles` from `../ui/ui.js` (M7 DOM helpers)
-
-**Acceptance Criteria:**
-- ✅ No network calls (no fetch/GM_xmlhttpRequest/WebSocket)
-- ✅ No UnifiedState writes (read-only if needed)
-- ✅ Event listeners properly attached/detached via start/stop
-- ✅ Pure UI layer for help overlay (inline CSS only)
-- ✅ Lifecycle owned by caller
-- ✅ No behavior changes
-
-**Features:**
-- Configurable keyboard shortcuts with modifier keys
-- Emits UI events via M7 event bus
-- Categorized help overlay (Help, Navigation, Tabs, Actions)
-- Keyboard-accessible modal (Escape to close)
-- Prevents conflicts with input fields
-- Clean start/stop lifecycle
-
----
-
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 11 / 13
-**Lines Extracted:** ~4,143 / ~29,600 (14.0%)
+**Modules Extracted:** 4 / 13
+**Lines Extracted:** ~1,613 / ~29,600 (5.4%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -411,22 +359,54 @@ export {
 - ✅ Module 2: utils/constants.js (196 lines)
 - ✅ Module 3: core/logging.js (162 lines)
 - ✅ Module 4: core/compat.js (278 lines)
-- ✅ Module 5: core/network.js (520 lines)
-- ✅ Module 6: state/unified-state.js (330 lines)
-- ✅ Module 7: ui/ui.js (370 lines)
-- ✅ Module 8: ui/version-badge.js (310 lines)
-- ✅ Module 9: ui/connection-status.js (300 lines)
-- ✅ Module 10: controller/version-check.js (250 lines)
-- ✅ Module 11: controller/shortcuts.js (220 lines) + ui/hotkey-help.js (230 lines)
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
+### Module 12: controller/room-poll.js ✅ COMPLETE
+**Status:** Extracted and ready for bundling
+**File:** `src/controller/room-poll.js` (260+ lines)
+**Date:** 2025-10-19
+
+**Extracted Components:**
+- **RoomPollController** - Event-driven room polling with backoff and jitter
+- Interval-based polling using M5 network helpers
+- Exponential backoff on errors with configurable max
+- Jitter for distributed load
+- Event emission for UI (M9) to subscribe
+
+**Exported Symbols:**
+```javascript
+export {
+  RoomPollController  // Controller with start/stop/on/off API
+};
+```
+
+**API:**
+- `start({ roomIdOrCode, intervalMs, jitterMs, maxBackoffMs })` - Start polling
+- `stop()` - Stop polling and clear timers
+- `on(event, handler)` - Register event handler ('open', 'update', 'error', 'close')
+- `off(event, handler)` - Unregister event handler
+- `getStatus()` - Get current status
+
+**Dependencies:**
+- `Logger` from `../core/logging.js` (M2)
+- `fetchRoomInfo`, `parsePlayerCount` from `../core/network.js` (M5)
+
+**Guarantees:**
+- Zero DOM manipulation
+- Zero UnifiedState writes
+- Zero direct network calls (only uses M5 exports)
+- Owns and cleans up all timers
+
+---
+
 **Next Steps:**
-1. Extract Module 12-13: Remaining controllers/features
-2. Extract Module 14: Init/bootstrap module
-3. Switch to esbuild bundling once all modules extracted
-4. Final integration testing
+1. Extract Module 5: Network layer (API calls, GM_xmlhttpRequest, WebSocket management)
+2. Extract Module 6: State management (UnifiedState)
+3. Continue incremental extraction (Modules 6-13)
+4. Switch to esbuild bundling once all modules extracted
+5. Final integration testing
 
 ---
 
