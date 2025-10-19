@@ -32,7 +32,8 @@
  * - Module 1: core/storage.js ✅ EXTRACTED (977 lines)
  * - Module 2: utils/constants.js ✅ EXTRACTED (196 lines)
  * - Module 3: core/logging.js ✅ EXTRACTED (162 lines)
- * - Module 4-13: Pending extraction
+ * - Module 4: core/compat.js ✅ EXTRACTED (278 lines)
+ * - Module 5-13: Pending extraction
  *
  * Build Strategy:
  * - Continue using mgtools.user.js as source (mirror build)
@@ -87,6 +88,14 @@
 //   productionWarn,
 //   productionError
 // } from './core/logging.js';
+
+// Module 4: Compatibility (core/compat.js)
+// import {
+//   CompatibilityMode,
+//   isUserscript,
+//   targetWindow,
+//   targetDocument
+// } from './core/compat.js';
 
 // ... more imports as modules are extracted
 

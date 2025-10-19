@@ -316,10 +316,41 @@ export {
 
 ---
 
-## 📊 Phase 2 Summary (As of 2025-10-18)
+### Module 4: core/compat.js ✅ COMPLETE
+**Status:** Extracted and ready for bundling
+**File:** `src/core/compat.js` (278 lines)
+**Date:** 2025-10-18
 
-**Modules Extracted:** 3 / 13
-**Lines Extracted:** ~1,335 / ~29,600 (4.5%)
+**Extracted Components:**
+- **CSP Guard** - IIFE that intercepts `createElement` to block Google Fonts in Discord
+- **CompatibilityMode** - Object for detecting and handling restricted environments
+- **Context Isolation** - `isUserscript`, `targetWindow`, `targetDocument` for correct page context access
+
+**Exported Symbols:**
+```javascript
+export {
+  CompatibilityMode,  // Compatibility mode system
+  isUserscript,       // Userscript environment detection
+  targetWindow,       // Correct window context (unsafeWindow or window)
+  targetDocument      // Correct document context
+};
+```
+
+**Dependencies:** None (runs before other modules, uses console.* directly)
+
+**Features:**
+- Discord embed detection (discordsays.com, DiscordSDK, DiscordNative)
+- CSP violation monitoring (console.error intercept)
+- GM storage availability testing
+- Compatibility flags: `bypassCSPNetworking`, `inlineAssetsOnly`, `uiReducedMode`, etc.
+- User override support (mgtools_compat_disabled, mgtools_compat_forced)
+
+---
+
+## 📊 Phase 2 Summary (As of 2025-10-19)
+
+**Modules Extracted:** 4 / 13
+**Lines Extracted:** ~1,613 / ~29,600 (5.4%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -327,12 +358,14 @@ export {
 - ✅ Module 1: core/storage.js (977 lines)
 - ✅ Module 2: utils/constants.js (196 lines)
 - ✅ Module 3: core/logging.js (162 lines)
+- ✅ Module 4: core/compat.js (278 lines)
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
+- ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 4: Compatibility layer (browser detection, CSP handling)
-2. Extract Module 5: Network layer (API calls, WebSocket management)
+1. Extract Module 5: Network layer (API calls, GM_xmlhttpRequest, WebSocket management)
+2. Extract Module 6: State management (UnifiedState)
 3. Continue incremental extraction (Modules 6-13)
 4. Switch to esbuild bundling once all modules extracted
 5. Final integration testing
