@@ -5051,12 +5051,26 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           localStorage.setItem(testKey, testValue);
           const retrieved = localStorage.getItem(testKey);
 
-          if (retrieved === testValue) {
-            report.writeTest.localStorage = 'PASS';
-            localStorage.removeItem(testKey); // Cleanup
-          } else {
-            report.writeTest.localStorage = 'FAIL';
-            report.issues.push('localStorage read/write mismatch');
+          // Parse and compare objects to handle serialization differences
+          try {
+            const retrievedObj = JSON.parse(retrieved);
+            const testObj = JSON.parse(testValue);
+            if (retrievedObj && retrievedObj.test === testObj.test) {
+              report.writeTest.localStorage = 'PASS';
+              localStorage.removeItem(testKey); // Cleanup
+            } else {
+              report.writeTest.localStorage = 'FAIL';
+              report.issues.push('localStorage read/write mismatch');
+            }
+          } catch (e) {
+            // If parsing fails but string matches, still pass
+            if (retrieved === testValue) {
+              report.writeTest.localStorage = 'PASS';
+              localStorage.removeItem(testKey);
+            } else {
+              report.writeTest.localStorage = 'FAIL';
+              report.issues.push('localStorage read/write mismatch');
+            }
           }
 
           // Estimate quota usage (if available)
@@ -25635,45 +25649,48 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (Object.keys(UnifiedState.data.petPresets).length > 0) {
         productionLog('✅ [STORAGE-VERIFY] Pet presets loaded successfully:', Object.keys(UnifiedState.data.petPresets));
       } else {
-        productionWarn('⚠️ [STORAGE-VERIFY] No pet presets found in storage');
-        productionLog('   localStorage check:', localStorage.getItem('MGA_petPresets') ? 'Data exists' : 'No data');
+        // Only show detailed warnings in debug mode - this is normal for new users
+        if (UnifiedState.data.settings?.debugMode) {
+          productionLog('ℹ️ [STORAGE-VERIFY] No pet presets found (fresh start or cleared data)');
+          productionLog('   localStorage check:', localStorage.getItem('MGA_petPresets') ? 'Data exists' : 'No data');
 
-        // === EMERGENCY STORAGE SCAN (v3.8.7) ===
-        productionLog('🚨 [EMERGENCY-SCAN] Running emergency storage scan for lost presets...');
-        const scanReport = emergencyStorageScan('MGA_petPresets');
-        productionLog('🚨 [EMERGENCY-SCAN] Scan complete:', scanReport.locations);
+          // === EMERGENCY STORAGE SCAN (v3.8.7) ===
+          productionLog('🚨 [EMERGENCY-SCAN] Running emergency storage scan for lost presets...');
+          const scanReport = emergencyStorageScan('MGA_petPresets');
+          productionLog('🚨 [EMERGENCY-SCAN] Scan complete:', scanReport.locations);
 
-        // Check if data exists anywhere
-        let foundAnywhere = false;
-        let recoveryLocation = null;
-        for (const [location, result] of Object.entries(scanReport.locations)) {
-          if (result.found && result.itemCount > 0) {
-            foundAnywhere = true;
-            recoveryLocation = location;
-            productionWarn(`   🔍 Found ${result.itemCount} presets in ${location}!`);
-            productionLog(`   Preview: ${result.preview}`);
+          // Check if data exists anywhere
+          let foundAnywhere = false;
+          let recoveryLocation = null;
+          for (const [location, result] of Object.entries(scanReport.locations)) {
+            if (result.found && result.itemCount > 0) {
+              foundAnywhere = true;
+              recoveryLocation = location;
+              productionWarn(`   🔍 Found ${result.itemCount} presets in ${location}!`);
+              productionLog(`   Preview: ${result.preview}`);
+            }
+          }
+
+          if (foundAnywhere) {
+            productionWarn(`⚠️ [DATA-RECOVERY] Presets found in ${recoveryLocation} but not loaded!`);
+            productionWarn('   This indicates a storage synchronization issue.');
+            productionWarn('   💡 TIP: Use console command: emergencyStorageScan("MGA_petPresets") for details');
+          } else {
+            productionLog('   💡 TIP: Use Export/Import buttons in Pets tab to backup/restore presets');
           }
         }
 
-        if (foundAnywhere) {
-          productionWarn(`⚠️ [DATA-RECOVERY] Presets found in ${recoveryLocation} but not loaded!`);
-          productionWarn('   This indicates a storage synchronization issue.');
-          productionWarn('   💡 TIP: Use console command: emergencyStorageScan("MGA_petPresets") for details');
-        } else {
-          productionWarn('❌ [DATA-LOSS] No presets found in any storage location');
-          productionWarn('   Your presets may have been cleared by browser/extension');
-          productionWarn('   💡 TIP: Use Export/Import buttons to backup presets in the future');
-        }
-
-        // Enhanced debugging - try to parse the raw data manually
-        const rawData = localStorage.getItem('MGA_petPresets');
-        if (rawData) {
-          const dataAsString = typeof rawData === 'string' ? rawData : JSON.stringify(rawData);
-          productionLog('   Raw data length:', dataAsString.length);
-          productionLog('   Raw data preview:', dataAsString.substring(0, 100));
-          productionLog('   Data type:', typeof rawData, 'keys:', Object.keys(rawData || {}).length);
-          if (typeof rawData !== 'object') {
-            console.error('❌ [STORAGE-ERROR] Data exists but is not an object - storage wrapper issue!');
+        // Enhanced debugging - try to parse the raw data manually (debug mode only)
+        if (UnifiedState.data.settings?.debugMode) {
+          const rawData = localStorage.getItem('MGA_petPresets');
+          if (rawData) {
+            const dataAsString = typeof rawData === 'string' ? rawData : JSON.stringify(rawData);
+            productionLog('   Raw data length:', dataAsString.length);
+            productionLog('   Raw data preview:', dataAsString.substring(0, 100));
+            productionLog('   Data type:', typeof rawData, 'keys:', Object.keys(rawData || {}).length);
+            if (typeof rawData !== 'object') {
+              console.error('❌ [STORAGE-ERROR] Data exists but is not an object - storage wrapper issue!');
+            }
           }
         }
       }
@@ -26180,18 +26197,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (UnifiedState.data.seedsToDelete.length > 0) {
         productionLog('✅ [STORAGE-VERIFY] Seed selections loaded successfully:', UnifiedState.data.seedsToDelete);
       } else {
-        productionWarn('⚠️ [STORAGE-VERIFY] No seed selections found in storage');
-        productionLog('   localStorage check:', localStorage.getItem('MGA_seedsToDelete') ? 'Data exists' : 'No data');
+        // Only show in debug mode - this is normal for users who haven't configured seed auto-delete
+        if (UnifiedState.data.settings?.debugMode) {
+          productionLog('ℹ️ [STORAGE-VERIFY] No seed auto-delete selections (not configured yet)');
+          productionLog('   localStorage check:', localStorage.getItem('MGA_seedsToDelete') ? 'Data exists' : 'No data');
+        }
 
-        // Enhanced debugging for seeds
-        const rawSeedsData = localStorage.getItem('MGA_seedsToDelete');
-        if (rawSeedsData) {
-          const dataAsString = typeof rawSeedsData === 'string' ? rawSeedsData : JSON.stringify(rawSeedsData);
-          productionLog('   Raw seeds data length:', dataAsString.length);
-          productionLog('   Raw seeds data preview:', dataAsString.substring(0, 100));
-          productionLog('   Seeds data type:', typeof rawSeedsData, Array.isArray(rawSeedsData) ? `array with ${rawSeedsData.length} items` : 'not array');
-          if (typeof rawSeedsData !== 'object') {
-            console.error('❌ [STORAGE-ERROR] Seeds data exists but is not an object - storage wrapper issue!');
+        // Enhanced debugging for seeds (debug mode only)
+        if (UnifiedState.data.settings?.debugMode) {
+          const rawSeedsData = localStorage.getItem('MGA_seedsToDelete');
+          if (rawSeedsData) {
+            const dataAsString = typeof rawSeedsData === 'string' ? rawSeedsData : JSON.stringify(rawSeedsData);
+            productionLog('   Raw seeds data length:', dataAsString.length);
+            productionLog('   Raw seeds data preview:', dataAsString.substring(0, 100));
+            productionLog('   Seeds data type:', typeof rawSeedsData, Array.isArray(rawSeedsData) ? `array with ${rawSeedsData.length} items` : 'not array');
+            if (typeof rawSeedsData !== 'object') {
+              console.error('❌ [STORAGE-ERROR] Seeds data exists but is not an object - storage wrapper issue!');
+            }
           }
         }
       }
