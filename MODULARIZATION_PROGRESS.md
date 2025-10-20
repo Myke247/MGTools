@@ -363,42 +363,43 @@ export {
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
-### Module 13: controller/app-core.js ✅ COMPLETE
+### Module 14: init/bootstrap.js ✅ COMPLETE
 **Status:** Extracted and ready for bundling
-**File:** `src/controller/app-core.js` (280+ lines)
+**File:** `src/init/bootstrap.js` (200+ lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **AppCore** - Pure orchestrator that wires controllers without side effects on import
-- Lifecycle management (start/stop) for child controllers
-- Event bus wiring between M10 (version), M11 (shortcuts), M12 (room poll) and M7-M9 UI
-- No DOM, no network, no timers (children own their timers)
+- **bootstrapStart(opts)** - Initialize and start the application
+- **bootstrapStop()** - Cleanly shut down the application
+- **getBootstrapStatus()** - Get current bootstrap status
+- Top-level event wiring for cross-cutting concerns
 
 **Exported Symbols:**
 ```javascript
 export {
-  AppCore  // Orchestrator with start/stop/getStatus API
+  bootstrapStart,    // Start application with config
+  bootstrapStop,     // Stop application
+  getBootstrapStatus // Get status
 };
 ```
 
 **API:**
-- `start({ roomIdOrCode, pollIntervalMs, jitterMs, versionBadgeRoot, isLiveBeta, onSwitchBranch, versionCheckIntervalMs })` - Start and wire all controllers
-- `stop()` - Stop all controllers and unregister event handlers
-- `getStatus()` - Get current orchestrator status
+- `bootstrapStart({ roomIdOrCode, pollIntervalMs, jitterMs, versionBadgeRoot, isLiveBeta, onSwitchBranch, versionCheckIntervalMs })` - Start and wire all systems
+- `bootstrapStop()` - Stop all systems and clean up
+- `getBootstrapStatus()` - Get current status and config
 
 **Dependencies:**
-- `Logger` from `../core/logging.js` (M2)
-- `RoomPollController` from `./room-poll.js` (M12)
-- `scheduleVersionChecks` from `./version-check.js` (M10)
-- `ShortcutsController` from `./shortcuts.js` (M11)
-- `on`, `off`, `emit` from `../ui/ui.js` (M7 event bus)
+- `AppCore` from `../controller/app-core.js` (M13)
+- `ensureStyles`, `on`, `off`, `emit` from `../ui/ui.js` (M7)
+- `CONFIG` from `../utils/constants.js` (M2)
+- `Logger` from `../core/logging.js` (M3)
 
 **Guarantees:**
-- Zero DOM manipulation
-- Zero direct network calls
-- Zero UnifiedState writes
-- Zero timers owned here (child controllers own their timers)
-- No side effects on import (pure module)
+- NO side effects on import (pure module)
+- No timers created on import
+- No DOM manipulation on import (except ensureStyles inside bootstrapStart)
+- No setTimeout/setInterval in this module (child modules own their timers)
+- Clean lifecycle management
 
 ---
 
