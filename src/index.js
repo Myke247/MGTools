@@ -97,15 +97,13 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 5: Network (core/network.js)
+// Module 6: State (state/unified-state.js)
 // import {
-//   Network,
-//   apiV1RoomInfoUrl,
-//   fetchRoomInfo,
-//   parsePlayerCount,
-//   fetchLatestVersionMeta,
-//   WebSocketManager
-// } from './core/network.js';
+//   UnifiedState,
+//   initState,
+//   snapshotState,
+//   restoreState
+// } from './state/unified-state.js';
 
 // ... more imports as modules are extracted
 
