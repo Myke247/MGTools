@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.8.8
+// @version      3.8.9
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -119,7 +119,7 @@ async function rcSend(payload, opts = {}) {
  * MGTools - Magic Garden Enhancement Suite
  * A comprehensive userscript for enhancing the Magic Garden gaming experience
  *
- * @version 3.8.8
+ * @version 3.8.9
  * @author Unified Script
  * @license MIT
  */
@@ -158,7 +158,7 @@ async function rcSend(payload, opts = {}) {
 
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.8 - Shop UI improvements and bug fixes');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.9 - UI reliability fixes and Alt+M toolbar toggle');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -596,7 +596,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '3.8.8',
+      CURRENT: '3.8.9',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -7592,6 +7592,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
        * @returns {void}
        */
     function createUnifiedUI() {
+      // Guard against duplicate UI creation
+      if (targetDocument.getElementById('mgh-dock') || targetDocument.getElementById('mgh-sidebar')) {
+        productionLog('🎨 UI already exists, skipping creation');
+        return;
+      }
+
       productionLog('🎨 Creating Hybrid Dock UI...');
 
       // Add hybrid styles
@@ -7910,6 +7916,131 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }, 100);
 
       productionLog('✅ Hybrid Dock UI created successfully');
+    }
+
+    /**
+     * TEST VERSION: Enhanced UI Health Check with Retry Logic
+     * Ensures UI is visible and accessible, retries if needed
+     * Helps fix issues where UI doesn't show in Tampermonkey/Chrome
+     */
+    function ensureUIHealthy() {
+      const maxRetries = 5;
+      let retryCount = 0;
+
+      function checkAndRetry() {
+        const dock = targetDocument.getElementById('mgh-dock');
+        const sidebar = targetDocument.getElementById('mgh-sidebar');
+
+        if (!dock || !sidebar) {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000); // 1s, 2s, 4s, 5s, 5s
+
+            setTimeout(() => {
+              // Retry creating UI
+              try {
+                cleanupCorruptedDockPosition();
+                createUnifiedUI();
+                checkAndRetry(); // Check again after creation
+              } catch (error) {
+                console.error('[MGTools TEST] UI recreation failed:', error);
+              }
+            }, delay);
+          } else {
+            console.error('[MGTools TEST] UI failed to load. Please report this issue.');
+
+            // Emergency notification
+            try {
+              const msg = targetDocument.createElement('div');
+              msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#ff4444;color:white;padding:20px;border-radius:10px;z-index:999999;font-family:Arial,sans-serif;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+              msg.innerHTML = '<strong>⚠️ MGTools UI Failed to Load</strong><br><br>Please reload the page (F5)<br>or check browser console for details.<br><br><small>Test Version 3.8.9-TEST</small>';
+              targetDocument.body.appendChild(msg);
+
+              setTimeout(() => {
+                if (msg.parentNode) msg.parentNode.removeChild(msg);
+              }, 10000);
+            } catch (e) {
+              console.error('[MGTools TEST] Emergency notification failed:', e);
+            }
+          }
+        } else {
+          // UI confirmed healthy, no need for verbose logging
+
+          // Show success toast
+          setTimeout(() => {
+            try {
+              showToast(
+                '✅ MGTools TEST Loaded',
+                'UI Health Check Passed',
+                3000
+              );
+            } catch (e) {
+              // Toast might not be ready yet, that's okay
+            }
+          }, 1000);
+        }
+      }
+
+      // Initial check after a short delay to let DOM settle
+      setTimeout(checkAndRetry, 500);
+    }
+
+    /**
+     * TEST VERSION: Alt+M Toolbar Toggle
+     * Press Alt+M to show/hide the entire MGTools toolbar
+     * State is saved and restored across page reloads
+     */
+    function setupToolbarToggle() {
+      // Prevent multiple installations
+      if (window.__toolbarToggleInstalled) {
+        return;
+      }
+      window.__toolbarToggleInstalled = true;
+
+      // Load saved visibility state
+      const STORAGE_KEY = 'mgh_toolbar_visible';
+      let toolbarVisible = localStorage.getItem(STORAGE_KEY) !== 'false'; // default true
+
+      // Apply initial state
+      function applyVisibility(visible, showNotification = false) {
+        const dock = targetDocument.getElementById('mgh-dock');
+        const sidebar = targetDocument.getElementById('mgh-sidebar');
+
+        if (dock) {
+          dock.style.display = visible ? '' : 'none';
+        }
+        if (sidebar) {
+          sidebar.style.display = visible ? '' : 'none';
+        }
+
+        // Save state
+        localStorage.setItem(STORAGE_KEY, visible.toString());
+
+        if (showNotification) {
+          try {
+            showToast(
+              visible ? '🎨 Toolbar Shown' : '👻 Toolbar Hidden',
+              'Alt+M to toggle',
+              2000
+            );
+          } catch (e) {
+            // Toast not ready, silent fail
+          }
+        }
+      }
+
+      // Apply saved state on load
+      setTimeout(() => applyVisibility(toolbarVisible, false), 100);
+
+      // Listen for Alt+M
+      document.addEventListener('keydown', (e) => {
+        // Check for Alt+M (case insensitive)
+        if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+          e.preventDefault();
+          toolbarVisible = !toolbarVisible;
+          applyVisibility(toolbarVisible, true);
+        }
+      });
     }
 
     function saveDockPosition(position) {
@@ -26948,7 +27079,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function initializeKeyboardShortcuts() {
       const shortcuts = {
         // Panel Management
-        'Alt+M': () => {
+        // NOTE: Alt+M is handled by setupToolbarToggle() in TEST VERSION - disabled here to prevent conflict
+        /* 'Alt+M': () => {
           const panel = UnifiedState.panels.main;
           if (panel) {
             const isVisible = panel.style.display !== 'none';
@@ -26962,7 +27094,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             UnifiedState.data.settings.panelVisible = !isVisible;
             productionLog(`🎮 MGA Keyboard shortcut: Panel ${isVisible ? 'hidden' : 'shown'}`);
           }
-        },
+        }, */
 
         // Quick Tab Access
         'Alt+V': () => openTabInPopout('values'),
@@ -27407,6 +27539,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Clean up any corrupted dock position data before creating UI
         cleanupCorruptedDockPosition();
         createUnifiedUI();
+
+        // TEST VERSION: Add UI health check and Alt+M toggle
+        ensureUIHealthy();
+        setupToolbarToggle();
+
         addDemoBanner();
 
         // Setup demo timers
@@ -28742,6 +28879,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             cleanupCorruptedDockPosition();
 
             createUnifiedUI();
+
+            // TEST VERSION: Add UI health check and Alt+M toggle
+            ensureUIHealthy();
+            setupToolbarToggle();
 
             if (window.MGA_DEBUG) {
               window.MGA_DEBUG.logStage('CREATE_UI_COMPLETED', {
