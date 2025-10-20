@@ -347,55 +347,62 @@ export {
 
 ---
 
-### Module 10: controller/version-check.js ✅ COMPLETE
-**Status:** Extracted controller (bridges M5 network + M8 UI)
-**File:** `src/controller/version-check.js` (~250 lines)
+### Module 11: controller/shortcuts.js + ui/hotkey-help.js ✅ COMPLETE
+**Status:** Extracted (keyboard shortcuts controller + help UI)
+**Files:** `src/controller/shortcuts.js` (~220 lines), `src/ui/hotkey-help.js` (~230 lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **runVersionCheck(options)** - Orchestrate version fetch + compare + UI update
-- **scheduleVersionChecks(options)** - Timer lifecycle management (returns start/stop)
-- **checkAndPromptUpdate(options)** - Manual version refresh with user prompt
-- **detectCurrentBranch()** - Auto-detect Stable vs Live Beta from metadata
+- **ShortcutsController** - Keyboard shortcut management with start/stop lifecycle
+- **formatShortcut(shortcut)** - Format shortcut for display
+- **getShortcutsByCategory()** - Get shortcuts grouped by category
+- **showHotkeyHelp(options)** - Display hotkey help overlay
+- **hideHotkeyHelp()** - Hide help overlay
 
 **Exported Symbols:**
 ```javascript
+// controller/shortcuts.js
 export {
-  runVersionCheck,          // Run single check
-  scheduleVersionChecks,    // Schedule periodic checks
-  checkAndPromptUpdate,     // Manual refresh
-  detectCurrentBranch       // Branch detection
+  ShortcutsController,      // Main controller class
+  formatShortcut,           // Shortcut formatter
+  getShortcutsByCategory    // Category grouping
+};
+
+// ui/hotkey-help.js
+export {
+  showHotkeyHelp,          // Show help overlay
+  hideHotkeyHelp           // Hide help overlay
 };
 ```
 
 **Dependencies:**
-- `CONFIG, compareVersions` from `../utils/constants.js` (M2)
-- `fetchLatestVersionMeta` from `../core/network.js` (M5)
-- `renderVersionBadge, wireVersionSwitchHandlers, showVersionOutdatedToast, teardownVersionUI` from `../ui/version-badge.js` (M8)
-- `Logger` from `../core/logging.js` (M3)
+- `Logger` from `../core/logging.js` (diagnostics)
+- `CompatibilityMode` from `../core/compat.js` (read-only)
+- `on, off, emit` from `../ui/ui.js` (M7 event bus)
+- `el, qs, ensureStyles` from `../ui/ui.js` (M7 DOM helpers)
 
 **Acceptance Criteria:**
-- ✅ No DOM creation outside M8 (controller calls M8 functions only)
-- ✅ Uses M5 network; no GM/fetch here directly
-- ✅ No UnifiedState access
-- ✅ Timer lifecycle returned as start/stop (caller owns timers)
-- ✅ Behavior identical to original inline flow
-- ✅ Mirror build remains byte-identical
+- ✅ No network calls (no fetch/GM_xmlhttpRequest/WebSocket)
+- ✅ No UnifiedState writes (read-only if needed)
+- ✅ Event listeners properly attached/detached via start/stop
+- ✅ Pure UI layer for help overlay (inline CSS only)
+- ✅ Lifecycle owned by caller
+- ✅ No behavior changes
 
 **Features:**
-- Bridges pure transport (M5) with pure UI (M8)
-- Version comparison using semantic versioning
-- Branch switch coordination via callbacks
-- Scheduled checks with configurable intervals
-- Manual update prompts
-- Auto-detection of current branch
+- Configurable keyboard shortcuts with modifier keys
+- Emits UI events via M7 event bus
+- Categorized help overlay (Help, Navigation, Tabs, Actions)
+- Keyboard-accessible modal (Escape to close)
+- Prevents conflicts with input fields
+- Clean start/stop lifecycle
 
 ---
 
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 10 / 13
-**Lines Extracted:** ~3,693 / ~29,600 (12.5%)
+**Modules Extracted:** 11 / 13
+**Lines Extracted:** ~4,143 / ~29,600 (14.0%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -410,12 +417,13 @@ export {
 - ✅ Module 8: ui/version-badge.js (310 lines)
 - ✅ Module 9: ui/connection-status.js (300 lines)
 - ✅ Module 10: controller/version-check.js (250 lines)
+- ✅ Module 11: controller/shortcuts.js (220 lines) + ui/hotkey-help.js (230 lines)
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 11-13: Remaining controllers/features
+1. Extract Module 12-13: Remaining controllers/features
 2. Extract Module 14: Init/bootstrap module
 3. Switch to esbuild bundling once all modules extracted
 4. Final integration testing
