@@ -97,13 +97,13 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 7: UI Framework (ui/ui.js)
+// Module 8: UI Version Badge (ui/version-badge.js)
 // import {
-//   ensureStyles,
-//   toast,
-//   on, off, emit,
-//   el, qs
-// } from './ui/ui.js';
+//   renderVersionBadge,
+//   wireVersionSwitchHandlers,
+//   showVersionOutdatedToast,
+//   teardownVersionUI
+// } from './ui/version-badge.js';
 
 // ... more imports as modules are extracted
 

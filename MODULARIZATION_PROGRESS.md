@@ -347,51 +347,55 @@ export {
 
 ---
 
-### Module 7: ui/ui.js ✅ COMPLETE
-**Status:** Extracted (pure UI layer; no network/state)
-**File:** `src/ui/ui.js` (~370 lines)
+### Module 8: ui/version-badge.js ✅ COMPLETE
+**Status:** Extracted (pure UI: badge + click handlers via callbacks)
+**File:** `src/ui/version-badge.js` (~310 lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **Toast System** - Info/warn/error toasts with queue management, auto-dismiss, manual dismissal
-- **UI Event Bus** - Lightweight event system (on/off/emit) for decoupled UI communication
-- **DOM Helpers** - `el()` for element creation, `qs()` for querySelector, `qsa()` for querySelectorAll
-- **Style Injection** - `ensureStyles()` for CSP/Discord-safe inline CSS (no external fonts)
+- **renderVersionBadge(container, meta)** - Render current/available version badge with inline styles
+- **wireVersionSwitchHandlers(container, { onSwitch })** - Attach click handlers for branch switching (callback-based)
+- **showVersionOutdatedToast(meta)** - Display update notification using M7 toast system
+- **teardownVersionUI(container)** - Safe cleanup of badge elements and event handlers
+- **renderBranchSwitcherModal(options)** - Optional modal UI for explicit branch switching
 
 **Exported Symbols:**
 ```javascript
 export {
-  ensureStyles,   // Inject toast/UI styles
-  toast,          // { info, warn, error, dismiss, dismissAll }
-  on, off, emit,  // UI event bus
-  el, qs, qsa     // DOM helpers
+  renderVersionBadge,          // Render version badge
+  wireVersionSwitchHandlers,   // Wire click handlers
+  showVersionOutdatedToast,    // Show update toast
+  teardownVersionUI,           // Clean up UI
+  renderBranchSwitcherModal    // Optional modal UI
 };
 ```
 
 **Dependencies:**
-- `Logger` from `../core/logging.js` (for diagnostics)
-- `CompatibilityMode` from `../core/compat.js` (read-only, for Discord detection)
+- `toast, el, qs, qsa, ensureStyles` from `./ui.js` (M7 UI framework)
+- `Logger` from `../core/logging.js` (diagnostics)
+- `CompatibilityMode` from `../core/compat.js` (read-only)
 
 **Acceptance Criteria:**
-- ✅ UI-only: no network calls (no fetch/GM_xmlhttpRequest/WebSocket)
-- ✅ No UnifiedState access (pure view layer)
-- ✅ Safe in CSP/Discord environments (inline CSS only, no external assets)
-- ✅ Minimal, composable DOM helpers
-- ✅ No behavior changes to userscript output
+- ✅ UI-only: zero network calls (no fetch/GM_xmlhttpRequest/WebSocket)
+- ✅ Zero UnifiedState access (pure view layer)
+- ✅ Uses M7 toast & DOM helpers
+- ✅ Inline CSS only (CSP/Discord safe, no external fonts)
+- ✅ All actions delegated via callbacks
+- ✅ No behavior changes
 
 **Features:**
-- Toast queue with auto-dismiss timers
-- Graceful animations (slide-in, fade-out)
-- Discord iframe z-index handling
-- CSP-compliant (no external fonts/images)
-- Event-driven architecture for UI decoupling
+- Gradient-styled version badge with branch indicator
+- Visual feedback for outdated versions (warning colors, pulse animation)
+- Callback-based architecture (no direct state/network coupling)
+- Safe event handler cleanup
+- Optional modal for explicit user confirmation
 
 ---
 
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 7 / 13
-**Lines Extracted:** ~2,833 / ~29,600 (9.6%)
+**Modules Extracted:** 8 / 13
+**Lines Extracted:** ~3,143 / ~29,600 (10.6%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -403,12 +407,13 @@ export {
 - ✅ Module 5: core/network.js (520 lines)
 - ✅ Module 6: state/unified-state.js (330 lines)
 - ✅ Module 7: ui/ui.js (370 lines)
+- ✅ Module 8: ui/version-badge.js (310 lines)
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 8-13: Feature modules (pets, shop, abilities, etc.)
+1. Extract Module 9-13: Feature modules (pets, shop, abilities, etc.)
 2. Extract Module 14: Init/bootstrap module
 3. Switch to esbuild bundling once all modules extracted
 4. Final integration testing
