@@ -403,11 +403,39 @@ export {
 
 ---
 
+---
+
+## 🔧 Phase 3: Build System — esbuild (DRY RUN) ✅
+
+**Status:** DRY RUN complete (parallel pipeline, non-shipping)
+**Date:** 2025-10-19
+
+**Implementation:**
+- Added parallel esbuild pipeline (non-shipping) → `dist/mgtools.esbuild.user.js`
+- Shipping build unchanged (mirror remains source of truth)
+- Preserves userscript header via banner injection
+- No behavior changes; no runtime code rewiring yet
+
+**Scripts Added:**
+- `scripts/extract-userscript-meta.mjs` - Extracts userscript metadata header
+- `scripts/build-esbuild.mjs` - esbuild bundling pipeline
+- `scripts/hash-compare.mjs` - SHA-256 hash verification for all artifacts
+
+**package.json Scripts:**
+- `build:esbuild` - Run esbuild bundler (parallel artifact)
+- `hash` - Compare SHA-256 hashes of source, mirror, and esbuild outputs
+
+**Verification:**
+- ✅ Mirror build remains byte-identical to source
+- ✅ esbuild pipeline successfully bundles from `src/index.js`
+- ✅ Userscript header preserved in esbuild output
+- ✅ No changes to shipping artifact (`dist/mgtools.user.js`)
+
 **Next Steps:**
-1. Extract Module 5: Network layer (API calls, GM_xmlhttpRequest, WebSocket management)
-2. Extract Module 6: State management (UnifiedState)
-3. Continue incremental extraction (Modules 6-13)
-4. Switch to esbuild bundling once all modules extracted
+1. Wire all extracted modules into `src/index.js` entry point
+2. Switch shipping build to esbuild once all modules integrated
+3. Deprecate mirror build after full validation
+4. Continue module extraction (M5-M14 integration)
 5. Final integration testing
 
 ---
