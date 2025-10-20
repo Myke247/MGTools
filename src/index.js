@@ -97,13 +97,14 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 8: UI Version Badge (ui/version-badge.js)
+// Module 9: UI Connection Status HUD (ui/connection-status.js)
 // import {
-//   renderVersionBadge,
-//   wireVersionSwitchHandlers,
-//   showVersionOutdatedToast,
-//   teardownVersionUI
-// } from './ui/version-badge.js';
+//   renderConnectionStatus,
+//   updateConnectionStatus,
+//   attachConnectionHandlers,
+//   showConnectionToast,
+//   teardownConnectionStatus
+// } from './ui/connection-status.js';
 
 // ... more imports as modules are extracted
 
