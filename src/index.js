@@ -97,11 +97,8 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 11: Shortcuts (controller/shortcuts.js)
-// import { ShortcutsController, formatShortcut, getShortcutsByCategory } from './controller/shortcuts.js';
-
-// Module 11 UI: Hotkey help (ui/hotkey-help.js)
-// import { showHotkeyHelp, hideHotkeyHelp } from './ui/hotkey-help.js';
+// Module 12: Room Polling (controller/room-poll.js)
+// import { RoomPollController } from './controller/room-poll.js';
 
 // ... more imports as modules are extracted
 
