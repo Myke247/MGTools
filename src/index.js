@@ -97,8 +97,8 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 12: Room Polling (controller/room-poll.js)
-// import { RoomPollController } from './controller/room-poll.js';
+// Module 13: Core Orchestrator (controller/app-core.js)
+// import { AppCore } from './controller/app-core.js';
 
 // ... more imports as modules are extracted
 
