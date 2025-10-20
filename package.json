@@ -11,7 +11,9 @@
     "build": "node build.js",
     "build:check": "node -e \"const fs=require('fs'),c=require('crypto');const a=fs.readFileSync('mgtools.user.js');const b=fs.readFileSync('dist/mgtools.user.js');const ha=c.createHash('sha256').update(a).digest('hex');const hb=c.createHash('sha256').update(b).digest('hex');if(ha!==hb){console.error('❌ Build mismatch');process.exit(1)}console.log('✅ Build matches source')\"",
     "build:esbuild": "node scripts/build-esbuild.mjs",
-    "hash": "node scripts/hash-compare.mjs"
+    "hash": "node scripts/hash-compare.mjs",
+    "preship:esbuild": "npm run build:esbuild",
+    "ship:esbuild": "node scripts/ship-from-esbuild.mjs"
   },
   "keywords": [],
   "author": "",
