@@ -347,58 +347,55 @@ export {
 
 ---
 
-### Module 9: ui/connection-status.js ✅ COMPLETE
-**Status:** Extracted (pure UI; connection HUD + toasts)
-**File:** `src/ui/connection-status.js` (~300 lines)
+### Module 10: controller/version-check.js ✅ COMPLETE
+**Status:** Extracted controller (bridges M5 network + M8 UI)
+**File:** `src/controller/version-check.js` (~250 lines)
 **Date:** 2025-10-19
 
 **Extracted Components:**
-- **renderConnectionStatus(container, initialState)** - Render connection status HUD with state indicator
-- **updateConnectionStatus(container, state)** - Update HUD visuals for state transitions
-- **attachConnectionHandlers(container, { onReconnect, onRefresh })** - Wire action buttons to callbacks
-- **showConnectionToast(state, options)** - Display connection state change notifications using M7 toast
-- **teardownConnectionStatus(container)** - Safe cleanup of HUD elements and event handlers
-- **CONNECTION_STATES** - Exported constants for state management
+- **runVersionCheck(options)** - Orchestrate version fetch + compare + UI update
+- **scheduleVersionChecks(options)** - Timer lifecycle management (returns start/stop)
+- **checkAndPromptUpdate(options)** - Manual version refresh with user prompt
+- **detectCurrentBranch()** - Auto-detect Stable vs Live Beta from metadata
 
 **Exported Symbols:**
 ```javascript
 export {
-  renderConnectionStatus,      // Render HUD
-  updateConnectionStatus,       // Update state
-  attachConnectionHandlers,     // Wire callbacks
-  showConnectionToast,          // Show toast
-  teardownConnectionStatus,     // Clean up UI
-  CONNECTION_STATES             // State constants
+  runVersionCheck,          // Run single check
+  scheduleVersionChecks,    // Schedule periodic checks
+  checkAndPromptUpdate,     // Manual refresh
+  detectCurrentBranch       // Branch detection
 };
 ```
 
 **Dependencies:**
-- `toast, el, qs, qsa, ensureStyles` from `./ui.js` (M7 UI framework)
-- `Logger` from `../core/logging.js` (diagnostics)
-- `CompatibilityMode` from `../core/compat.js` (read-only)
+- `CONFIG, compareVersions` from `../utils/constants.js` (M2)
+- `fetchLatestVersionMeta` from `../core/network.js` (M5)
+- `renderVersionBadge, wireVersionSwitchHandlers, showVersionOutdatedToast, teardownVersionUI` from `../ui/version-badge.js` (M8)
+- `Logger` from `../core/logging.js` (M3)
 
 **Acceptance Criteria:**
-- ✅ UI-only: zero network calls (no fetch/GM_xmlhttpRequest/WebSocket)
-- ✅ Zero UnifiedState access (pure view layer)
-- ✅ Uses M7 toast & DOM helpers
-- ✅ Inline CSS only (CSP/Discord safe)
-- ✅ Callback-based actions (no side effects beyond UI)
-- ✅ No behavior changes
+- ✅ No DOM creation outside M8 (controller calls M8 functions only)
+- ✅ Uses M5 network; no GM/fetch here directly
+- ✅ No UnifiedState access
+- ✅ Timer lifecycle returned as start/stop (caller owns timers)
+- ✅ Behavior identical to original inline flow
+- ✅ Mirror build remains byte-identical
 
 **Features:**
-- Four connection states: connected, reconnecting, offline, expired4710
-- State-specific colors, gradients, and icons
-- Animated transitions (spin for reconnecting, pulse for warnings)
-- Reconnect/refresh action buttons (callback-driven)
-- Toast notifications for state changes
-- Safe event handler cleanup
+- Bridges pure transport (M5) with pure UI (M8)
+- Version comparison using semantic versioning
+- Branch switch coordination via callbacks
+- Scheduled checks with configurable intervals
+- Manual update prompts
+- Auto-detection of current branch
 
 ---
 
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 9 / 13
-**Lines Extracted:** ~3,443 / ~29,600 (11.6%)
+**Modules Extracted:** 10 / 13
+**Lines Extracted:** ~3,693 / ~29,600 (12.5%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -412,12 +409,13 @@ export {
 - ✅ Module 7: ui/ui.js (370 lines)
 - ✅ Module 8: ui/version-badge.js (310 lines)
 - ✅ Module 9: ui/connection-status.js (300 lines)
+- ✅ Module 10: controller/version-check.js (250 lines)
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 10-13: Feature modules (pets, shop, abilities, etc.)
+1. Extract Module 11-13: Remaining controllers/features
 2. Extract Module 14: Init/bootstrap module
 3. Switch to esbuild bundling once all modules extracted
 4. Final integration testing

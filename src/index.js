@@ -97,14 +97,13 @@
 //   targetDocument
 // } from './core/compat.js';
 
-// Module 9: UI Connection Status HUD (ui/connection-status.js)
+// Module 10: Version Check Controller (controller/version-check.js)
 // import {
-//   renderConnectionStatus,
-//   updateConnectionStatus,
-//   attachConnectionHandlers,
-//   showConnectionToast,
-//   teardownConnectionStatus
-// } from './ui/connection-status.js';
+//   runVersionCheck,
+//   scheduleVersionChecks,
+//   checkAndPromptUpdate,
+//   detectCurrentBranch
+// } from './controller/version-check.js';
 
 // ... more imports as modules are extracted
 
