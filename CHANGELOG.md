@@ -1,5 +1,23 @@
 # Changelog - MGTools
 
+## Version 3.8.9 (2025-10-20)
+
+**New Features:**
+- Alt+M keyboard shortcut to toggle toolbar visibility
+- Toolbar visibility state persists across page reloads
+
+**Bug Fixes:**
+- Fixed UI health check preventing duplicate UI elements
+- Fixed sidebar element ID mismatch causing initialization failures
+- Reduced console spam from debug logging
+
+**Improvements:**
+- Added UI creation guard to prevent duplicates
+- Enhanced UI reliability with proper retry logic
+- Cleaner console output for better debugging
+
+---
+
 ## Version 3.8.8 (2025-10-18)
 
 **Improvements:**
