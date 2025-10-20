@@ -1,6 +1,8 @@
-node_modules/
-dist/
-*.log
-*.tmp
-mgtools.user.js.backup
-consolelogs.txt consolelogs2.txt
+# Ignore everything
+*
+
+# Except these files (ONLY public-facing files)
+!MGTools.user.js
+!README.md
+!CHANGELOG.md
+!.gitignore
