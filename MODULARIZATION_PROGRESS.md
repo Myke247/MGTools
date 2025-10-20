@@ -431,12 +431,54 @@ export {
 - ✅ Userscript header preserved in esbuild output
 - ✅ No changes to shipping artifact (`dist/mgtools.user.js`)
 
+---
+
+## 🔧 Phase 3B: esbuild Wiring (Non-Shipping) ✅
+
+**Status:** Module stitching complete (parallel artifact, non-shipping)
+**Date:** 2025-10-19
+
+**Implementation:**
+- Stitched M1–M14 into `src/index.js` for the esbuild artifact
+- **Shipping build unchanged** (mirror remains prod)
+- Added opt-in test toggle: `localStorage.MGTOOLS_ESBUILD_ENABLE = "1"`
+- No behavior changes unless toggle is set locally
+
+**Modules Wired:**
+- M1: Storage (core/storage.js)
+- M2: Constants (utils/constants.js)
+- M3: Logging (core/logging.js)
+- M4: Compatibility (core/compat.js)
+- M5: Network (core/network.js)
+- M6: State (state/unified-state.js)
+- M7: UI Framework (ui/ui.js)
+- M8: Version UI (ui/version-badge.js)
+- M9: Connection UI (ui/connection-status.js)
+- M10: Version Controller (controller/version-check.js)
+- M11: Inputs/Shortcuts (controller/shortcuts.js)
+- M12: Room Polling (controller/room-poll.js)
+- M13: App Core (controller/app-core.js)
+- M14: Bootstrap (init/bootstrap.js)
+
+**Testing Instructions:**
+1. Load `dist/mgtools.esbuild.user.js` in Tampermonkey
+2. Open browser console
+3. Set opt-in: `localStorage.MGTOOLS_ESBUILD_ENABLE = "1"`
+4. Reload page to activate esbuild artifact
+5. Remove opt-in: `localStorage.removeItem('MGTOOLS_ESBUILD_ENABLE')`
+
+**Verification:**
+- ✅ Mirror build remains byte-identical (shipping unchanged)
+- ✅ esbuild artifact successfully bundles all 14 modules
+- ✅ Opt-in toggle prevents side effects by default
+- ✅ No production behavior changes
+
 **Next Steps:**
-1. Wire all extracted modules into `src/index.js` entry point
-2. Switch shipping build to esbuild once all modules integrated
-3. Deprecate mirror build after full validation
-4. Continue module extraction (M5-M14 integration)
-5. Final integration testing
+1. Test esbuild artifact with opt-in toggle enabled
+2. Validate all module integrations
+3. Compare runtime behavior (mirror vs esbuild)
+4. Switch shipping build to esbuild after validation
+5. Deprecate mirror build
 
 ---
 
