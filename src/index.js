@@ -97,6 +97,16 @@
 //   targetDocument
 // } from './core/compat.js';
 
+// Module 5: Network (core/network.js)
+// import {
+//   Network,
+//   apiV1RoomInfoUrl,
+//   fetchRoomInfo,
+//   parsePlayerCount,
+//   fetchLatestVersionMeta,
+//   WebSocketManager
+// } from './core/network.js';
+
 // ... more imports as modules are extracted
 
 /* ============================================================================

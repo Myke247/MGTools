@@ -347,10 +347,62 @@ export {
 
 ---
 
+### Module 5: core/network.js ⏳ READY TO EXTRACT
+**Status:** Extracted (pure transport layer, no DOM/UI)
+**File:** `src/core/network.js` (~520 lines)
+**Date:** 2025-10-19
+
+**Extracted Components:**
+- **Network object** - CSP-aware HTTP wrapper (GM_xmlhttpRequest for cross-origin when needed)
+- **Room API helpers** - Pure URL builders and fetch functions (no state mutations)
+- **Version metadata fetcher** - Multi-source fetch with no DOM manipulation
+- **WebSocket manager** - Event-based reconnection logic with exponential backoff (no UI)
+
+**Exported Symbols:**
+```javascript
+export {
+  Network,                  // { request(), get(), post() }
+  apiV1RoomInfoUrl,         // Room API URL builder
+  fetchRoomInfo,            // Pure room info fetcher
+  parsePlayerCount,         // Player count parser
+  fetchLatestVersionMeta,   // Version fetch (no DOM)
+  WebSocketManager          // { connect(), send(), close(), on() }
+};
+```
+
+**Dependencies:**
+- `CONFIG` from `../utils/constants.js` (API endpoints, version URLs)
+- `Logger` from `./logging.js` (Logger.info/warn/error/debug only)
+- `CompatibilityMode` from `./compat.js` (CSP/WebSocket flags)
+- Global: `GM_xmlhttpRequest`, `fetch`, `AbortSignal`, `WebSocket`, `location`
+
+**Acceptance Criteria:**
+- ✅ Zero DOM manipulation (no createElement, getElementById, etc.)
+- ✅ Zero UnifiedState reads/writes
+- ✅ No UI side effects (no toast creation, no click handlers)
+- ✅ Pure transport layer (returns data, emits events)
+- ✅ All API URLs use CONFIG.API.BASE_URL_PRIMARY
+- ✅ Logger usage only (no productionLog imports)
+
+**Source Line Ranges:**
+- Network.request: 1054-1092 (refactored to .request/.get/.post)
+- apiV1RoomInfoUrl: 3406-3407, 30399 (merged, uses CONFIG)
+- fetchRoomInfo: 3410-3432, 30425-30540 (pure version, no state)
+- parsePlayerCount: 30408-30422 (unchanged)
+- fetchLatestVersionMeta: 7597-7650 (refactored, no DOM)
+- WebSocketManager: 30704-31044 (refactored, event-based, no toasts)
+
+**Excluded (deferred to UI/Init modules):**
+- Version badge UI and click handlers (lines 7660-7737)
+- WebSocket toast notifications (lines 30772-30837)
+- UnifiedState integration logic
+
+---
+
 ## 📊 Phase 2 Summary (As of 2025-10-19)
 
-**Modules Extracted:** 4 / 13
-**Lines Extracted:** ~1,613 / ~29,600 (5.4%)
+**Modules Extracted:** 5 / 13
+**Lines Extracted:** ~2,133 / ~29,600 (7.2%)
 **Build Status:** ✅ Passing (mirror build)
 **Functional Status:** ✅ Byte-identical output
 
@@ -359,16 +411,16 @@ export {
 - ✅ Module 2: utils/constants.js (196 lines)
 - ✅ Module 3: core/logging.js (162 lines)
 - ✅ Module 4: core/compat.js (278 lines)
+- ✅ Module 5: core/network.js (520 lines) - Pure transport layer
 - ✅ Build system updated for incremental extraction
 - ✅ Placeholder structure created in src/
 - ✅ Local git repository initialized
 
 **Next Steps:**
-1. Extract Module 5: Network layer (API calls, GM_xmlhttpRequest, WebSocket management)
-2. Extract Module 6: State management (UnifiedState)
-3. Continue incremental extraction (Modules 6-13)
-4. Switch to esbuild bundling once all modules extracted
-5. Final integration testing
+1. Extract Module 6: State management (UnifiedState)
+2. Continue incremental extraction (Modules 6-13)
+3. Switch to esbuild bundling once all modules extracted
+4. Final integration testing
 
 ---
 
