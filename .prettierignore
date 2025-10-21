@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.backup
+*.min.js
+.git/
+.ops/
+test-versions/
