@@ -1,5 +1,38 @@
 # Changelog - MGTools
 
+## Version 3.9.1 (2025-10-21)
+
+**Bug Fixes:**
+- Fixed custom room player counts persisting correctly
+- Fixed hotkeys no longer interfering with chat input
+- Fixed crop value display updating immediately after harvest
+
+**Improvements:**
+- Code quality and formatting improvements
+- Better code organization
+- Enhanced development tooling
+- Removed unnecessary debug console spam
+
+---
+
+## Version 3.8.9 (2025-10-20)
+
+**New Features:**
+- Alt+M keyboard shortcut to toggle toolbar visibility
+- Toolbar visibility state persists across page reloads
+
+**Bug Fixes:**
+- Fixed UI health check preventing duplicate UI elements
+- Fixed sidebar element ID mismatch causing initialization failures
+- Reduced console spam from debug logging
+
+**Improvements:**
+- Added UI creation guard to prevent duplicates
+- Enhanced UI reliability with proper retry logic
+- Cleaner console output for better debugging
+
+---
+
 ## Version 3.8.8 (2025-10-18)
 
 **Improvements:**
