@@ -1,52 +1,9 @@
-node_modules/
-dist/
-*.log
-*.tmp
-mgtools.user.js.backup
-consolelogs.txt consolelogs2.txt
-*.backup
-consolelogs*.txt
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-mgdebug*
-debug*
-.ops/
+# Ignore everything
+*
 
-# Session handoff and planning documents
-*HANDOFF*.md
-*SESSION*.md
-*FIXES*.md
-*PLAN*.md
-*SUMMARY*.md
-CRITICAL_*.md
-STRATEGIC_*.md
-PHASE2_*.md
-QUICK_REFERENCE.md
-TESTING_INSTRUCTIONS.md
-
-# Temporary development files
-Check.txt
-weird.txt
-OpusPrompt.txt
-moduprompt.txt
-apply_fixes.py
-backup_*.patch
-lint-current-status.txt
-changelog.txt
-Issue*.md
-MGTools_Fix_Implementation_Plan.txt
-README_ESLINT.md
-ESLINT_SETUP_REPORT.md
-
-# Git reference files
-gitreference*.txt
-githubrules.txt
-
-# Test directories
-test-versions/
-
-# Screenshots (already covered by *.png, *.jpg, *.jpeg above)
-Screenshot*
+# Except these essentials
+!.gitignore
+!CHANGELOG.md
+!README.md
+!MGTools.user.js
+!package.json

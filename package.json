@@ -1,6 +1,6 @@
 {
   "name": "mgtools",
-  "version": "3.9.3",
+  "version": "1.0.0",
   "description": "MGTools - All-in-one assistant for Magic Garden with beautiful unified UI",
   "main": "MGTools.user.js",
   "scripts": {
