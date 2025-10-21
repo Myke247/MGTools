@@ -7911,7 +7911,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Skip version check on Discord to avoid CSP violations
       if (isDiscordPage) {
         const branchName = IS_LIVE_BETA ? 'Live Beta' : 'Stable';
-        indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#888'; // Blue for beta, gray for stable
+        indicatorElement.style.color = IS_LIVE_BETA ? '#ff9500' : '#00ff00'; // Orange for beta, green for stable
         indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Version check disabled on Discord\nShift+Click: Stable • Shift+Alt+Click: Live Beta`;
         indicatorElement.style.cursor = 'pointer';
 
@@ -7926,147 +7926,142 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      // Try multiple URLs in order
-      // Add cache-busting timestamp to avoid GitHub CDN cache (updates every ~5 min)
+      // Fetch BOTH stable and beta versions
       const cacheBust = `?t=${Date.now()}`;
-      const branch = IS_LIVE_BETA ? 'Live-Beta' : 'main';
-      const branchName = IS_LIVE_BETA ? 'Live Beta' : 'Stable';
-      const urls = [
-        `https://raw.githubusercontent.com/Myke247/MGTools/${branch}/MGTools.user.js${cacheBust}`,
-        `https://raw.githubusercontent.com/Myke247/MGTools/master/MGTools.user.js${cacheBust}`, // fallback
-        'https://api.github.com/repos/Myke247/MGTools/contents/MGTools.user.js' // API doesn't need cache-bust
-      ];
 
-      for (let i = 0; i < urls.length; i++) {
-        try {
-          const url = urls[i];
-          const isGitHubAPI = url.includes('api.github.com');
-          const isJSON = url.includes('.json');
+      async function fetchVersion(branch) {
+        const urls = [
+          `https://raw.githubusercontent.com/Myke247/MGTools/${branch}/MGTools.user.js${cacheBust}`,
+          `https://api.github.com/repos/Myke247/MGTools/contents/MGTools.user.js`
+        ];
 
-          // Add cache-busting timestamp to URL
-          const cacheBustUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
-
-          const response = await fetch(cacheBustUrl, {
-            method: 'GET',
-            cache: 'no-cache',
-            headers: isGitHubAPI
-              ? {
-                  Accept: 'application/vnd.github.v3.raw'
-                }
-              : {}
-          });
-
-          if (!response.ok) {
-            if (i === urls.length - 1) {
-              throw new Error(`All URLs failed. Last: ${response.status}`);
-            }
-            continue; // Try next URL
-          }
-
-          const text = await response.text();
-          let latestVersion;
-
-          if (isJSON) {
-            // Parse version.json format: {"version": "2.0.0"}
-            try {
-              const data = JSON.parse(text);
-              latestVersion = data.version;
-            } catch (e) {
-              continue; // Try next URL
-            }
-          } else {
-            // Parse userscript @version tag
-            const match = text.match(/@version\s+([\d.]+)/);
-            if (match) {
-              latestVersion = match[1];
-            }
-          }
-
-          if (latestVersion) {
-            const versionComparison = compareVersions(CURRENT_VERSION, latestVersion);
-
-            if (versionComparison === 0) {
-              // Versions are equal - up to date
-              indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#00ff00'; // Blue for beta, green for stable
-              indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Up to date! ✓\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
-              indicatorElement.style.cursor = 'pointer';
-
-              // Add click handler for downloads
-              const newIndicator = indicatorElement.cloneNode(true);
-              indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-
-              newIndicator.addEventListener('click', e => {
-                e.stopPropagation();
-                if (e.shiftKey && e.altKey) {
-                  window.open(BETA_DOWNLOAD_URL, '_blank');
-                } else if (e.shiftKey) {
-                  window.open(STABLE_DOWNLOAD_URL, '_blank');
-                } else {
-                  newIndicator.style.color = '#888';
-                  newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
-                  checkVersion(newIndicator);
-                }
-              });
-            } else {
-              // Either development version (yellow) or update available (red)
-              if (versionComparison > 0) {
-                // Local version is newer - development version
-                indicatorElement.style.color = IS_LIVE_BETA ? '#06b6d4' : '#ffff00'; // Cyan for beta dev, yellow for stable dev
-                indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Development version (${branchName}: v${latestVersion})\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
-              } else {
-                // GitHub version is newer - update available
-                indicatorElement.style.color = IS_LIVE_BETA ? '#ff00ff' : '#ff0000'; // VIBRANT MAGENTA for outdated beta, red for stable update
-                indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Update available: v${latestVersion}\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
-              }
-              indicatorElement.style.cursor = 'pointer';
-
-              // Remove old listener to avoid duplicates
-              const newIndicator = indicatorElement.cloneNode(true);
-              indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-
-              newIndicator.addEventListener('click', e => {
-                e.stopPropagation();
-                if (e.shiftKey && e.altKey) {
-                  window.open(BETA_DOWNLOAD_URL, '_blank');
-                } else if (e.shiftKey) {
-                  window.open(STABLE_DOWNLOAD_URL, '_blank');
-                } else {
-                  newIndicator.style.color = '#888';
-                  newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
-                  checkVersion(newIndicator);
-                }
-              });
-            }
-            return; // Success, exit
-          } else {
-            throw new Error('Version not found in response');
-          }
-        } catch (e) {
-          if (i === urls.length - 1) {
-            // All attempts failed
-            indicatorElement.style.color = IS_LIVE_BETA ? '#4a9eff' : '#ffa500'; // Blue for beta, orange for error
-            indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Check failed\nClick: Retry • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
-            indicatorElement.style.cursor = 'pointer';
-
-            // Remove old listener to avoid duplicates
-            const newIndicator = indicatorElement.cloneNode(true);
-            indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-
-            newIndicator.addEventListener('click', e => {
-              e.stopPropagation();
-              if (e.shiftKey && e.altKey) {
-                window.open(BETA_DOWNLOAD_URL, '_blank');
-              } else if (e.shiftKey) {
-                window.open(STABLE_DOWNLOAD_URL, '_blank');
-              } else {
-                newIndicator.style.color = '#888';
-                newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
-                checkVersion(newIndicator);
-              }
+        for (const url of urls) {
+          try {
+            const isGitHubAPI = url.includes('api.github.com');
+            const response = await fetch(url, {
+              method: 'GET',
+              cache: 'no-cache',
+              headers: isGitHubAPI ? { Accept: 'application/vnd.github.v3.raw' } : {}
             });
-            console.log('[VERSION CHECK] All methods failed:', e);
+
+            if (response.ok) {
+              const text = await response.text();
+              const match = text.match(/@version\s+([\d.]+)/);
+              if (match) return match[1];
+            }
+          } catch (e) {
+            continue;
           }
         }
+        return null;
+      }
+
+      try {
+        const [stableVersion, betaVersion] = await Promise.all([fetchVersion('main'), fetchVersion('Live-Beta')]);
+
+        if (!stableVersion && !betaVersion) {
+          // Both failed
+          indicatorElement.style.color = IS_LIVE_BETA ? '#ff9500' : '#ffa500';
+          indicatorElement.title = `v${CURRENT_VERSION} (${IS_LIVE_BETA ? 'Live Beta' : 'Stable'}) - Check failed\nClick: Retry • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
+          indicatorElement.style.cursor = 'pointer';
+
+          const newIndicator = indicatorElement.cloneNode(true);
+          indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+
+          newIndicator.addEventListener('click', e => {
+            e.stopPropagation();
+            if (e.shiftKey && e.altKey) {
+              window.open(BETA_DOWNLOAD_URL, '_blank');
+            } else if (e.shiftKey) {
+              window.open(STABLE_DOWNLOAD_URL, '_blank');
+            } else {
+              newIndicator.style.color = '#888';
+              newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
+              checkVersion(newIndicator);
+            }
+          });
+          return;
+        }
+
+        // Compare current version with the appropriate branch version
+        const relevantVersion = IS_LIVE_BETA ? betaVersion : stableVersion;
+        const otherVersion = IS_LIVE_BETA ? stableVersion : betaVersion;
+        const versionComparison = compareVersions(CURRENT_VERSION, relevantVersion);
+
+        // Build version info string (always show both versions)
+        const versionInfo = `Stable: v${stableVersion || '?'} | Beta: v${betaVersion || '?'}`;
+
+        // Determine color and message
+        let color, statusMsg;
+
+        if (IS_LIVE_BETA) {
+          // On Live Beta branch - use orange/yellow colors
+          if (versionComparison === 0) {
+            color = '#ff9500'; // Orange for up-to-date beta
+            statusMsg = 'Up to date';
+          } else if (versionComparison > 0) {
+            color = '#ffff00'; // Yellow for dev beta
+            statusMsg = 'Development version';
+          } else {
+            color = '#ff00ff'; // Magenta for outdated beta
+            statusMsg = `Update available: v${relevantVersion}`;
+          }
+        } else {
+          // On Stable branch - use green colors
+          if (versionComparison === 0) {
+            color = '#00ff00'; // Green for up-to-date stable
+            statusMsg = 'Up to date';
+          } else if (versionComparison > 0) {
+            color = '#90ff90'; // Light green for dev stable
+            statusMsg = 'Development version';
+          } else {
+            color = '#ff0000'; // Red for outdated stable
+            statusMsg = `Update available: v${relevantVersion}`;
+          }
+        }
+
+        indicatorElement.style.color = color;
+        indicatorElement.title = `v${CURRENT_VERSION} (${IS_LIVE_BETA ? 'Live Beta' : 'Stable'}) - ${statusMsg}\n${versionInfo}\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
+        indicatorElement.style.cursor = 'pointer';
+
+        // Add click handler
+        const newIndicator = indicatorElement.cloneNode(true);
+        indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+
+        newIndicator.addEventListener('click', e => {
+          e.stopPropagation();
+          if (e.shiftKey && e.altKey) {
+            window.open(BETA_DOWNLOAD_URL, '_blank');
+          } else if (e.shiftKey) {
+            window.open(STABLE_DOWNLOAD_URL, '_blank');
+          } else {
+            newIndicator.style.color = '#888';
+            newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
+            checkVersion(newIndicator);
+          }
+        });
+      } catch (e) {
+        // Unexpected error
+        indicatorElement.style.color = IS_LIVE_BETA ? '#ff9500' : '#ffa500';
+        indicatorElement.title = `v${CURRENT_VERSION} (${IS_LIVE_BETA ? 'Live Beta' : 'Stable'}) - Check failed\nClick: Retry • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
+        indicatorElement.style.cursor = 'pointer';
+
+        const newIndicator = indicatorElement.cloneNode(true);
+        indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+
+        newIndicator.addEventListener('click', e => {
+          e.stopPropagation();
+          if (e.shiftKey && e.altKey) {
+            window.open(BETA_DOWNLOAD_URL, '_blank');
+          } else if (e.shiftKey) {
+            window.open(STABLE_DOWNLOAD_URL, '_blank');
+          } else {
+            newIndicator.style.color = '#888';
+            newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
+            checkVersion(newIndicator);
+          }
+        });
+        console.log('[VERSION CHECK] Error:', e);
       }
     }
 
