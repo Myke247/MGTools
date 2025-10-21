@@ -1,6 +1,6 @@
 # Changelog - MGTools
 
-## Version 3.9.1 (2025-10-21)
+## Version 3.9.0 (2025-10-21) - Stable Release
 
 **Bug Fixes:**
 - Fixed custom room player counts persisting correctly
