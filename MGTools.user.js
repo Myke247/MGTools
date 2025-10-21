@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.8.9
+// @version      3.9.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -22,15 +22,15 @@
 // ==/UserScript==
 
 // --- EARLY RoomConnection trap (captures true scopePath ASAP) ---
-(function installEarlyRoomConnectionTrap(){
+(function installEarlyRoomConnectionTrap() {
   const KEY = 'MagicCircle_RoomConnection';
   // CRITICAL: Use the ACTUAL page window, not sandbox
-  const targetWin = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
+  const targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
   if (targetWin.__mg_rc_trap_installed) return;
   targetWin.__mg_rc_trap_installed = true;
 
-  function installHooks(rc){
+  function installHooks(rc) {
     if (!rc || rc.__mg_scope_installed) return;
     rc.__mg_scope_installed = true;
 
@@ -44,16 +44,20 @@
 
     const origSend = rc.sendMessage?.bind(rc);
     if (origSend) {
-      rc.sendMessage = function(msg){
-        try { setLast(msg?.scopePath); } catch {}
+      rc.sendMessage = function (msg) {
+        try {
+          setLast(msg?.scopePath);
+        } catch {}
         return origSend(msg);
       };
     }
 
-    const origDispatch = (rc.dispatch?.bind(rc)) || (rc._dispatch?.bind(rc));
+    const origDispatch = rc.dispatch?.bind(rc) || rc._dispatch?.bind(rc);
     if (origDispatch) {
-      rc.dispatch = function(evt){
-        try { setLast(evt?.scopePath); } catch {}
+      rc.dispatch = function (evt) {
+        try {
+          setLast(evt?.scopePath);
+        } catch {}
         return origDispatch(evt);
       };
     }
@@ -64,7 +68,11 @@
 
   // Check if RC already exists
   if (targetWin[KEY]) {
-    try { installHooks(targetWin[KEY]); } catch (e){ console.warn('[MGTools ScopePatch] install now failed', e); }
+    try {
+      installHooks(targetWin[KEY]);
+    } catch (e) {
+      console.warn('[MGTools ScopePatch] install now failed', e);
+    }
     return;
   }
 
@@ -73,10 +81,16 @@
   Object.defineProperty(targetWin, KEY, {
     configurable: true,
     enumerable: true,
-    get(){ return _rc; },
-    set(v){
+    get() {
+      return _rc;
+    },
+    set(v) {
       _rc = v;
-      try { installHooks(v); } catch (e){ console.warn('[MGTools ScopePatch] install on set failed', e); }
+      try {
+        installHooks(v);
+      } catch (e) {
+        console.warn('[MGTools ScopePatch] install on set failed', e);
+      }
     }
   });
 })();
@@ -84,7 +98,7 @@
 // ---- Simplified rcSend (waits for scopePath, then sends) ----
 async function rcSend(payload, opts = {}) {
   const { retries = 10, delay = 120 } = opts;
-  const targetWin = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
+  const targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
   if (!payload || typeof payload !== 'object') {
     console.warn('[MGTools] rcSend invalid payload:', payload);
@@ -107,7 +121,7 @@ async function rcSend(payload, opts = {}) {
   }
 
   try {
-    (targetWin.MagicCircle_RoomConnection)?.sendMessage(payload);
+    targetWin.MagicCircle_RoomConnection?.sendMessage(payload);
     // Debug only - uncomment if troubleshooting message sending
     // console.log('[MGTools] Sent with scopePath:', payload.scopePath);
   } catch (e) {
@@ -157,6 +171,7 @@ async function rcSend(payload, opts = {}) {
  */
 
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
+console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
 console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.9 - UI reliability fixes and Alt+M toolbar toggle');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
@@ -171,19 +186,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
  */
 
 // === CSP Guard: Disable external Google Fonts in Discord/webview ===
-(function(){
+(function () {
   try {
-    const isDiscord = /discord|overlay|electron/i.test(navigator.userAgent) || (window.DiscordNative || window.__discordApp);
+    const isDiscord =
+      /discord|overlay|electron/i.test(navigator.userAgent) || window.DiscordNative || window.__discordApp;
     if (isDiscord) {
       console.log('🛡️ [CSP] External font loads disabled in Discord context.');
     }
     const origCreateElement = Document.prototype.createElement;
-    Document.prototype.createElement = function(tag){
+    Document.prototype.createElement = function (tag) {
       const el = origCreateElement.call(this, tag);
       try {
         if (isDiscord && tag && tag.toLowerCase() === 'link') {
           const origSetAttribute = el.setAttribute;
-          el.setAttribute = function(name, value){
+          el.setAttribute = function (name, value) {
             if (name === 'href' && typeof value === 'string' && /fonts\.googleapis/i.test(value)) {
               console.log('🛡️ [CSP] Prevented external font link injection:', value);
               return;
@@ -201,22 +217,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   }
 })();
 
-(function() {
+(function () {
   'use strict';
 
   /* ============================================================================
-       * 3. STORAGE MODULE - START
-       * ============================================================================
-       * Unified storage abstraction with multiple fallback mechanisms
-       */
+   * 3. STORAGE MODULE - START
+   * ============================================================================
+   * Unified storage abstraction with multiple fallback mechanisms
+   */
 
   /**
-       * Unified Storage Module
-       * Provides consistent storage API with automatic fallback chain:
-       * GM Storage → localStorage → sessionStorage → memory
-       *
-       * @namespace Storage
-       */
+   * Unified Storage Module
+   * Provides consistent storage API with automatic fallback chain:
+   * GM Storage → localStorage → sessionStorage → memory
+   *
+   * @namespace Storage
+   */
   const Storage = (() => {
     // Private state
     let initialized = false;
@@ -236,10 +252,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     let sessionStorageRef = null;
 
     /**
-           * Test if GM storage API is available and working
-           * @private
-           * @returns {boolean}
-           */
+     * Test if GM storage API is available and working
+     * @private
+     * @returns {boolean}
+     */
     function testGMStorage() {
       if (gmApiAvailable !== null) return gmApiAvailable;
 
@@ -264,7 +280,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
         }
 
-        gmApiAvailable = (retrieved === testValue);
+        gmApiAvailable = retrieved === testValue;
         return gmApiAvailable;
       } catch (e) {
         gmApiAvailable = false;
@@ -273,10 +289,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Get localStorage reference (with Discord iframe workaround)
-           * @private
-           * @returns {Storage|null}
-           */
+     * Get localStorage reference (with Discord iframe workaround)
+     * @private
+     * @returns {Storage|null}
+     */
     function getLocalStorage() {
       if (localStorageRef) return localStorageRef;
 
@@ -321,10 +337,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Get sessionStorage reference
-           * @private
-           * @returns {Storage|null}
-           */
+     * Get sessionStorage reference
+     * @private
+     * @returns {Storage|null}
+     */
     function getSessionStorage() {
       if (sessionStorageRef) return sessionStorageRef;
 
@@ -344,9 +360,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Initialize storage system and determine best available type
-           * @private
-           */
+     * Initialize storage system and determine best available type
+     * @private
+     */
     function initialize() {
       if (initialized) return;
 
@@ -369,11 +385,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Get item from storage
-           * @param {string} key - Storage key
-           * @param {*} [defaultValue=null] - Default value if not found
-           * @returns {*} Value or default
-           */
+     * Get item from storage
+     * @param {string} key - Storage key
+     * @param {*} [defaultValue=null] - Default value if not found
+     * @returns {*} Value or default
+     */
     function getItem(key, defaultValue = null) {
       initialize();
 
@@ -412,11 +428,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Set item in storage
-           * @param {string} key - Storage key
-           * @param {*} value - Value to store
-           * @returns {boolean} Success status
-           */
+     * Set item in storage
+     * @param {string} key - Storage key
+     * @param {*} value - Value to store
+     * @returns {boolean} Success status
+     */
     function setItem(key, value) {
       initialize();
 
@@ -457,10 +473,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Remove item from storage
-           * @param {string} key - Storage key
-           * @returns {boolean} Success status
-           */
+     * Remove item from storage
+     * @param {string} key - Storage key
+     * @returns {boolean} Success status
+     */
     function removeItem(key) {
       initialize();
 
@@ -492,9 +508,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Clear all storage (use with caution)
-           * @returns {boolean} Success status
-           */
+     * Clear all storage (use with caution)
+     * @returns {boolean} Success status
+     */
     function clear() {
       initialize();
 
@@ -523,18 +539,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Get current storage type
-           * @returns {string|null} Current storage type
-           */
+     * Get current storage type
+     * @returns {string|null} Current storage type
+     */
     function getStorageType() {
       initialize();
       return storageType;
     }
 
     /**
-           * Get storage info for debugging
-           * @returns {Object} Storage information
-           */
+     * Get storage info for debugging
+     * @returns {Object} Storage information
+     */
     function getInfo() {
       initialize();
       return {
@@ -583,20 +599,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   };
 
   /* ============================================================================
-       * 4. CONFIGURATION MODULE - START
-       * ============================================================================
-       * Global constants, version info, URLs, and configuration values
-       */
+   * 4. CONFIGURATION MODULE - START
+   * ============================================================================
+   * Global constants, version info, URLs, and configuration values
+   */
 
   /**
-       * Main configuration object containing all global settings
-       * @namespace CONFIG
-       * @constant {Object}
-       */
+   * Main configuration object containing all global settings
+   * @namespace CONFIG
+   * @constant {Object}
+   */
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '3.8.9',
+      CURRENT: '3.9.1',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -615,7 +631,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         BUTTON_INTERACTIONS: false,
         POP_OUT_DESIGN: false,
         ERROR_TRACKING: true,
-        PERFORMANCE: false
+        PERFORMANCE: false,
+        FIX_VALIDATION: false // Enable to see fix debug logs during testing (now controlled by debugMode setting)
       }
     },
 
@@ -684,8 +701,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
   // Legacy compatibility - maintain old variable names
   const CURRENT_VERSION = CONFIG.VERSION.CURRENT;
-  const VERSION_CHECK_URL_STABLE = CONFIG.VERSION.CHECK_URL_STABLE;
-  const VERSION_CHECK_URL_BETA = CONFIG.VERSION.CHECK_URL_BETA;
+  const _VERSION_CHECK_URL_STABLE = CONFIG.VERSION.CHECK_URL_STABLE;
+  const _VERSION_CHECK_URL_BETA = CONFIG.VERSION.CHECK_URL_BETA;
   const STABLE_DOWNLOAD_URL = CONFIG.VERSION.DOWNLOAD_URL_STABLE;
   const BETA_DOWNLOAD_URL = CONFIG.VERSION.DOWNLOAD_URL_BETA;
 
@@ -710,7 +727,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     console.error('%c⚠️ MGTOOLS INSTALLATION ERROR', 'font-size:16px;color:#ff0000;font-weight:bold');
     console.error('%cMGTools MUST be installed via Tampermonkey!', 'font-size:14px;color:#ff9900');
     console.error('%cDo NOT paste the script in console - it will not work correctly!', 'font-size:14px;color:#ff9900');
-    console.error('%c\n📋 Correct Installation:\n1. Install Tampermonkey: https://www.tampermonkey.net/\n2. Click: https://github.com/Myke247/MGTools/raw/main/MGTools.user.js\n3. Click "Install" button\n4. Refresh Magic Garden', 'font-size:12px;color:#00ffff');
+    console.error(
+      '%c\n📋 Correct Installation:\n1. Install Tampermonkey: https://www.tampermonkey.net/\n2. Click: https://github.com/Myke247/MGTools/raw/main/MGTools.user.js\n3. Click "Install" button\n4. Refresh Magic Garden',
+      'font-size:12px;color:#00ffff'
+    );
 
     // Try to continue anyway using localStorage fallback
     console.warn('%c⚠️ Attempting to run in fallback mode (limited functionality)...', 'font-size:12px;color:#ffff00');
@@ -734,15 +754,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   }
 
   /* ============================================================================
-       * 5. LOGGING MODULE - START
-       * ============================================================================
-       * Unified logging system with production/debug modes and categories
-       */
+   * 5. LOGGING MODULE - START
+   * ============================================================================
+   * Unified logging system with production/debug modes and categories
+   */
 
   /**
-       * Unified logging system with production/debug modes
-       * @namespace Logger
-       */
+   * Unified logging system with production/debug modes
+   * @namespace Logger
+   */
   const Logger = (() => {
     // Configuration
     const PRODUCTION = CONFIG.DEBUG.PRODUCTION;
@@ -761,13 +781,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     const tooltipContainer = null;
 
     /**
-           * Core logging function with level and category support
-           * @private
-           * @param {number} level - Log level
-           * @param {string} category - Log category
-           * @param {string} message - Log message
-           * @param {*} [data] - Optional data to log
-           */
+     * Core logging function with level and category support
+     * @private
+     * @param {number} level - Log level
+     * @param {string} category - Log category
+     * @param {string} message - Log message
+     * @param {*} [data] - Optional data to log
+     */
     function log(level, category, message, data) {
       if (level > CURRENT_LOG_LEVEL) return;
 
@@ -780,11 +800,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Debug log for specific debug flags
-           * @param {string} flag - Debug flag to check
-           * @param {string} message - Log message
-           * @param {*} [data] - Optional data
-           */
+     * Debug log for specific debug flags
+     * @param {string} flag - Debug flag to check
+     * @param {string} message - Log message
+     * @param {*} [data] - Optional data
+     */
     function debugLog(flag, message, data = null) {
       if (!PRODUCTION && DEBUG_FLAGS[flag]) {
         const timestamp = new Date().toLocaleTimeString();
@@ -793,12 +813,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /**
-           * Debug error logging
-           * @param {string} flag - Debug flag to check
-           * @param {string} message - Error message
-           * @param {Error} error - Error object
-           * @param {Object} [context] - Additional context
-           */
+     * Debug error logging
+     * @param {string} flag - Debug flag to check
+     * @param {string} message - Error message
+     * @param {Error} error - Error object
+     * @param {Object} [context] - Additional context
+     */
     function debugError(flag, message, error, context = {}) {
       if (DEBUG_FLAGS[flag] || DEBUG_FLAGS.ERROR_TRACKING) {
         const timestamp = new Date().toLocaleTimeString();
@@ -868,15 +888,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   }
 
   /* ============================================================================
-       * 6. COMPATIBILITY MODULE - EXTENDED
-       * ============================================================================
-       * Advanced CSP detection and compatibility mode for Discord/managed devices
-       */
+   * 6. COMPATIBILITY MODULE - EXTENDED
+   * ============================================================================
+   * Advanced CSP detection and compatibility mode for Discord/managed devices
+   */
 
   /**
-       * Compatibility mode system for handling restricted environments
-       * @namespace CompatibilityMode
-       */
+   * Compatibility mode system for handling restricted environments
+   * @namespace CompatibilityMode
+   */
   const CompatibilityMode = {
     flags: {
       enabled: false,
@@ -916,14 +936,34 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // 1. Discord embed detection (enhanced)
       const host = window.location.host;
-      const isDiscordEmbed = host.includes('discordsays.com') ||
-                                    host.includes('discordactivities.com') ||
-                                    host.includes('discord.gg') ||
-                                    host.includes('discord.com') ||
-                                    // Check for Discord SDK presence
-                                    (typeof window.DiscordSDK !== 'undefined') ||
-                                    (typeof window.__DISCORD__ !== 'undefined') ||
-                                    (typeof window.DiscordNative !== 'undefined');
+      const isDiscordHost =
+        host.includes('discordsays.com') ||
+        host.includes('discordactivities.com') ||
+        host.includes('discord.gg') ||
+        host.includes('discord.com');
+      const isDiscordDesktop = typeof window.DiscordNative !== 'undefined';
+      const inDiscordIframe = window !== window.top && document.referrer?.includes('discord');
+      const hasDiscordSDK = typeof window.DiscordSDK !== 'undefined' || typeof window.__DISCORD__ !== 'undefined';
+
+      const isDiscordEmbed = isDiscordHost || isDiscordDesktop || inDiscordIframe || hasDiscordSDK;
+
+      if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+        console.log('[FIX_DISCORD]', {
+          host: isDiscordHost,
+          desktop: isDiscordDesktop,
+          iframe: inDiscordIframe,
+          sdk: hasDiscordSDK,
+          scope: typeof unsafeWindow !== 'undefined' ? 'unsafeWindow' : 'window'
+        });
+      }
+
+      /**
+       * Discord CSP Constraints:
+       * - No external stylesheets (Google Fonts blocked)
+       * - Limited fetch (use GM_xmlhttpRequest)
+       * - Storage fallback to sessionStorage/memory
+       * - Scope bridging via unsafeWindow when available
+       */
 
       if (isDiscordEmbed) {
         this.enableCompat('discord-embed');
@@ -936,14 +976,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const self = this;
       const seenCSPMessages = new Set();
 
-      console.error = function(...args) {
+      console.error = function (...args) {
         const msg = args.join(' ');
 
         // Check for CSP-related errors
-        if ((msg.includes('Content Security Policy') ||
-                       msg.includes('Refused to load') ||
-                       msg.includes('violates the following')) &&
-                      !msg.includes('mgtools')) { // Ignore our own CSP issues
+        if (
+          (msg.includes('Content Security Policy') ||
+            msg.includes('Refused to load') ||
+            msg.includes('violates the following')) &&
+          !msg.includes('mgtools')
+        ) {
+          // Ignore our own CSP issues
 
           // Skip duplicate CSP violations to reduce console spam
           if (seenCSPMessages.has(msg)) {
@@ -1042,20 +1085,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   CompatibilityMode.detect();
 
   /* ============================================================================
-       * 7. NETWORK MODULE - START
-       * ============================================================================
-       * Unified network layer with CSP bypass capabilities
-       */
+   * 7. NETWORK MODULE - START
+   * ============================================================================
+   * Unified network layer with CSP bypass capabilities
+   */
 
   /**
-       * Network abstraction layer with fallback to GM_xmlhttpRequest
-       * @namespace Network
-       */
+   * Network abstraction layer with fallback to GM_xmlhttpRequest
+   * @namespace Network
+   */
   const Network = {
     async fetch(url, options = {}) {
-      if (CompatibilityMode.flags.bypassCSPNetworking &&
-                  typeof GM_xmlhttpRequest === 'function' &&
-                  !url.startsWith(window.location.origin)) {
+      if (
+        CompatibilityMode.flags.bypassCSPNetworking &&
+        typeof GM_xmlhttpRequest === 'function' &&
+        !url.startsWith(window.location.origin)
+      ) {
         // Use GM_xmlhttpRequest to bypass CSP for external requests
         logDebug('NETWORK', `Using GM_xmlhttpRequest for: ${url}`);
         return new Promise((resolve, reject) => {
@@ -1074,9 +1119,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 text: () => Promise.resolve(response.responseText),
                 json: () => Promise.resolve(JSON.parse(response.responseText)),
                 headers: {
-                  get: name => response.responseHeaders.match(
-                    new RegExp(`^${name}:\\s*(.*)$`, 'mi')
-                  )?.[1]
+                  get: name => response.responseHeaders.match(new RegExp(`^${name}:\\s*(.*)$`, 'mi'))?.[1]
                 }
               });
             },
@@ -1092,15 +1135,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   };
 
   /* ============================================================================
-       * 8. UI FRAMEWORK MODULE - ASSET MANAGEMENT
-       * ============================================================================
-       * Compatibility-aware style and font loading
-       */
+   * 8. UI FRAMEWORK MODULE - ASSET MANAGEMENT
+   * ============================================================================
+   * Compatibility-aware style and font loading
+   */
 
   /**
-       * Asset management system for styles, fonts, and icons
-       * @namespace AssetManager
-       */
+   * Asset management system for styles, fonts, and icons
+   * @namespace AssetManager
+   */
   const AssetManager = {
     addStyles(css, id) {
       // Discord Fix: Prefer GM_addElement for best CSP compatibility
@@ -1141,7 +1184,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     loadFonts() {
       if (CompatibilityMode.flags.blockExternalFonts) {
         // Use system fonts only
-        this.addStyles(`
+        this.addStyles(
+          `
                       .mgtools-ui *, .mga-dock *, .mga-sidebar *, .mga-panel * {
                           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
                                        Roboto, Helvetica, Arial, sans-serif !important;
@@ -1150,7 +1194,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           font-family: Georgia, "Times New Roman", serif !important;
                           font-style: italic;
                       }
-                  `, 'mgtools-compat-fonts');
+                  `,
+          'mgtools-compat-fonts'
+        );
         logInfo('ASSETS', 'Using system fonts (compat mode)');
       } else {
         // Normal font loading - Google Fonts
@@ -1163,23 +1209,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     getIcon(name) {
       // In compat mode or for simplicity, use emoji fallbacks
       const icons = {
-        'pet': '🐾',
-        'timer': '⏰',
-        'shop': '🛒',
-        'seeds': '🌱',
-        'values': '💎',
-        'abilities': '⚡',
-        'rooms': '🏠',
-        'tools': '🔧',
-        'settings': '⚙️',
-        'hotkeys': '⌨️',
-        'help': '❓',
-        'alert': '🔔',
-        'close': '✖️',
-        'refresh': '🔄',
-        'save': '💾',
-        'export': '📤',
-        'import': '📥'
+        pet: '🐾',
+        timer: '⏰',
+        shop: '🛒',
+        seeds: '🌱',
+        values: '💎',
+        abilities: '⚡',
+        rooms: '🏠',
+        tools: '🔧',
+        settings: '⚙️',
+        hotkeys: '⌨️',
+        help: '❓',
+        alert: '🔔',
+        close: '✖️',
+        refresh: '🔄',
+        save: '💾',
+        export: '📤',
+        import: '📥'
       };
       return icons[name] || '📦';
     }
@@ -1234,9 +1280,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
               // Look for Jotai Provider's store in pendingProps.value
               const value = fiber?.pendingProps?.value;
-              if (value && typeof value.get === 'function' &&
-                                typeof value.set === 'function' &&
-                                typeof value.sub === 'function') {
+              if (
+                value &&
+                typeof value.get === 'function' &&
+                typeof value.set === 'function' &&
+                typeof value.sub === 'function'
+              ) {
                 jotaiStore = value;
                 console.log('✅ [STORE] Captured Jotai store from React fiber tree');
                 return jotaiStore;
@@ -1334,7 +1383,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       console.warn(`[STORE] ❌ Could not read atom '${atomLabel}' - all tiers failed (cache state:`, atomState, ')');
       return null;
-
     } catch (error) {
       console.error(`[STORE] Error getting atom '${atomLabel}':`, error);
       return null;
@@ -1405,10 +1453,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Method 1: Direct cache access (fastest when available)
     tryDirectCache() {
       // Check targetWindow first (unsafeWindow = page context), then fallback to window
-      const cache = targetWindow.jotaiAtomCache?.cache ||
-                            targetWindow.jotaiAtomCache ||
-                            window.jotaiAtomCache?.cache ||
-                            window.jotaiAtomCache;
+      const cache =
+        targetWindow.jotaiAtomCache?.cache ||
+        targetWindow.jotaiAtomCache ||
+        window.jotaiAtomCache?.cache ||
+        window.jotaiAtomCache;
 
       if (cache && (cache.get || (typeof cache.size === 'number' && cache.size > 0))) {
         this.store = cache;
@@ -1451,9 +1500,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Check if this fiber node contains the Jotai store
         const storeValue = node?.pendingProps?.value;
-        if (storeValue && typeof storeValue.get === 'function' &&
-                      typeof storeValue.set === 'function' &&
-                      typeof storeValue.sub === 'function') {
+        if (
+          storeValue &&
+          typeof storeValue.get === 'function' &&
+          typeof storeValue.set === 'function' &&
+          typeof storeValue.sub === 'function'
+        ) {
           return storeValue;
         }
 
@@ -1480,7 +1532,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const originalWrite = atom.write;
         atom.__mgtools_originalWrite = originalWrite;
 
-        atom.write = function(get, set, ...args) {
+        atom.write = function (get, set, ...args) {
           if (!capturedStore) {
             capturedStore = { get, set, sub: () => () => {} };
             // Restore all patched atoms immediately
@@ -1567,19 +1619,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   // ==================== API BASE URL HELPER (MUST BE EARLY) ====================
   // This function MUST be defined early because roomsInfo() IIFE needs it immediately
   // Determines correct API base URL to prevent 404 errors in Discord browser
-  targetWindow.getGameApiBaseUrl = function() {
+  targetWindow.getGameApiBaseUrl = function () {
     try {
       // Check if we're in Discord browser or Discord activity
-      const isDiscordHost = window.location.host.includes('discordsays.com') ||
-                                    window.location.host.endsWith('.discordsays.com') ||
-                                    window.location.host.includes('discord.com');
+      const isDiscordHost =
+        window.location.host.includes('discordsays.com') ||
+        window.location.host.endsWith('.discordsays.com') ||
+        window.location.host.includes('discord.com');
 
       const isInIframe = window.location !== window.parent.location;
       const hasDiscordNative = window.DiscordNative !== undefined;
 
       // If in any Discord context, use magiccircle.gg API
       // This prevents 404 errors when trying to fetch from discord.com/api/rooms/
-      if (isDiscordHost || hasDiscordNative || (isInIframe && document.referrer && document.referrer.includes('discord'))) {
+      if (
+        isDiscordHost ||
+        hasDiscordNative ||
+        (isInIframe && document.referrer && document.referrer.includes('discord'))
+      ) {
         return 'https://magiccircle.gg';
       }
 
@@ -1695,8 +1752,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
   function isMGAEvent(event) {
     try {
-      return event && event.target && event.target.closest &&
-                     event.target.closest('.mga-panel, .mga-toggle-btn, .mga-overlay');
+      return (
+        event &&
+        event.target &&
+        event.target.closest &&
+        event.target.closest('.mga-panel, .mga-toggle-btn, .mga-overlay')
+      );
     } catch (error) {
       console.error('❌ [BASIC-DEBUG] Error in isMGAEvent:', error);
       return false;
@@ -1708,7 +1769,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Use regular document for game modal detection to avoid interference
       const modals = document.querySelectorAll('[class*="modal"], [class*="dialog"], [role="dialog"]');
       // CRITICAL FIX: Exclude game drag overlays that are normal game UI, not blocking modals
-      const overlays = document.querySelectorAll('[class*="overlay"]:not(.mga-overlay):not(.top-drag-overlay):not(.bottom-drag-overlay)');
+      const overlays = document.querySelectorAll(
+        '[class*="overlay"]:not(.mga-overlay):not(.top-drag-overlay):not(.bottom-drag-overlay)'
+      );
       const popups = document.querySelectorAll('[class*="popup"]:not(.mga-panel)');
 
       // More comprehensive modal detection
@@ -2008,10 +2071,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   }
 
   // Detect Discord environment for special handling
-  const isDiscordEnv = window.location.host.includes('discordsays.com') ||
-                           window.location.host.includes('discord.com') ||
-                           (typeof window.DiscordNative !== 'undefined') ||
-                           (typeof window.__DISCORD__ !== 'undefined');
+  const isDiscordEnv =
+    window.location.host.includes('discordsays.com') ||
+    window.location.host.includes('discord.com') ||
+    typeof window.DiscordNative !== 'undefined' ||
+    typeof window.__DISCORD__ !== 'undefined';
 
   if (isDiscordEnv) {
     productionLog('🎮 [DISCORD] Discord environment detected, using specialized initialization');
@@ -2170,9 +2234,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Detect other Magic Garden scripts
     setTimeout(() => {
-      const hasMainScript = typeof window.loadJSON === 'function' ||
-                               typeof window.petAbilityLogs !== 'undefined' ||
-                               document.hidden === false;
+      const hasMainScript =
+        typeof window.loadJSON === 'function' ||
+        typeof window.petAbilityLogs !== 'undefined' ||
+        document.hidden === false;
       if (hasMainScript) {
         productionLog('📝 [COMPAT] Detected mainscript.txt is also running - compatibility mode enabled');
       } else {
@@ -2182,7 +2247,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // ==================== IMMEDIATE IDLE PREVENTION ====================
     // CRITICAL: Apply idle prevention immediately before any game code runs
-    (function() {
+    (function () {
       productionLog('🚫 [IDLE-PREVENTION] Applying immediate anti-idle protection...');
 
       // Override document properties to prevent idle detection
@@ -2203,20 +2268,32 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Block idle detection events with capture phase (highest priority)
-      document.addEventListener('visibilitychange', e => {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-      }, true);
+      document.addEventListener(
+        'visibilitychange',
+        e => {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        },
+        true
+      );
 
-      window.addEventListener('blur', e => {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-      }, true);
+      window.addEventListener(
+        'blur',
+        e => {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        },
+        true
+      );
 
-      window.addEventListener('focus', e => {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-      }, true);
+      window.addEventListener(
+        'focus',
+        e => {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        },
+        true
+      );
 
       productionLog('✅ [IDLE-PREVENTION] Event listeners added with capture phase');
     })();
@@ -2226,10 +2303,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // ==================== GLOBAL STYLES ====================
     // Skip Google Fonts on Discord to avoid CSP violations
-    const isDiscordPage = window.location.hostname.includes('discord.com') ||
-                            window.location.hostname.includes('discordsays.com') ||
-                            (typeof window.DiscordNative !== 'undefined') ||
-                            (typeof window.__DISCORD__ !== 'undefined');
+    const isDiscordPage =
+      window.location.hostname.includes('discord.com') ||
+      window.location.hostname.includes('discordsays.com') ||
+      typeof window.DiscordNative !== 'undefined' ||
+      typeof window.__DISCORD__ !== 'undefined';
 
     // Use empty string for Discord (system fonts only), otherwise no Google Fonts CDN
     // We never use external CDN to avoid CSP issues entirely
@@ -2902,7 +2980,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
     }
 
-
     // ==================== UNIFIED STATE ====================
     // Global initialization mutex to prevent double initialization
     // Clear any stale flags from previous page load (refresh fix)
@@ -2957,16 +3034,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     const DECOR_ITEMS = CONFIG.DECOR_ITEMS;
 
     /* ============================================================================
-       * 9. STATE MODULE - START
-       * ============================================================================
-       * Global state management and data persistence
-       */
+     * 9. STATE MODULE - START
+     * ============================================================================
+     * Global state management and data persistence
+     */
 
     /**
-       * Unified global state container
-       * Manages all application state, settings, and runtime data
-       * @namespace UnifiedState
-       */
+     * Unified global state container
+     * Manages all application state, settings, and runtime data
+     * @namespace UnifiedState
+     */
     const UnifiedState = {
       initialized: false,
       jotaiReady: false, // NEW: Track when Jotai store is ready
@@ -3041,7 +3118,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             // Ability trigger notifications
             abilityNotificationsEnabled: false,
             watchedAbilities: [], // Legacy - kept for backward compatibility
-            watchedAbilityCategories: { // Category-based notification control
+            watchedAbilityCategories: {
+              // Category-based notification control
               xpBoost: true,
               cropSizeBoost: true,
               selling: true,
@@ -3144,7 +3222,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     /* CHECKPOINT removed: UNIFIED_STATE_COMPLETE */
 
     // ==================== DEBUG FUNCTIONS ====================
-    window.debugSettingsPersistence = function() {
+    window.debugSettingsPersistence = function () {
       console.log('=== SETTINGS PERSISTENCE DEBUG ===');
       console.log('Current settings in memory:', UnifiedState.data.settings);
       console.log('Settings in GM storage:', GM_getValue('MGA_data'));
@@ -3182,7 +3260,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     };
 
     const REPORT_INTERVAL = 5000; // Report room count every 5 seconds
-    const DEFAULT_ROOMS = ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'MG11', 'MG12', 'MG13', 'MG14', 'MG15', 'SLAY']; // Default tracked rooms
+    const DEFAULT_ROOMS = [
+      'MG1',
+      'MG2',
+      'MG3',
+      'MG4',
+      'MG5',
+      'MG6',
+      'MG7',
+      'MG8',
+      'MG9',
+      'MG10',
+      'MG11',
+      'MG12',
+      'MG13',
+      'MG14',
+      'MG15',
+      'SLAY'
+    ]; // Default tracked rooms
     // REMOVED v3.7.3: Discord activity rooms removed - they use numeric IDs and can't be joined from external browser
     // Discord users see play#1-40 natively in Discord's activity sidebar
     // Browser users should use MG1-10 rooms instead
@@ -3284,7 +3379,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         { id: 'i-1426956652857069662-gc-808935495543160852-1413631297003737108', name: 'play-🇻🇳', category: 'discord' },
 
         // Magic Circle Special Rooms
-        { id: 'i-1424646014697267220-gc-808935495543160852-1417643699050270741', name: 'play-québec', category: 'discord' },
+        {
+          id: 'i-1424646014697267220-gc-808935495543160852-1417643699050270741',
+          name: 'play-québec',
+          category: 'discord'
+        },
         { id: 'i-1424646193404747847-gc-808935495543160852-1389442193931571271', name: 'play', category: 'discord' }
       ],
 
@@ -3334,7 +3433,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       try {
         // Check if in Discord iframe or Discord-hosted URL
         const isIframe = window.location !== window.parent.location;
-        const isDiscordHost = window.location.host.includes('discordsays.com') || window.location.host.endsWith('.discordsays.com');
+        const isDiscordHost =
+          window.location.host.includes('discordsays.com') || window.location.host.endsWith('.discordsays.com');
         const isDiscordActivity = isIframe || isDiscordHost;
 
         if (UnifiedState.data.settings?.debugMode) {
@@ -3396,7 +3496,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
           UnifiedState.data.roomStatus.reporterId = crypto.randomUUID();
         } else {
-          UnifiedState.data.roomStatus.reporterId = 'reporter_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          UnifiedState.data.roomStatus.reporterId =
+            'reporter_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
       }
       return UnifiedState.data.roomStatus.reporterId;
@@ -3434,13 +3535,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Load Firebase SDK and initialize with authentication
 
     async function initializeFirebase() {
-    // Replaced Firebase with /info poller stub - integrates with existing listener
+      // Replaced Firebase with /info poller stub - integrates with existing listener
       try {
         const firebase = {
           __useInfo: true,
-          getDatabase(){ return {}; },
-          ref(db, path){ return { path }; },
-          onValue(refObj, callback){
+          getDatabase() {
+            return {};
+          },
+          ref(db, path) {
+            return { path };
+          },
+          onValue(refObj, callback) {
             let abort = false;
             const fetchInfo = async room => {
               try {
@@ -3454,51 +3559,64 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 const count = Math.max(0, Math.min(6, Math.floor(players)));
 
                 return { count, lastUpdate: Date.now(), reporter: getReporterId() };
-              } catch (err){
+              } catch (err) {
                 if (UnifiedState.data.settings?.roomDebugMode) {
                   console.warn(`[Room API] Failed to fetch ${room}:`, err.message);
                 }
                 return { count: 0, lastUpdate: Date.now(), reporter: getReporterId() };
               }
             };
-            async function tick(){
+            async function tick() {
               if (abort) return;
               const out = {};
 
               // Poll custom rooms (MG1-15, SLAY, user-added)
-              for (const rc of UnifiedState.data.customRooms){
+              for (const rc of UnifiedState.data.customRooms) {
                 out[rc] = await fetchInfo(rc);
               }
 
               // Poll Discord rooms (play1-play50, country rooms)
               if (RoomRegistry && RoomRegistry.discord) {
-                for (const room of RoomRegistry.discord){
+                for (const room of RoomRegistry.discord) {
                   out[room.id] = await fetchInfo(room.id);
                 }
               }
 
               const snapshot = { val: () => out };
-              try { callback(snapshot); } catch (e){ console.error('rooms onValue cb error', e); }
+              try {
+                callback(snapshot);
+              } catch (e) {
+                console.error('rooms onValue cb error', e);
+              }
             }
             tick();
             const iv = setInterval(tick, 5000);
-            return function unsubscribe(){ abort = true; clearInterval(iv); };
+            return function unsubscribe() {
+              abort = true;
+              clearInterval(iv);
+            };
           },
-          set(){ /* no-op in /info mode */ },
-          onDisconnect(){ return { remove(){} }; }
+          set() {
+            /* no-op in /info mode */
+          },
+          onDisconnect() {
+            return { remove() {} };
+          }
         };
         productionLog('✅ /info rooms mode enabled (Firebase stubbed)');
         return firebase;
-      } catch (err){
+      } catch (err) {
         console.error('❌ initializeFirebase (/info) failed', err);
         return null;
       }
     }
 
-
     // Start reporting current room's player count
     async function startRoomReporting(firebase) {
-      if (firebase && firebase.__useInfo) { productionLog('ℹ️ rooms: /info mode, reporting disabled'); return; }
+      if (firebase && firebase.__useInfo) {
+        productionLog('ℹ️ rooms: /info mode, reporting disabled');
+        return;
+      }
 
       if (!firebase) return;
 
@@ -3589,13 +3707,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             UnifiedState.data.roomStatus.counts[roomCode] = currentCount;
 
             if (UnifiedState.data.settings.roomDebugMode) {
-              console.log(`[Room Status] Reported count: ${currentCount} (changed from ${previousCount}, forced: ${shouldForceReport})`);
+              console.log(
+                `[Room Status] Reported count: ${currentCount} (changed from ${previousCount}, forced: ${shouldForceReport})`
+              );
             }
           } catch (err) {
             console.error('Failed to report room count:', err);
           }
         }, REPORT_INTERVAL);
-
       } catch (err) {
         console.error('Failed to start room reporting:', err);
       }
@@ -3618,7 +3737,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           UnifiedState.data.customRooms.forEach(roomCode => {
             if (roomData[roomCode]) {
               const age = Date.now() - (roomData[roomCode].lastUpdate || 0);
-              const newCount = age < 30000 ? (roomData[roomCode].count || 0) : 0;
+              const newCount = age < 30000 ? roomData[roomCode].count || 0 : 0;
 
               // Use the higher of the new count or existing count (prevents flickering from 6->0->6)
               // Only accept decreases if the data is very fresh (< 3s old) - prevents stale 0 reports from overwriting real data
@@ -3629,7 +3748,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 counts[roomCode] = existingCount;
               }
 
-              productionLog(`[Room Status] ${roomCode}: ${counts[roomCode]} players (new: ${newCount}, existing: ${existingCount}, age: ${Math.round(age / 1000)}s)`);
+              productionLog(
+                `[Room Status] ${roomCode}: ${counts[roomCode]} players (new: ${newCount}, existing: ${existingCount}, age: ${Math.round(age / 1000)}s)`
+              );
             } else {
               counts[roomCode] = 0;
             }
@@ -3701,7 +3822,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Prevent game from stealing focus on ANY key
         let isFocused = false;
-        searchInput.addEventListener('focus', () => { isFocused = true; });
+        searchInput.addEventListener('focus', () => {
+          isFocused = true;
+        });
         searchInput.addEventListener('blur', e => {
           // Re-focus immediately if we're supposed to be focused
           if (isFocused && searchInput.value.length >= 0) {
@@ -3714,12 +3837,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Block ALL key events from reaching game - document level capture
         ['keydown', 'keypress', 'keyup'].forEach(eventType => {
-          document.addEventListener(eventType, e => {
-            if (e.target === searchInput || document.activeElement === searchInput) {
-              e.stopPropagation();
-              e.stopImmediatePropagation();
-            }
-          }, true);
+          document.addEventListener(
+            eventType,
+            e => {
+              if (e.target === searchInput || document.activeElement === searchInput) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+              }
+            },
+            true
+          );
         });
 
         searchInput.addEventListener('input', e => {
@@ -3731,7 +3858,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           if (!query) {
             // Show all rooms without rebuilding
             const allRooms = document.querySelectorAll('.room-status-item');
-            allRooms.forEach(room => room.style.display = 'flex');
+            allRooms.forEach(room => (room.style.display = 'flex'));
 
             // Hide search result div if it exists
             const searchResult = document.getElementById('room-search-result');
@@ -3792,7 +3919,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Hide all tracked rooms
             const roomItems = document.querySelectorAll('.room-status-item');
-            roomItems.forEach(item => item.style.display = 'none');
+            roomItems.forEach(item => (item.style.display = 'none'));
           }
         });
       }
@@ -3823,11 +3950,72 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           UnifiedState.data.customRooms.push(roomCode);
           MGA_saveJSON('MGA_data', UnifiedState.data);
 
+          console.log('[FIX_ROOMS] Added to polling:', roomCode, 'Total rooms:', UnifiedState.data.customRooms.length);
+
           // Clear input
           addRoomInput.value = '';
 
-          // Refresh display
-          updateRoomStatusDisplay();
+          // Immediately fetch room info instead of waiting for next poll
+          (async () => {
+            try {
+              const apiBase = window.getGameApiBaseUrl ? window.getGameApiBaseUrl() : location.origin;
+              const url = `${apiBase}/api/rooms/${encodeURIComponent(roomCode)}/info`;
+
+              if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+                console.log('[FIX_ROOMS] Immediately fetching room info:', url);
+              }
+
+              const response = await fetch(url);
+              if (response.ok) {
+                const data = await response.json();
+
+                if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+                  console.log('[FIX_ROOMS] Got immediate room data:', data);
+                }
+
+                // Extract player count and store it in UnifiedState
+                if (data && typeof data.numPlayers === 'number') {
+                  if (!UnifiedState.data.roomStatus) {
+                    UnifiedState.data.roomStatus = { counts: {}, lastUpdate: {} };
+                  }
+                  if (!UnifiedState.data.roomStatus.counts) {
+                    UnifiedState.data.roomStatus.counts = {};
+                  }
+
+                  UnifiedState.data.roomStatus.counts[roomCode] = Math.max(0, Math.min(6, data.numPlayers));
+                  UnifiedState.data.roomStatus.lastUpdate[roomCode] = Date.now();
+
+                  // ADDED: Save to persistent storage
+                  MGA_saveJSON('MGA_roomStatus', UnifiedState.data.roomStatus);
+
+                  if (UnifiedState.data.settings?.debugMode || UnifiedState.data.settings?.roomDebugMode) {
+                    console.log(
+                      '[FIX_ROOMS] Stored player count for',
+                      roomCode,
+                      ':',
+                      UnifiedState.data.roomStatus.counts[roomCode]
+                    );
+                    console.log('[FIX_ROOMS] Saved roomStatus to storage');
+                  }
+                }
+
+                // Update display with fresh data
+                updateRoomStatusDisplay();
+              } else {
+                if (UnifiedState.data.settings?.debugMode || UnifiedState.data.settings?.roomDebugMode) {
+                  console.warn('[FIX_ROOMS] Failed to fetch room info:', response.status);
+                }
+                // Still refresh display to show the room was added (will show 0/6 initially)
+                updateRoomStatusDisplay();
+              }
+            } catch (error) {
+              if (UnifiedState.data.settings?.debugMode || UnifiedState.data.settings?.roomDebugMode) {
+                console.error('[FIX_ROOMS] Error fetching room info:', error);
+              }
+              // Still refresh display
+              updateRoomStatusDisplay();
+            }
+          })();
 
           productionLog(`[Rooms] Added custom room: ${roomCode}`);
         };
@@ -3869,6 +4057,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Remove from custom rooms
           UnifiedState.data.customRooms = UnifiedState.data.customRooms.filter(code => code !== roomCode);
           MGA_saveJSON('MGA_data', UnifiedState.data);
+
+          if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+            console.log(
+              '[FIX_ROOMS] Removed from polling:',
+              roomCode,
+              'Remaining rooms:',
+              UnifiedState.data.customRooms.length
+            );
+          }
 
           // Refresh display
           updateRoomStatusDisplay();
@@ -4053,8 +4250,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // CRITICAL BUGFIX: Don't overwrite if we already have better data from atom hook
       // The atom gives us FULL pet data with hunger, abilities, etc.
       // Room state only gives us petSpecies and slot - incomplete data!
-      if (window.activePets && window.activePets.length > 0 &&
-              window.activePets[0] && window.activePets[0].hunger !== undefined) {
+      if (
+        window.activePets &&
+        window.activePets.length > 0 &&
+        window.activePets[0] &&
+        window.activePets[0].hunger !== undefined
+      ) {
         // We have full atom data with hunger - preserve it!
         productionLog('🐾 [SIMPLE-PETS] Preserving existing full pet data from atom (has hunger)');
 
@@ -4149,7 +4350,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         gameReady: false,
         url: targetWindow.location.href,
         hasJotaiAtoms: !!((targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache)?.size > 0),
-        hasMagicCircleConnection: !!(targetWindow.MagicCircle_RoomConnection && typeof targetWindow.MagicCircle_RoomConnection === 'object'),
+        hasMagicCircleConnection: !!(
+          targetWindow.MagicCircle_RoomConnection && typeof targetWindow.MagicCircle_RoomConnection === 'object'
+        ),
         domain: targetWindow.location.hostname,
         readyState: document.readyState
       };
@@ -4190,7 +4393,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         productionLog('🎮 [ENV] IsIframe:', isInIframe, '| DiscordNative:', isDiscordDesktopApp);
         environment.isGameEnvironment = true;
         environment.isStandalone = false;
-        environment.gameReady = environment.hasJotaiAtoms && environment.hasMagicCircleConnection && document.readyState === 'complete';
+        environment.gameReady =
+          environment.hasJotaiAtoms && environment.hasMagicCircleConnection && document.readyState === 'complete';
 
         // Determine initialization strategy
         let initStrategy = 'unknown';
@@ -4228,7 +4432,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         if (foundGameIframe) {
-          productionLog('⚠️ [DISCORD] On Discord page - script will only run inside the game iframe, not on Discord page itself');
+          productionLog(
+            '⚠️ [DISCORD] On Discord page - script will only run inside the game iframe, not on Discord page itself'
+          );
         } else {
           productionLog('⚠️ [DISCORD] On Discord page but no game iframe found yet');
         }
@@ -4256,19 +4462,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       environment.initStrategy = initStrategy;
 
-
       // ==================== PLATFORM & DEVICE DETECTION ====================
       window.MGA_Platform = {
         // Platform detection
-        isDiscord: /discord|overlay|electron/i.test(navigator.userAgent) ||
-                       !!(window.DiscordNative || window.__discordApp),
+        isDiscord:
+          /discord|overlay|electron/i.test(navigator.userAgent) || !!(window.DiscordNative || window.__discordApp),
 
-        isMobile: /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-                      window.matchMedia?.('(max-width: 768px)').matches,
+        isMobile:
+          /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+          window.matchMedia?.('(max-width: 768px)').matches,
 
         isIframe: window !== window.top,
 
-        isTouch: ('ontouchstart' in window) || (navigator.maxTouchPoints > 0),
+        isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
 
         // Get current layout mode
         getLayout() {
@@ -4320,8 +4526,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
           // Re-check mobile status (window size may have changed)
-          MGA_Platform.isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-                                        window.matchMedia?.('(max-width: 768px)').matches;
+          MGA_Platform.isMobile =
+            /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+            window.matchMedia?.('(max-width: 768px)').matches;
           MGA_Platform.applyResponsiveStyles();
         }, 250);
       });
@@ -4368,11 +4575,36 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         ],
         totalValue: 295875,
         abilityLogs: [
-          { timestamp: Date.now() - 300000, pet: 'Dragon', ability: 'Growth Speed', description: 'Reduced growth time by 15%' },
-          { timestamp: Date.now() - 240000, pet: 'Bunny', ability: 'Harvesting', description: 'Extra harvest yield +2 items' },
-          { timestamp: Date.now() - 180000, pet: 'Phoenix', ability: 'Selling', description: 'Increased selling price by 8%' },
-          { timestamp: Date.now() - 120000, pet: 'Unicorn', ability: 'Growth Speed', description: 'Reduced growth time by 12%' },
-          { timestamp: Date.now() - 60000, pet: 'Dragon', ability: 'Special Mutations', description: 'Triggered rare mutation chance' }
+          {
+            timestamp: Date.now() - 300000,
+            pet: 'Dragon',
+            ability: 'Growth Speed',
+            description: 'Reduced growth time by 15%'
+          },
+          {
+            timestamp: Date.now() - 240000,
+            pet: 'Bunny',
+            ability: 'Harvesting',
+            description: 'Extra harvest yield +2 items'
+          },
+          {
+            timestamp: Date.now() - 180000,
+            pet: 'Phoenix',
+            ability: 'Selling',
+            description: 'Increased selling price by 8%'
+          },
+          {
+            timestamp: Date.now() - 120000,
+            pet: 'Unicorn',
+            ability: 'Growth Speed',
+            description: 'Reduced growth time by 12%'
+          },
+          {
+            timestamp: Date.now() - 60000,
+            pet: 'Dragon',
+            ability: 'Special Mutations',
+            description: 'Triggered rare mutation chance'
+          }
         ]
       };
 
@@ -4392,22 +4624,31 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Enforce MGA_ namespace
       if (keyLocal && !String(keyLocal).startsWith('MGA_')) {
         console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to load with non-MGA key: ${keyLocal}`);
-        try { console.trace(); } catch (_){}
+        try {
+          console.trace();
+        } catch (_) {}
         keyLocal = 'MGA_' + keyLocal;
       }
       try {
-        const gmAvailable = (typeof GM_getValue === 'function') && (typeof GM_setValue === 'function');
+        const gmAvailable = typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
 
         // Collect ALL accessible localStorage contexts
-        const lsMain = (typeof window !== 'undefined' && window && window.localStorage) ? window.localStorage : null;
-        const lsTarg = (typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage) ? targetWindow.localStorage : null;
+        const lsMain = typeof window !== 'undefined' && window && window.localStorage ? window.localStorage : null;
+        const lsTarg =
+          typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage
+            ? targetWindow.localStorage
+            : null;
 
         const readLS = (ls, k) => {
           if (!ls) return null;
-          try { return ls.getItem(k); } catch (e) { return null; }
+          try {
+            return ls.getItem(k);
+          } catch (e) {
+            return null;
+          }
         };
 
-        const toStr = val => (val == null ? null : (typeof val === 'string' ? val : JSON.stringify(val)));
+        const toStr = val => (val == null ? null : typeof val === 'string' ? val : JSON.stringify(val));
         const tryParseDeep = val => {
           if (val == null) return null;
           if (typeof val === 'string') {
@@ -4416,10 +4657,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             try {
               let first = JSON.parse(s);
               if (typeof first === 'string') {
-                try { first = JSON.parse(first); } catch (e) { /* keep as string */ }
+                try {
+                  first = JSON.parse(first);
+                } catch (e) {
+                  /* keep as string */
+                }
               }
               return first;
-            } catch (e) { return null; }
+            } catch (e) {
+              return null;
+            }
           }
           if (typeof val === 'object') return val;
           return null;
@@ -4439,13 +4686,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Read raw values
         let gmRaw = null;
-        try { gmRaw = gmAvailable ? GM_getValue(keyLocal, null) : null; } catch (e) {}
+        try {
+          gmRaw = gmAvailable ? GM_getValue(keyLocal, null) : null;
+        } catch (e) {}
 
         const mainRaw = readLS(lsMain, keyLocal);
         const targRaw = readLS(lsTarg, keyLocal);
 
         // Parse candidates
-        const gmParsed = (typeof gmRaw === 'string' ? tryParseDeep(gmRaw) : tryParseDeep(toStr(gmRaw)));
+        const gmParsed = typeof gmRaw === 'string' ? tryParseDeep(gmRaw) : tryParseDeep(toStr(gmRaw));
         const mainParsed = tryParseDeep(mainRaw) || tryParseDeep(toStr(mainRaw));
         const targParsed = tryParseDeep(targRaw) || tryParseDeep(toStr(targRaw));
 
@@ -4480,10 +4729,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         // Nothing usable, honor fallback
-        return (typeof fallback === 'undefined') ? null : fallback;
+        return typeof fallback === 'undefined' ? null : fallback;
       } catch (err) {
         console.error('[MGA_loadJSON] Unexpected failure for key', keyLocal, err);
-        return (typeof fallback === 'undefined') ? null : fallback;
+        return typeof fallback === 'undefined' ? null : fallback;
       }
     }
 
@@ -4507,24 +4756,44 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           'MGA_hotkeys'
         ];
 
-        const gmAvailable = (typeof GM_getValue === 'function') && (typeof GM_setValue === 'function');
+        const gmAvailable = typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
 
-        const lsMain = (typeof window !== 'undefined' && window && window.localStorage) ? window.localStorage : null;
-        const lsTarg = (typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage) ? targetWindow.localStorage : null;
+        const lsMain = typeof window !== 'undefined' && window && window.localStorage ? window.localStorage : null;
+        const lsTarg =
+          typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage
+            ? targetWindow.localStorage
+            : null;
 
-        const readLS = (ls, k) => { if (!ls) return null; try { return ls.getItem(k); } catch (e) { return null; } };
-        const writeLS = (ls, k, v) => { try { if (ls) ls.setItem(k, v); } catch (e) {} };
+        const readLS = (ls, k) => {
+          if (!ls) return null;
+          try {
+            return ls.getItem(k);
+          } catch (e) {
+            return null;
+          }
+        };
+        const writeLS = (ls, k, v) => {
+          try {
+            if (ls) ls.setItem(k, v);
+          } catch (e) {}
+        };
 
-        const toStr = val => (val == null ? null : (typeof val === 'string' ? val : JSON.stringify(val)));
+        const toStr = val => (val == null ? null : typeof val === 'string' ? val : JSON.stringify(val));
         const tryParse = s => {
           if (s == null) return null;
           try {
             const first = JSON.parse(s);
             if (typeof first === 'string') {
-              try { return JSON.parse(first); } catch (e) { return first; }
+              try {
+                return JSON.parse(first);
+              } catch (e) {
+                return first;
+              }
             }
             return first;
-          } catch (e) { return null; }
+          } catch (e) {
+            return null;
+          }
         };
         const score = obj => {
           if (!obj) return -1;
@@ -4557,7 +4826,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             if (best && (typeof best === 'object' || Array.isArray(best))) {
               const stable = JSON.stringify(best);
-              try { if (gmAvailable) GM_setValue(key, stable); } catch (e) {}
+              try {
+                if (gmAvailable) GM_setValue(key, stable);
+              } catch (e) {}
               writeLS(lsMain, key, stable);
               writeLS(lsTarg, key, stable);
               productionLog(`[STORAGE-SYNC] ${key}: canonicalized across GM/WIN/TGT`);
@@ -4571,24 +4842,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
     }
 
-
-
     function MGA_saveJSON(key, value, retryCount = 0) {
       let keyLocal = key;
       let valueLocal = value;
       // Dedupe guard for ability logs (same pet, ability, timestamp)
       try {
-        if (keyLocal === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)){
-          const fp = l=>{
-            const t = (l && l.abilityType) || '', p = (l && l.petName) || '', ts = (l && l.timestamp) || 0;
+        if (keyLocal === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)) {
+          const fp = l => {
+            const t = (l && l.abilityType) || '',
+              p = (l && l.petName) || '',
+              ts = (l && l.timestamp) || 0;
             return t + '|' + p + '|' + String(ts);
           };
           const map = new Map();
-          for (const l of valueLocal){
+          for (const l of valueLocal) {
             const id = l.id || fp(l);
             if (!map.has(id)) map.set(id, Object.assign({ id }, l));
           }
-          valueLocal = Array.from(map.values()).sort((a,b)=> (b.timestamp || 0) - (a.timestamp || 0));
+          valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         }
       } catch {}
 
@@ -4626,7 +4897,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Enhanced logging for critical operations
         if (keyLocal === 'MGA_petPresets' || keyLocal === 'MGA_seedsToDelete') {
-          productionLog(`[GM-STORAGE] Attempting to save critical data: ${keyLocal} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+          productionLog(
+            `[GM-STORAGE] Attempting to save critical data: ${keyLocal} (attempt ${retryCount + 1}/${MAX_RETRIES})`
+          );
           productionLog(`[GM-STORAGE] Data type:`, typeof valueLocal);
           productionLog(`[GM-STORAGE] Data content:`, valueLocal);
         }
@@ -4698,7 +4971,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         return true;
-
       } catch (error) {
         console.error(`❌ [GM-STORAGE] Failed to save ${keyLocal}:`, error);
         console.error(`❌ [GM-STORAGE] Error details:`, {
@@ -4745,14 +5017,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let valueLocal = value;
       // Dedupe for ability logs in fallback path too
       try {
-        if (key === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)){
-          const fp = l=>{
-            const t = (l && l.abilityType) || '', p = (l && l.petName) || '', ts = (l && l.timestamp) || 0;
+        if (key === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)) {
+          const fp = l => {
+            const t = (l && l.abilityType) || '',
+              p = (l && l.petName) || '',
+              ts = (l && l.timestamp) || 0;
             return t + '|' + p + '|' + String(ts);
           };
           const map = new Map();
-          for (const l of valueLocal){ const id = l.id || fp(l); if (!map.has(id)) map.set(id, Object.assign({ id }, l)); }
-          valueLocal = Array.from(map.values()).sort((a,b)=> (b.timestamp || 0) - (a.timestamp || 0));
+          for (const l of valueLocal) {
+            const id = l.id || fp(l);
+            if (!map.has(id)) map.set(id, Object.assign({ id }, l));
+          }
+          valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         }
       } catch {}
 
@@ -4771,9 +5048,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       } catch (error) {
         // Check if it's a quota exceeded error
-        const isQuotaError = error.name === 'QuotaExceededError' ||
-                             error.message.includes('quota') ||
-                             error.message.includes('exceeded');
+        const isQuotaError =
+          error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('exceeded');
 
         if (isQuotaError) {
           console.error(`[FALLBACK] localStorage quota exceeded for ${key}!`);
@@ -4782,7 +5058,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Alert user for critical data
           if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete' || key === 'MGA_data') {
-            alert(`⚠️ localStorage quota exceeded!\n\nYour ${key.replace('MGA_', '')} cannot be saved.\n\nFix:\n1. Open DevTools (F12)\n2. Go to Application tab\n3. Click "Clear site data"\n4. Reload the page`);
+            alert(
+              `⚠️ localStorage quota exceeded!\n\nYour ${key.replace('MGA_', '')} cannot be saved.\n\nFix:\n1. Open DevTools (F12)\n2. Go to Application tab\n3. Click "Clear site data"\n4. Reload the page`
+            );
           }
         } else {
           console.error(`[FALLBACK] localStorage save failed for ${key}:`, error);
@@ -4858,7 +5136,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Check targetWindow.localStorage (if different from window)
       try {
-        if (typeof targetWindow !== 'undefined' && targetWindow && targetWindow !== window && targetWindow.localStorage) {
+        if (
+          typeof targetWindow !== 'undefined' &&
+          targetWindow &&
+          targetWindow !== window &&
+          targetWindow.localStorage
+        ) {
           const tgValue = targetWindow.localStorage.getItem(key);
           if (tgValue) {
             try {
@@ -4925,7 +5208,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         productionLog(`✅ [EXPORT] Successfully exported ${presetCount} pet presets`);
         alert(`✅ Exported ${presetCount} pet presets!\n\nFile saved to Downloads folder.`);
-
       } catch (error) {
         console.error('❌ [EXPORT] Failed to export presets:', error);
         alert(`❌ Export failed!\n\nError: ${error.message}`);
@@ -4961,10 +5243,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             // Ask for confirmation
             const confirmed = confirm(
               `📥 Import ${importCount} presets?\n\n` +
-              `Current presets: ${currentCount}\n` +
-              `Import date: ${importData.exportDate || 'Unknown'}\n` +
-              `Version: ${importData.version || 'Unknown'}\n\n` +
-              `⚠️ This will OVERWRITE your current presets!`
+                `Current presets: ${currentCount}\n` +
+                `Import date: ${importData.exportDate || 'Unknown'}\n` +
+                `Version: ${importData.version || 'Unknown'}\n\n` +
+                `⚠️ This will OVERWRITE your current presets!`
             );
 
             if (!confirmed) {
@@ -4985,15 +5267,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Reload to refresh UI
             setTimeout(() => window.location.reload(), 1000);
-
           } catch (error) {
             console.error('❌ [IMPORT] Failed to import presets:', error);
-            alert(`❌ Import failed!\n\nError: ${error.message}\n\nMake sure you're importing a valid MGTools preset file.`);
+            alert(
+              `❌ Import failed!\n\nError: ${error.message}\n\nMake sure you're importing a valid MGTools preset file.`
+            );
           }
         };
 
         input.click();
-
       } catch (error) {
         console.error('❌ [IMPORT] Failed to create import dialog:', error);
         alert(`❌ Import failed!\n\nError: ${error.message}`);
@@ -5076,7 +5358,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Estimate quota usage (if available)
           if ('storage' in navigator && 'estimate' in navigator.storage) {
             navigator.storage.estimate().then(estimate => {
-              const percentUsed = (estimate.usage / estimate.quota * 100).toFixed(2);
+              const percentUsed = ((estimate.usage / estimate.quota) * 100).toFixed(2);
               report.quotaCheck = {
                 used: estimate.usage,
                 quota: estimate.quota,
@@ -5125,30 +5407,44 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // List of all known ability types for validation
     const KNOWN_ABILITY_TYPES = [
       // XP Boosts
-      'XP Boost I', 'XP Boost II', 'XP Boost III',
-      'Hatch XP Boost I', 'Hatch XP Boost II',
+      'XP Boost I',
+      'XP Boost II',
+      'XP Boost III',
+      'Hatch XP Boost I',
+      'Hatch XP Boost II',
 
       // Crop Size Boosts
-      'Crop Size Boost I', 'Crop Size Boost II',
+      'Crop Size Boost I',
+      'Crop Size Boost II',
 
       // Selling
-      'Sell Boost I', 'Sell Boost II', 'Sell Boost III',
-      'Coin Finder I', 'Coin Finder II',
+      'Sell Boost I',
+      'Sell Boost II',
+      'Sell Boost III',
+      'Coin Finder I',
+      'Coin Finder II',
 
       // Harvesting
-      'Harvesting', 'Auto Harvest',
+      'Harvesting',
+      'Auto Harvest',
 
       // Growth Speed
-      'Plant Growth Boost I', 'Plant Growth Boost II', 'Plant Growth Boost III',
-      'Egg Growth Boost I', 'Egg Growth Boost II',
+      'Plant Growth Boost I',
+      'Plant Growth Boost II',
+      'Plant Growth Boost III',
+      'Egg Growth Boost I',
+      'Egg Growth Boost II',
 
       // Seeds
-      'Seed Finder I', 'Seed Finder II',
+      'Seed Finder I',
+      'Seed Finder II',
       'Special Mutations',
 
       // Other
-      'Hunger Boost I', 'Hunger Boost II',
-      'Max Strength Boost I', 'Max Strength Boost II'
+      'Hunger Boost I',
+      'Hunger Boost II',
+      'Max Strength Boost I',
+      'Max Strength Boost II'
     ];
 
     function isKnownAbilityType(abilityType) {
@@ -5311,7 +5607,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       report.summary = {
         totalLocationsWithLogs: Object.values(totals).filter(c => c > 0).length,
         totals,
-        suspectSources: Object.entries(totals).filter(([k, v]) => v > 0).map(([k]) => k)
+        suspectSources: Object.entries(totals)
+          .filter(([k, v]) => v > 0)
+          .map(([k]) => k)
       };
 
       // Output report
@@ -5353,7 +5651,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (logs && logs.length > 0) {
           console.log(`\n${title}:`);
           logs.forEach((log, i) => {
-            const prefix = log.isMalformed ? '⚠️ MALFORMED' : (log.isKnown ? '✅' : '❓ UNKNOWN');
+            const prefix = log.isMalformed ? '⚠️ MALFORMED' : log.isKnown ? '✅' : '❓ UNKNOWN';
             console.log(`  ${i + 1}. ${prefix} [${log.fingerprint}]`);
             console.log(`     ${log.ability} - ${log.pet}`);
             if (log.isMalformed) {
@@ -5509,7 +5807,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         migrateKeys();
 
         return { success: true, migratedCount, totalDataSize };
-
       } catch (error) {
         console.error(`❌ [MIGRATION] Migration process failed:`, error);
         return { success: false, error: error.message };
@@ -5538,27 +5835,31 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Export startIntervals for debugging and emergency use
     targetWindow.startIntervals = startIntervals;
 
-    // Forward declaration (initialized later in pet hunger monitoring section)
-    let lastPetHungerStates;
+    // Pet hunger state tracking
+    const lastPetHungerStates = {};
 
     // ==================== COMPREHENSIVE DEBUG COLLECTION ====================
-    targetWindow.collectMGADebug = function() {
+    targetWindow.collectMGADebug = function () {
       productionLog('🔍 Starting comprehensive MGA debug collection...');
 
       const debugData = {
         timestamp: new Date().toISOString(),
-        version: typeof GM_info !== 'undefined' ? (GM_info?.script?.version || 'Unknown') : 'Unknown',
+        version: typeof GM_info !== 'undefined' ? GM_info?.script?.version || 'Unknown' : 'Unknown',
         userAgent: navigator.userAgent,
 
         // Script State
         scriptState: {
-          mainScriptDetected: (typeof MGAIsolationSystem !== 'undefined' ? MGAIsolationSystem?.mainScriptDetected : false) || false,
-          protectedGlobals: (typeof MGAIsolationSystem !== 'undefined' ? MGAIsolationSystem?.protectedGlobals : []) || [],
+          mainScriptDetected:
+            (typeof MGAIsolationSystem !== 'undefined' ? MGAIsolationSystem?.mainScriptDetected : false) || false,
+          protectedGlobals:
+            (typeof MGAIsolationSystem !== 'undefined' ? MGAIsolationSystem?.protectedGlobals : []) || [],
           globalFunctions: {
             hasLoadJSON: typeof targetWindow.loadJSON !== 'undefined',
             hasSaveJSON: typeof targetWindow.saveJSON !== 'undefined',
-            loadJSONOwner: (typeof targetWindow.loadJSON !== 'undefined' && targetWindow.loadJSON === MGA_loadJSON) ? 'MGA' : 'Other',
-            saveJSONOwner: (typeof targetWindow.saveJSON !== 'undefined' && targetWindow.saveJSON === MGA_saveJSON) ? 'MGA' : 'Other'
+            loadJSONOwner:
+              typeof targetWindow.loadJSON !== 'undefined' && targetWindow.loadJSON === MGA_loadJSON ? 'MGA' : 'Other',
+            saveJSONOwner:
+              typeof targetWindow.saveJSON !== 'undefined' && targetWindow.saveJSON === MGA_saveJSON ? 'MGA' : 'Other'
           }
         },
 
@@ -5566,18 +5867,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         petHungerSystem: {
           enabled: UnifiedState?.data?.settings?.notifications?.petHungerEnabled || false,
           threshold: UnifiedState?.data?.settings?.notifications?.petHungerThreshold || 25,
-          activePets: UnifiedState?.atoms?.activePets?.map(pet => ({
-            id: pet?.id,
-            species: pet?.petSpecies,
-            hunger: pet?.hunger,
-            health: pet?.health,
-            slot: pet?.slot
-          })) || [],
+          activePets:
+            UnifiedState?.atoms?.activePets?.map(pet => ({
+              id: pet?.id,
+              species: pet?.petSpecies,
+              hunger: pet?.hunger,
+              health: pet?.health,
+              slot: pet?.slot
+            })) || [],
           // eslint-disable-next-line no-use-before-define
-          lastStates: (typeof lastPetHungerStates !== 'undefined') ? Object.keys(lastPetHungerStates || {}).map(id => ({
-            petId: id,
-            lastHunger: lastPetHungerStates[id]
-          })) : []
+          lastStates:
+            typeof lastPetHungerStates !== 'undefined'
+              ? Object.keys(lastPetHungerStates || {}).map(id => ({
+                  petId: id,
+                  lastHunger: lastPetHungerStates[id]
+                }))
+              : []
         },
 
         // Shop System
@@ -5601,33 +5906,38 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           watchedEvents: UnifiedState?.data?.settings?.notifications?.watchedWeatherEvents || [],
           currentWeather: targetWindow.roomState?.child?.data?.weather || targetWindow.roomState?.weather || 'Unknown',
           // eslint-disable-next-line no-use-before-define
-          lastWeatherState: (typeof lastWeatherState !== 'undefined') ? lastWeatherState : null
+          lastWeatherState: typeof lastWeatherState !== 'undefined' ? lastWeatherState : null
         },
 
         // Performance Metrics
         performance: {
-          memoryUsage: performance?.memory ? {
-            usedJSHeapSize: (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB',
-            totalJSHeapSize: (performance.memory.totalJSHeapSize / 1048576).toFixed(2) + ' MB',
-            jsHeapSizeLimit: (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2) + ' MB'
-          } : 'Not available',
+          memoryUsage: performance?.memory
+            ? {
+                usedJSHeapSize: (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB',
+                totalJSHeapSize: (performance.memory.totalJSHeapSize / 1048576).toFixed(2) + ' MB',
+                jsHeapSizeLimit: (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2) + ' MB'
+              }
+            : 'Not available',
           intervals: {
-            notificationInterval: (typeof notificationInterval !== 'undefined') ? 'Active' : 'Inactive',
+            notificationInterval: typeof notificationInterval !== 'undefined' ? 'Active' : 'Inactive',
             firebaseInterval: UnifiedState?.firebase?.reportInterval ? 'Active' : 'Inactive',
-            timerManagerActive: (typeof timerManager !== 'undefined') ? (timerManager?.isRunning || false) : false,
-            activeTimers: (typeof timerManager !== 'undefined') ? (timerManager?.activeTimers?.size || 0) : 0
+            timerManagerActive: typeof timerManager !== 'undefined' ? timerManager?.isRunning || false : false,
+            activeTimers: typeof timerManager !== 'undefined' ? timerManager?.activeTimers?.size || 0 : 0
           }
         },
 
         // Storage Status
         storageStatus: {
-          gmApiAvailable: (typeof isGMApiAvailable !== 'undefined') ? isGMApiAvailable() : false,
-          migrationStatus: (typeof MGA_getMigrationStatus !== 'undefined') ? MGA_getMigrationStatus() : 'N/A',
-          storedData: (typeof GM_getValue !== 'undefined') ? {
-            petPresets: GM_getValue('MGA_petPresets') ? 'Present' : 'Missing',
-            seedsToDelete: GM_getValue('MGA_seedsToDelete') ? 'Present' : 'Missing',
-            settings: GM_getValue('MGA_data') ? 'Present' : 'Missing'
-          } : 'GM API not available'
+          gmApiAvailable: typeof isGMApiAvailable !== 'undefined' ? isGMApiAvailable() : false,
+          migrationStatus: typeof MGA_getMigrationStatus !== 'undefined' ? MGA_getMigrationStatus() : 'N/A',
+          storedData:
+            typeof GM_getValue !== 'undefined'
+              ? {
+                  petPresets: GM_getValue('MGA_petPresets') ? 'Present' : 'Missing',
+                  seedsToDelete: GM_getValue('MGA_seedsToDelete') ? 'Present' : 'Missing',
+                  settings: GM_getValue('MGA_data') ? 'Present' : 'Missing'
+                }
+              : 'GM API not available'
         },
 
         // AutoFeed Protection
@@ -5635,7 +5945,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           autoFeedEnabled: targetWindow.autoFeedEnabled,
           autoFeedState: targetWindow.autoFeedState,
           autoFeedSkipFavorited: targetWindow.autoFeedSkipFavorited,
-          protection: (typeof MGAIsolationSystem !== 'undefined') ? (MGAIsolationSystem?.isAutofeedProtected || false) : false
+          protection:
+            typeof MGAIsolationSystem !== 'undefined' ? MGAIsolationSystem?.isAutofeedProtected || false : false
         },
 
         // Errors and Warnings
@@ -5667,7 +5978,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         lastFrameTime = currentTime;
         frameCount++;
 
-        if (frameCount < 600) { // Run for ~10 seconds at 60fps
+        if (frameCount < 600) {
+          // Run for ~10 seconds at 60fps
           requestAnimationFrame(measureFPS);
         } else {
           finishDebugCollection();
@@ -5820,7 +6132,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         productionLog('✅ [MEMORY] MGA cleanup completed successfully');
-
       } catch (error) {
         console.error('❌ [MEMORY] MGA cleanup failed:', error);
       }
@@ -5883,7 +6194,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return logs; // No management needed
       }
 
-      productionLog(`🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`);
+      productionLog(
+        `🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`
+      );
 
       // Keep the most recent logs in memory
       const recentLogs = logs.slice(0, MGA_MemoryConfig.maxLogsInMemory);
@@ -5898,14 +6211,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         productionLog(`📦 [MEMORY] Archived ${archivedLogs.length} logs to storage`);
       }
 
-      return (typeof wrapLogsArray === 'function') ? wrapLogsArray(recentLogs) : recentLogs;
+      return typeof wrapLogsArray === 'function' ? wrapLogsArray(recentLogs) : recentLogs;
     }
 
     // DOM element pooling for performance
     const MGA_DOMPool = {
       pools: new Map(),
 
-      getElement: function(tagName, className = '') {
+      getElement: function (tagName, className = '') {
         const key = `${tagName}:${className}`;
         if (!this.pools.has(key)) {
           this.pools.set(key, []);
@@ -5927,7 +6240,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return element;
       },
 
-      returnElement: function(element) {
+      returnElement: function (element) {
         if (!element || !element.tagName) return;
 
         const key = `${element.tagName.toLowerCase()}:${element.className || ''}`;
@@ -5947,7 +6260,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       },
 
-      cleanup: function() {
+      cleanup: function () {
         productionLog('🧹 [MEMORY] Cleaning DOM element pools');
         this.pools.clear();
       }
@@ -5970,7 +6283,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const allLogs = [...memoryLogs, ...archivedLogs];
       allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-      productionLog(`📜 [MEMORY] Retrieved ${memoryLogs.length} memory logs + ${archivedLogs.length} archived logs = ${allLogs.length} total`);
+      productionLog(
+        `📜 [MEMORY] Retrieved ${memoryLogs.length} memory logs + ${archivedLogs.length} archived logs = ${allLogs.length} total`
+      );
       return allLogs;
     }
 
@@ -6039,7 +6354,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       protectedGlobals: ['autoFeedEnabled', 'autoFeedState', 'autoFeedSkipFavorited', 'petAbilityLogs'],
 
       // Ensure MGA never accesses MainScript globals
-      preventAccess: function() {
+      preventAccess: function () {
         if (!this.mainScriptDetected) return;
 
         // Create safe accessors that prevent MGA from accidentally touching MainScript variables
@@ -6049,7 +6364,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Define a read-only accessor for debugging
             Object.defineProperty(window, `MGA_SAFE_${globalVar}`, {
-              get: function() {
+              get: function () {
                 productionWarn(`⚠️ [MGA-ISOLATION] MGA attempted to access MainScript global: ${globalVar}`);
                 productionWarn(`⚠️ [MGA-ISOLATION] This access was blocked to prevent interference`);
                 console.trace();
@@ -6066,10 +6381,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         productionLog(`🔒 [MGA-ISOLATION] MGA will not interfere with autofeed functionality`);
       },
 
-      detectMainScript: function() {
+      detectMainScript: function () {
         const hasMainScriptFunctions = typeof window.loadJSON === 'function' || typeof window.saveJSON === 'function';
-        const hasMainScriptVars = typeof window.petAbilityLogs !== 'undefined' || typeof window.autoFeedEnabled !== 'undefined';
-        const hasVisibilityOverride = document.hidden === false && typeof Object.getOwnPropertyDescriptor === 'function';
+        const hasMainScriptVars =
+          typeof window.petAbilityLogs !== 'undefined' || typeof window.autoFeedEnabled !== 'undefined';
+        const hasVisibilityOverride =
+          document.hidden === false && typeof Object.getOwnPropertyDescriptor === 'function';
 
         this.mainScriptDetected = hasMainScriptFunctions || hasMainScriptVars || hasVisibilityOverride;
 
@@ -6084,7 +6401,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return this.mainScriptDetected;
       },
 
-      checkGlobalIntegrity: function() {
+      checkGlobalIntegrity: function () {
         if (!this.mainScriptDetected) return true;
 
         const violations = [];
@@ -6108,7 +6425,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return violations.length === 0;
       },
 
-      createIsolationBarrier: function() {
+      createIsolationBarrier: function () {
         if (!this.mainScriptDetected) return;
 
         // Light protection - just store original values for monitoring
@@ -6125,7 +6442,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               });
               productionLog(`🛡️ [MGA-ISOLATION] Stored original value for MainScript global: ${globalVar}`);
             } catch (protectionError) {
-              productionWarn(`⚠️ [MGA-ISOLATION] Could not store original value for ${globalVar}:`, protectionError.message);
+              productionWarn(
+                `⚠️ [MGA-ISOLATION] Could not store original value for ${globalVar}:`,
+                protectionError.message
+              );
             }
           }
         });
@@ -6142,7 +6462,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       },
 
       // New method to verify isolation integrity
-      validateIsolation: function() {
+      validateIsolation: function () {
         const violations = [];
 
         // Check that MGA never modified protected globals
@@ -6190,14 +6510,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // ==================== SAVE OPERATION WRAPPER ====================
     // Wrapper function to handle new MGA_saveJSON return format and provide user feedback
 
-    window.MGA_safeSave = function(key, value, options = {}) {
+    window.MGA_safeSave = function (key, value, options = {}) {
       let keyLocal = key;
-      const {
-        showUserAlert = true,
-        criticalData = false,
-        description = keyLocal,
-        silent = false
-      } = options;
+      const { showUserAlert = true, criticalData = false, description = keyLocal, silent = false } = options;
 
       // CRITICAL: Ensure we never use MainScript keys
       if (keyLocal && !keyLocal.startsWith('MGA_')) {
@@ -6233,7 +6548,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     };
 
     // Helper function for backward compatibility with legacy save calls
-    window.MGA_legacySave = function(key, value, description) {
+    window.MGA_legacySave = function (key, value, description) {
       const result = MGA_safeSave(key, value, {
         description: description || key,
         showUserAlert: true,
@@ -6243,7 +6558,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     };
 
     // Validation helper for critical data types
-    window.MGA_validateSaveData = function(key, value) {
+    window.MGA_validateSaveData = function (key, value) {
       if (key === 'MGA_petPresets') {
         if (!value || typeof value !== 'object') {
           return { valid: false, error: 'Pet presets must be an object' };
@@ -6273,7 +6588,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     };
 
     // Diagnostic function for localStorage issues
-    window.MGA_debugStorage = function() {
+    window.MGA_debugStorage = function () {
       productionLog('🔍 [MGA-STORAGE] localStorage Diagnostic Report');
       productionLog('=====================================');
 
@@ -6322,7 +6637,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } catch (e) {
           productionLog('  Storage test result: ❌ FAILED -', e.message);
         }
-
       } catch (error) {
         console.error('❌ [MGA-STORAGE] Diagnostic failed:', error);
       }
@@ -6370,7 +6684,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // --- Unified atom access helper (recommended) ---
-    function readAtom(atomName){
+    function readAtom(atomName) {
       const gw = (typeof unsafeWindow !== 'undefined' && unsafeWindow) || window;
       try {
         if (gw.MGTools?.store?.getAtomValue) return gw.MGTools.store.getAtomValue(atomName);
@@ -6380,23 +6694,32 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // --- Tiered readers for atoms with UnifiedState fallback ---
     const readMyPetSlots = () => {
-      try { return getAtomValue('myPetSlotInfosAtom'); } catch { /* atom unavailable */ }
+      try {
+        return getAtomValue('myPetSlotInfosAtom');
+      } catch {
+        /* atom unavailable */
+      }
       return UnifiedState?.atoms?.activePets ?? null;
     };
 
     const readMyInventory = () => {
-      try { return getAtomValue('myCropInventoryAtom'); } catch { /* atom unavailable */ }
+      try {
+        return getAtomValue('myCropInventoryAtom');
+      } catch {
+        /* atom unavailable */
+      }
       return UnifiedState?.atoms?.inventory ?? null;
     };
 
     // --- RoomConnection wiring ---
-    const RC = targetWindow.MagicCircle_RoomConnection
-      || window.RoomConnection?.instance
-      || targetWindow?.MagicCircle_RoomConnection
-      || null;
+    const RC =
+      targetWindow.MagicCircle_RoomConnection ||
+      window.RoomConnection?.instance ||
+      targetWindow?.MagicCircle_RoomConnection ||
+      null;
 
     // Install bulletproof WebSocket tap (doesn't rely on RC._socket)
-    (function installWsTap(){
+    (function installWsTap() {
       const WS = targetWindow.WebSocket || window.WebSocket;
       if (!WS || WS.prototype.__mgaTapInstalled) return;
       const origAdd = WS.prototype.addEventListener;
@@ -6405,15 +6728,25 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       function fanout(evt) {
         try {
           let d = evt.data;
-          try { d = JSON.parse(d); } catch {}
+          try {
+            d = JSON.parse(d);
+          } catch {}
           const arr = Array.isArray(d) ? d : [d];
-          for (const msg of arr) for (const fn of subs) { try { fn(msg); } catch {} }
+          for (const msg of arr)
+            for (const fn of subs) {
+              try {
+                fn(msg);
+              } catch {}
+            }
         } catch {}
       }
 
-      WS.prototype.addEventListener = function(type, listener, opts){
+      WS.prototype.addEventListener = function (type, listener, opts) {
         if (type === 'message') {
-          const wrapped = evt => { fanout(evt); return listener.call(this, evt); };
+          const wrapped = evt => {
+            fanout(evt);
+            return listener.call(this, evt);
+          };
           return origAdd.call(this, type, wrapped, opts);
         }
         return origAdd.call(this, type, listener, opts);
@@ -6421,45 +6754,65 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Also hook onmessage setter so we still see messages when code uses ws.onmessage =
       Object.defineProperty(WS.prototype, 'onmessage', {
-        set(fn){
+        set(fn) {
           this.__mgaOnMsg = fn;
-          this.addEventListener('message', evt=>fn.call(this, evt));
+          this.addEventListener('message', evt => fn.call(this, evt));
         },
-        get(){ return this.__mgaOnMsg || null; }
+        get() {
+          return this.__mgaOnMsg || null;
+        }
       });
 
-      targetWindow.__mgaSubscribeServer = fn => { subs.add(fn); return () => subs.delete(fn); };
-      window.__mgaSubscribeServer = fn => { subs.add(fn); return () => subs.delete(fn); };
+      targetWindow.__mgaSubscribeServer = fn => {
+        subs.add(fn);
+        return () => subs.delete(fn);
+      };
+      window.__mgaSubscribeServer = fn => {
+        subs.add(fn);
+        return () => subs.delete(fn);
+      };
       WS.prototype.__mgaTapInstalled = true;
-    }());
+    })();
 
     // Detect native feed button clicks to debug message format
     (function detectNativeFeed() {
-      const targetWin = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
+      const targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
       // Hook into React event system to catch native feed clicks
-      document.addEventListener('click', function(e) {
-        // Check if clicked element looks like a feed button
-        const elem = e.target;
-        if (elem && (elem.textContent?.includes('Feed') || elem.className?.includes('feed'))) {
-          console.log('[NATIVE-FEED] Possible native feed button clicked:', elem);
+      document.addEventListener(
+        'click',
+        function (e) {
+          // Check if clicked element looks like a feed button
+          const elem = e.target;
+          if (elem && (elem.textContent?.includes('Feed') || elem.className?.includes('feed'))) {
+            console.log('[NATIVE-FEED] Possible native feed button clicked:', elem);
 
-          // Set flag to capture next FeedPet message
-          targetWin.__captureNextFeedPet = true;
-          setTimeout(() => {
-            targetWin.__captureNextFeedPet = false;
-          }, 2000);
-        }
-      }, true);
+            // Set flag to capture next FeedPet message
+            targetWin.__captureNextFeedPet = true;
+            setTimeout(() => {
+              targetWin.__captureNextFeedPet = false;
+            }, 2000);
+          }
+        },
+        true
+      );
     })();
 
     // Wait for one matching server message using the bulletproof tap
     async function waitForServer(predicate, timeoutMs = 3500) {
       return new Promise((resolve, reject) => {
         const unsub = (window.__mgaSubscribeServer || targetWindow.__mgaSubscribeServer)(msg => {
-          try { if (predicate(msg)) { unsub(); resolve(msg); } } catch {}
+          try {
+            if (predicate(msg)) {
+              unsub();
+              resolve(msg);
+            }
+          } catch {}
         });
-        const to = setTimeout(()=>{ unsub(); reject(new Error('timeout')); }, timeoutMs);
+        const to = setTimeout(() => {
+          unsub();
+          reject(new Error('timeout'));
+        }, timeoutMs);
       });
     }
 
@@ -6495,7 +6848,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // Build-and-send FeedPet (simplified - uses new rcSend)
-    async function sendFeedPet(petItemId, cropItemId){
+    async function sendFeedPet(petItemId, cropItemId) {
       const payload = {
         type: 'FeedPet',
         petItemId: petItemId,
@@ -6515,42 +6868,44 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         peekNextMessages(10, 1500);
       }
 
-      const ack = await waitForServer(makePredicate({ type, payload })).catch(()=>null);
+      const ack = await waitForServer(makePredicate({ type, payload })).catch(() => null);
       return !!ack;
     }
 
     // Feed pet with server event verification (no atom polling)
     async function feedPetEnsureSync(petItemId, cropItemId, petIndex, enableDebugPeek = false) {
       // Predicate matching server events that confirm feed success
-      const makePredicate = ({ payload }) => msg => {
-        if (!msg || typeof msg !== 'object') return false;
+      const makePredicate =
+        ({ payload }) =>
+        msg => {
+          if (!msg || typeof msg !== 'object') return false;
 
-        // Option A: Explicit ack with matching petItemId
-        if (msg.type === 'FeedPetAck' && msg.ok && msg.petItemId === payload.petItemId) {
-          return true;
-        }
-
-        // Option B: Domain event (PetFed)
-        if (msg.type === 'PetFed' && msg.petItemId === payload.petItemId) {
-          return true;
-        }
-
-        // Option C: InventoryDelta removing the crop
-        if (msg.type === 'InventoryDelta' && msg.removed) {
-          if (Array.isArray(msg.removed)) {
-            return msg.removed.some(r => r.id === payload.cropItemId || r === payload.cropItemId);
+          // Option A: Explicit ack with matching petItemId
+          if (msg.type === 'FeedPetAck' && msg.ok && msg.petItemId === payload.petItemId) {
+            return true;
           }
-        }
 
-        // Fallback: Check if message JSON contains our IDs (less precise)
-        const msgStr = JSON.stringify(msg);
-        if (msgStr.includes(payload.petItemId) && msgStr.includes(payload.cropItemId)) {
-          console.log('[Feed-Verify] 🔍 Fallback match on IDs in:', msg.type || 'unknown');
-          return true;
-        }
+          // Option B: Domain event (PetFed)
+          if (msg.type === 'PetFed' && msg.petItemId === payload.petItemId) {
+            return true;
+          }
 
-        return false;
-      };
+          // Option C: InventoryDelta removing the crop
+          if (msg.type === 'InventoryDelta' && msg.removed) {
+            if (Array.isArray(msg.removed)) {
+              return msg.removed.some(r => r.id === payload.cropItemId || r === payload.cropItemId);
+            }
+          }
+
+          // Fallback: Check if message JSON contains our IDs (less precise)
+          const msgStr = JSON.stringify(msg);
+          if (msgStr.includes(payload.petItemId) && msgStr.includes(payload.cropItemId)) {
+            console.log('[Feed-Verify] 🔍 Fallback match on IDs in:', msg.type || 'unknown');
+            return true;
+          }
+
+          return false;
+        };
 
       const ok = await sendWithAck('FeedPet', { petItemId, cropItemId }, makePredicate, enableDebugPeek);
 
@@ -6564,7 +6919,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // One-off test snippet (keep behind a debug toggle or run in console)
-    async function __mga_testSingleFeed(){
+    async function __mga_testSingleFeed() {
       const pets = readAtom('myPetInfosAtom') || [];
       const pet = pets?.[0];
       const items = readAtom('myCropItemsAtom') || readAtom('myCropInventoryAtom') || [];
@@ -6620,7 +6975,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // DIAGNOSTIC: Check multiple possible locations for jotaiAtomCache
       if (retryCount === 0) {
-        console.log('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
+        console.log(
+          '  - targetWindow.jotaiAtomCache:',
+          typeof targetWindow.jotaiAtomCache,
+          targetWindow.jotaiAtomCache
+        );
         console.log('  - isUserscript:', isUserscript, '(using unsafeWindow:', isUserscript ? 'YES' : 'NO)');
         const jotaiKeys = Object.keys(targetWindow).filter(k => k.toLowerCase().includes('jotai'));
         console.log('  - Keys with "jotai" on targetWindow:', jotaiKeys);
@@ -6643,7 +7002,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
       if (!atomCache || !atomCache.get) {
         if (retryCount >= maxRetries) {
-          console.error(`❌ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries (${maxRetries / 2}s)`);
+          console.error(
+            `❌ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries (${maxRetries / 2}s)`
+          );
           console.error(`❌ [ATOM-HOOK] Final check - targetWindow.jotaiAtomCache:`, targetWindow.jotaiAtomCache);
           console.error(`❌ [ATOM-HOOK] Using unsafeWindow:`, isUserscript);
           console.error(`❌ [ATOM-HOOK] Script will continue with reduced functionality`);
@@ -6681,7 +7042,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         const originalRead = atom.read;
-        atom.read = function(get) {
+        atom.read = function (get) {
           const rawValue = originalRead.call(this, get);
 
           // Enhanced debugging for activePets
@@ -6776,7 +7137,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Hook the read function
             const originalRead = atom.read;
-            atom.read = function(get) {
+            atom.read = function (get) {
               const value = originalRead.call(this, get);
               const idx = Number.isFinite(value) ? value : 0;
 
@@ -6800,19 +7161,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // List all atoms to find the right one
         const allAtoms = Array.from(atomCache.keys());
-        const slotAtoms = allAtoms.filter(key =>
-          key.includes('Slot') ||
-                  key.includes('slot') ||
-                  key.includes('Index') ||
-                  key.includes('index')
+        const slotAtoms = allAtoms.filter(
+          key => key.includes('Slot') || key.includes('slot') || key.includes('Index') || key.includes('index')
         );
 
         productionLog('🔍 [SLOT-ATOM] Slot-related atoms found:', slotAtoms);
 
         // Try to find it in the list
-        const slotIndexAtom = slotAtoms.find(key =>
-          key.includes('GrowSlotIndex') ||
-                  key.includes('CurrentGrowSlotIndex')
+        const slotIndexAtom = slotAtoms.find(
+          key => key.includes('GrowSlotIndex') || key.includes('CurrentGrowSlotIndex')
         );
 
         if (slotIndexAtom) {
@@ -6836,6 +7193,108 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           return crops.map(c => `${c.species}_${c.endTime}`).join('|');
         };
 
+        // ==================== MULTI-HARVEST SYNC HELPERS ====================
+
+        // Define target context for consistent access
+        const targetWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+        const targetDocument = targetWindow.document;
+
+        // Polyfill queueMicrotask for older embeds
+        // eslint-disable-next-line no-undef
+        const qmt = typeof queueMicrotask === 'function' ? queueMicrotask : fn => Promise.resolve().then(fn);
+
+        // Robust atom finder
+        function findAtom(cache, names = ['myCurrentGrowSlotIndexAtom']) {
+          if (!cache) return null;
+
+          if (cache.get) {
+            // Try direct lookup first
+            for (const n of names) {
+              if (cache.get(n)) return cache.get(n);
+            }
+            // Suffix match fallback
+            for (const [k, v] of cache.entries?.() ?? []) {
+              if (names.some(n => k.endsWith(n))) return v;
+            }
+          } else {
+            // Plain object fallback
+            for (const k of Object.keys(cache)) {
+              if (names.some(n => k === n || k.endsWith(n))) return cache[k];
+            }
+          }
+          return null;
+        }
+
+        // Safe atom value reader
+        function readAtomValue(atom) {
+          try {
+            // Prefer cached "last seen" value if atom watcher tracks it
+            if (typeof atom?.lastValue !== 'undefined') return atom.lastValue;
+
+            // Otherwise, attempt safe read only if API matches
+            if (typeof atom?.read === 'function' && typeof atom?.init !== 'undefined') {
+              const ctx = { get: a => (a === atom ? atom.init : undefined) };
+              return atom.read(ctx);
+            }
+          } catch {}
+          return undefined;
+        }
+
+        // Centralized state setter
+        function setSlotIndex(idx) {
+          window._mgtools_currentSlotIndex = idx;
+
+          if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+            console.log('[FIX_SLOT] Set slot index to:', idx);
+          }
+        }
+
+        // Main sync function - sync from game's Jotai atom state
+        function syncSlotIndexFromGame() {
+          const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
+          if (!atomCache) return null;
+
+          const slotAtom = findAtom(atomCache, ['myCurrentGrowSlotIndexAtom']);
+          if (!slotAtom) return null;
+
+          const gameIndex = readAtomValue(slotAtom);
+          if (!Number.isFinite(gameIndex)) return null;
+
+          const currentIndex = window._mgtools_currentSlotIndex || 0;
+
+          // Only update if changed
+          if (gameIndex !== currentIndex) {
+            setSlotIndex(gameIndex);
+
+            // Trigger value refresh using consistent scheduling
+            qmt(() => {
+              requestAnimationFrame(() => {
+                if (typeof insertTurtleEstimate === 'function') {
+                  insertTurtleEstimate();
+                }
+              });
+            });
+
+            if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+              window._mgtools_syncCount = (window._mgtools_syncCount || 0) + 1;
+              console.log('[FIX_HARVEST] Synced to game slot:', {
+                from: currentIndex,
+                to: gameIndex,
+                syncCount: window._mgtools_syncCount
+              });
+            }
+
+            return gameIndex;
+          }
+
+          return null;
+        }
+
+        // Expose sync function globally for harvest handler
+        window.syncSlotIndexFromGame = syncSlotIndexFromGame;
+
+        // ==================== END MULTI-HARVEST SYNC HELPERS ====================
+
         // Update function
         const updateSlotIndex = direction => {
           const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
@@ -6852,7 +7311,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             window._mgtools_currentSlotIndex = (window._mgtools_currentSlotIndex - 1 + maxIndex) % maxIndex;
           }
 
-          console.log(`🎯 [SLOT-KEY] Cycled ${direction} - slot index: ${window._mgtools_currentSlotIndex}/${maxIndex}`);
+          console.log(
+            `🎯 [SLOT-KEY] Cycled ${direction} - slot index: ${window._mgtools_currentSlotIndex}/${maxIndex}`
+          );
 
           // Update display immediately
           setTimeout(() => {
@@ -6863,56 +7324,66 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         };
 
         // Key listener
-        targetDocument.addEventListener('keydown', e => {
-          // Skip if typing in input
-          const active = targetDocument.activeElement;
-          if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+        targetDocument.addEventListener(
+          'keydown',
+          e => {
+            // Skip if typing in input
+            const active = targetDocument.activeElement;
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
 
-          const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
-          if (!currentCrop || currentCrop.length <= 1) return;
+            const currentCrop = UnifiedState.atoms.currentCrop || window.currentCrop || [];
+            if (!currentCrop || currentCrop.length <= 1) return;
 
-          // Check if crop changed (new tile)
-          const currentHash = getCropHashSimple(currentCrop);
-          if (currentHash !== lastCropHash) {
-            window._mgtools_currentSlotIndex = 0;
-            lastCropHash = currentHash;
-            lastCropCount = currentCrop.length;
-            console.log(`🔄 [SLOT-KEY] New crop detected, reset index to 0`);
-          }
+            // Check if crop changed (new tile)
+            const currentHash = getCropHashSimple(currentCrop);
+            if (currentHash !== lastCropHash) {
+              window._mgtools_currentSlotIndex = 0;
+              lastCropHash = currentHash;
+              lastCropCount = currentCrop.length;
+              console.log(`🔄 [SLOT-KEY] New crop detected, reset index to 0`);
+            }
 
-          if (e.key.toLowerCase() === 'x') {
-            updateSlotIndex('forward');
-          } else if (e.key.toLowerCase() === 'c') {
-            updateSlotIndex('backward');
-          }
-        }, true);
+            if (e.key.toLowerCase() === 'x') {
+              updateSlotIndex('forward');
+            } else if (e.key.toLowerCase() === 'c') {
+              updateSlotIndex('backward');
+            }
+          },
+          true
+        );
 
         // Arrow button click detection
-        targetDocument.addEventListener('click', e => {
-          const target = e.target;
-          if (!target) return;
+        targetDocument.addEventListener(
+          'click',
+          e => {
+            const target = e.target;
+            if (!target) return;
 
-          // Check for arrow buttons in the tooltip
-          const button = target.closest('button');
-          if (!button) return;
+            // Check for arrow buttons in the tooltip
+            const button = target.closest('button');
+            if (!button) return;
 
-          // Look for chevron icons or arrow text
-          const hasLeftArrow = button.querySelector('svg[data-icon="chevron-left"]') ||
-                                       button.innerHTML.includes('chevron-left') ||
-                                       button.getAttribute('aria-label')?.includes('Previous');
+            // Look for chevron icons or arrow text
+            const hasLeftArrow =
+              button.querySelector('svg[data-icon="chevron-left"]') ||
+              button.innerHTML.includes('chevron-left') ||
+              button.getAttribute('aria-label')?.includes('Previous');
 
-          const hasRightArrow = button.querySelector('svg[data-icon="chevron-right"]') ||
-                                        button.innerHTML.includes('chevron-right') ||
-                                        button.getAttribute('aria-label')?.includes('Next');
+            const hasRightArrow =
+              button.querySelector('svg[data-icon="chevron-right"]') ||
+              button.innerHTML.includes('chevron-right') ||
+              button.getAttribute('aria-label')?.includes('Next');
 
-          if (hasLeftArrow) {
-            console.log('⬅️ [SLOT-ARROW] Left arrow clicked');
-            updateSlotIndex('backward');
-          } else if (hasRightArrow) {
-            console.log('➡️ [SLOT-ARROW] Right arrow clicked');
-            updateSlotIndex('forward');
-          }
-        }, true);
+            if (hasLeftArrow) {
+              console.log('⬅️ [SLOT-ARROW] Left arrow clicked');
+              updateSlotIndex('backward');
+            } else if (hasRightArrow) {
+              console.log('➡️ [SLOT-ARROW] Right arrow clicked');
+              updateSlotIndex('forward');
+            }
+          },
+          true
+        );
 
         console.log('✅ [SLOT-ATOM] Key and arrow watchers installed');
       };
@@ -7077,20 +7548,28 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
 
       // Touch event handlers
-      handle.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) {
-          const touch = e.touches[0];
-          startDrag(touch.clientX, touch.clientY, e);
-        }
-      }, { passive: false });
+      handle.addEventListener(
+        'touchstart',
+        e => {
+          if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            startDrag(touch.clientX, touch.clientY, e);
+          }
+        },
+        { passive: false }
+      );
 
-      document.addEventListener('touchmove', e => {
-        if (isDragging && e.touches.length === 1) {
-          const touch = e.touches[0];
-          handleDragMove(touch.clientX, touch.clientY);
-          e.preventDefault(); // Prevent scrolling while dragging
-        }
-      }, { passive: false });
+      document.addEventListener(
+        'touchmove',
+        e => {
+          if (isDragging && e.touches.length === 1) {
+            const touch = e.touches[0];
+            handleDragMove(touch.clientX, touch.clientY);
+            e.preventDefault(); // Prevent scrolling while dragging
+          }
+        },
+        { passive: false }
+      );
 
       document.addEventListener('touchend', e => {
         endDrag();
@@ -7119,10 +7598,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const leftPx = parseInt(savedPosition.left);
           const topPx = parseInt(savedPosition.top);
 
-          if (!isNaN(leftPx) && !isNaN(topPx) &&
-                      leftPx >= 0 && topPx >= 0 &&
-                      leftPx < window.innerWidth && topPx < window.innerHeight) {
-
+          if (
+            !isNaN(leftPx) &&
+            !isNaN(topPx) &&
+            leftPx >= 0 &&
+            topPx >= 0 &&
+            leftPx < window.innerWidth &&
+            topPx < window.innerHeight
+          ) {
             element.style.left = savedPosition.left;
             element.style.top = savedPosition.top;
 
@@ -7172,7 +7655,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       element.appendChild(resizeHandle);
 
       if (showHandleOnHover) {
-        element.addEventListener('mouseenter', () => { resizeHandle.style.opacity = '1.0'; });
+        element.addEventListener('mouseenter', () => {
+          resizeHandle.style.opacity = '1.0';
+        });
         element.addEventListener('mouseleave', () => {
           if (!element.hasAttribute('data-resizing')) {
             resizeHandle.style.opacity = '0.5';
@@ -7232,7 +7717,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       return resizeHandle;
     }
-
 
     // Legacy function for backward compatibility
     function makeResizable(element, handle) {
@@ -7399,10 +7883,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const leftPx = parseInt(savedPosition.left);
             const topPx = parseInt(savedPosition.top);
 
-            if (!isNaN(leftPx) && !isNaN(topPx) &&
-                          leftPx >= 0 && topPx >= 0 &&
-                          leftPx < window.innerWidth && topPx < window.innerHeight) {
-
+            if (
+              !isNaN(leftPx) &&
+              !isNaN(topPx) &&
+              leftPx >= 0 &&
+              topPx >= 0 &&
+              leftPx < window.innerWidth &&
+              topPx < window.innerHeight
+            ) {
               toggleBtn.style.right = '';
               toggleBtn.style.bottom = '';
               toggleBtn.style.left = savedPosition.left;
@@ -7460,9 +7948,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const response = await fetch(cacheBustUrl, {
             method: 'GET',
             cache: 'no-cache',
-            headers: isGitHubAPI ? {
-              'Accept': 'application/vnd.github.v3.raw'
-            } : {}
+            headers: isGitHubAPI
+              ? {
+                  Accept: 'application/vnd.github.v3.raw'
+                }
+              : {}
           });
 
           if (!response.ok) {
@@ -7580,17 +8070,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /* ============================================================================
-       * 10. UI FRAMEWORK MODULE - MAIN UI CREATION
-       * ============================================================================
-       * Main UI components, panels, and interface creation
-       */
+     * 10. UI FRAMEWORK MODULE - MAIN UI CREATION
+     * ============================================================================
+     * Main UI components, panels, and interface creation
+     */
 
     /**
-       * Creates the main unified UI interface
-       * Initializes all panels, buttons, and UI components
-       * @function createUnifiedUI
-       * @returns {void}
-       */
+     * Creates the main unified UI interface
+     * Initializes all panels, buttons, and UI components
+     * @function createUnifiedUI
+     * @returns {void}
+     */
     function createUnifiedUI() {
       // Guard against duplicate UI creation
       if (targetDocument.getElementById('mgh-dock') || targetDocument.getElementById('mgh-sidebar')) {
@@ -7619,17 +8109,27 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Icon mapping
       const icons = {
         pets: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANIAAADkCAMAAADaZIrAAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAZdEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIEdJTVBXgQ4XAAAACXBIWXMAAC4jAAAuIwF4pT92AAAC/VBMVEVHcEz5nVv5jGPnqWjcqnb3nlf6tGXC1apD6bJE6878nV33Z+H6t1P9jIDuzW+9mdig4V261+D+hFvsnKHx0VO0PL7ygrJD7pFs7HyP8syy5kGkNaS0y1quMbLlski6TOHR6Gdc6UfSapulr+/iSvxJQy/+4X//yIH+1Hn+24D86XD+8H20NMr923j943f8+3j+z4H6+mn+1oH86mf88G7+6H/+zHr96nj+xXn98XbV+2f/uH7G+2fj+2jv+2fy/XbjUvwtad/9zHP/wID91m40SS8reN0s35Bk+rIsht7kW/1Q97Vk+sVm+6dQ+KZl+rvo/Xb88WVp+423+2Zj+tCq/GtP98QtV+As34JOtfYskt9jeO9qY+/8wFaB+Pwt4J2e+2RR1vemRu1i+tyxRe1P9fT/3cos33Jx+2d+5vxS+JAs315P99T84Gn9tVZPxvZ6M+Fi+por3raP+2Yw3jAs36na/Xb/fllBm+os38+7SOpl+3OA+2VO5vZ+1fz74VR17bRRjPjL/XVO9uT/rYCaSe0u394tRt8snt9S+Xgt30hh+un711Rg9/hvM+FBqupi+oNK4DAyNOHt2nj9qVf+jllqovNu/H5Rofgs3sP5zFFmjfEsqd9wtfaB/fLKXP1RcviA3SssyN9rSfHdS/jWVfx1xvhg+mX/18ksvd+HM+E/uellMuAstN9l3StUV/i/Yf1GMOHWyqqZ3SqHXe1ASS8t0+Cw3ixZ+FNAjeruTfxXMeCMRe7G3izWYv25/HWP/+D/4sr9m1hbSO/t03hBy+px+FL+zFeZ/HKDtv6I+VH861V6Re+q+VE/futf5flt+5t+dv1D6Zl27J/Z3SyB/ub0W/oveeKD/HHfzi1L8WBBbOyW8ElD4eeL/9KWNOFKRvD5+VSwZPx6mf7U+1RD6Hzo+1To2EPB+lO8OtpJWu0hLdOz6EVx6EUm2Kni50OyO9pYXjv/x6nM6UQfXNKQi1rJP+Zwc036d7TIsF7ox0VhtVmzqoypu5JHcExw1ESbAAAA/3RSTlMAnGIQIDx9/v7+vvzf/lv+/P7b+rp9uXxClpFP+bP3w/rC+7///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wAoptLHAAAycklEQVR42uSbPWtbaRbHR7alwtghBBfLEoZpolfulaLEV/eOkhgkfQBv4dKQygwBp7SKXTAYNQIVU1jkI0RfIODORIVtZNwH4cZgggs31hLM7G5gz9vzduXpdB0vex4pyxZT/Pid8z/PlaWffvp/r/n03FwmlVpcXFpa2qd6jwX/b2llcSWVymQepdPz/yswc3OpJ/3+EAtI6J/3Upt8sOB/EXExBWwPGW2BaICHiYb7QzG0r4HsOt485tpcST1KP0CedIZwCGmKaD+m6ZiPhurBeyXzoLDmM0/a7Xa/3Xeo4pboX8uRxQRQvV7veOXRwgMRtMg8TDTsUA2FR0+S9N175hEkzQNECNXrPQQqAmozVGcy2NqC19bW58+T5v6+bcmZpmMZpc1pJqBKPwQgdLQ8ARrh+YxvoILKcVVyuSAMG2FjM9S9F+s7U0uPftwMpdqq+h3GISQCEiaFZFe+0Wg4imiSWvDPdm+3twv1o6DmDFC7PxEkzYNlHFU0VFVVvtXQioylXWI63V1a+FGKlvsIBMkwMIo01MRCqtC7yoerUC0UWq1jsYQ4CLS9S3W6m7n3xQq5vTwZDAYTirqOIH22q6LnqCKWDBDyUGULnlHU291VRLv3LQqJEAgLgDqdieo6Q5XLNZ2uqzpImgiPt01AoKgnQKdQvUf3S7Q8UDWhTbQVHyUh4nDIqUGyu46ZpDyS1LMsQWV+iCPFNHH7Duao6YyR03aaKEuWoFZXs/621XanVL17Y3KItgaDaaRKUzmq6ARnnoqtSHiACM/qKkG9QCBhui9PmbbVdrhglSatKGcRVawAryhFVYdIgFYFCrvu9PQ+mRYgvDsWEVyCOp16vT7YMj3nxLdF47RdVkvCvhOmosGBuji9yNxP27UHjqUt0FTvNAdiCIGasWC4O7+z2ZilErxe6LZDoouL5HMPLw3LjiQoIAJPkwHd6+yumyZSTNnYIBkomwnqdOE+JFnhsMXTVCeoZlMhNd27HRPpnVQlJJtJFWoqFU9tSxcr93GzmxhHrGkCjupNQKobSRU7HAxRQaedDgftiICgasJDRBdJj9OiiySXVUISS9aKtcPB5IOzklbtbCjhwdcL3XZU80nHnaTDlilCaqq2iydDZXrFWtlgtR0TUf0NeBjpK5xENaUMks4GuAU1se0cSZWcdbdTkqyNZHBcIsUkigAIanc+4XCQxnMk8RTZbWc981Xv7rmCy2TxlErlSJC4EtSU5me+ZafzPutwsPrOuYJLhBesJRtfSaVVNUdSuusQKcFpUo/mk4EOO7gt0CARU040WfegqqXJfqKI3YTctiuXys+NpcskNT1RHzWoB3NeSfXptrsjG8RS9k9myTKESGWL6PLrSsJ911/uyGMsANG9QUYppx05RJX4E8VdWVcyfYdAZdSkiKDSSe7Zdr9NN+/BZNLki5BO8Dvu3/ZDUvyyakHZ2VBmprULA3T59a+J7Vn+WLWjy+Kx8jt2Ac/Hn82nbkF2Liii8htNdHV5+UtCSKSo3R4qHiGqx8KOmAJhyss9KK9vqybrsvbVzooGqrU3ytJVcp2Xlk+4Ogapw0D2ljWSgmqAOzYPxwMejyR505fV0lQ0ABDUV1T0lSxdXWYSG6W+jJKxFJcU5IIKvAKRpNOOrt9efCXVdONpS5qJLBEQ1EpCW8kZpbpuPO0IcMBQIB8Uc9OBpIJX9Qp47OdYnxXV3FEqS9dhveZouOKaT2grIdHQnSSd3yEcajxUFCASNx1SqWck0ORlfSDyGaoWZ5JJAqD19deXBunsKp1MOtDfkGLZwIrCkHsOYIKKAOWrcgrsCHGo/KxWREA1J+sg7BAISvNAXWUSSYc+NZ4V39YzEjkKeJTgaKKqhAMgYdd5WZIEmuDQINWcjcRAFtIlKQKmJIZpTv5uqbJOgPCNikIGqkgy4CBVmIkniZuOFGV9miRkAiI8JEptJIAiop1fVdOhpZ+TSIc+//XS7ju9Z0MJO2g9ajzMhjx3HW8k6TuEAhY1SXBKq7U/syRI1Hhn/0rgY5XFvv5zrL4HkaYw5K4LFU/ATFVgYkVkCWk8kkRdR9EAeggogrOmk4GAdnZ2fjVAZ2f/TODTryfTfVdvhvBq8iShIcoHViTZIMlQEEXYdFmeI0SCzoOei8iQIVojInjptnsL7wSQzCjpJdskIJYUStzBKx9w1yFQHiXhW5JBDRIy0QyJpVLZpDe8EEiQoEYINfuba5q/etLXYYfXBgRqhjJF1HdqjJCImQoCxE2H+Y1dV6tRNpAjPDq/11Xb7ezsiaOzt6Pz0ehpEkjDPiMpS00CQkeh4qH8pnsDdp26NmQLNhEwUTDURFEpKlvJsG6I9l6dMdDobJQE0hxLGuqdFMIhKNizQMRUgWOpyj2n2466zpdR0gke6ZuQZtphplck6RyBRqPrhQQynDTpJYtMUE0KvEBdHYIgj4eBrHuD0uRj49XIEWritivrhSSSgGnPWDonS9fpJDIcvxuk0y7kLYtEgfSdclTJsyZsPCztCIlqPjLxPpJJKjv5TdGARHt7hHQ+YktzCSANqe+0IsIJOcADaDyGUjyUdXmPA9zHF7Uc84ikGgFFZXchGaJDdoR1NLrOJLCW8BtcVt9x2mHXqTlCnEAM5T0cJRojz/dYEEFJNMgURZG5fdthtydI5wrp6Do1+7XEX0rTY9TkORIazrt8gI7w7VHT8RQhTnyMSrUIHUU0SbKQ1kwwENDh4VuOhiOsx7NGWpCvQ3aYSBoPDQFUKFT5gByRJmw6GSTPtB2MUs0XRzVUFMWyzkg63EMkknSEUNdPZr2WBMmeJAk7BcRZx7OEQDRI0HQeOiKoGlgST6WINZXxqGtDnAiRjKVhApuWA09WkqQDAoVakYQDzRFfhejaAFAsqearYIBoQEtl7jtXEmWDIJ0rooOZI83J1zt120kJEGWd8GA48I7F8vFQ3/nsiNou4qwraUVmxTIQl3F0cHA9nPGuzchXpUmSpANupFClAzmivPP4yELyOBngXfN1eGPTUd2V3yobDg83BOkAiMDSjHdtSr6BK10XxizxGEnpZMAx4qbzfTLk63XEjmLPE3bYQZ1snLCkA6zr4dzMkYiJJIkjDWQpynMu5K2m84hn1bcMiaPoTxaSEB2enBxpIrA0Y6RF/lZxB4GUpkCnHUeDkaQ0EVNWSfKFyAHirltziIhpA4hORkcJIw3339OjrO46JGrACfINY8ltPNV1yOPbYSdQd2ykPZG0EbM04xvRkuo7siRAypIFRJ1nO/KsUVLBQJrKkfOhnbuQGAiQhGg8BqQZXx/k2+zv63XbUYiGGtR1DThQLSSy+k5LMqOkiKI7F9KhcoSjdMJEY2R6/POMkeQHBxZRA4gYiGiCeNxZhlTXFa1oIElrzvOE2UgbmHZQX8TRwbh7MJox0rxC0m1ngNiRKGoZItcSA9WiYjwa1uznCZUMBIRIRPRx3B13//F0th+4LsjPDTRQA4CQSRM1UBAOUsskg6fHqAiHiKwV+9y5NDgrVoC+fPlIcwRI3e5vjx/P9oonP6Gwl2yDw64hQC0n7Xy+r3IV/dhCeglA7seQ6qFPJG0IE1kiSQkg8U/GxFKDjgBZUNh54snXNwcEKvrgiTZS0Uo79aGdk3bYdRuupW5SlvDnVQKkJeVpJ03fhHxv24RDkTqvpoGi6LluPPsipAfp0G287scu1u+/z/YiLj9Hsiwhkeo7FMR+8qRoGyVtsyKSBK+oqIBQkhmk1/jpt7k1bIijL1gfPiIROuq+g/fMkfCnSKbtOOxEkM45AVJtV+R4QCIMPLT0svyS5+g5Eb1ej88R7aOTLyeCNCYgRprpHzcz8pMxC6gBhSPUaEl4S9S1fGo7LQlhipwLReuqyo5QETt6xUQm7ADow4e/j7np3r0DpPHCzJHEkjARVssMEjNty6O5SoYi53cRuq72kohQEipaW3+jPs4nR69U1m0opN8QidruHb7GCSBZlhgK56jR+HZ7c/Ps5vbbHwTEUKRoWzNFPEvRSzgqGd6gpV/wP/4E//HjvSlLHwhprC0lg7RpWyKiP26f3f4H6vbZs2c3AuVj72kgju+iCTs8/EDx9PbT7bfv379/u/n06ebfzkLSjcdA+Op2/zLTJ0CWtBmKov/Scj4hbadpHGeoU6el1IbuDivMYWAJDAFbQgLbBpOCJBAwMRqj0IPiIgVTjIMIUoiGUHvYxYqBLLrIxsMeLMvchCz0ZA6RmpOhIshCc5E9ziELQVxb2Off+yfRFqPd52eHYWBgPny+z/d9fz8YYaC8+8oNZ/3jNg1BnZSx6HrMIunoYTHgQ46ACELnbxSLHzt5TorF4sk9yxEqgslxMzyn+XP37zr+H0gMxZYe1TURjIiy65twXBqI6w5u3xi6H0HNJ6DZJibAC9XvWY6mECqek9TxRLO1zs7ur/R/qn7D/yup8Dzi0JXrTqch2v7oFKYUQrkEykWZ81I3uB8/lG4YDCBRQ3hw6qEQMCmgNDmKx+OaaAAmVuPJdn+FCN6e0cHj2FEvAMG2NQ1iKqt7HfKwpj94WRLeg+iMhdgBUbFTSwJNIWSa013XjPT++QBAhWs1RVXr7rg2Eg23nSCdAkDDRiJNzgYoQkkpJnJh0XE5uCl2kDqIXQOXp9OaT6EiMJ2pEwmh4lVAem4kaUu1Wgme7rtfx5KGCvbVL0ZynipLogl4vCDJy/fvJwQFsXMC0raVPCQKhRYsS/H1qgnec4WU0FT/eXX3upbGZrQjkXQhUuOBK0U8uEheF3ryEhD1Nx+xPxRbLXWGWJNFFK9W2dL7gRZLh/CUSg6Ho7PjWkhj8NNnoLDgnCcXIDnzapFcqhzwoaudEA2ipGK9OXg8R1NHU1PKUXWWBTFRf1anrlQ7LNE4bl714nenxVKwr4//822kulMlj4Co7bxeMsShkwMpMOgr0nyykE4EaWqK9wgcgaWqRTQwEBEkmsPDw81NYLqqqDv8uwCUIbjbnUrKWgqPkFx6jagYiEmA6Izl3DUlT0kKnaWnWNE6ALElAervj6lmEKbN0ubmeMnRfUUk/N0GGumnYFCQDJOKHfwjlTrvY5dX1khdVgODfv+8X5AM06e6RuI9IkXVahSB3gsRIpWUpFJpEy2N43RfJ3iSup+0JVinj82OECnlkvFai+RmRyBJI4XqlL1PjWLIIHHumCmqLfXDT0RtElsCpnFgKl2N6c4M/Waad48UlLaEp+vJSd3pdDZZQk/gCI4k9IRAfPsGS/P+eYVUDBXxXzZAYkkTRXXs2JJOXWmTkCB4MFASV7M0NjamyyEY7HN+dk5dtiS1SA+VJHhB+rGomWiKoWILkuQuqruhH5giliPKnSCNj2+3f0L9RX5RiADhm2z9s0hlDcSb5GZJAbyt4ib55n3KUaho0dCkDVA1i0hKUT8i2Y4sonHHdkf7SDR9GikYbHyOqC5Ej5GJTlncIzd3HTgCIt+JYQo1MdWx7YQoGo2GzSIhkjKEDW5LAqbbV0BqkgSWTr+cO7g2eHlIkUXkgxfzHxRPCxHkLm5Sl42GdehgRiMiaVMBaaJxh+Pu9S0FT74kyWugqBmoGAY5dS99L3uVppbYheJCFEVH0XBUYvcdEo1GzCF7eNgEND6eTN64EtI7vUkw5S+Wg5dWCXKHRxJKeoJIfogdEr28ZzTZUP9eN0zgKBsWSQNiSTInlsYNVDKZ7L6ypaDWdGH0GroZyBECud3q1oBEJKn35dlFjs40EUiqgqSwVQ6j/QkkqhHQoSFK8pN0dFwNSeHQND5HpNrO637sVmdsAMsONgkU9fbu9A6fsZ+WM0lOJExdNsyW+oVodDQBigyRKEIa+tPm4TSjgidIkLyeizwRkQceqQZd33zE+pjoZe/wzvDwWehcNZj+hmqAVYoR0ndCNBphoPNEMJmkw3GjXaT/jm3wKcueUsEHwVS5SdTJKcCQIyUJ5qE0A+2Rbx4y17uzM7wzMjJyr24D1c/Wc6bs0FIsFo5pR2TJ2qMWIgdAZW5ewRJdGyR1PSmgQqi6uhZxMXikGbi+n6CkQbysDvpYEoZuZxiIRvb2fj2xgPQaUX+HYQBKFzjM9EVIbChDf9luE2kDHrNHPcDTk0KsVOqUJkU4qEjFzo2WnrgDBISpm6diQKYRQprYmzv69QzmX2/S63zGxqW/wwAVi8XYEikavTU6qYlUM8hkECqT2f62XUsbTZYwekgUTLkAC4BSHrVHQGUsqSOJNoktce5GJvb25uaOjhamYNJ8syMiOZLCYYXElqZV8PQpmyQoxsG/2b7dFtIGIRkgQAFTKAq/CLn4fcJDufMYR243VoOfFolPJOAhIPyaT0BAlE4bIpKUjcZAEuQuxjicu+lJLcneIwTicWzfuEbwaJd6UjIufojIdIOXqoHLDm8NPqxvKjtK3QQiLRyRorQm4mrATYrp4DHRqIW02dR1zJPJVNrp8Rki2tCWUsF8GSePH1YJCX+QBxR5VNeBI0qdn652yINlx5L29phoQYhy8QOa7AEC4SKBpEhEeGCTpsmSytyKWqSMNRXH9+1a2tChK8vkAarJkT6RvOrSgEesz+8jR3AgkSJeozlZI/paLEQIZRzFDNK0QlreRJ7xZkVbgvSqoz1LuEs85bLFlMduYEm0SB52hHvEa+RXd1XsBSGamzOpA0XrBghHAYElVkRE08vmZpdskrQFTwXD9+rmFS3ZQIAEjedRkhBoSK7f7oAcSdR1WHW9vEdU3yIpDUy59fWDdYkdPVmOHQXP5G5p8tB03QoC7bMkRQSWbrdpSZDyZcsSMUnwPOqQHWJLTwL+gJQdWMJqkNhRM1i5yx0YS+yJLNViYmnaWFqmPVpJNm3S1hYxVRz37186eTOUu41352MHRPmUh0LnodQNAZA6YwN4xuIeoSSKHVTDxIghSjNRXCQx0IFCUsHj3C0tLQMQS6LcoaN9cgQ/SJSpdHX9ti0ktpRqBcrnH7g0knUgSdmZ2/fwsNS37jo8kdK67PQqMRIARRIqdEgESLBIK4ooqdcIJFWAqYLz+8sjbSiklm6gISBmGgIgr33EgiQKHaQOu2FCHUj6jIXLqtmkrIIiIkKC1N0ySOhoJbmPjnTocCoZeiqVG21b0gWe10B5ApJiGNJlR464vnvZEe/R3J5qBqpvvH43rRFNjYASCalvBFpaWtnERdJrJKFjR1tAg0Rdd9u3lLIUlRUStrdAqWsQNQPdvunS0Gs1wxwpombI8RuFqTs1SBQhpFsK6dkynUhJKTuJHU+hIsGrfNMmUsqyZHJnWTKSBglJrqpGkpxIU8pSLof3oHNECW2JJQHTsyUEWsE92qcjdkshgaKCsuS4f9mvrdYu5VuJ8maPRBKVHa2SlJ3V3wYJT6Qc3+3OBS8rSFzfSLT0DC3hgbRPTKBpX0kqbBUKytJla1yQ6PUo2FwN+bzXI5ZsSX4FJI7o2jAhRyxt0hvMHcZutjpbPbBxsgmyBESJiEX0bEXdGuiExcNINqlQKVTUXHaZBOk1vVTkRVG5OXbqQHIHFBItkhyxTDRBi3Q0JSdSjt9kgSnbnLtagokSquwECf0YQxkxBI4KlLxK5bhS+b4NpNcbQX7ps0OHqUMiCt2QKjvtyCKa0NWwoA8kdDQ7S18abE0KaHIyYYCeLS4u7u/v84G0r9sbiSpG0/FxV1tIFDyYpmrQ1wZT3wG7vrHr2NHchErdm7RKHcSOv6zaseO2QyRJHTAtPlv88OGfu7u7f9/d/fnnLQ0EWwR/1goFkVTputEG0uvXKYF6YCvyeIY8uhkuIrIOpAUpBnhH4j1CJHnpM4uUEEcwtqQPAARQv/A8fVqQZkBHawIElr69NNJrLnE18E6RQhxeJMCyLKnY2ZZU1yEUNoPKXZWDh58a4N08oiahLSHREiMh064wrdI8LdCsFY4pewB13HWzHUv8+QTHAzgp4tGWmuv7fHvTiaTO2HSOcjcLlvSbeVjdVTWQWBKixQ8G6JfVv62uvlh9AbMmTJVjIjruutxh+xuUBI92pJg8quyGdDfoakCm4V677ISI61v6e7ZqvgedJ7K7gZH+gUyrKOnFn5Do7du3f10rrK2Ro2NEun1ZJCIKniPykiOWFLDeY1nSsC67CdV1U28sIgG6gGgSkZaXJw3Rhz/+j7Jz+YkyS+NwWsVg04xJm7gbF67dTJxVhzZhU1JiY9AesKhKoMYYO4ABujWh0+1UjOOoILeFFR0wXkggXGNiRa2oLMbAAptiihAIt/QAJUVqQCaRBWE17+1cvg+V4i35A548v/N7zylsm7qBFPU1iaMoz9VwmHngZ//f0/vbKdwOxpJSpEKnibbcGTSR3Oyw7LAaKHb//q6GFeFBUkQntaP6+noiuoJIwSsmdTjoqKQ2WgJEsVisNcxAYCm9LyDE0m2No4D+TI4Eyd5IObiRTOjK3ESnNZHrHH1vAwESE81dCQaDdjFQ6FhSzAtIsavEg0gHMtJGMpKI6KKRVPiZjYSWfiqzz5FcVjF2NfpLO2TCLxv0RhImaQYgmgva1dBEjpAphpYmwdOiQkrrv7D7wgoeS7qoY3fULUnXt74HKUm/0kH6Ra8k4KlhSZ+zdIVPksMSl11UxS4Wm4nFFu8L0t40kW4nb98OaUnmJFHu3PVt97e77JioRkvSX9uxJAdSQ71UA1gaDA4qR7Vcd9Fajh1CzUzOsKb4/vRaXCyFeL0qHi67TxBR2ZX9ZcQmQkfNzY7UuapBA9WTpIYGWrGYOyUJ+7u2TSsiR5NINBNjpPj+gztDOnrRcY4U0bw7dbKQXPXdyTu2mYiAKe+jO/Z7Q0RIV+AcBeFipxZSE1cDHySKHQDBAA9+0kPai0RJtyXj6BgUuOP2fcZd33gN6vxBSaoRSS6gk3ohnWMgQKL6JiIYA1RLiqJedsSz2IpE8f0H0kYKMZK7GAqlGZak7PRCOkNEWpIcI9xIyKPLTjO5uo6ZsO0G8SBVVQ3K3dt3V/c3O4KTlAufFAK17gDpn4RkNcNRdlSoUgeaEt+KpGUiGrEdAVKntWSJyRBt3bFQDYKE/R2sUi+KKn7xhe/WMtGkil0xB29Hlm6HQiIppC05+vsbDF4iJ2dr7qz6lm6wLJn+Pumw1MBIQepvjF2wowoeEx33ZcLh8FXShN1QDFCgqDW+GEkP6Q+8lhCJePRJAqL5P0ns1FU1Zznn42XHRDWn7fZ21bfLUcMolR3GrqrHp958woM/4XDrVTpKKfhA6HAW0vpGhZDwf6xhYsdE8+xoSbVdQpfdiL2Qhri/f3E4KlC5c98azimiUUBiIrTUQ0BV9JQI32egcCt+/IBUnHroB0l+YNoBEp4lnrdc34VS31R2Cbu+y5zN0Gk2kiq7gjxrIxXZG8lyNDqqy87n8yFNhzz5wjKLQATj96dSKf9OLGVgOyTRUgh5jiqi+WOSuiWu74Q0w4i1kIZkITFSje5vfWsocixZ099INKoc9fh64GFepYAUEgItaqZ4/OHOkGAuHnXv2GPzsmLBkvProI9KKheiAqsYTjmfSA4iQArSQgJJPnWM7qtzFGZFrZA3vz+QClDsACmdq/gesRRSFztimuf6po30rUgiSyNnXDtWITWftiXl553Khw86KlJIFtMoBw8cDVb5IHg9JMlnSwIodsSWAvH0kTI22ZIEr5CBpL6XcCEluBqW3Tt2yC67Zoldgb2RKHjKUr2LaFSaocrX4/Pdd54jpQgktfrjHLw4UD1JBynj0CYWXlJJAqh57G9M3ZI8kRL6iTSi6nuY6nvIIJXrtsuzfmsubVdpCtzkbjSogXxNmL2wk4kcgSIK3n/YUlpIX20SUigEzfBWHSSOHRAtqbJb5tSp9wQSDUk13AIieU8U8EnKz4PQiaIix3vC8IwGCQlT52u6S5c7K3KiCc4RSgqkUm8IaWHhwPavi12bm5vJEDeeugfNq6/slvgVm8AFm0Ndx46Gf1LHqJMXEqSu3HrHkqST6hzJ90HO1AX/FuwAJB+2HTji66qzGVAPQAX8gUDqDSJFgOnw4W3ftV8CURItrfE5eltIF7t5KYYlCJ25BpXZ9W0VQ/lpdY7I0SmshpPqGFHq6reEDscnoburv+FyEXHqFFJ8Ib7w+/+ObFfjhwBpM7nGwUMg7Dp+9MlGovpePgO5GxGkYey6oU6LiRwV6IWUz/1dhJIq9auvwYEElmjHwtyVN0U0ykBh7jmBQktvUm/aUVK8sbq7+4/bNDgjJZOMJCvpGGpa4mtDIifBFzvZsWWYumFd37ea4SjVmLYrQEun8vJN2dGrz4qdOkhBYKLcqWdftNZjHSR/1G+QxFLkN0Q6nLFd3yUJKWlbkts31bdaSCOO3DkklTOTtpRnXxvOVTrKTuobT1JHkBxZ71iPLga/v9XKXeDNG7AUj7T39lZXVx85uM1S2tycmkrSmNSBIrkIJfTtmyUNYzUM/TCkHTkuQvkgCbsun2KHZVeJC+maq75ZEZaDz7xko15AatUHiYhmAgSESIH2SKS3t7exGpl2b4M0pZAQir9roPYmIGo7dOS8ffNCuiULiQ6SXrK8kIrk+i2Oztc3nNdlhx84SJA79Q0XKJr0eCY9UbVh/TEAgsz5FVN7exyJGpHpSMb2SJS85FpybW1tfl5dgxKq7Ggh0ROJHKGkTr2RoOykGgpoH+FJKqK6A0lUDddcGyk42iH9bb49iUa9HpjcqNwazCnSRI29hESWDh+EydjzKaSpKda0hj88S0vY3ujom2XrXkfHaFjq26SOX30F+tYgzVDJxXDt3DnXXXU0qHl06JjIsx5TkjB1aIigIoH29l5D1P37kwGciYO7PoNE0VtbCxHRB5pEIiE3O6rvET5I0gyYu1u4ZMvLtaTvyBG++qi/sb4r1Y49T18I8Tt2sKfH/M6lSRFB7nI961EhanVYAqSXLxVSt0Ha+NfXH4HaI0hTpEksrX0grJWVFfgZGTkzYiwN/2osYX1jN5TLQSpgSZC7IrkIIVM9Njj+Zgx/0Ue/ReoZNL/pk2ZAIgtJtR28KYgo8JKQGsXSX588GECqrOwD2V9vid9uhTQ1nnTwfEAcmtmVWZjV2dXh1SH9T9rhv3uC9V3Omgrg3gBlZ//1/KJ9Rftk5mTkV5eGiGPnVUS5jGS3t5b0EoFQUnf3q4UnOMiUtZF9Z8u35Ic00pRm4hGg2dmns49mHwESTMtq/4uWlrrp6emK6el30+9oxt6N6ckcy5TZlyk8++auwWdOObJ+jYSxi5Z4vZMeJspdv0qpU7FLCVGEcqccdS8wEqdvY2PDfZH9SoDG4c/4uFKkDIGip+RI5kXLi5bpOvq8q9BACinTABFRJhPtsx1ZoUMgLww1AwABkrkI6bYDIkDS1dDdfd2BhPFzMX2pJPG8HpfUCRQBPZplR6sI1IJM09qRTWRBKUcsyeWoCaHwe+ISIppkRYxk+jtlIaklW81ExDQgTBNZG87rxBcOIJ7nK6/NKcLYrT5SRCQJUlehUvfOmbkx4cn8NBB13c2SEgHyeD0KaX1d94LfAopEGo2khQUlCYgeDAycOHFiYiJr70eQpsQREb1+jvN05bnETkmC3JElPklbcjfmyp0wqYM0J9XQ1NZ28yYhIZPHayQVa0sPA6bA2ZIgEZHUA/QeDBBNTGTbZb7LtsSanjMRzSMYcaQl1QGRdZI0zpjBsWJHRwn/6snjrq6+vr42AkIiLxPJQfIgkbIEV2/d37al6wsLDkuEhJY2svc4kcSR5E5JQiBE6oc//f0tNJfqLrXUVVQ4meyzRFj38HPv3s8w/8B59uwxDBH1MdFNIfJ6uL9ZUvG65G7Gr1JHRICERK+uW46eDDyAYaQTJ7I2rL8QkeFyxEBPbaJ+RXQJpw6mAucCzFmc42ePHz9eery0tPTye/hc/hEGie4JEhF1IVGbcURAXt11CKSRLEkRgqomIlGESLhqVeNh8rI27uyykVjS661ENP02UZ2T6IImYqTSy6WXDRITPUOiri6VujZzjMRRrmG6UTxjVUNAgBDJEPGIIgDiw5SV/bV+ceyZcjSD6xgxEBJdalGK3I5okKcUDAnQj06ix13WOdJEVtcVk6Ti/xbfuEGCEOo34UGk6lecOh26gQcDShJ1HjDtNUifSx0ztfRL6owkdnTBILGk98R0z0gCIJLUx7G72eaI3aQED4jWwdH6DUBCqIDd4JHrkcgrGOsgPXBY4h7fuLPbiQQ842Tp9baWWFKFJjqrLL0vfY/DlojoZ5H02Ird/yk7n9eosiyOCzpDSZiZzcwoDs0g1DJ/RLkxxjhxI8aIELom4hCFsbUDSdEuglQSFCMWNERQjNYrZGK0OhjSplLOpmgXISpTCwMTJUWgGCoxsRYhuJzz69577nsvpr0VE5NVffie8z3nnXvrvVFPJBN0pNIIqjQ9MpKrnDuXP+dEmsmWPZUQh3USIEYyMu37n+d2LvCY6KHSyMXdhYtxiYRI/Zs27oYHOexmJeyeKmsQ/7aZRGE3wisHa1qJBCqVDRKr9OAnR0RMGHmffzQyMdLLl/GZ9DDW7IjojMokJNps20SiTbIGQhr2NHrqF6Sw2THR+sg0AsGachrNpAEom7WZ9IBV+nfBqMRIvzP1lpBeqhr73CXSM9++EeniDZNIvjls9pBEHHaGaNiPOp1GSGQrEiYSE+VAo2lCmp/PG41QJYeEeSTmcFyvlpYWafX2ffLtWxR6TkAPTYWNFKTYqEMeQzS7k9m1t4dKLEvESOtCNI9rjJlWZ7K40lyQeIFCBZLIqERO/nmfIPmNnfM6Y3Zx9h0m2uzvkagzZkfOYCrSPVeQ2Bhc2HVxQeIsIqRpQYImiDXKZsuEpMIOiQqeSIT0W4O0i9cxE/m3q0gXDBFXJKiw7Aymb5gVojiRTF/H1sBR10WJBEjTqNL8vFyZLyLUKgCteCoJkoo8kkm6or2fIp2dL9KvUglrLIukS5JtG7AgubbhqGtWPZVyOUICImCa4uvYMgkFKqVBpYwUpAcFDryISj9y5H2KdW9VkDz7thr5bUOP1zbMDg7vUJDavavYo557I9G6Czu5kAWaVUql1Z+sSBJ2hSgSe94fQ0i6V7Uaxfh3m0ICHkK6q1u7uO7bEZmCtGWYcusiEmnk5kEzHHbpXotUKBSO45evEpZbuWQ/FNJo1+5bVyTxOteret23JbIVSRH5BQmARCQkmldzyMlsGl9paYMKBRRJNEoJD/wsvSthbeJk+lmYqLUj9/5yQdJEbRJ0mgi8bjgadaOeNUiNtXGXQ7cTkeZlHIREkzQ/QaK0zSNcRJRiGn5JP87JdIi9LnI98WwHjZTZWWcQrxscvCvGoJwh1H4fPbolUdfljGGdiKYrzuvGZLI6ObmyAkAQdwYIjaEgLARDXylGkgbi0M/h/nvXa6QdkLTXhZBGVdvgdQ0Sd0hUq1Qq8/5gFddKOstIGUASlVIppw//gLgruSuM3z83K7b7/j7i3l6RDYedV5FUkeXAU0BWpHUKulqlhttIU04kISKZelmkBwbIEqVSrBar5EZ6v4m2DZ7ZWaawf/ebTPKv+rxrpNFw3+DCjpiIqFZDjSr5xZlFtoYxR9QEoowjCqnERClWST1u6+PHLySSfz0RLkhXlH3zBUWMfWtzIKItDyhniPLYrHpRhyvdS6kkRFadlHyn/5XA81rE8jifXr9+/dHG3DNtdhdDRGe8guSI7sYVJG3fEbPbYh4EwqCr5BFpcZGuzBlpxRCBSgVDVGASwRHBUmDiKYi8vQrp42uaFbv5lrXvuAvzNlOQrlyJK7GPIvZ9NnQZa3lGajVDRECwZsozZTE7irsmIFmJmAi+AlxOplSpVEqZZpwcgh+m+P7q+4WNZ4Jj/PuGH3Z+t2r9m+2b3O5fJNK9p9br9IQLNyhwrcNrZGStuFYzQWeZymVoGZBIVNIiARGtQJYieldKlT67bdx9rNLC+6sLCws/vNowKoXdTlekzRBRzNDunmqECGlLFuB0LU9MTBQFqaZEKgNTlqAIqMlxxyIFISLHBMl03EPag08lpWfAXTXPTHtx44a2B9V+94jbRQpS+KrPNatUYQ3P1pFlxEGiCULSIpVRJWhWgWlFRGqySjbwYpEw8ErvNNIhEmmBNHr1+BU+V+MxPuGgXr9gR0La8Xh2oseQgxZIDRpsw4BAcCm79ObN0NAEvogIFxMpkWh4gs13OmsyKcOpZAGCIMJUSkWQ0BwWNhZ+MM+uwq1LemoD7l5Wq231M24xVNumXeR4j+5Gymu7rLNn5wYGBoZ4TQwNWY2QyNj34mLeIwKmpthdL8VcUCjEEwWxKh2UJw8iEUtkn0JB+7F4e75EZ0eiM5Hgyz1LQ373aPARW52ZcD19cvse7fbhQS5aQ0PjQqSAkMlIlF8cY6CyAGWga8Cga2QyXiJFRUrGqbSXkHCD+R/mkTuoEGlE94zF/WW5C9fJ0x0nvPtP0KcU+RNjePb7n3QKlw4Pdo8z0NC4AJmoM0CVoou6sSmLRM03QGV6e5uZDCHh2w/w3Qc+EvwhiX9GlTx72HP4/YLbMn/8Xy0SHgPgG0Me6+g4JrfawWMNly65T5Leks/AGaRuOZimoITJijSBRPkiAWHMTbFKkkfp9B+gEwImINrmuCMeX6US0iSNTLouYTJh3G1I3Mkzd0Slzs7vSCcRCWQ6Qfc9OUV3ELp+8/otIDp//u01eBmRUKX78SrpsCsW80alsampy75KzdUMBJ7EXUBq8Ns3QEn4Tb6SKFLLZ31i6uDDBQKKiPQdZ9LfSKRj5lTD6VOXWKSbJuzeikYMdF9EkuU0MplUBKhaMZ8vchsERLgAhzKJoo7iDkTa3qawK1CI0dtPJQEnEHn4R4kDzzun8vDZxquNF3JQgx5R0ycaubt+cyYhEGQSQgHQzfM3z6NKIBGdSrMaEZEvkgECpDWWqCjOsDhG10gcdojUm0WkDBJh3IFIyWTKvggLCAP6L60S6vTnENIdIXrM7t3Hh0+QCLyh45g9eXJCrAET6aZ1hrfXnEbEc99EnRd0Q64gcRadozxiosuSSECUxhzKoDmASCrGEIRx+Hf0DPwLapSMIsGSiuSefcJ5JLcqPtlx+iTfdBCALl2/JFF36xqG3TVjDd2k0Xgc0ZA1BpKoiEB50Yi6b6NRL8VdBogaIBIEHSoSWKhApFE/KZe8Y1J7EQk6oDsvpMb26ccBkNWZPDol9v13Fgk/pvjWMztt3+NhY6AuCDUqUtDl/wNAY948CIkoiRCpsb29DW4nwRbwP4k5QeS4i3j4nj2C9P0N8xAhiTtUSe7rKyJZldC/b5FKEnemIt13TEOKidaaiFThRFqks3Zy1YcqpY1KHHeNTAOICMOmTZAM/RcAGck/InrYXcgilIm7Pu++vigT322HKpJkki1JWqSdEsmKxNaQVzMuTyXUCBbIFASBfeuOJPDZKO5CB3kPuUtzbFPrfSISxZ24g7vr4HV3bxrr36YgdWsDt/Yd6oPy+Kp4UzsgWmFvMEiN3kaDkUgJ+90Ti/8UTSUoTHfCs5N6Xd1pnm+RbTOJKpKzu2+/vSZu121E8ho7Z99rxu0qtWmZfavpCc3s0iaRms0Gxp0WQ2vkARJS6Lzh3jtxBzXaqlUbdifVLfrkHiH0CWbrDU6k8RCTuZ5Yk+Z72szzIzM7IeK4azRRJPvmAy/gAo+vFK5KlEyWiC6O4GrigplB4rG0Dtc1UEEyvaoH5Pd1LuaIZ3ltba1G28s5NypWJ+0o7qzZERKssEQRhxCR4Cty0vWgv+VC1+X10KABTz3t57s8qe7bMnXbj1EYojn8eCx+kvSI3UWSDWbeoRgLi9Sb7lVx1ySRVKCRUkEol1ikZEv0SPxhN+LCYw11udirtvEMsqc/Ed6g+DD8YRZvH6RPd44OnJ2DV/vS0hL+O7LknQLI5RyTiTs74iIkRYRI0UwKlVj+KsEvMTdu3CdEF0NDu542fTxID0/o9Mms2utTc0gCChMR07RWyc3zOZNs3DWbrZhKgcsiK1GgLcK6QyruLPyByPC7KiIZooSbNAz7AyE1h8QjuG8IaCm8jcQS2U1z4w1q9u28oRWhGpEQiy1QiBR/d80DanBSb9PH0szwG67L9wPTfo/oiZnaDQASAs21CxExLattJAk6tY9k8oh2XSTstjOZVkBqbbQ2tneIOr9IoYPv8BmMA26ab9NIT/OvXPGODs7+gkAYdLf9OeTSkhFp2R1scGnkiC57GxTW7DJNQSKmIBmXUEq6mJqkbI83Y+tq9l11m0iyPzEsU0j/pN0ARx1qpPJITjyNRIim5h0RzlXF6zDstjMN4IHVYCjdJqjUUi1RjIErnep2WoeJZOzbOzpoNHIiyRhyQER60x4i6oogeRVphZ3BqYREBIVM+B3a8WDnyrRTIlkmGtnV1ey7X29R7GeVPrjtyyeIdNsebJhbameiJYi6I13LXtyZE0IhpGxaVyQIu9YVC9QwXPATmoltvNyg1cAXrtbGN1++8+7hvmpVwk6JhESqItm4Y5Fuj4pIczaTwgXJqjQfbhu4V1V9Q7P16xYQ/eXLn3k8UO3rrFarMvvu10S+ff/idsZURdIl9ohvdjl3CsDsXdI8SBFtK412IzE/diUCJnzGWBWwiKiqpvn7vYLERGx2A741KLML2bfaYJ4s23GQ7u2+TqHWv/5pdyLoIw50JjoTHfBK4MA4oeybGyHSyE7Ab+v9WOffSqNciGhMDb/tlTmLBBpNfg3TN7+KiIRKEFVHArpvaFXVZqzbc3Fmd1bySJoG0siZ3f+rO2MUhGEoDBd0MAcQKyI9i5ewuIp71y4ORdDRtZu9RmdX8QLyoKs9gLPvf0lsIigWpOJrL/DxJ2leXt8fd193dOoTzXmQleh2uLbSaMpj7jMg+UKJSnM81m1ebbaKSBa7Zh+09/4e9HZ2s7iO4yqudrvKKTB7NZelIxKYri1xWl4KFo7BxBrpfjFOKAg5xVobKSa8AU+e3dIaS6TicingTlPzW+nQhbF3IkVfvQL6xZwamB44SKSQyhI8+ohglpYASVrn97A3yNM0L1NkSNk5Y6YzMwHIInnl2JN7+G2IoknQSbBULJDw0IaYiIHEog8mIabHnIFyJsrKEq8VSSyEak8jtxz7WL2XmmfYC7qL3mjMQEofCIlDH4lELNICJTFxoBCDA0liWaPCDDwAGSaHyAKZ+sQKPP2g8+iHI0Xi0CdjTuZRYjRqOn4fU+lZI3dl8FbvKBpOfoDzV3EHkd9/KKbWtFYAAAAASUVORK5CYII=',
-        abilities: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23ffe59e"/><stop offset="1" stop-color="%23ffc75b"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M68 18 40 70h18l-6 38 38-58H74l6-32z" fill="%23fff7d6" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/></svg>',
-        seeds: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23d3f8c6"/><stop offset="1" stop-color="%239be4a3"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><ellipse cx="64" cy="76" rx="20" ry="16" fill="%23a36b3a" stroke="%236b4b2a" stroke-width="6"/><path d="M64 60c0-12 10-22 22-22-3 12-11 20-22 22zM64 60c0-12-10-22-22-22 3 12 11 20 22 22z" fill="%239cd67f" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/></svg>',
-        values: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23ffe59e"/><stop offset="1" stop-color="%23ffd24d"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><circle cx="64" cy="64" r="30" fill="%23ffd86a" stroke="%236b4b2a" stroke-width="6"/><path d="M64 44v40M52 54h24M52 74h24" stroke="%236b4b2a" stroke-width="8" stroke-linecap="round"/></svg>',
-        timers: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23cde9ff"/><stop offset="1" stop-color="%2387d0ff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><circle cx="64" cy="72" r="34" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/><path d="M64 72V52M64 72l18 12" stroke="%236b4b2a" stroke-width="8" stroke-linecap="round"/><rect x="50" y="18" width="28" height="12" rx="6" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/></svg>',
-        rooms: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23ffe1f0"/><stop offset="1" stop-color="%23ffb6d9"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M28 70l36-26 36 26v30H28z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><rect x="54" y="74" width="20" height="26" rx="4" fill="%23ffd24d" stroke="%236b4b2a" stroke-width="6"/></svg>',
+        abilities:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23ffe59e"/><stop offset="1" stop-color="%23ffc75b"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M68 18 40 70h18l-6 38 38-58H74l6-32z" fill="%23fff7d6" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/></svg>',
+        seeds:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23d3f8c6"/><stop offset="1" stop-color="%239be4a3"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><ellipse cx="64" cy="76" rx="20" ry="16" fill="%23a36b3a" stroke="%236b4b2a" stroke-width="6"/><path d="M64 60c0-12 10-22 22-22-3 12-11 20-22 22zM64 60c0-12-10-22-22-22 3 12 11 20 22 22z" fill="%239cd67f" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/></svg>',
+        values:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23ffe59e"/><stop offset="1" stop-color="%23ffd24d"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><circle cx="64" cy="64" r="30" fill="%23ffd86a" stroke="%236b4b2a" stroke-width="6"/><path d="M64 44v40M52 54h24M52 74h24" stroke="%236b4b2a" stroke-width="8" stroke-linecap="round"/></svg>',
+        timers:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23cde9ff"/><stop offset="1" stop-color="%2387d0ff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><circle cx="64" cy="72" r="34" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/><path d="M64 72V52M64 72l18 12" stroke="%236b4b2a" stroke-width="8" stroke-linecap="round"/><rect x="50" y="18" width="28" height="12" rx="6" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/></svg>',
+        rooms:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23ffe1f0"/><stop offset="1" stop-color="%23ffb6d9"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M28 70l36-26 36 26v30H28z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><rect x="54" y="74" width="20" height="26" rx="4" fill="%23ffd24d" stroke="%236b4b2a" stroke-width="6"/></svg>',
         shop: 'https://cdn.discordapp.com/emojis/1423011042744729700.webp',
-        tools: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23e5e1ff"/><stop offset="1" stop-color="%23c7c2ff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M46 86l36-36-8-8-36 36-2 14 10-6z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><rect x="68" y="34" width="14" height="14" rx="3" fill="%23ffd24d" stroke="%236b4b2a" stroke-width="6"/></svg>',
-        settings: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23dff3ff"/><stop offset="1" stop-color="%23bfe6ff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><circle cx="64" cy="64" r="20" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/><path d="M64 30v12M64 86v12M30 64h12M86 64h12M42 42l8 8M78 78l8 8M86 42l-8 8M50 78l-8 8" stroke="%236b4b2a" stroke-width="6" stroke-linecap="round"/></svg>',
-        hotkeys: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23fff2c4"/><stop offset="1" stop-color="%23ffd889"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><rect x="30" y="44" width="68" height="40" rx="10" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/><text x="64" y="70" font-family="Arial,Helvetica,sans-serif" font-size="28" text-anchor="middle" fill="%236b4b2a">F</text></svg>',
-        protect: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23e2ffe7"/><stop offset="1" stop-color="%23b7f5c3"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M64 26l32 10v22c0 24-16 36-32 44-16-8-32-20-32-44V36z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><path d="M46 62l12 12 24-24" fill="none" stroke="%2394d36b" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        notifications: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23e3f0ff"/><stop offset="1" stop-color="%23c7dbff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M40 82h48l-6-10V58a18 18 0 10-36 0v14z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><circle cx="84" cy="44" r="10" fill="%23ff6464" stroke="%236b4b2a" stroke-width="6"/></svg>',
+        tools:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23e5e1ff"/><stop offset="1" stop-color="%23c7c2ff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M46 86l36-36-8-8-36 36-2 14 10-6z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><rect x="68" y="34" width="14" height="14" rx="3" fill="%23ffd24d" stroke="%236b4b2a" stroke-width="6"/></svg>',
+        settings:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23dff3ff"/><stop offset="1" stop-color="%23bfe6ff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><circle cx="64" cy="64" r="20" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/><path d="M64 30v12M64 86v12M30 64h12M86 64h12M42 42l8 8M78 78l8 8M86 42l-8 8M50 78l-8 8" stroke="%236b4b2a" stroke-width="6" stroke-linecap="round"/></svg>',
+        hotkeys:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23fff2c4"/><stop offset="1" stop-color="%23ffd889"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><rect x="30" y="44" width="68" height="40" rx="10" fill="%23fff" stroke="%236b4b2a" stroke-width="6"/><text x="64" y="70" font-family="Arial,Helvetica,sans-serif" font-size="28" text-anchor="middle" fill="%236b4b2a">F</text></svg>',
+        protect:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23e2ffe7"/><stop offset="1" stop-color="%23b7f5c3"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M64 26l32 10v22c0 24-16 36-32 44-16-8-32-20-32-44V36z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><path d="M46 62l12 12 24-24" fill="none" stroke="%2394d36b" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        notifications:
+          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23e3f0ff"/><stop offset="1" stop-color="%23c7dbff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><path d="M40 82h48l-6-10V58a18 18 0 10-36 0v14z" fill="%23fff" stroke="%236b4b2a" stroke-width="6" stroke-linejoin="round"/><circle cx="84" cy="44" r="10" fill="%23ff6464" stroke="%236b4b2a" stroke-width="6"/></svg>',
         help: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%23f1e7ff"/><stop offset="1" stop-color="%23d9ccff"/></linearGradient></defs><rect x="12" y="12" width="104" height="104" rx="22" fill="url(%23g)" stroke="%236b4b2a" stroke-width="6"/><circle cx="64" cy="88" r="6" fill="%236b4b2a"/><path d="M48 54a16 16 0 1132 0c0 10-8 10-10 16" fill="none" stroke="%236b4b2a" stroke-width="8" stroke-linecap="round"/></svg>'
       };
 
@@ -7666,10 +8166,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           img.style.display = 'none';
           const fallbackEmoji = targetDocument.createElement('span');
           const emojiMap = {
-            pets: '🐾', abilities: '⚡', seeds: '🌱', values: '💎',
-            timers: '⏱️', rooms: '🏠', shop: '🛒', tools: '🔧',
-            settings: '⚙️', hotkeys: '⌨️', protect: '🔒',
-            notifications: '🔔', help: '❓'
+            pets: '🐾',
+            abilities: '⚡',
+            seeds: '🌱',
+            values: '💎',
+            timers: '⏱️',
+            rooms: '🏠',
+            shop: '🛒',
+            tools: '🔧',
+            settings: '⚙️',
+            hotkeys: '⌨️',
+            protect: '🔒',
+            notifications: '🔔',
+            help: '❓'
           };
           fallbackEmoji.textContent = emojiMap[tabName] || '📋';
           fallbackEmoji.style.fontSize = '24px';
@@ -7720,10 +8229,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           img.style.display = 'none';
           const fallbackEmoji = targetDocument.createElement('span');
           const emojiMap = {
-            pets: '🐾', abilities: '⚡', seeds: '🌱', values: '💎',
-            timers: '⏱️', rooms: '🏠', shop: '🛒', tools: '🔧',
-            settings: '⚙️', hotkeys: '⌨️', protect: '🔒',
-            notifications: '🔔', help: '❓'
+            pets: '🐾',
+            abilities: '⚡',
+            seeds: '🌱',
+            values: '💎',
+            timers: '⏱️',
+            rooms: '🏠',
+            shop: '🛒',
+            tools: '🔧',
+            settings: '⚙️',
+            hotkeys: '⌨️',
+            protect: '🔒',
+            notifications: '🔔',
+            help: '❓'
           };
           fallbackEmoji.textContent = emojiMap[tabName] || '📋';
           fallbackEmoji.style.fontSize = '24px';
@@ -7772,7 +8290,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const tailTrigger = targetDocument.createElement('div');
       tailTrigger.className = 'mgh-dock-item tail-trigger';
       tailTrigger.innerHTML = '⋯';
-      tailTrigger.addEventListener('mouseenter', () => tailGroup.style.display = 'flex');
+      tailTrigger.addEventListener('mouseenter', () => (tailGroup.style.display = 'flex'));
 
       // Close tail group when mouse leaves the dock entirely
       dock.addEventListener('mouseleave', () => {
@@ -7952,8 +8470,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             // Emergency notification
             try {
               const msg = targetDocument.createElement('div');
-              msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#ff4444;color:white;padding:20px;border-radius:10px;z-index:999999;font-family:Arial,sans-serif;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
-              msg.innerHTML = '<strong>⚠️ MGTools UI Failed to Load</strong><br><br>Please reload the page (F5)<br>or check browser console for details.<br><br><small>Test Version 3.8.9-TEST</small>';
+              msg.style.cssText =
+                'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#ff4444;color:white;padding:20px;border-radius:10px;z-index:999999;font-family:Arial,sans-serif;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+              msg.innerHTML =
+                '<strong>⚠️ MGTools UI Failed to Load</strong><br><br>Please reload the page (F5)<br>or check browser console for details.<br><br><small>Test Version 3.8.9-TEST</small>';
               targetDocument.body.appendChild(msg);
 
               setTimeout(() => {
@@ -7969,11 +8489,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Show success toast
           setTimeout(() => {
             try {
-              showToast(
-                '✅ MGTools TEST Loaded',
-                'UI Health Check Passed',
-                3000
-              );
+              // eslint-disable-next-line no-undef
+              showToast('✅ MGTools TEST Loaded', 'UI Health Check Passed', 3000);
             } catch (e) {
               // Toast might not be ready yet, that's okay
             }
@@ -8018,11 +8535,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         if (showNotification) {
           try {
-            showToast(
-              visible ? '🎨 Toolbar Shown' : '👻 Toolbar Hidden',
-              'Alt+M to toggle',
-              2000
-            );
+            // eslint-disable-next-line no-undef
+            showToast(visible ? '🎨 Toolbar Shown' : '👻 Toolbar Hidden', 'Alt+M to toggle', 2000);
           } catch (e) {
             // Toast not ready, silent fail
           }
@@ -8033,7 +8547,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       setTimeout(() => applyVisibility(toolbarVisible, false), 100);
 
       // Listen for Alt+M
-      document.addEventListener('keydown', (e) => {
+      document.addEventListener('keydown', e => {
         // Check for Alt+M (case insensitive)
         if (e.altKey && (e.key === 'm' || e.key === 'M')) {
           e.preventDefault();
@@ -8165,8 +8679,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (isDragging) return;
 
         // Don't show grab cursor on dock items
-        if (e.target.classList.contains('mgh-dock-item') ||
-                  e.target.closest('.mgh-dock-item')) {
+        if (e.target.classList.contains('mgh-dock-item') || e.target.closest('.mgh-dock-item')) {
           dock.style.cursor = '';
           return;
         }
@@ -8177,8 +8690,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const edgeThreshold = 12;
 
         // Check if near edges
-        const nearEdge = x < edgeThreshold || x > rect.width - edgeThreshold ||
-                             y < edgeThreshold || y > rect.height - edgeThreshold;
+        const nearEdge =
+          x < edgeThreshold || x > rect.width - edgeThreshold || y < edgeThreshold || y > rect.height - edgeThreshold;
 
         dock.style.cursor = nearEdge ? 'grab' : '';
       });
@@ -8186,8 +8699,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Shared drag start logic
       const startDrag = (clientX, clientY, event) => {
         // Don't start drag if clicking/touching on a dock item
-        if (event.target.classList.contains('mgh-dock-item') ||
-                  event.target.closest('.mgh-dock-item')) {
+        if (event.target.classList.contains('mgh-dock-item') || event.target.closest('.mgh-dock-item')) {
           return;
         }
 
@@ -8215,8 +8727,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         event.preventDefault();
         const deltaX = clientX - startX;
         const deltaY = clientY - startY;
-        dock.style.left = (startLeft + deltaX) + 'px';
-        dock.style.top = (startTop + deltaY) + 'px';
+        dock.style.left = startLeft + deltaX + 'px';
+        dock.style.top = startTop + deltaY + 'px';
         dock.style.transform = 'none';
         dock.style.bottom = 'auto';
         dock.style.right = 'auto';
@@ -8258,19 +8770,27 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
 
       // Touch event handlers
-      dock.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) {
-          const touch = e.touches[0];
-          startDrag(touch.clientX, touch.clientY, e);
-        }
-      }, { passive: false });
+      dock.addEventListener(
+        'touchstart',
+        e => {
+          if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            startDrag(touch.clientX, touch.clientY, e);
+          }
+        },
+        { passive: false }
+      );
 
-      targetDocument.addEventListener('touchmove', e => {
-        if (isDragging && e.touches.length === 1) {
-          const touch = e.touches[0];
-          handleDragMove(touch.clientX, touch.clientY, e);
-        }
-      }, { passive: false });
+      targetDocument.addEventListener(
+        'touchmove',
+        e => {
+          if (isDragging && e.touches.length === 1) {
+            const touch = e.touches[0];
+            handleDragMove(touch.clientX, touch.clientY, e);
+          }
+        },
+        { passive: false }
+      );
 
       targetDocument.addEventListener('touchend', () => {
         endDrag();
@@ -8482,8 +9002,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (!isDragging) return;
         const deltaX = clientX - startX;
         const deltaY = clientY - startY;
-        popout.style.left = (startLeft + deltaX) + 'px';
-        popout.style.top = (startTop + deltaY) + 'px';
+        popout.style.left = startLeft + deltaX + 'px';
+        popout.style.top = startTop + deltaY + 'px';
       };
 
       // Shared drag end logic
@@ -8508,20 +9028,28 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
 
       // Touch event handlers
-      handle.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) {
-          const touch = e.touches[0];
-          startDrag(touch.clientX, touch.clientY, e);
-        }
-      }, { passive: false });
+      handle.addEventListener(
+        'touchstart',
+        e => {
+          if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            startDrag(touch.clientX, touch.clientY, e);
+          }
+        },
+        { passive: false }
+      );
 
-      document.addEventListener('touchmove', e => {
-        if (isDragging && e.touches.length === 1) {
-          const touch = e.touches[0];
-          handleDragMove(touch.clientX, touch.clientY);
-          e.preventDefault(); // Prevent scrolling while dragging
-        }
-      }, { passive: false });
+      document.addEventListener(
+        'touchmove',
+        e => {
+          if (isDragging && e.touches.length === 1) {
+            const touch = e.touches[0];
+            handleDragMove(touch.clientX, touch.clientY);
+            e.preventDefault(); // Prevent scrolling while dragging
+          }
+        },
+        { passive: false }
+      );
 
       document.addEventListener('touchend', () => {
         endDrag();
@@ -8675,8 +9203,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       saveBtn.addEventListener('click', () => {
         if (capturedHotkey) {
           // Check for duplicate hotkey usage
-          const existingPreset = Object.entries(UnifiedState.data.petPresetHotkeys)
-            .find(([name, key]) => name !== presetName && key === capturedHotkey);
+          const existingPreset = Object.entries(UnifiedState.data.petPresetHotkeys).find(
+            ([name, key]) => name !== presetName && key === capturedHotkey
+          );
 
           if (existingPreset) {
             const proceed = confirm(
@@ -8711,73 +9240,85 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Register Alt+B hotkey to toggle shop windows
     // Use capture phase (true) to intercept before game handlers
-    targetDocument.addEventListener('keydown', e => {
-      // Alt+B for shop
-      if (e.altKey && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleShopWindows();
-        return;
-      }
-
-      // Check pet preset hotkeys
-      for (const [presetName, hotkey] of Object.entries(UnifiedState.data.petPresetHotkeys)) {
-        if (hotkey && matchesHotkey(e, hotkey)) {
-          const preset = UnifiedState.data.petPresets[presetName];
-          if (preset) {
-            e.preventDefault();
-            e.stopPropagation();
-            loadPetPreset(preset);
-
-            // Refresh active pets display after loading
-            setTimeout(() => {
-              updateActivePetsFromRoomState();
-              const sidebar = document.querySelector('#mgh-sidebar-body');
-              if (sidebar) updateActivePetsDisplay(sidebar);
-
-              // Also refresh any open popouts
-              refreshSeparateWindowPopouts('pets');
-            }, 800);
-            return;
+    targetDocument.addEventListener(
+      'keydown',
+      e => {
+        // CRITICAL: Block ALL MGTools hotkeys when typing in inputs
+        if (shouldBlockHotkey(e)) {
+          if (UnifiedState.data.settings?.debugMode) {
+            console.log('[FIX_HOTKEYS] Blocked MGTools hotkey in input (pet presets/nav)');
           }
-          // If preset doesn't exist (orphaned hotkey), continue checking other presets
+          return; // Don't process any MGTools hotkeys
         }
-      }
 
-      // Check MGTools navigation hotkeys
-      const mgToolsKeys = UnifiedState.data.hotkeys.mgToolsKeys;
-      const tabMap = {
-        openPets: 'pets',
-        openAbilities: 'abilities',
-        openSeeds: 'seeds',
-        openValues: 'values',
-        openTimers: 'timers',
-        openRooms: 'rooms',
-        openShop: 'shop'
-      };
-
-      for (const [action, config] of Object.entries(mgToolsKeys)) {
-        if (config.custom && matchesHotkey(e, config.custom)) {
+        // Alt+B for shop
+        if (e.altKey && e.key.toLowerCase() === 'b') {
           e.preventDefault();
           e.stopPropagation();
-
-          // Handle cycle presets action
-          if (action === 'cyclePresets') {
-            cycleToNextPreset();
-            return;
-          }
-
-          // Handle tab opening actions
-          const tabName = tabMap[action];
-          if (tabName === 'shop') {
-            toggleShopWindows();
-          } else if (tabName) {
-            openSidebarTab(tabName);
-          }
+          toggleShopWindows();
           return;
         }
-      }
-    }, true); // Use capture phase to intercept before game handlers
+
+        // Check pet preset hotkeys
+        for (const [presetName, hotkey] of Object.entries(UnifiedState.data.petPresetHotkeys)) {
+          if (hotkey && matchesHotkey(e, hotkey)) {
+            const preset = UnifiedState.data.petPresets[presetName];
+            if (preset) {
+              e.preventDefault();
+              e.stopPropagation();
+              loadPetPreset(preset);
+
+              // Refresh active pets display after loading
+              setTimeout(() => {
+                updateActivePetsFromRoomState();
+                const sidebar = document.querySelector('#mgh-sidebar-body');
+                if (sidebar) updateActivePetsDisplay(sidebar);
+
+                // Also refresh any open popouts
+                refreshSeparateWindowPopouts('pets');
+              }, 800);
+              return;
+            }
+            // If preset doesn't exist (orphaned hotkey), continue checking other presets
+          }
+        }
+
+        // Check MGTools navigation hotkeys
+        const mgToolsKeys = UnifiedState.data.hotkeys.mgToolsKeys;
+        const tabMap = {
+          openPets: 'pets',
+          openAbilities: 'abilities',
+          openSeeds: 'seeds',
+          openValues: 'values',
+          openTimers: 'timers',
+          openRooms: 'rooms',
+          openShop: 'shop'
+        };
+
+        for (const [action, config] of Object.entries(mgToolsKeys)) {
+          if (config.custom && matchesHotkey(e, config.custom)) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Handle cycle presets action
+            if (action === 'cyclePresets') {
+              cycleToNextPreset();
+              return;
+            }
+
+            // Handle tab opening actions
+            const tabName = tabMap[action];
+            if (tabName === 'shop') {
+              toggleShopWindows();
+            } else if (tabName) {
+              openSidebarTab(tabName);
+            }
+            return;
+          }
+        }
+      },
+      true
+    ); // Use capture phase to intercept before game handlers
 
     // Pop-out window functionality (separate window implementation)
     function openTabInSeparateWindow(tabName) {
@@ -8796,7 +9337,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const title = `MGTools - ${tabTitles[tabName] || tabName}`;
 
       // Calculate window size based on tab content
-      const windowFeatures = 'width=450,height=550,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+      const windowFeatures =
+        'width=450,height=550,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
 
       const popoutWindow = window.open('', `mga_popout_${tabName}`, windowFeatures);
 
@@ -9282,14 +9824,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // INVISIBLE DRAGGING - No chrome, entire overlay is draggable
       // Add subtle visual feedback on hover (skip for pets popouts to prevent stutter)
       overlay.addEventListener('mouseenter', () => {
-        if (!overlay.hasAttribute('data-dragging') && !overlay.id.includes('mga-pets-popout') && !overlay.id.includes('pets')) {
+        if (
+          !overlay.hasAttribute('data-dragging') &&
+          !overlay.id.includes('mga-pets-popout') &&
+          !overlay.id.includes('pets')
+        ) {
           overlay.style.transform = 'scale(1.005)';
           overlay.style.transition = 'transform 0.15s ease';
         }
       });
 
       overlay.addEventListener('mouseleave', () => {
-        if (!overlay.hasAttribute('data-dragging') && !overlay.id.includes('mga-pets-popout') && !overlay.id.includes('pets')) {
+        if (
+          !overlay.hasAttribute('data-dragging') &&
+          !overlay.id.includes('mga-pets-popout') &&
+          !overlay.id.includes('pets')
+        ) {
           overlay.style.transform = 'scale(1)';
         }
       });
@@ -9447,7 +9997,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Use already-loaded settings from UnifiedState (avoid double-load race condition)
         const notifications = UnifiedState.data?.settings?.notifications;
         if (notifications) {
-
           // Apply ability notification settings
           const abilityCheckbox = overlay.querySelector('#ability-notifications-enabled');
           if (abilityCheckbox) {
@@ -9567,8 +10116,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   debugLog('ABILITY_LOGS', 'Secondary refresh for ability logs completed');
                 }, 500);
               } else {
-                debugError('HANDLER_SETUP', 'Could not find parent overlay for ability logs setup',
-                  new Error('Parent overlay not found'), { tabName, contentArea });
+                debugError(
+                  'HANDLER_SETUP',
+                  'Could not find parent overlay for ability logs setup',
+                  new Error('Parent overlay not found'),
+                  { tabName, contentArea }
+                );
               }
               break;
             case 'pets':
@@ -9610,9 +10163,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       overlay.addEventListener('mousedown', e => {
         // Don't start drag if clicking on interactive elements or resize handle
-        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' ||
-                  e.target.tagName === 'SELECT' || e.target.closest('.mga-btn') ||
-                  e.target.classList.contains('mga-resize-handle')) {
+        if (
+          e.target.tagName === 'BUTTON' ||
+          e.target.tagName === 'INPUT' ||
+          e.target.tagName === 'SELECT' ||
+          e.target.closest('.mga-btn') ||
+          e.target.classList.contains('mga-resize-handle')
+        ) {
           return;
         }
 
@@ -9665,10 +10222,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Enhanced viewport constraints
           const gameViewport = getGameViewport();
 
-          const constrainedX = Math.max(gameViewport.left,
-            Math.min(newX, gameViewport.right - rect.width));
-          const constrainedY = Math.max(gameViewport.top,
-            Math.min(newY, gameViewport.bottom - rect.height));
+          const constrainedX = Math.max(gameViewport.left, Math.min(newX, gameViewport.right - rect.width));
+          const constrainedY = Math.max(gameViewport.top, Math.min(newY, gameViewport.bottom - rect.height));
 
           overlay.style.left = constrainedX + 'px';
           overlay.style.top = constrainedY + 'px';
@@ -9744,10 +10299,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const gameViewport = getGameViewport();
         const overlayRect = overlay.getBoundingClientRect();
 
-        const constrainedX = Math.max(gameViewport.left,
-          Math.min(newX, gameViewport.right - overlayRect.width));
-        const constrainedY = Math.max(gameViewport.top,
-          Math.min(newY, gameViewport.bottom - overlayRect.height));
+        const constrainedX = Math.max(gameViewport.left, Math.min(newX, gameViewport.right - overlayRect.width));
+        const constrainedY = Math.max(gameViewport.top, Math.min(newY, gameViewport.bottom - overlayRect.height));
 
         overlay.style.left = constrainedX + 'px';
         overlay.style.top = constrainedY + 'px';
@@ -9769,10 +10322,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const rect = overlay.getBoundingClientRect();
 
         if (rect.right > gameViewport.right) {
-          overlay.style.left = (gameViewport.right - rect.width) + 'px';
+          overlay.style.left = gameViewport.right - rect.width + 'px';
         }
         if (rect.bottom > gameViewport.bottom) {
-          overlay.style.top = (gameViewport.bottom - rect.height) + 'px';
+          overlay.style.top = gameViewport.bottom - rect.height + 'px';
         }
         if (rect.left < gameViewport.left) {
           overlay.style.left = gameViewport.left + 'px';
@@ -9790,10 +10343,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const rect = overlay.getBoundingClientRect();
 
         if (rect.right > gameViewport.right) {
-          overlay.style.left = (gameViewport.right - rect.width) + 'px';
+          overlay.style.left = gameViewport.right - rect.width + 'px';
         }
         if (rect.bottom > gameViewport.bottom) {
-          overlay.style.top = (gameViewport.bottom - rect.height) + 'px';
+          overlay.style.top = gameViewport.bottom - rect.height + 'px';
         }
       });
     }
@@ -9869,7 +10422,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
     }
 
-
     function loadOverlayDimensions(overlay) {
       try {
         const savedDimensions = MGA_loadJSON('MGA_overlayDimensions', {});
@@ -9915,11 +10467,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const leftPx = parseInt(savedPosition.left);
         const topPx = parseInt(savedPosition.top);
 
-        if (!isNaN(leftPx) && !isNaN(topPx) &&
-                  leftPx >= gameViewport.left && topPx >= gameViewport.top &&
-                  leftPx + overlayWidth <= gameViewport.right &&
-                  topPx + overlayHeight <= gameViewport.bottom) {
-
+        if (
+          !isNaN(leftPx) &&
+          !isNaN(topPx) &&
+          leftPx >= gameViewport.left &&
+          topPx >= gameViewport.top &&
+          leftPx + overlayWidth <= gameViewport.right &&
+          topPx + overlayHeight <= gameViewport.bottom
+        ) {
           // Check for collisions with existing overlays and main HUD
           if (!hasCollisionAtPosition(leftPx, topPx, overlayWidth, overlayHeight)) {
             debugLog('OVERLAY_LIFECYCLE', 'Using saved position with no collisions', {
@@ -9994,8 +10549,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let attempts = 0;
 
       while (attempts < 20) {
-        if (!hasCollisionAtPosition(fallbackX, fallbackY, overlayWidth, overlayHeight) &&
-                  !overlapsMainHUD(fallbackX, fallbackY, overlayWidth, overlayHeight)) {
+        if (
+          !hasCollisionAtPosition(fallbackX, fallbackY, overlayWidth, overlayHeight) &&
+          !overlapsMainHUD(fallbackX, fallbackY, overlayWidth, overlayHeight)
+        ) {
           break;
         }
         fallbackX += 30;
@@ -10034,17 +10591,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const snappedY = Math.round(y / snapGrid) * snapGrid;
 
           // Check bounds
-          if (snappedX + overlayWidth <= zone.maxX &&
-                      snappedY + overlayHeight <= zone.maxY) {
-
+          if (snappedX + overlayWidth <= zone.maxX && snappedY + overlayHeight <= zone.maxY) {
             // Check collisions with existing overlays and main HUD
-            if (!hasCollisionAtPosition(snappedX, snappedY, overlayWidth, overlayHeight) &&
-                          !overlapsMainHUD(snappedX, snappedY, overlayWidth, overlayHeight)) {
+            if (
+              !hasCollisionAtPosition(snappedX, snappedY, overlayWidth, overlayHeight) &&
+              !overlapsMainHUD(snappedX, snappedY, overlayWidth, overlayHeight)
+            ) {
               return { left: snappedX, top: snappedY };
             }
           }
 
-          x += zone.stepX || (overlayWidth + 15);
+          x += zone.stepX || overlayWidth + 15;
           if (zone.stepX === 0) break; // Single column zone
         }
         x = zone.x;
@@ -10070,10 +10627,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       };
 
       // Check for overlap
-      return !(x + width < expandedRect.left ||
-                  x > expandedRect.right ||
-                  y + height < expandedRect.top ||
-                  y > expandedRect.bottom);
+      return !(
+        x + width < expandedRect.left ||
+        x > expandedRect.right ||
+        y + height < expandedRect.top ||
+        y > expandedRect.bottom
+      );
     }
 
     function hasCollisionAtPosition(x, y, width, height) {
@@ -10084,10 +10643,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const rect = existingOverlay.getBoundingClientRect();
 
         // Check for overlap with buffer
-        if (!(x + width + buffer < rect.left ||
-                    x - buffer > rect.right ||
-                    y + height + buffer < rect.top ||
-                    y - buffer > rect.bottom)) {
+        if (
+          !(
+            x + width + buffer < rect.left ||
+            x - buffer > rect.right ||
+            y + height + buffer < rect.top ||
+            y - buffer > rect.bottom
+          )
+        ) {
           return true; // Collision detected
         }
       }
@@ -10124,10 +10687,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const leftPx = parseInt(position.left);
           const topPx = parseInt(position.top);
 
-          if (!isNaN(leftPx) && !isNaN(topPx) &&
-                      leftPx >= gameViewport.left && topPx >= gameViewport.top &&
-                      leftPx < gameViewport.right && topPx < gameViewport.bottom) {
-
+          if (
+            !isNaN(leftPx) &&
+            !isNaN(topPx) &&
+            leftPx >= gameViewport.left &&
+            topPx >= gameViewport.top &&
+            leftPx < gameViewport.right &&
+            topPx < gameViewport.bottom
+          ) {
             overlay.style.left = position.left;
             overlay.style.top = position.top;
 
@@ -10178,7 +10745,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         debugLog('OVERLAY_LIFECYCLE', `Expanded overlay ${tabName}`, {
           overlayId: overlay.id
         });
-
       } else {
         // MINIMIZE - Collapse to title bar only
         overlay.setAttribute('data-minimized', 'true');
@@ -10420,7 +10986,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             productionLog(`🔧 [RESIZE] Re-added missing resize handle to ${tabName} pure overlay`);
           }
         }, 50);
-
       } catch (error) {
         debugError('OVERLAY_LIFECYCLE', 'Failed to update pure overlay content', error, {
           tabName,
@@ -10548,7 +11113,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     function getCachedTabContent(tabName, generator) {
       // Never cache dynamic tabs (they need real-time data)
-      const dynamicTabs = ['pets', 'abilities', 'seeds', 'shop', 'values', 'timers', 'rooms', 'hotkeys', 'settings', 'notifications', 'protect'];
+      const dynamicTabs = [
+        'pets',
+        'abilities',
+        'seeds',
+        'shop',
+        'values',
+        'timers',
+        'rooms',
+        'hotkeys',
+        'settings',
+        'notifications',
+        'protect'
+      ];
       if (dynamicTabs.includes(tabName)) {
         return generator();
       }
@@ -10598,7 +11175,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           preservedInputFocused = document.activeElement === currentInput;
           preservedCursorPosition = currentInput.selectionStart || 0;
           if (UnifiedState.data.settings.debugMode) {
-            productionLog('🔒 Preserving input state:', { value: preservedInputValue, focused: preservedInputFocused, cursor: preservedCursorPosition });
+            productionLog('🔒 Preserving input state:', {
+              value: preservedInputValue,
+              focused: preservedInputFocused,
+              cursor: preservedCursorPosition
+            });
           }
         }
       }
@@ -10651,7 +11232,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   // Set cursor to preserved position
                   newInput.setSelectionRange(preservedCursorPosition, preservedCursorPosition);
                   if (UnifiedState.data.settings.debugMode) {
-                    productionLog('✅ Restored input state:', { value: newInput.value, focused: document.activeElement === newInput });
+                    productionLog('✅ Restored input state:', {
+                      value: newInput.value,
+                      focused: document.activeElement === newInput
+                    });
                   }
                 }
               }
@@ -10703,7 +11287,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           contentEl.innerHTML = getCachedTabContent('settings', getSettingsTabContent);
           productionLog('⚙️ [SETTINGS-DEBUG] Settings HTML rendered');
           contentEl.setAttribute('data-tab', 'settings'); // Enable settings-specific scrolling
-          productionLog('⚙️ [SETTINGS-DEBUG] About to call setupSettingsTabHandlers with context:', contentEl ? 'contentEl' : 'null');
+          productionLog(
+            '⚙️ [SETTINGS-DEBUG] About to call setupSettingsTabHandlers with context:',
+            contentEl ? 'contentEl' : 'null'
+          );
           setupSettingsTabHandlers(contentEl);
           productionLog('⚙️ [SETTINGS-DEBUG] setupSettingsTabHandlers completed');
           break;
@@ -10739,30 +11326,42 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   <div class="mga-section">
                       <div class="mga-section-title mga-pet-section-title">Active Pets</div>
                       <div class="mga-active-pets-display">
-                          ${activePets.length > 0 ? `
+                          ${
+                            activePets.length > 0
+                              ? `
                               <div style="color: #93c5fd; font-size: 12px; margin-bottom: 4px;">Currently Equipped:</div>
                               <div class="mga-active-pets-list">
-                                  ${activePets.map((p, index) => {
-    const timeUntilHungry = calculateTimeUntilHungry(p);
-    const timerText = formatHungerTimer(timeUntilHungry);
-    const timerColor = timeUntilHungry === null ? '#999' :
-      timeUntilHungry <= 0 ? '#8B0000' :
-        timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
-          timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
-    return `
+                                  ${activePets
+                                    .map((p, index) => {
+                                      const timeUntilHungry = calculateTimeUntilHungry(p);
+                                      const timerText = formatHungerTimer(timeUntilHungry);
+                                      const timerColor =
+                                        timeUntilHungry === null
+                                          ? '#999'
+                                          : timeUntilHungry <= 0
+                                            ? '#8B0000'
+                                            : timeUntilHungry < 5 * 60 * 1000
+                                              ? '#ff4444'
+                                              : timeUntilHungry < 15 * 60 * 1000
+                                                ? '#ffa500'
+                                                : '#4caf50';
+                                      return `
                                           <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
                                               <span class="mga-pet-badge">${p.petSpecies}</span>
                                               <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
                                           </div>
                                       `;
-  }).join('')}
+                                    })
+                                    .join('')}
                               </div>
-                          ` : `
+                          `
+                              : `
                               <div class="mga-empty-state">
                                   <div class="mga-empty-state-icon">—</div>
                                   <div class="mga-empty-state-description">No pets currently active</div>
                               </div>
-                          `}
+                          `
+                          }
                       </div>
                   </div>
                   <div class="mga-section">
@@ -10782,30 +11381,42 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               <div class="mga-section">
                   <div class="mga-section-title mga-pet-section-title">Active Pets</div>
                   <div class="mga-active-pets-display">
-                      ${activePets.length > 0 ? `
+                      ${
+                        activePets.length > 0
+                          ? `
                           <div class="mga-active-pets-header">Currently Equipped:</div>
                           <div class="mga-active-pets-list">
-                              ${activePets.map((p, index) => {
-    const timeUntilHungry = calculateTimeUntilHungry(p);
-    const timerText = formatHungerTimer(timeUntilHungry);
-    const timerColor = timeUntilHungry === null ? '#999' :
-      timeUntilHungry <= 0 ? '#8B0000' :
-        timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
-          timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
-    return `
+                              ${activePets
+                                .map((p, index) => {
+                                  const timeUntilHungry = calculateTimeUntilHungry(p);
+                                  const timerText = formatHungerTimer(timeUntilHungry);
+                                  const timerColor =
+                                    timeUntilHungry === null
+                                      ? '#999'
+                                      : timeUntilHungry <= 0
+                                        ? '#8B0000'
+                                        : timeUntilHungry < 5 * 60 * 1000
+                                          ? '#ff4444'
+                                          : timeUntilHungry < 15 * 60 * 1000
+                                            ? '#ffa500'
+                                            : '#4caf50';
+                                  return `
                                       <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
                                           <span class="mga-pet-badge">${p.petSpecies}</span>
                                           <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
                                       </div>
                                   `;
-  }).join('')}
+                                })
+                                .join('')}
                           </div>
-                      ` : `
+                      `
+                          : `
                           <div class="mga-empty-state">
                               <div class="mga-empty-state-icon">—</div>
                               <div class="mga-empty-state-description">No pets currently active</div>
                           </div>
-                      `}
+                      `
+                      }
                   </div>
               </div>
 
@@ -10831,7 +11442,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
 
       html += `</div>`;
-      productionLog('🔍 [PETS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
+      productionLog('🔍 [PETS DEBUG] Returning HTML:', {
+        htmlLength: html.length,
+        htmlPreview: html.substring(0, 200)
+      });
       return html;
     }
 
@@ -10920,19 +11534,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           };
 
           // Single refresh after 2 seconds (gives game time to update)
-          setTimeout(() => {
-            refreshPetDisplays();
-            productionLog('✅ [PETS-REFRESH] First refresh complete');
+          setTimeout(
+            () => {
+              refreshPetDisplays();
+              productionLog('✅ [PETS-REFRESH] First refresh complete');
 
-            // Retry handler reattachment after a short delay to ensure reliability
-            setTimeout(() => {
-              const overlay = UnifiedState.data.popouts.overlays.get('pets');
-              if (overlay && document.contains(overlay)) {
-                productionLog('🔄 [PETS-HANDLERS] Reattaching handlers to ensure reliability');
-                setupPetPopoutHandlers(overlay);
-              }
-            }, 500);
-          }, preset.length * 50 + 2000);
+              // Retry handler reattachment after a short delay to ensure reliability
+              setTimeout(() => {
+                const overlay = UnifiedState.data.popouts.overlays.get('pets');
+                if (overlay && document.contains(overlay)) {
+                  productionLog('🔄 [PETS-HANDLERS] Reattaching handlers to ensure reliability');
+                  setupPetPopoutHandlers(overlay);
+                }
+              }, 500);
+            },
+            preset.length * 50 + 2000
+          );
 
           // Visual feedback - gentle highlight, no transform (prevents stutter)
           // Temporarily disable pointer events to prevent hover conflicts
@@ -11042,7 +11659,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const totalPresets = Object.keys(petPresets).length;
 
       let html = `
-              ${totalPresets > 0 ? `
+              ${
+                totalPresets > 0
+                  ? `
                   <div class="mga-section" style="padding: 8px 12px; background: rgba(139, 92, 246, 0.15); border-left: 3px solid #8b5cf6; margin-bottom: 12px;">
                       <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                           <div style="flex: 1;">
@@ -11056,34 +11675,48 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           </button>
                       </div>
                   </div>
-              ` : ''}
+              `
+                  : ''
+              }
               <div class="mga-section">
                   <div class="mga-section-title mga-pet-section-title">Active Pets</div>
                   <div class="mga-active-pets-display">
-                      ${activePets.length > 0 ? `
+                      ${
+                        activePets.length > 0
+                          ? `
                           <div class="mga-active-pets-header">Currently Equipped:</div>
                           <div class="mga-active-pets-list">
-                              ${activePets.map((p, index) => {
-    const timeUntilHungry = calculateTimeUntilHungry(p);
-    const timerText = formatHungerTimer(timeUntilHungry);
-    const timerColor = timeUntilHungry === null ? '#999' :
-      timeUntilHungry <= 0 ? '#8B0000' :
-        timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
-          timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
-    return `
+                              ${activePets
+                                .map((p, index) => {
+                                  const timeUntilHungry = calculateTimeUntilHungry(p);
+                                  const timerText = formatHungerTimer(timeUntilHungry);
+                                  const timerColor =
+                                    timeUntilHungry === null
+                                      ? '#999'
+                                      : timeUntilHungry <= 0
+                                        ? '#8B0000'
+                                        : timeUntilHungry < 5 * 60 * 1000
+                                          ? '#ff4444'
+                                          : timeUntilHungry < 15 * 60 * 1000
+                                            ? '#ffa500'
+                                            : '#4caf50';
+                                  return `
                                       <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
                                           <span class="mga-pet-badge">${p.petSpecies}</span>
                                           <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
                                       </div>
                                   `;
-  }).join('')}
+                                })
+                                .join('')}
                           </div>
-                      ` : `
+                      `
+                          : `
                           <div class="mga-empty-state">
                               <div class="mga-empty-state-icon">—</div>
                               <div class="mga-empty-state-description">No pets currently active</div>
                           </div>
-                      `}
+                      `
+                      }
                   </div>
               </div>
 
@@ -11091,9 +11724,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   <div class="mga-section-title mga-pet-section-title">Quick Load Preset</div>
                   <select class="mga-select" id="preset-quick-select" style="margin-bottom: 8px;">
                       <option value="">-- Select Preset --</option>
-                      ${Object.keys(petPresets).map(name =>
-    `<option value="${name}">${name} (${petPresets[name].map(p => p.petSpecies).join(', ')})</option>`
-  ).join('')}
+                      ${Object.keys(petPresets)
+                        .map(
+                          name =>
+                            `<option value="${name}">${name} (${petPresets[name].map(p => p.petSpecies).join(', ')})</option>`
+                        )
+                        .join('')}
                   </select>
                   <button class="mga-btn" id="quick-load-btn" style="width: 100%;">Load</button>
               </div>
@@ -11177,8 +11813,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                       </div>
                   </div>
                   <div id="filter-mode-description" style="font-size: 11px; color: #aaa; margin-bottom: 12px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px;">
-                      ${filterMode === 'categories' ? '📂 Filter by ability categories' :
-    filterMode === 'byPet' ? '🐾 Filter by pet species' : '⚙️ Filter by individual abilities'}
+                      ${
+                        filterMode === 'categories'
+                          ? '📂 Filter by ability categories'
+                          : filterMode === 'byPet'
+                            ? '🐾 Filter by pet species'
+                            : '⚙️ Filter by individual abilities'
+                      }
                   </div>
 
                   <!-- Categories Mode -->
@@ -11265,7 +11906,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         { name: 'Rare', color: '#0af', seeds: ['Daffodil', 'Corn', 'Watermelon', 'Pumpkin'] },
         { name: 'Legendary', color: '#ff0', seeds: ['Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail'] },
         { name: 'Mythical', color: '#a0f', seeds: ['Mushroom', 'Cactus', 'Bamboo', 'Grape'] },
-        { name: 'Divine', color: 'orange', seeds: ['Sunflower', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee'] },
+        {
+          name: 'Divine',
+          color: 'orange',
+          seeds: ['Sunflower', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee']
+        },
         { name: 'Celestial', color: '#ff69b4', seeds: ['Starweaver', 'Moonbinder', 'Dawnbinder'], protected: true }
       ];
 
@@ -11299,15 +11944,35 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Seed ID mapping for checking saved state (same as setupSeedsTabHandlers)
       const seedIdMap = {
-        'Carrot': 'Carrot', 'Strawberry': 'Strawberry', 'Aloe': 'Aloe',
-        'Blueberry': 'Blueberry', 'Apple': 'Apple', 'Tulip': 'OrangeTulip',
-        'Tomato': 'Tomato', 'Daffodil': 'Daffodil', 'Sunflower': 'Sunflower', 'Corn': 'Corn',
-        'Watermelon': 'Watermelon', 'Pumpkin': 'Pumpkin', 'Echeveria': 'Echeveria',
-        'Coconut': 'Coconut', 'Banana': 'Banana', 'Lily': 'Lily',
-        'BurrosTail': 'BurrosTail', 'Mushroom': 'Mushroom', 'Cactus': 'Cactus',
-        'Bamboo': 'Bamboo', 'Grape': 'Grape', 'Pepper': 'Pepper',
-        'Lemon': 'Lemon', 'PassionFruit': 'PassionFruit', 'DragonFruit': 'DragonFruit',
-        'Lychee': 'Lychee', 'Starweaver': 'Starweaver', 'Moonbinder': 'Moonbinder', 'Dawnbinder': 'Dawnbinder'
+        Carrot: 'Carrot',
+        Strawberry: 'Strawberry',
+        Aloe: 'Aloe',
+        Blueberry: 'Blueberry',
+        Apple: 'Apple',
+        Tulip: 'OrangeTulip',
+        Tomato: 'Tomato',
+        Daffodil: 'Daffodil',
+        Sunflower: 'Sunflower',
+        Corn: 'Corn',
+        Watermelon: 'Watermelon',
+        Pumpkin: 'Pumpkin',
+        Echeveria: 'Echeveria',
+        Coconut: 'Coconut',
+        Banana: 'Banana',
+        Lily: 'Lily',
+        BurrosTail: 'BurrosTail',
+        Mushroom: 'Mushroom',
+        Cactus: 'Cactus',
+        Bamboo: 'Bamboo',
+        Grape: 'Grape',
+        Pepper: 'Pepper',
+        Lemon: 'Lemon',
+        PassionFruit: 'PassionFruit',
+        DragonFruit: 'DragonFruit',
+        Lychee: 'Lychee',
+        Starweaver: 'Starweaver',
+        Moonbinder: 'Moonbinder',
+        Dawnbinder: 'Dawnbinder'
       };
 
       productionLog('🔍 [SEEDS DEBUG] Applying saved state to checkboxes:', {
@@ -11349,7 +12014,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
 
       debugLog('SEEDS_TAB', 'getSeedsTabContent() returning HTML', { htmlLength: html.length });
-      productionLog('🔍 [SEEDS DEBUG] Returning HTML:', { htmlLength: html.length, htmlPreview: html.substring(0, 200) });
+      productionLog('🔍 [SEEDS DEBUG] Returning HTML:', {
+        htmlLength: html.length,
+        htmlPreview: html.substring(0, 200)
+      });
       return html;
     }
 
@@ -11379,45 +12047,45 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Shop sprite image map (Discord CDN URLs)
     const SHOP_IMAGE_MAP = {
       // Seeds
-      'Carrot': 'https://cdn.discordapp.com/emojis/1423010183574982669.webp',
-      'Strawberry': 'https://cdn.discordapp.com/emojis/1423010222724874330.webp',
-      'Aloe': 'https://cdn.discordapp.com/emojis/1423010259655590028.webp',
-      'Blueberry': 'https://cdn.discordapp.com/emojis/1423010283126784010.webp',
-      'Apple': 'https://cdn.discordapp.com/emojis/1423010302965846046.webp',
-      'OrangeTulip': 'https://cdn.discordapp.com/emojis/1423010324952514621.webp',
-      'Tomato': 'https://cdn.discordapp.com/emojis/1423010355109433478.webp',
-      'Daffodil': 'https://cdn.discordapp.com/emojis/1423010391356866654.webp',
-      'Corn': 'https://cdn.discordapp.com/emojis/1423010497648656566.webp',
-      'Watermelon': 'https://cdn.discordapp.com/emojis/1423010520067346515.webp',
-      'Pumpkin': 'https://cdn.discordapp.com/emojis/1423010546474549338.webp',
-      'Echeveria': 'https://cdn.discordapp.com/emojis/1423010587910078614.webp',
-      'Coconut': 'https://cdn.discordapp.com/emojis/1423010611721273444.webp',
-      'Banana': 'https://cdn.discordapp.com/emojis/1423010652582187089.webp',
-      'Lily': 'https://cdn.discordapp.com/emojis/1423010686388404407.webp',
-      'BurrosTail': 'https://cdn.discordapp.com/emojis/1423010714267942912.webp',
-      'Mushroom': 'https://cdn.discordapp.com/emojis/1423010734002012160.webp',
-      'Cactus': 'https://cdn.discordapp.com/emojis/1423010755267133531.webp',
-      'Bamboo': 'https://cdn.discordapp.com/emojis/1423010797830930552.webp',
-      'Grape': 'https://cdn.discordapp.com/emojis/1423010779522666616.webp',
-      'Pepper': 'https://cdn.discordapp.com/emojis/1423010818953580574.webp',
-      'Lemon': 'https://cdn.discordapp.com/emojis/1423010911144120330.webp',
-      'PassionFruit': 'https://cdn.discordapp.com/emojis/1423010934863171677.webp',
-      'DragonFruit': 'https://cdn.discordapp.com/emojis/1423010954991370271.webp',
-      'Lychee': 'https://cdn.discordapp.com/emojis/1423011007206396076.webp',
-      'Sunflower': 'https://cdn.discordapp.com/emojis/1423010976499765288.webp',
-      'Starweaver': 'https://cdn.discordapp.com/emojis/1423011042744729700.webp',
-      'DawnCelestial': 'https://cdn.discordapp.com/emojis/1423011097883185412.webp',
-      'MoonCelestial': 'https://cdn.discordapp.com/emojis/1423011077410525308.webp',
+      Carrot: 'https://cdn.discordapp.com/emojis/1423010183574982669.webp',
+      Strawberry: 'https://cdn.discordapp.com/emojis/1423010222724874330.webp',
+      Aloe: 'https://cdn.discordapp.com/emojis/1423010259655590028.webp',
+      Blueberry: 'https://cdn.discordapp.com/emojis/1423010283126784010.webp',
+      Apple: 'https://cdn.discordapp.com/emojis/1423010302965846046.webp',
+      OrangeTulip: 'https://cdn.discordapp.com/emojis/1423010324952514621.webp',
+      Tomato: 'https://cdn.discordapp.com/emojis/1423010355109433478.webp',
+      Daffodil: 'https://cdn.discordapp.com/emojis/1423010391356866654.webp',
+      Corn: 'https://cdn.discordapp.com/emojis/1423010497648656566.webp',
+      Watermelon: 'https://cdn.discordapp.com/emojis/1423010520067346515.webp',
+      Pumpkin: 'https://cdn.discordapp.com/emojis/1423010546474549338.webp',
+      Echeveria: 'https://cdn.discordapp.com/emojis/1423010587910078614.webp',
+      Coconut: 'https://cdn.discordapp.com/emojis/1423010611721273444.webp',
+      Banana: 'https://cdn.discordapp.com/emojis/1423010652582187089.webp',
+      Lily: 'https://cdn.discordapp.com/emojis/1423010686388404407.webp',
+      BurrosTail: 'https://cdn.discordapp.com/emojis/1423010714267942912.webp',
+      Mushroom: 'https://cdn.discordapp.com/emojis/1423010734002012160.webp',
+      Cactus: 'https://cdn.discordapp.com/emojis/1423010755267133531.webp',
+      Bamboo: 'https://cdn.discordapp.com/emojis/1423010797830930552.webp',
+      Grape: 'https://cdn.discordapp.com/emojis/1423010779522666616.webp',
+      Pepper: 'https://cdn.discordapp.com/emojis/1423010818953580574.webp',
+      Lemon: 'https://cdn.discordapp.com/emojis/1423010911144120330.webp',
+      PassionFruit: 'https://cdn.discordapp.com/emojis/1423010934863171677.webp',
+      DragonFruit: 'https://cdn.discordapp.com/emojis/1423010954991370271.webp',
+      Lychee: 'https://cdn.discordapp.com/emojis/1423011007206396076.webp',
+      Sunflower: 'https://cdn.discordapp.com/emojis/1423010976499765288.webp',
+      Starweaver: 'https://cdn.discordapp.com/emojis/1423011042744729700.webp',
+      DawnCelestial: 'https://cdn.discordapp.com/emojis/1423011097883185412.webp',
+      MoonCelestial: 'https://cdn.discordapp.com/emojis/1423011077410525308.webp',
       // Eggs
-      'CommonEgg': 'https://cdn.discordapp.com/emojis/1423011628978540676.webp',
-      'UncommonEgg': 'https://cdn.discordapp.com/emojis/1423011627602804856.webp',
-      'RareEgg': 'https://cdn.discordapp.com/emojis/1423011625664905316.webp',
-      'LegendaryEgg': 'https://cdn.discordapp.com/emojis/1423011623089737739.webp',
-      'MythicalEgg': 'https://cdn.discordapp.com/emojis/1423011620828745899.webp',
+      CommonEgg: 'https://cdn.discordapp.com/emojis/1423011628978540676.webp',
+      UncommonEgg: 'https://cdn.discordapp.com/emojis/1423011627602804856.webp',
+      RareEgg: 'https://cdn.discordapp.com/emojis/1423011625664905316.webp',
+      LegendaryEgg: 'https://cdn.discordapp.com/emojis/1423011623089737739.webp',
+      MythicalEgg: 'https://cdn.discordapp.com/emojis/1423011620828745899.webp',
       // Tools (Use Discord emojis for proper display)
-      'WateringCan': 'https://cdn.discordapp.com/emojis/1426622484957888512.webp',
-      'PlanterPot': 'https://cdn.discordapp.com/emojis/1426622518948794451.webp',
-      'Shovel': 'https://cdn.discordapp.com/emojis/1426622542222856282.webp',
+      WateringCan: 'https://cdn.discordapp.com/emojis/1426622484957888512.webp',
+      PlanterPot: 'https://cdn.discordapp.com/emojis/1426622518948794451.webp',
+      Shovel: 'https://cdn.discordapp.com/emojis/1426622542222856282.webp',
       'Watering Can': 'https://cdn.discordapp.com/emojis/1426622484957888512.webp',
       'Planter Pot': 'https://cdn.discordapp.com/emojis/1426622518948794451.webp',
       'Garden Shovel': 'https://cdn.discordapp.com/emojis/1426622542222856282.webp'
@@ -11439,53 +12107,53 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Shop prices (from in-game shop screenshots)
     const SHOP_PRICES = {
       // Seeds - Common tier
-      'Carrot': 10,
-      'Strawberry': 50,
-      'Aloe': 135,
+      Carrot: 10,
+      Strawberry: 50,
+      Aloe: 135,
       // Seeds - Uncommon tier
-      'Blueberry': 400,
-      'Apple': 500,
-      'OrangeTulip': 600,
-      'Tomato': 800,
+      Blueberry: 400,
+      Apple: 500,
+      OrangeTulip: 600,
+      Tomato: 800,
       // Seeds - Rare tier
-      'Daffodil': 1000,
-      'Corn': 1300,
-      'Watermelon': 2500,
-      'Pumpkin': 3000,
+      Daffodil: 1000,
+      Corn: 1300,
+      Watermelon: 2500,
+      Pumpkin: 3000,
       // Seeds - Legendary tier
-      'Echeveria': 4200,
-      'Coconut': 6000,
-      'Banana': 7500,
-      'Lily': 20000,
-      'BurrosTail': 93000,
+      Echeveria: 4200,
+      Coconut: 6000,
+      Banana: 7500,
+      Lily: 20000,
+      BurrosTail: 93000,
       // Seeds - Mythical tier
-      'Mushroom': 150000,
-      'Cactus': 250000,
-      'Bamboo': 400000,
-      'Grape': 850000,
+      Mushroom: 150000,
+      Cactus: 250000,
+      Bamboo: 400000,
+      Grape: 850000,
       // Seeds - Divine tier
-      'Pepper': 1000000,
-      'Lemon': 2000000,
-      'PassionFruit': 2750000,
-      'DragonFruit': 5000000,
-      'Lychee': 25000000,
-      'Sunflower': 100000000,
+      Pepper: 1000000,
+      Lemon: 2000000,
+      PassionFruit: 2750000,
+      DragonFruit: 5000000,
+      Lychee: 25000000,
+      Sunflower: 100000000,
       // Seeds - Celestial tier
-      'Starweaver': 1000000000,
-      'DawnCelestial': 10000000000,
-      'MoonCelestial': 50000000000,
+      Starweaver: 1000000000,
+      DawnCelestial: 10000000000,
+      MoonCelestial: 50000000000,
       // Eggs
-      'CommonEgg': 100000,
-      'UncommonEgg': 1000000,
-      'RareEgg': 10000000,
-      'LegendaryEgg': 100000000,
-      'MythicalEgg': 1000000000,
+      CommonEgg: 100000,
+      UncommonEgg: 1000000,
+      RareEgg: 10000000,
+      LegendaryEgg: 100000000,
+      MythicalEgg: 1000000000,
       // Tools (from game screenshot)
-      'WateringCan': 3000,
+      WateringCan: 3000,
       'Watering Can': 3000,
-      'PlanterPot': 25000,
+      PlanterPot: 25000,
       'Planter Pot': 25000,
-      'GardenShovel': 0, // OWNED - unlimited uses
+      GardenShovel: 0, // OWNED - unlimited uses
       'Garden Shovel': 0
     };
 
@@ -11510,7 +12178,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Normalize string for comparison
     function normalizeShopKey(s) {
-      return String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return String(s ?? '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
     }
 
     // Get text color class for an item
@@ -11570,7 +12240,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         msg.className = 'mga-flash-tooltip';
         msg.textContent = message;
         msg.setAttribute('role', 'status');
-        msg.style.cssText = 'position:fixed;pointer-events:none;padding:6px 10px;border-radius:8px;font-size:12px;background:rgba(0,0,0,.9);color:#fff;z-index:2147483647;transition:opacity 180ms ease,transform 220ms ease;opacity:0;transform:translateY(-6px);';
+        msg.style.cssText =
+          'position:fixed;pointer-events:none;padding:6px 10px;border-radius:8px;font-size:12px;background:rgba(0,0,0,.9);color:#fff;z-index:2147483647;transition:opacity 180ms ease,transform 220ms ease;opacity:0;transform:translateY(-6px);';
 
         if (rect && rect.width > 0 && rect.height > 0) {
           const left = rect.left + rect.width / 2;
@@ -11627,7 +12298,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function showFloatingMsg(msg, dur = 900) {
       const m = targetDocument.createElement('div');
       m.textContent = msg;
-      m.style.cssText = 'position:fixed;left:50%;top:20px;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:6px 10px;border-radius:8px;z-index:2147483647;';
+      m.style.cssText =
+        'position:fixed;left:50%;top:20px;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:6px 10px;border-radius:8px;z-index:2147483647;';
       targetDocument.body.appendChild(m);
       setTimeout(() => m.remove(), dur);
     }
@@ -11937,20 +12609,47 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // Shop item constants (moved before first use)
-    const SEED_SPECIES_SHOP = ['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'OrangeTulip', 'Tomato', 'Daffodil',
-      'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail',
-      'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit',
-      'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
+    const SEED_SPECIES_SHOP = [
+      'Carrot',
+      'Strawberry',
+      'Aloe',
+      'Blueberry',
+      'Apple',
+      'OrangeTulip',
+      'Tomato',
+      'Daffodil',
+      'Corn',
+      'Watermelon',
+      'Pumpkin',
+      'Echeveria',
+      'Coconut',
+      'Banana',
+      'Lily',
+      'BurrosTail',
+      'Mushroom',
+      'Cactus',
+      'Bamboo',
+      'Grape',
+      'Pepper',
+      'Lemon',
+      'PassionFruit',
+      'DragonFruit',
+      'Lychee',
+      'Sunflower',
+      'Starweaver',
+      'DawnCelestial',
+      'MoonCelestial'
+    ];
 
     const EGG_IDS_SHOP = ['CommonEgg', 'UncommonEgg', 'RareEgg', 'LegendaryEgg', 'MythicalEgg'];
 
     // Display name overrides for shop (keeps internal names intact)
     const SHOP_DISPLAY_NAMES = {
-      'OrangeTulip': 'Tulip',
+      OrangeTulip: 'Tulip',
       // Tools
-      'WateringCan': 'Watering Can',
-      'PlanterPot': 'Planter Pot',
-      'GardenShovel': 'Garden Shovel'
+      WateringCan: 'Watering Can',
+      PlanterPot: 'Planter Pot',
+      GardenShovel: 'Garden Shovel'
     };
 
     function setupShopWindowHandlers(window, type) {
@@ -12019,9 +12718,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               if (toolId === 'Shovel' || toolId === 'GardenShovel') {
                 // Check player inventory for Shovel ownership
                 const playerInventory = targetWindow.myData?.inventory?.items || [];
-                isOwned = playerInventory.some(item =>
-                  item.itemType === 'Tool' &&
-                                  (item.toolId === 'Shovel' || item.toolId === 'GardenShovel')
+                isOwned = playerInventory.some(
+                  item => item.itemType === 'Tool' && (item.toolId === 'Shovel' || item.toolId === 'GardenShovel')
                 );
                 if (isOwned) {
                   isUnlimited = true;
@@ -12056,7 +12754,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Show empty state if no items after filtering
           if (eggItemsToRender.length === 0 && toolInventory.length === 0 && showAvailableOnly) {
-            itemsList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+            itemsList.innerHTML =
+              '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
           }
         } else {
           // Render seeds normally
@@ -12080,7 +12779,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           });
 
           if (itemsToRender.length === 0 && showAvailableOnly) {
-            itemsList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+            itemsList.innerHTML =
+              '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
           }
         }
       }
@@ -12150,7 +12850,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               timerWasDecreasing = false;
 
               if (UnifiedState.data.settings.debugMode) {
-                console.log(`[SHOP DEBUG] Restock detected for ${type}! Pattern: ${lastTimerValue}s → ${currentTimer}s (was decreasing, then increased)`);
+                console.log(
+                  `[SHOP DEBUG] Restock detected for ${type}! Pattern: ${lastTimerValue}s → ${currentTimer}s (was decreasing, then increased)`
+                );
               }
             }
 
@@ -12190,8 +12892,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       div.style.cssText = `
               padding: 8px;
-              background: ${(stock > 0 && !owned) ? 'rgba(76, 255, 106, 0.40)' : 'rgba(255,255,255,0.03)'};
-              border: 1px solid ${(stock > 0 && !owned) ? 'rgba(9, 255, 0, 0.48)' : 'rgba(255, 255, 255, 0.57)'};
+              background: ${stock > 0 && !owned ? 'rgba(76, 255, 106, 0.40)' : 'rgba(255,255,255,0.03)'};
+              border: 1px solid ${stock > 0 && !owned ? 'rgba(9, 255, 0, 0.48)' : 'rgba(255, 255, 255, 0.57)'};
               border-radius: 4px;
               display: flex;
               align-items: center;
@@ -12247,7 +12949,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                       ${quantityDisplay}
                   </div>
               </div>
-              <div style="display: ${(owned || unlimited) ? 'none' : 'flex'}; gap: 4px;">
+              <div style="display: ${owned || unlimited ? 'none' : 'flex'}; gap: 4px;">
                   <button class="buy-btn" data-amount="1" ${stock === 0 ? 'disabled' : ''}
                           style="padding: 4px 8px; font-size: 11px; background: rgba(74, 158, 255, 0.3); border: 1px solid rgba(74, 158, 255, 0.5); border-radius: 3px; color: #fff; cursor: ${stock > 0 ? 'pointer' : 'not-allowed'}; transition: all 0.15s ease;">1</button>
                   <button class="buy-btn" data-amount="all" ${stock === 0 ? 'disabled' : ''}
@@ -12333,7 +13035,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Flash red 3 times
       let flashes = 0;
       const flashInterval = setInterval(() => {
-        if (flashes >= 6) { // 3 full cycles (on/off)
+        if (flashes >= 6) {
+          // 3 full cycles (on/off)
           clearInterval(flashInterval);
           element.style.background = '';
           element.style.borderColor = '';
@@ -12400,7 +13103,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Special visual feedback for items at max quantity
         if (stackCap < Infinity) {
-          flashInventoryFullFeedback(itemEl, `${displayName} at MAX! (${currentCount}/${stackCap}) - Cannot purchase more`);
+          flashInventoryFullFeedback(
+            itemEl,
+            `${displayName} at MAX! (${currentCount}/${stackCap}) - Cannot purchase more`
+          );
 
           // Update the item display to show current quantity persistently
           const quantityDisplay = itemEl.querySelector('.quantity-display');
@@ -12423,9 +13129,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (currentCount + amount > stackCap) {
         const displayName = SHOP_DISPLAY_NAMES[id] || id.replace(/([A-Z])/g, ' $1').trim();
         const canPurchase = stackCap - currentCount;
-        flashInventoryFullFeedback(itemEl, `Can only purchase ${canPurchase} more ${displayName} (currently ${currentCount}/${stackCap})`);
+        flashInventoryFullFeedback(
+          itemEl,
+          `Can only purchase ${canPurchase} more ${displayName} (currently ${currentCount}/${stackCap})`
+        );
         if (UnifiedState.data.settings?.debugMode) {
-          console.log(`[MGTOOLS-FIX-C] ❌ Purchase blocked: would exceed cap (${currentCount} + ${amount} > ${stackCap})`);
+          console.log(
+            `[MGTOOLS-FIX-C] ❌ Purchase blocked: would exceed cap (${currentCount} + ${amount} > ${stackCap})`
+          );
         }
         return;
       }
@@ -12542,11 +13253,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           if (!inventory) return 0;
           // Tools use toolId property - also check with/without spaces for compatibility
           const idNoSpaces = id.replace(/\s+/g, '');
-          item = inventory.find(i =>
-            i.toolId === id ||
-                      i.name === id ||
-                      i.toolId?.replace(/\s+/g, '') === idNoSpaces ||
-                      i.name?.replace(/\s+/g, '') === idNoSpaces
+          item = inventory.find(
+            i =>
+              i.toolId === id ||
+              i.name === id ||
+              i.toolId?.replace(/\s+/g, '') === idNoSpaces ||
+              i.name?.replace(/\s+/g, '') === idNoSpaces
           );
         } else {
           return 0;
@@ -12573,21 +13285,45 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Placeholder - you can integrate with your value system
       const valueMap = {
         // Seeds (approximate values)
-        'MoonCelestial': 50000, 'DawnCelestial': 45000, 'Starweaver': 40000,
-        'Lychee': 8000, 'DragonFruit': 7000, 'PassionFruit': 6000,
-        'Sunflower': 5000, 'Lemon': 4000, 'Pepper': 3500,
-        'Grape': 3000, 'Bamboo': 2500, 'Cactus': 2000,
-        'Mushroom': 1800, 'BurrosTail': 1500, 'Lily': 1200,
-        'Banana': 1000, 'Coconut': 900, 'Echeveria': 800,
-        'Pumpkin': 600, 'Watermelon': 500, 'Corn': 400,
-        'Daffodil': 300, 'Tomato': 250, 'OrangeTulip': 200,
-        'Apple': 150, 'Blueberry': 100, 'Aloe': 80,
-        'Strawberry': 60, 'Carrot': 40,
+        MoonCelestial: 50000,
+        DawnCelestial: 45000,
+        Starweaver: 40000,
+        Lychee: 8000,
+        DragonFruit: 7000,
+        PassionFruit: 6000,
+        Sunflower: 5000,
+        Lemon: 4000,
+        Pepper: 3500,
+        Grape: 3000,
+        Bamboo: 2500,
+        Cactus: 2000,
+        Mushroom: 1800,
+        BurrosTail: 1500,
+        Lily: 1200,
+        Banana: 1000,
+        Coconut: 900,
+        Echeveria: 800,
+        Pumpkin: 600,
+        Watermelon: 500,
+        Corn: 400,
+        Daffodil: 300,
+        Tomato: 250,
+        OrangeTulip: 200,
+        Apple: 150,
+        Blueberry: 100,
+        Aloe: 80,
+        Strawberry: 60,
+        Carrot: 40,
         // Eggs
-        'MythicalEgg': 10000, 'LegendaryEgg': 5000, 'RareEgg': 1000,
-        'UncommonEgg': 200, 'CommonEgg': 50,
+        MythicalEgg: 10000,
+        LegendaryEgg: 5000,
+        RareEgg: 1000,
+        UncommonEgg: 200,
+        CommonEgg: 50,
         // Tools (placeholder values - these will be replaced with actual game values)
-        'Shovel': 500, 'WateringCan': 300, 'Fertilizer': 200
+        Shovel: 500,
+        WateringCan: 300,
+        Fertilizer: 200
       };
       return valueMap[id] || 100;
     }
@@ -12648,7 +13384,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
       localPurchaseTracker[type][id] += amount;
 
-      productionLog(`📝 [LOCAL-TRACK] Recorded ${amount}x ${id} (${type}). Total local: ${localPurchaseTracker[type][id]}`);
+      productionLog(
+        `📝 [LOCAL-TRACK] Recorded ${amount}x ${id} (${type}). Total local: ${localPurchaseTracker[type][id]}`
+      );
 
       // Persist to storage
       savePurchaseTracker();
@@ -12766,10 +13504,37 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (!seedList || !eggList) return;
 
       // Seed/Egg item definition
-      const SEED_SPECIES = ['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'OrangeTulip', 'Tomato', 'Daffodil',
-        'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail',
-        'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit',
-        'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
+      const SEED_SPECIES = [
+        'Carrot',
+        'Strawberry',
+        'Aloe',
+        'Blueberry',
+        'Apple',
+        'OrangeTulip',
+        'Tomato',
+        'Daffodil',
+        'Corn',
+        'Watermelon',
+        'Pumpkin',
+        'Echeveria',
+        'Coconut',
+        'Banana',
+        'Lily',
+        'BurrosTail',
+        'Mushroom',
+        'Cactus',
+        'Bamboo',
+        'Grape',
+        'Pepper',
+        'Lemon',
+        'PassionFruit',
+        'DragonFruit',
+        'Lychee',
+        'Sunflower',
+        'Starweaver',
+        'DawnCelestial',
+        'MoonCelestial'
+      ];
 
       const EGG_IDS = ['CommonEgg', 'UncommonEgg', 'RareEgg', 'LegendaryEgg', 'MythicalEgg'];
 
@@ -12888,7 +13653,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Special visual feedback for items at max quantity
           if (stackCap < Infinity) {
-            flashInventoryFullFeedback(itemEl, `${displayName} at MAX! (${currentCount}/${stackCap}) - Cannot purchase more`);
+            flashInventoryFullFeedback(
+              itemEl,
+              `${displayName} at MAX! (${currentCount}/${stackCap}) - Cannot purchase more`
+            );
 
             // Update the item display to show current quantity persistently
             const quantityDisplay = itemEl.querySelector('.quantity-display');
@@ -12911,9 +13679,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (currentCount + amount > stackCap) {
           const displayName = SHOP_DISPLAY_NAMES[id] || id.replace(/([A-Z])/g, ' $1').trim();
           const canPurchase = stackCap - currentCount;
-          flashInventoryFullFeedback(itemEl, `Can only purchase ${canPurchase} more ${displayName} (currently ${currentCount}/${stackCap})`);
+          flashInventoryFullFeedback(
+            itemEl,
+            `Can only purchase ${canPurchase} more ${displayName} (currently ${currentCount}/${stackCap})`
+          );
           if (UnifiedState.data.settings?.debugMode) {
-            console.log(`[MGTOOLS-FIX-C] ❌ Purchase blocked: would exceed cap (${currentCount} + ${amount} > ${stackCap})`);
+            console.log(
+              `[MGTOOLS-FIX-C] ❌ Purchase blocked: would exceed cap (${currentCount} + ${amount} > ${stackCap})`
+            );
           }
           return;
         }
@@ -12979,7 +13752,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
 
             const buttons = itemEl.querySelectorAll('button');
-            buttons.forEach(btn => btn.disabled = newStock === 0);
+            buttons.forEach(btn => (btn.disabled = newStock === 0));
 
             if (newStock === 0) {
               itemEl.style.background = 'rgba(255,255,255,0.03)';
@@ -13004,7 +13777,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const id = item.dataset.itemId;
           const type = item.dataset.itemType;
           const stock = getItemStock(id, type);
-          item.style.display = (showOnlyInStock && stock === 0) ? 'none' : 'flex';
+          item.style.display = showOnlyInStock && stock === 0 ? 'none' : 'flex';
         });
       }
 
@@ -13036,7 +13809,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           if (stockDisplay) stockDisplay.textContent = `Stock: ${newStock}`;
 
           const buttons = item.querySelectorAll('button');
-          buttons.forEach(btn => btn.disabled = newStock === 0);
+          buttons.forEach(btn => (btn.disabled = newStock === 0));
 
           if (newStock > 0) {
             item.style.background = 'rgba(76, 255, 106, 0.40)';
@@ -13093,29 +13866,75 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           Automatically favorite these species when added to inventory:
                       </div>
                       <div id="auto-favorite-species" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; max-height: 300px; overflow-y: auto; padding-right: 8px;">
-                          ${['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'OrangeTulip', 'Tomato', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail', 'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial']
-    .map(species => `
+                          ${[
+                            'Carrot',
+                            'Strawberry',
+                            'Aloe',
+                            'Blueberry',
+                            'Apple',
+                            'OrangeTulip',
+                            'Tomato',
+                            'Daffodil',
+                            'Corn',
+                            'Watermelon',
+                            'Pumpkin',
+                            'Echeveria',
+                            'Coconut',
+                            'Banana',
+                            'Lily',
+                            'BurrosTail',
+                            'Mushroom',
+                            'Cactus',
+                            'Bamboo',
+                            'Grape',
+                            'Pepper',
+                            'Lemon',
+                            'PassionFruit',
+                            'DragonFruit',
+                            'Lychee',
+                            'Sunflower',
+                            'Starweaver',
+                            'DawnCelestial',
+                            'MoonCelestial'
+                          ]
+                            .map(
+                              species => `
                                   <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: pointer; user-select: none;">
                                       <input type="checkbox" value="${species}"
                                           ${UnifiedState.data.settings.autoFavorite.species.includes(species) ? 'checked' : ''}
                                           style="cursor: pointer;">
                                       <span style="color: #e5e7eb;">${species.replace('OrangeTulip', 'Tulip').replace('DawnCelestial', 'Dawnbinder').replace('MoonCelestial', 'Moonbinder')}</span>
                                   </label>
-                              `).join('')}
+                              `
+                            )
+                            .join('')}
                       </div>
                       <div style="font-size: 11px; color: #aaa; margin-bottom: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57); padding-top: 12px;">
                           Automatically favorite items with these mutations:
                       </div>
                       <div id="auto-favorite-mutations" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                          ${['Rainbow', 'Gold', 'Frozen', 'Wet', 'Chilled', 'Dawnlit', 'Amberlit', 'Dawnbound', 'Amberbound']
-    .map(mutation => `
+                          ${[
+                            'Rainbow',
+                            'Gold',
+                            'Frozen',
+                            'Wet',
+                            'Chilled',
+                            'Dawnlit',
+                            'Amberlit',
+                            'Dawnbound',
+                            'Amberbound'
+                          ]
+                            .map(
+                              mutation => `
                                   <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none;">
                                       <input type="checkbox" value="${mutation}"
                                           ${UnifiedState.data.settings.autoFavorite.mutations.includes(mutation) ? 'checked' : ''}
                                           style="cursor: pointer;">
                                       <span style="color: #e5e7eb;">${mutation}</span>
                                   </label>
-                              `).join('')}
+                              `
+                            )
+                            .join('')}
                       </div>
                   </div>
               </div>
@@ -13165,7 +13984,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               productionLog('❌ [AUTO-FAVORITE] favoriteSpecies function not available!');
             }
           } else {
-            UnifiedState.data.settings.autoFavorite.species = UnifiedState.data.settings.autoFavorite.species.filter(s => s !== species);
+            UnifiedState.data.settings.autoFavorite.species = UnifiedState.data.settings.autoFavorite.species.filter(
+              s => s !== species
+            );
             // Immediately unfavorite all existing items of this species
             if (targetWindow.unfavoriteSpecies) {
               productionLog(`🌟 [AUTO-FAVORITE] User unchecked ${species} - calling unfavoriteSpecies`);
@@ -13195,7 +14016,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               productionLog('❌ [AUTO-FAVORITE] favoriteMutation function not available!');
             }
           } else {
-            UnifiedState.data.settings.autoFavorite.mutations = UnifiedState.data.settings.autoFavorite.mutations.filter(m => m !== mutation);
+            UnifiedState.data.settings.autoFavorite.mutations =
+              UnifiedState.data.settings.autoFavorite.mutations.filter(m => m !== mutation);
             // Immediately unfavorite all existing items with this mutation
             if (targetWindow.unfavoriteMutation) {
               productionLog(`🌟 [AUTO-FAVORITE] User unchecked ${mutation} - calling unfavoriteMutation`);
@@ -13297,7 +14119,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           " ${isCurrentRoom ? 'disabled' : ''}>
                               ${isCurrentRoom ? 'Current' : 'Join'}
                           </button>
-                          ${allowDelete ? `
+                          ${
+                            allowDelete
+                              ? `
                           <button class="room-delete-btn" data-room="${room.id}" style="
                               padding: 6px 10px;
                               font-size: 14px;
@@ -13310,7 +14134,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                               transition: opacity 0.2s;
                           " title="Remove room from list">
                               ❌
-                          </button>` : ''}
+                          </button>`
+                              : ''
+                          }
                       </div>
                   </div>
               `;
@@ -13370,7 +14196,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   <!-- BUGFIX v3.7.4: Single container approach - swaps content instead of toggling display on two divs -->
                   <!-- This fixes the side-by-side display bug where both tabs were showing simultaneously -->
                   <div id="rooms-tab-content">
-                      ${activeRoomsTab === 'mg' ? `
+                      ${
+                        activeRoomsTab === 'mg'
+                          ? `
                           <!-- MG & Custom Tab Content -->
                           <div id="room-status-list-mg" style="display: flex; flex-direction: column; gap: 8px;">
                               ${mgAndCustomRooms.map(room => renderRoomCard(room, room.category === 'custom', room.category === 'custom')).join('')}
@@ -13407,13 +14235,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                                   • Player counts update automatically every 5 seconds
                               </div>
                           </div>
-                      ` : `
+                      `
+                          : `
                           <!-- Discord Servers Tab Content -->
                           <div id="room-status-list-discord" style="display: flex; flex-direction: column; gap: 8px;">
-                              ${RoomRegistry.discord.length > 0
-    ? RoomRegistry.discord.map(room => renderRoomCard(room, false, false)).join('')
-    : '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 13px;">No Discord rooms available</div>'
-  }
+                              ${
+                                RoomRegistry.discord.length > 0
+                                  ? RoomRegistry.discord.map(room => renderRoomCard(room, false, false)).join('')
+                                  : '<div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 13px;">No Discord rooms available</div>'
+                              }
                           </div>
                           <div style="margin-top: 16px; padding: 12px; background: rgba(138, 43, 226, 0.2); border-radius: 6px; border: 1px solid rgba(138, 43, 226, 0.3);">
                               <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
@@ -13425,7 +14255,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                                   • <strong>Player counts via /api/rooms/{id}/info</strong> (same as community scripts)
                               </div>
                           </div>
-                      `}
+                      `
+                      }
                   </div>
               </div>
           `;
@@ -13815,9 +14646,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Play epic notification (multiple tones in sequence)
     function playEpicNotification(volume = 0.4) {
       const sequence = [
-        [400, 100], [500, 100], [600, 100], [800, 150],
-        [1000, 200], [1200, 150], [1000, 150], [1200, 200],
-        [1500, 300], [1200, 100], [1500, 400]
+        [400, 100],
+        [500, 100],
+        [600, 100],
+        [800, 150],
+        [1000, 200],
+        [1200, 150],
+        [1000, 150],
+        [1200, 200],
+        [1500, 300],
+        [1200, 100],
+        [1500, 400]
       ];
 
       let delay = 0;
@@ -13905,16 +14744,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Handle name variations for celestial seeds
         // Shop uses "DawnCelestial" and "MoonCelestial" but UI uses "Dawnbinder" and "Moonbinder"
         const nameMap = {
-          'DawnCelestial': 'Dawnbinder',
-          'MoonCelestial': 'Moonbinder'
+          DawnCelestial: 'Dawnbinder',
+          MoonCelestial: 'Moonbinder'
         };
         const checkId = nameMap[itemId] || itemId;
 
         // Case-insensitive matching for seeds
         const normalizedItemId = normalizeSpeciesName(checkId);
-        return notifications.watchedSeeds.some(watched =>
-          normalizeSpeciesName(watched) === normalizedItemId
-        );
+        return notifications.watchedSeeds.some(watched => normalizeSpeciesName(watched) === normalizedItemId);
       } else if (type === 'egg') {
         return notifications.watchedEggs.includes(itemId);
       }
@@ -13936,8 +14773,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Map UI names to shop IDs for celestial seeds
       // UI shows "Moonbinder" but shop stores as "MoonCelestial"
       const reverseNameMap = {
-        'Moonbinder': 'MoonCelestial',
-        'Dawnbinder': 'DawnCelestial'
+        Moonbinder: 'MoonCelestial',
+        Dawnbinder: 'DawnCelestial'
       };
       const lookupId = reverseNameMap[itemId] || itemId;
 
@@ -13999,12 +14836,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Generate HTML for notification list
     function generateNotificationListHTML() {
-      return notificationQueue.map((notif, index) => `
+      return notificationQueue
+        .map(
+          (notif, index) => `
               <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.57); border-radius: 5px; border-left: 3px solid #fff;">
                   <div style="font-size: 14px; margin-bottom: 5px;">${notif.message}</div>
                   <div style="font-size: 10px; opacity: 0.8;">${new Date(notif.timestamp).toLocaleTimeString()}</div>
               </div>
-          `).join('');
+          `
+        )
+        .join('');
     }
 
     // Show batched notification modal
@@ -14289,7 +15130,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             currentNotificationModal = null;
           }, 300);
         };
-
       } else {
         // Regular auto-dismiss notification
         notification.style.cssText = `
@@ -14421,16 +15261,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Method 1: Timer was ≤5s and now ≥180s (actual reset moment)
         // Method 2: Timer jumped by ≥60s (big jump indicates restock)
         const seedRestocked =
-                  (lastSeedTimer <= SMALL_EDGE && seedTimer >= LARGE_EDGE) ||
-                  (seedTimer - lastSeedTimer >= BIG_JUMP_DELTA && lastSeedTimer > 0);
+          (lastSeedTimer <= SMALL_EDGE && seedTimer >= LARGE_EDGE) ||
+          (seedTimer - lastSeedTimer >= BIG_JUMP_DELTA && lastSeedTimer > 0);
 
         const eggRestocked =
-                  (lastEggTimer <= SMALL_EDGE && eggTimer >= LARGE_EDGE) ||
-                  (eggTimer - lastEggTimer >= BIG_JUMP_DELTA && lastEggTimer > 0);
+          (lastEggTimer <= SMALL_EDGE && eggTimer >= LARGE_EDGE) ||
+          (eggTimer - lastEggTimer >= BIG_JUMP_DELTA && lastEggTimer > 0);
 
         const decorRestocked =
-                  (lastDecorTimer <= SMALL_EDGE && decorTimer >= LARGE_EDGE) ||
-                  (decorTimer - lastDecorTimer >= BIG_JUMP_DELTA && lastDecorTimer > 0);
+          (lastDecorTimer <= SMALL_EDGE && decorTimer >= LARGE_EDGE) ||
+          (decorTimer - lastDecorTimer >= BIG_JUMP_DELTA && lastDecorTimer > 0);
 
         // Timer tracking (silent unless restock detected)
 
@@ -14484,7 +15324,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           });
         }
 
-        productionLog(`🛒 [NOTIFICATIONS] Current seed quantities:`, currentSeedQuantities, `| Previous:`, previousSeedQuantities);
+        productionLog(
+          `🛒 [NOTIFICATIONS] Current seed quantities:`,
+          currentSeedQuantities,
+          `| Previous:`,
+          previousSeedQuantities
+        );
 
         // Find seeds with increased quantities or new items (after restock)
         Object.keys(currentSeedQuantities).forEach(seedId => {
@@ -14496,22 +15341,30 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Determine if we should check for notification
           const quantityIncreased = newQuantity > oldQuantity;
-          const isRestockWindow = seedRestocked && (now - lastSeedRestock) < RESTOCK_COOLDOWN;
+          const isRestockWindow = seedRestocked && now - lastSeedRestock < RESTOCK_COOLDOWN;
           const alreadyNotifiedInRestock = seedRestockNotifiedItems.has(seedId);
 
-          productionLog(`🔍 [NOTIFICATIONS] ${seedId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+          productionLog(
+            `🔍 [NOTIFICATIONS] ${seedId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`
+          );
 
           // Only trigger notification if:
           // 1) First run and item is in stock, OR
           // 2) Quantity increased AND not in restock window, OR
           // 3) In restock window AND item hasn't been notified in this restock cycle, OR
           // 4) New item appears (oldQuantity was 0)
-          const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+          const shouldCheck =
+            (isFirstRun && newQuantity > 0) ||
+            (quantityIncreased && !isRestockWindow) ||
+            (isRestockWindow && !alreadyNotifiedInRestock) ||
+            (oldQuantity === 0 && newQuantity > 0);
 
           productionLog(`🔍 [NOTIFICATIONS] ${seedId} shouldCheck: ${shouldCheck}`);
 
           if (shouldCheck) {
-            productionLog(`🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked} | RestockWindow: ${isRestockWindow}`);
+            productionLog(
+              `🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked} | RestockWindow: ${isRestockWindow}`
+            );
 
             // Update last seen for ANY seed that appears or increases
             updateLastSeen(seedId);
@@ -14520,20 +15373,25 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const isWatched = isWatchedItem(seedId, 'seed');
             productionLog(`🔍 [NOTIFICATIONS] Is ${seedId} watched? ${isWatched}`);
             productionLog(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedSeeds.join(', ')}]`);
-            productionLog(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedSeeds.map(w => ({
-              watched: w,
-              current: seedId,
-              exactMatch: w === seedId,
-              lowerMatch: w.toLowerCase() === seedId.toLowerCase()
-            })));
+            productionLog(
+              `🔍 [NOTIFICATIONS] Exact match check:`,
+              notifications.watchedSeeds.map(w => ({
+                watched: w,
+                current: seedId,
+                exactMatch: w === seedId,
+                lowerMatch: w.toLowerCase() === seedId.toLowerCase()
+              }))
+            );
 
             if (isWatched) {
               // Check cooldown (1 minute per item, but allow Carrot for testing)
               const itemKey = `seed_${seedId}`;
               const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
-              const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
+              const canNotify = now - lastNotified > NOTIFICATION_COOLDOWN;
 
-              productionLog(`🔍 [NOTIFICATIONS] ${seedId} cooldown check: lastNotified=${lastNotified}, now=${now}, diff=${now - lastNotified}, canNotify=${canNotify}`);
+              productionLog(
+                `🔍 [NOTIFICATIONS] ${seedId} cooldown check: lastNotified=${lastNotified}, now=${now}, diff=${now - lastNotified}, canNotify=${canNotify}`
+              );
 
               if (canNotify) {
                 productionLog(`🎉 [NOTIFICATIONS] RARE SEED DETECTED: ${seedId} (${newQuantity} in stock)`);
@@ -14578,8 +15436,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           currentEggIds = inStockEggs.map(item => item.eggId);
 
           // Always log current egg state for debugging (like seeds)
-          productionLog(`🥚 [NOTIFICATIONS] Current eggs in shop: [${currentEggIds.join(', ')}] | Previous: [${previousEggInventory.join(', ')}]`);
-          productionLog(`🥚 [NOTIFICATIONS] Raw egg inventory:`, currentEggs.map(e => `${e.eggId}(stock:${e.initialStock})`));
+          productionLog(
+            `🥚 [NOTIFICATIONS] Current eggs in shop: [${currentEggIds.join(', ')}] | Previous: [${previousEggInventory.join(', ')}]`
+          );
+          productionLog(
+            `🥚 [NOTIFICATIONS] Raw egg inventory:`,
+            currentEggs.map(e => `${e.eggId}(stock:${e.initialStock})`)
+          );
 
           // Debug egg shop structure
           if (currentEggs.length === 0) {
@@ -14606,7 +15469,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             });
           }
 
-          productionLog(`🥚 [NOTIFICATIONS] Current egg quantities:`, currentEggQuantities, `| Previous:`, previousEggQuantities);
+          productionLog(
+            `🥚 [NOTIFICATIONS] Current egg quantities:`,
+            currentEggQuantities,
+            `| Previous:`,
+            previousEggQuantities
+          );
 
           // Find eggs with increased quantities or new items (after restock)
           Object.keys(currentEggQuantities).forEach(eggId => {
@@ -14618,22 +15486,30 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Determine if we should check for notification
             const quantityIncreased = newQuantity > oldQuantity;
-            const isRestockWindow = eggRestocked && (now - lastEggRestock) < RESTOCK_COOLDOWN;
+            const isRestockWindow = eggRestocked && now - lastEggRestock < RESTOCK_COOLDOWN;
             const alreadyNotifiedInRestock = eggRestockNotifiedItems.has(eggId);
 
-            productionLog(`🔍 [NOTIFICATIONS] ${eggId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+            productionLog(
+              `🔍 [NOTIFICATIONS] ${eggId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`
+            );
 
             // Only trigger notification if:
             // 1) First run and item is in stock, OR
             // 2) Quantity increased AND not in restock window, OR
             // 3) In restock window AND item hasn't been notified in this restock cycle, OR
             // 4) New item appears (oldQuantity was 0)
-            const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+            const shouldCheck =
+              (isFirstRun && newQuantity > 0) ||
+              (quantityIncreased && !isRestockWindow) ||
+              (isRestockWindow && !alreadyNotifiedInRestock) ||
+              (oldQuantity === 0 && newQuantity > 0);
 
             productionLog(`🔍 [NOTIFICATIONS] ${eggId} shouldCheck: ${shouldCheck}`);
 
             if (shouldCheck) {
-              productionLog(`🆕 [NOTIFICATIONS] Egg stock change: ${eggId} (${oldQuantity}→${newQuantity}) | Restock: ${eggRestocked} | RestockWindow: ${isRestockWindow}`);
+              productionLog(
+                `🆕 [NOTIFICATIONS] Egg stock change: ${eggId} (${oldQuantity}→${newQuantity}) | Restock: ${eggRestocked} | RestockWindow: ${isRestockWindow}`
+              );
 
               // Update last seen for ANY egg that appears or increases
               updateLastSeen(eggId);
@@ -14642,18 +15518,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               const isWatched = isWatchedItem(eggId, 'egg');
               productionLog(`🔍 [NOTIFICATIONS] Is ${eggId} watched? ${isWatched}`);
               productionLog(`🔍 [NOTIFICATIONS] Watched list: [${notifications.watchedEggs.join(', ')}]`);
-              productionLog(`🔍 [NOTIFICATIONS] Exact match check:`, notifications.watchedEggs.map(w => ({
-                watched: w,
-                current: eggId,
-                exactMatch: w === eggId,
-                lowerMatch: w.toLowerCase() === eggId.toLowerCase()
-              })));
+              productionLog(
+                `🔍 [NOTIFICATIONS] Exact match check:`,
+                notifications.watchedEggs.map(w => ({
+                  watched: w,
+                  current: eggId,
+                  exactMatch: w === eggId,
+                  lowerMatch: w.toLowerCase() === eggId.toLowerCase()
+                }))
+              );
 
               if (isWatched) {
                 // Check cooldown (1 minute per item, allow MythicalEgg/CommonEgg for testing)
                 const itemKey = `egg_${eggId}`;
                 const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
-                const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
+                const canNotify = now - lastNotified > NOTIFICATION_COOLDOWN;
 
                 if (canNotify) {
                   productionLog(`🎉 [NOTIFICATIONS] RARE EGG DETECTED: ${eggId} (${newQuantity} in stock)`);
@@ -14690,7 +15569,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // CRITICAL FIX: Create copies instead of reference assignment
           previousEggInventory = [...currentEggIds];
           previousEggQuantities = { ...currentEggQuantities };
-
         } catch (eggError) {
           console.error(`❌ [NOTIFICATIONS] Error checking eggs:`, eggError);
         }
@@ -14713,8 +15591,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           currentDecorIds = inStockDecor.map(item => item.decorId);
 
           // Always log current decor state for debugging
-          productionLog(`🎨 [NOTIFICATIONS] Current decor in shop: [${currentDecorIds.join(', ')}] | Previous: [${previousDecorInventory.join(', ')}]`);
-          productionLog(`🎨 [NOTIFICATIONS] Raw decor inventory:`, currentDecor.map(d => `${d.decorId}(stock:${d.initialStock})`));
+          productionLog(
+            `🎨 [NOTIFICATIONS] Current decor in shop: [${currentDecorIds.join(', ')}] | Previous: [${previousDecorInventory.join(', ')}]`
+          );
+          productionLog(
+            `🎨 [NOTIFICATIONS] Raw decor inventory:`,
+            currentDecor.map(d => `${d.decorId}(stock:${d.initialStock})`)
+          );
 
           // Debug decor shop structure
           if (currentDecor.length === 0) {
@@ -14740,7 +15623,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             });
           }
 
-          productionLog(`🎨 [NOTIFICATIONS] Current decor quantities:`, currentDecorQuantities, `| Previous:`, previousDecorQuantities);
+          productionLog(
+            `🎨 [NOTIFICATIONS] Current decor quantities:`,
+            currentDecorQuantities,
+            `| Previous:`,
+            previousDecorQuantities
+          );
 
           // Find decor with increased quantities or new items (after restock)
           Object.keys(currentDecorQuantities).forEach(decorId => {
@@ -14752,17 +15640,25 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Determine if we should check for notification
             const quantityIncreased = newQuantity > oldQuantity;
-            const isRestockWindow = decorRestocked && (now - lastDecorRestock) < RESTOCK_COOLDOWN;
+            const isRestockWindow = decorRestocked && now - lastDecorRestock < RESTOCK_COOLDOWN;
             const alreadyNotifiedInRestock = decorRestockNotifiedItems.has(decorId);
 
-            productionLog(`🔍 [NOTIFICATIONS] ${decorId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`);
+            productionLog(
+              `🔍 [NOTIFICATIONS] ${decorId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`
+            );
 
-            const shouldCheck = (isFirstRun && newQuantity > 0) || (quantityIncreased && !isRestockWindow) || (isRestockWindow && !alreadyNotifiedInRestock) || (oldQuantity === 0 && newQuantity > 0);
+            const shouldCheck =
+              (isFirstRun && newQuantity > 0) ||
+              (quantityIncreased && !isRestockWindow) ||
+              (isRestockWindow && !alreadyNotifiedInRestock) ||
+              (oldQuantity === 0 && newQuantity > 0);
 
             productionLog(`🔍 [NOTIFICATIONS] ${decorId} shouldCheck: ${shouldCheck}`);
 
             if (shouldCheck) {
-              productionLog(`🆕 [NOTIFICATIONS] Decor stock change: ${decorId} (${oldQuantity}→${newQuantity}) | Restock: ${decorRestocked} | RestockWindow: ${isRestockWindow}`);
+              productionLog(
+                `🆕 [NOTIFICATIONS] Decor stock change: ${decorId} (${oldQuantity}→${newQuantity}) | Restock: ${decorRestocked} | RestockWindow: ${isRestockWindow}`
+              );
 
               // Update last seen for ANY decor that appears or increases
               updateLastSeen(decorId);
@@ -14776,7 +15672,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 // Check cooldown (1 minute per item)
                 const itemKey = `decor_${decorId}`;
                 const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
-                const canNotify = (now - lastNotified) > NOTIFICATION_COOLDOWN;
+                const canNotify = now - lastNotified > NOTIFICATION_COOLDOWN;
 
                 if (canNotify) {
                   productionLog(`🎉 [NOTIFICATIONS] WATCHED DECOR DETECTED: ${decorId} (${newQuantity} in stock)`);
@@ -14812,7 +15708,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Update decor inventory and quantities
           previousDecorInventory = [...currentDecorIds];
           previousDecorQuantities = { ...currentDecorQuantities };
-
         } catch (decorError) {
           console.error(`❌ [NOTIFICATIONS] Error checking decor:`, decorError);
         }
@@ -14852,7 +15747,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           productionLog(`✅ [NOTIFICATIONS] First run complete - will now only notify on changes`);
           isFirstRun = false;
         }
-
       } catch (error) {
         console.error('❌ [NOTIFICATIONS] Error checking for watched items:', error);
         console.error('Stack trace:', error.stack);
@@ -14918,24 +15812,28 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     let toolWasDecreasing = false;
     let lastToolSeconds = 0;
 
-    setManagedInterval('toolRestockWatch', () => {
-      const toolShop = targetWindow?.globalShop?.shops?.tool;
-      if (!toolShop || !toolShop.secondsUntilRestock) return;
+    setManagedInterval(
+      'toolRestockWatch',
+      () => {
+        const toolShop = targetWindow?.globalShop?.shops?.tool;
+        if (!toolShop || !toolShop.secondsUntilRestock) return;
 
-      const curr = toolShop.secondsUntilRestock;
+        const curr = toolShop.secondsUntilRestock;
 
-      if (curr < lastToolSeconds) {
-        toolWasDecreasing = true;
-      } else if (toolWasDecreasing && curr > lastToolSeconds + 2) {
-        productionLog('🔧 Tool restock detected (pattern-based jump)', { curr, lastToolSeconds });
-        toolWasDecreasing = false;
+        if (curr < lastToolSeconds) {
+          toolWasDecreasing = true;
+        } else if (toolWasDecreasing && curr > lastToolSeconds + 2) {
+          productionLog('🔧 Tool restock detected (pattern-based jump)', { curr, lastToolSeconds });
+          toolWasDecreasing = false;
+          lastToolSeconds = curr;
+          resetLocalPurchases('tool');
+          scheduleRefresh('tool', toolShop);
+        }
+
         lastToolSeconds = curr;
-        resetLocalPurchases('tool');
-        scheduleRefresh('tool', toolShop);
-      }
-
-      lastToolSeconds = curr;
-    }, 1000);
+      },
+      1000
+    );
 
     function initializeShopWatcher() {
       if (shopWatcherInitialized) return;
@@ -15075,39 +15973,39 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Species max hunger values from wiki
     // Source: https://magicgarden.fandom.com/wiki/Pets
     const SPECIES_MAX_HUNGER = {
-      'Worm': 500,
-      'Snail': 1000,
-      'Bee': 1500,
-      'Chicken': 3000,
-      'Bunny': 750,
-      'Dragonfly': 250,
-      'Pig': 50000,
-      'Cow': 25000,
-      'Turtle': 100000,
-      'Goat': 20000,
-      'Squirrel': 15000,
-      'Capybara': 150000,
-      'Butterfly': 25000,
-      'Peacock': 100000
+      Worm: 500,
+      Snail: 1000,
+      Bee: 1500,
+      Chicken: 3000,
+      Bunny: 750,
+      Dragonfly: 250,
+      Pig: 50000,
+      Cow: 25000,
+      Turtle: 100000,
+      Goat: 20000,
+      Squirrel: 15000,
+      Capybara: 150000,
+      Butterfly: 25000,
+      Peacock: 100000
     };
 
     // Per-species hunger depletion times (milliseconds from full to 0)
     // Source: https://magicgarden.fandom.com/wiki/Pets
     const SPECIES_HUNGER_DEPLETION_TIME = {
-      'Worm': 30 * 60 * 1000,
-      'Snail': 60 * 60 * 1000,
-      'Bee': 15 * 60 * 1000,
-      'Chicken': 60 * 60 * 1000,
-      'Bunny': 45 * 60 * 1000,
-      'Dragonfly': 15 * 60 * 1000,
-      'Pig': 60 * 60 * 1000,
-      'Cow': 75 * 60 * 1000,
-      'Turtle': 90 * 60 * 1000,
-      'Goat': 60 * 60 * 1000,
-      'Squirrel': 30 * 60 * 1000,
-      'Capybara': 60 * 60 * 1000,
-      'Butterfly': 30 * 60 * 1000,
-      'Peacock': 60 * 60 * 1000
+      Worm: 30 * 60 * 1000,
+      Snail: 60 * 60 * 1000,
+      Bee: 15 * 60 * 1000,
+      Chicken: 60 * 60 * 1000,
+      Bunny: 45 * 60 * 1000,
+      Dragonfly: 15 * 60 * 1000,
+      Pig: 60 * 60 * 1000,
+      Cow: 75 * 60 * 1000,
+      Turtle: 90 * 60 * 1000,
+      Goat: 60 * 60 * 1000,
+      Squirrel: 30 * 60 * 1000,
+      Capybara: 60 * 60 * 1000,
+      Butterfly: 30 * 60 * 1000,
+      Peacock: 60 * 60 * 1000
     };
 
     const HUNGER_BOOST_VALUES = {
@@ -15115,8 +16013,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       'Hunger Boost II': 0.16 // 16% reduction per 100 STR
     };
 
-    // Track previous hunger states for each pet (declared earlier at top scope)
-    lastPetHungerStates = {};
+    // Track previous hunger states for each pet (declared earlier at top scope, initialized there)
+    // lastPetHungerStates already initialized at declaration
     const petHungerLastAlertTime = {}; // BUGFIX: Track when we last alerted per pet (timestamp) for time-based throttle
 
     function checkPetHunger() {
@@ -15162,7 +16060,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Debug logging (only when enabled)
           if (UnifiedState.data.settings?.debugMode) {
-            productionLog(`🐾 [PET-HUNGER-DEBUG] ${petName} (ID: ${pet.id}): ${hungerPercent.toFixed(1)}% (hunger=${currentHunger}/${estimatedMaxHunger}), threshold=${thresholdPercent}%, lastPercent=${lastPercent.toFixed(1)}%, timeSinceLastAlert=${(timeSinceLastAlert / 1000).toFixed(0)}s`);
+            productionLog(
+              `🐾 [PET-HUNGER-DEBUG] ${petName} (ID: ${pet.id}): ${hungerPercent.toFixed(1)}% (hunger=${currentHunger}/${estimatedMaxHunger}), threshold=${thresholdPercent}%, lastPercent=${lastPercent.toFixed(1)}%, timeSinceLastAlert=${(timeSinceLastAlert / 1000).toFixed(0)}s`
+            );
           }
 
           // Critical thresholds that alert every 1 minute (more urgent than normal 5 min throttle)
@@ -15171,17 +16071,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const criticalNeedsAlert = isCritical && (timeSinceLastAlert >= CRITICAL_THROTTLE_MS || !lastAlertTime);
 
           // Alert if below threshold and enough time has passed since last alert
-          const needsAlert = hungerPercent < thresholdPercent && hungerPercent > 1 &&
-                                    (timeSinceLastAlert >= ALERT_THROTTLE_MS || !lastAlertTime);
+          const needsAlert =
+            hungerPercent < thresholdPercent &&
+            hungerPercent > 1 &&
+            (timeSinceLastAlert >= ALERT_THROTTLE_MS || !lastAlertTime);
 
           // Also alert if hunger DROPPED below threshold since last check (crossing behavior)
           const justCrossed = hungerPercent < thresholdPercent && lastPercent >= thresholdPercent;
 
           if (needsAlert || justCrossed || criticalNeedsAlert) {
-            const reason = isCritical ? 'CRITICAL hunger level' :
-              justCrossed ? 'crossed threshold' :
-                'below threshold (throttle expired)';
-            productionLog(`🐾 [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%) - Reason: ${reason}`);
+            const reason = isCritical
+              ? 'CRITICAL hunger level'
+              : justCrossed
+                ? 'crossed threshold'
+                : 'below threshold (throttle expired)';
+            productionLog(
+              `🐾 [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%) - Reason: ${reason}`
+            );
 
             // Play different sound for pet hunger (custom or default)
             const volume = UnifiedState.data.settings.notifications.volume || 0.3;
@@ -15243,7 +16149,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Alert for any pet currently below threshold
           if (hungerPercent < thresholdPercent) {
             hungryCount++;
-            productionLog(`🐾 [PET-HUNGER] Initial scan: ${petName} needs feeding! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`);
+            productionLog(
+              `🐾 [PET-HUNGER] Initial scan: ${petName} needs feeding! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`
+            );
 
             // Show notification for this pet
             showNotificationToast(`⚠️ ${petName} needs feeding! Only ${Math.round(hungerPercent)}% full`, 'warning');
@@ -15303,17 +16211,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               console.log('🍖 [HUNGER-CALC] Checking ability:', ability);
             }
             // Ability can be either a string directly or an object with properties
-            const abilityType = typeof ability === 'string' ? ability : (ability.abilityType || ability.type || ability);
+            const abilityType = typeof ability === 'string' ? ability : ability.abilityType || ability.type || ability;
             if (typeof abilityType === 'string') {
               // Check for both "Hunger Boost" (with space) and "HungerBoost" (without space)
               if (abilityType.includes('HungerBoost') || abilityType.includes('Hunger Boost')) {
                 // Hunger Boost I = 12% per 100 STR, Hunger Boost II = 16% per 100 STR
-                const reduction = abilityType.includes('II') ? HUNGER_BOOST_VALUES['Hunger Boost II'] : HUNGER_BOOST_VALUES['Hunger Boost I'];
+                const reduction = abilityType.includes('II')
+                  ? HUNGER_BOOST_VALUES['Hunger Boost II']
+                  : HUNGER_BOOST_VALUES['Hunger Boost I'];
                 const strength = (p.strength || p.str || 100) / 100;
                 totalHungerReduction += reduction * strength;
 
                 if (UnifiedState.data.settings?.debugMode) {
-                  console.log(`🍖 [HUNGER-CALC] Found ${abilityType} on ${p.petSpecies}, STR: ${p.strength || p.str}, reduction: ${reduction}, strength mult: ${strength}`);
+                  console.log(
+                    `🍖 [HUNGER-CALC] Found ${abilityType} on ${p.petSpecies}, STR: ${p.strength || p.str}, reduction: ${reduction}, strength mult: ${strength}`
+                  );
                 }
               }
             }
@@ -15394,11 +16306,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Check if this is a watched weather event
           const eventMapping = {
-            'snow': 'Snow',
-            'rain': 'Rain',
-            'amber_moon': 'AmberMoon',
-            'ambermoon': 'AmberMoon',
-            'dawn': 'Dawn'
+            snow: 'Snow',
+            rain: 'Rain',
+            amber_moon: 'AmberMoon',
+            ambermoon: 'AmberMoon',
+            dawn: 'Dawn'
           };
 
           const mappedEvent = eventMapping[currentWeather.toLowerCase()] || currentWeather;
@@ -15718,7 +16630,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
                   <div class="mga-section">
                       <div class="mga-section-title" style="font-size: 13px;">Game Controls</div>
-                      ${Object.entries(hotkeys.gameKeys).map(([key, config]) => `
+                      ${Object.entries(hotkeys.gameKeys)
+                        .map(
+                          ([key, config]) => `
                           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
                               <span style="font-size: 12px; flex: 1;">${config.name}</span>
                               <button class="hotkey-button" data-key="${key}" style="
@@ -15733,7 +16647,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                               ">
                                   ${config.custom ? `${config.original.toUpperCase()} → ${config.custom.toUpperCase()}` : config.original.toUpperCase()}
                               </button>
-                              ${config.custom ? `
+                              ${
+                                config.custom
+                                  ? `
                                   <button class="hotkey-reset" data-key="${key}" style="
                                       margin-left: 5px;
                                       padding: 2px 6px;
@@ -15744,14 +16660,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                                       font-size: 10px;
                                       cursor: pointer;
                                   ">↺</button>
-                              ` : ''}
+                              `
+                                  : ''
+                              }
                           </div>
-                      `).join('')}
+                      `
+                        )
+                        .join('')}
                   </div>
 
                   <div class="mga-section">
                       <div class="mga-section-title" style="font-size: 13px;">MGTools Navigation & Features</div>
-                      ${Object.entries(hotkeys.mgToolsKeys).map(([key, config]) => `
+                      ${Object.entries(hotkeys.mgToolsKeys)
+                        .map(
+                          ([key, config]) => `
                           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 5px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
                               <span style="font-size: 12px; flex: 1;">${config.name}</span>
                               <button class="hotkey-button-mgtools" data-key="${key}" style="
@@ -15766,7 +16688,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                               ">
                                   ${config.custom ? config.custom.toUpperCase() : 'Not Set'}
                               </button>
-                              ${config.custom ? `
+                              ${
+                                config.custom
+                                  ? `
                                   <button class="hotkey-reset-mgtools" data-key="${key}" style="
                                       margin-left: 5px;
                                       padding: 2px 6px;
@@ -15777,9 +16701,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                                       font-size: 10px;
                                       cursor: pointer;
                                   ">↺</button>
-                              ` : ''}
+                              `
+                                  : ''
+                              }
                           </div>
-                      `).join('')}
+                      `
+                        )
+                        .join('')}
                   </div>
 
                   <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -15804,7 +16732,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (!settings.notifications.petHungerThreshold) {
         settings.notifications.petHungerThreshold = 20;
       }
-      if (!settings.notifications.abilityNotificationsEnabled && settings.notifications.abilityNotificationsEnabled !== false) {
+      if (
+        !settings.notifications.abilityNotificationsEnabled &&
+        settings.notifications.abilityNotificationsEnabled !== false
+      ) {
         settings.notifications.abilityNotificationsEnabled = false;
       }
       if (!settings.notifications.watchedAbilities) {
@@ -15821,7 +16752,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           other: true
         };
       }
-      if (!settings.notifications.weatherNotificationsEnabled && settings.notifications.weatherNotificationsEnabled !== false) {
+      if (
+        !settings.notifications.weatherNotificationsEnabled &&
+        settings.notifications.weatherNotificationsEnabled !== false
+      ) {
         settings.notifications.weatherNotificationsEnabled = false;
       }
       if (!settings.notifications.watchedDecor) {
@@ -15859,12 +16793,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                                  style="accent-color: #4a9eff;">
                           <span>🔊 Enable Notifications</span>
                       </label>
-                  </div>
-
-                  <div style="margin-bottom: 12px;">
-                      <button id="notification-quick-toggle" class="mga-button" style="padding: 8px 16px; background: ${settings.notifications.enabled ? '#4a9eff' : '#666'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                          ${settings.notifications.enabled ? '🔊 Turn OFF Notifications' : '🔇 Turn ON Notifications'}
-                      </button>
                   </div>
 
                   <div style="margin-bottom: 12px;">
@@ -16156,14 +17084,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           Watched Decor (Hourly Shop)
                       </label>
                       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
-                          ${DECOR_ITEMS.map(decor => `
+                          ${DECOR_ITEMS.map(
+                            decor => `
                               <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
                                   <input type="checkbox" id="watch-decor-${decor.id.toLowerCase()}" class="mga-checkbox"
                                          ${settings.notifications.watchedDecor.includes(decor.id) ? 'checked' : ''}
                                          style="accent-color: #4a9eff; transform: scale(0.8);">
                                   <span>🎨 ${decor.name}</span>
                               </label>
-                          `).join('')}
+                          `
+                          ).join('')}
                       </div>
                   </div>
 
@@ -16261,59 +17191,62 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
                       <div id="individual-abilities-notification-list" style="display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 400px; overflow-y: auto; padding: 4px;">
                           ${(() => {
-    // Comprehensive list of all abilities organized by category
-    const abilities = [
-      // XP Boosts
-      { name: 'XP Boost I', category: '💫 XP Boosts' },
-      { name: 'XP Boost II', category: '💫 XP Boosts' },
-      { name: 'XP Boost III', category: '💫 XP Boosts' },
-      { name: 'XP Boost IV', category: '💫 XP Boosts' },
-      { name: 'Hatch XP Boost', category: '💫 XP Boosts' },
-      // Crop Size Boosts (only I and II exist in game)
-      { name: 'Crop Size Boost I', category: '📈 Crop Size Boosts' },
-      { name: 'Crop Size Boost II', category: '📈 Crop Size Boosts' },
-      // Selling
-      { name: 'Sell Boost I', category: '💰 Selling' },
-      { name: 'Sell Boost II', category: '💰 Selling' },
-      { name: 'Sell Boost III', category: '💰 Selling' },
-      { name: 'Sell Boost IV', category: '💰 Selling' },
-      { name: 'Selling Refund', category: '💰 Selling' },
-      // Harvesting
-      { name: 'Double Harvest', category: '🌾 Harvesting' },
-      // Growth Speed
-      { name: 'Plant Growth Boost I', category: '🐢 Growth Speed' },
-      { name: 'Plant Growth Boost II', category: '🐢 Growth Speed' },
-      { name: 'Plant Growth Boost III', category: '🐢 Growth Speed' },
-      // Special Mutations
-      { name: 'Rainbow Mutation', category: '🌈 Special' },
-      { name: 'Gold Mutation', category: '🌈 Special' },
-      // Other
-      { name: 'Seed Finder I', category: '🔧 Other' },
-      { name: 'Seed Finder II', category: '🔧 Other' },
-      { name: 'Hunger Boost I', category: '🔧 Other' },
-      { name: 'Hunger Boost II', category: '🔧 Other' },
-      { name: 'Max Strength Boost I', category: '🔧 Other' },
-      { name: 'Max Strength Boost II', category: '🔧 Other' },
-      { name: 'Crop Eater', category: '🔧 Other' }
-    ];
+                            // Comprehensive list of all abilities organized by category
+                            const abilities = [
+                              // XP Boosts
+                              { name: 'XP Boost I', category: '💫 XP Boosts' },
+                              { name: 'XP Boost II', category: '💫 XP Boosts' },
+                              { name: 'XP Boost III', category: '💫 XP Boosts' },
+                              { name: 'XP Boost IV', category: '💫 XP Boosts' },
+                              { name: 'Hatch XP Boost', category: '💫 XP Boosts' },
+                              // Crop Size Boosts (only I and II exist in game)
+                              { name: 'Crop Size Boost I', category: '📈 Crop Size Boosts' },
+                              { name: 'Crop Size Boost II', category: '📈 Crop Size Boosts' },
+                              // Selling
+                              { name: 'Sell Boost I', category: '💰 Selling' },
+                              { name: 'Sell Boost II', category: '💰 Selling' },
+                              { name: 'Sell Boost III', category: '💰 Selling' },
+                              { name: 'Sell Boost IV', category: '💰 Selling' },
+                              { name: 'Selling Refund', category: '💰 Selling' },
+                              // Harvesting
+                              { name: 'Double Harvest', category: '🌾 Harvesting' },
+                              // Growth Speed
+                              { name: 'Plant Growth Boost I', category: '🐢 Growth Speed' },
+                              { name: 'Plant Growth Boost II', category: '🐢 Growth Speed' },
+                              { name: 'Plant Growth Boost III', category: '🐢 Growth Speed' },
+                              // Special Mutations
+                              { name: 'Rainbow Mutation', category: '🌈 Special' },
+                              { name: 'Gold Mutation', category: '🌈 Special' },
+                              // Other
+                              { name: 'Seed Finder I', category: '🔧 Other' },
+                              { name: 'Seed Finder II', category: '🔧 Other' },
+                              { name: 'Hunger Boost I', category: '🔧 Other' },
+                              { name: 'Hunger Boost II', category: '🔧 Other' },
+                              { name: 'Max Strength Boost I', category: '🔧 Other' },
+                              { name: 'Max Strength Boost II', category: '🔧 Other' },
+                              { name: 'Crop Eater', category: '🔧 Other' }
+                            ];
 
-    const watchedAbilities = settings.notifications.watchedAbilities || [];
+                            const watchedAbilities = settings.notifications.watchedAbilities || [];
 
-    // Group abilities by category
-    const grouped = {};
-    abilities.forEach(ability => {
-      if (!grouped[ability.category]) grouped[ability.category] = [];
-      grouped[ability.category].push(ability.name);
-    });
+                            // Group abilities by category
+                            const grouped = {};
+                            abilities.forEach(ability => {
+                              if (!grouped[ability.category]) grouped[ability.category] = [];
+                              grouped[ability.category].push(ability.name);
+                            });
 
-    let html = '';
-    Object.keys(grouped).sort().forEach(category => {
-      html += `<div class="ability-category-group" style="margin-bottom: 8px;">
+                            let html = '';
+                            Object.keys(grouped)
+                              .sort()
+                              .forEach(category => {
+                                html += `<div class="ability-category-group" style="margin-bottom: 8px;">
                                       <div style="font-size: 11px; font-weight: 600; color: #aaa; margin-bottom: 4px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px;">${category}</div>`;
 
-      grouped[category].forEach(abilityName => {
-        const isChecked = watchedAbilities.length === 0 || watchedAbilities.includes(abilityName);
-        html += `
+                                grouped[category].forEach(abilityName => {
+                                  const isChecked =
+                                    watchedAbilities.length === 0 || watchedAbilities.includes(abilityName);
+                                  html += `
                                           <label class="mga-checkbox-group ability-checkbox-item" data-ability="${abilityName}" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; transition: background 0.2s; border-radius: 4px;">
                                               <input type="checkbox"
                                                      class="mga-checkbox individual-ability-checkbox"
@@ -16322,12 +17255,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                                                      style="accent-color: #4a9eff;">
                                               <span style="font-size: 11px; color: #ddd;">${abilityName}</span>
                                           </label>`;
-      });
-      html += '</div>';
-    });
+                                });
+                                html += '</div>';
+                              });
 
-    return html;
-  })()}
+                            return html;
+                          })()}
                       </div>
                   </div>
               </div>
@@ -16540,9 +17473,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           Texture Scale
                       </label>
                       <div style="display: flex; gap: 8px;">
-                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="small" style="flex: 1; ${(settings.textureScale === 'small') ? 'background: #4a9eff; color: white;' : ''}">Small</button>
-                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="medium" style="flex: 1; ${(settings.textureScale === 'medium' || !settings.textureScale) ? 'background: #4a9eff; color: white;' : ''}">Medium</button>
-                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="large" style="flex: 1; ${(settings.textureScale === 'large') ? 'background: #4a9eff; color: white;' : ''}">Large</button>
+                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="small" style="flex: 1; ${settings.textureScale === 'small' ? 'background: #4a9eff; color: white;' : ''}">Small</button>
+                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="medium" style="flex: 1; ${settings.textureScale === 'medium' || !settings.textureScale ? 'background: #4a9eff; color: white;' : ''}">Medium</button>
+                          <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="large" style="flex: 1; ${settings.textureScale === 'large' ? 'background: #4a9eff; color: white;' : ''}">Large</button>
                       </div>
                   </div>
 
@@ -16552,19 +17485,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           Blend Mode
                       </label>
                       <select class="mga-select" id="texture-blend-mode">
-                          <option value="overlay" ${(settings.textureBlendMode === 'overlay' || !settings.textureBlendMode) ? 'selected' : ''}>Overlay (Balanced)</option>
+                          <option value="overlay" ${settings.textureBlendMode === 'overlay' || !settings.textureBlendMode ? 'selected' : ''}>Overlay (Balanced)</option>
                           <option value="multiply" ${settings.textureBlendMode === 'multiply' ? 'selected' : ''}>Multiply (Darken)</option>
                           <option value="screen" ${settings.textureBlendMode === 'screen' ? 'selected' : ''}>Screen (Lighten)</option>
                           <option value="soft-light" ${settings.textureBlendMode === 'soft-light' ? 'selected' : ''}>Soft Light (Subtle)</option>
                       </select>
-                  </div>
-
-                  <!-- Animation Toggle -->
-                  <div style="margin-bottom: 12px;">
-                      <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                          <input type="checkbox" id="texture-animated-checkbox" class="mga-checkbox" ${settings.textureAnimated ? 'checked' : ''}>
-                          <span>✨ Enable Animation (where supported)</span>
-                      </label>
                   </div>
               </div>
 
@@ -16640,9 +17565,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                                   ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled ? '✅ Enabled' : '⚪ Disabled'}
                               </div>
                               <div style="font-size: 11px; color: #aaa;">
-                                  ${typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled
-    ? ('Reason: ' + (CompatibilityMode.detectionReason || 'manual'))
-    : 'Auto-detects CSP restrictions'}
+                                  ${
+                                    typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.enabled
+                                      ? 'Reason: ' + (CompatibilityMode.detectionReason || 'manual')
+                                      : 'Auto-detects CSP restrictions'
+                                  }
                               </div>
                           </div>
                           <button id="compat-toggle-btn" class="mga-btn mga-btn-sm"
@@ -16802,16 +17729,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       };
 
       // First refresh after 1.5 seconds
-      setTimeout(() => {
-        refreshAllPetDisplays();
-        productionLog(`✅ [PETS] Placed preset "${presetName}" and updated displays (first refresh)`);
-      }, preset.length * 50 + 1500);
+      setTimeout(
+        () => {
+          refreshAllPetDisplays();
+          productionLog(`✅ [PETS] Placed preset "${presetName}" and updated displays (first refresh)`);
+        },
+        preset.length * 50 + 1500
+      );
 
       // Backup refresh after 2.5 seconds to catch slow updates
-      setTimeout(() => {
-        refreshAllPetDisplays();
-        productionLog(`✅ [PETS] Backup refresh for preset "${presetName}"`);
-      }, preset.length * 50 + 2500);
+      setTimeout(
+        () => {
+          refreshAllPetDisplays();
+          productionLog(`✅ [PETS] Backup refresh for preset "${presetName}"`);
+        },
+        preset.length * 50 + 2500
+      );
     }
 
     // Helper function to check if preset contains Worm with Crop Eater ability
@@ -16822,18 +17755,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Filter for Worms with Crop Eater ability (same pattern as turtle timer)
-      const wormsWithCropEater = preset.filter(p =>
-        p &&
-              p.petSpecies === 'Worm' &&
-              p.abilities?.some(a =>
-                a === 'Crop Eater' ||
-                  a === 'CropEater' ||
-                  (typeof a === 'string' && a.toLowerCase().includes('crop') && a.toLowerCase().includes('eater'))
-              )
+      const wormsWithCropEater = preset.filter(
+        p =>
+          p &&
+          p.petSpecies === 'Worm' &&
+          p.abilities?.some(
+            a =>
+              a === 'Crop Eater' ||
+              a === 'CropEater' ||
+              (typeof a === 'string' && a.toLowerCase().includes('crop') && a.toLowerCase().includes('eater'))
+          )
       );
 
       if (wormsWithCropEater.length > 0) {
-        productionLog(`[Crop Eater Check] Preset contains ${wormsWithCropEater.length} Worm(s) with Crop Eater - skipping`);
+        productionLog(
+          `[Crop Eater Check] Preset contains ${wormsWithCropEater.length} Worm(s) with Crop Eater - skipping`
+        );
       }
 
       return wormsWithCropEater.length > 0;
@@ -16869,13 +17806,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Check if preset has Crop Eater
         if (preset && !presetHasCropEater(preset)) {
-          productionLog(`[Cycle Presets] Loading: ${presetName} (${UnifiedState.data.currentPresetIndex + 1}/${UnifiedState.data.petPresetsOrder.length})`);
+          productionLog(
+            `[Cycle Presets] Loading: ${presetName} (${UnifiedState.data.currentPresetIndex + 1}/${UnifiedState.data.petPresetsOrder.length})`
+          );
           placePetPreset(presetName);
           return; // Found valid preset
         } else if (preset && presetHasCropEater(preset)) {
           productionLog(`[Cycle Presets] Skipping ${presetName} - contains Crop Eater`);
         }
-
       } while (attempts < maxAttempts);
 
       // All presets have Crop Eater
@@ -16937,25 +17875,36 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const activePetsDisplays = context.querySelectorAll('.mga-active-pets-display');
 
       activePetsDisplays.forEach(display => {
-        const innerHTML = activePets.length > 0 ? `
+        const innerHTML =
+          activePets.length > 0
+            ? `
                   <div class="mga-active-pets-header">Currently Equipped:</div>
                   <div class="mga-active-pets-list">
-                      ${activePets.map((p, index) => {
-    const timeUntilHungry = calculateTimeUntilHungry(p);
-    const timerText = formatHungerTimer(timeUntilHungry);
-    const timerColor = timeUntilHungry === null ? '#999' :
-      timeUntilHungry <= 0 ? '#8B0000' :
-        timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
-          timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
-    return `
+                      ${activePets
+                        .map((p, index) => {
+                          const timeUntilHungry = calculateTimeUntilHungry(p);
+                          const timerText = formatHungerTimer(timeUntilHungry);
+                          const timerColor =
+                            timeUntilHungry === null
+                              ? '#999'
+                              : timeUntilHungry <= 0
+                                ? '#8B0000'
+                                : timeUntilHungry < 5 * 60 * 1000
+                                  ? '#ff4444'
+                                  : timeUntilHungry < 15 * 60 * 1000
+                                    ? '#ffa500'
+                                    : '#4caf50';
+                          return `
                               <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
                                   <span class="mga-pet-badge">${p.petSpecies}</span>
                                   <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
                               </div>
                           `;
-  }).join('')}
+                        })
+                        .join('')}
                   </div>
-              ` : `
+              `
+            : `
                   <div class="mga-empty-state">
                       <div class="mga-empty-state-icon">—</div>
                       <div class="mga-empty-state-description">No pets currently active</div>
@@ -17039,16 +17988,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function getDragAfterElement(container, y) {
       const draggableElements = [...container.querySelectorAll('.mga-preset:not(.dragging)')];
 
-      return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
+      return draggableElements.reduce(
+        (closest, child) => {
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height / 2;
 
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
-        } else {
-          return closest;
-        }
-      }, { offset: Number.NEGATIVE_INFINITY }).element;
+          if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+          } else {
+            return closest;
+          }
+        },
+        { offset: Number.NEGATIVE_INFINITY }
+      ).element;
     }
 
     function refreshPresetsList(context) {
@@ -17125,7 +18077,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const draggedPresetName = e.dataTransfer.getData('text/plain');
         if (draggedPresetName && draggedPresetName !== name) {
           // Update order array based on current DOM order
-          const newOrder = Array.from(presetsList.children).map(el => el.dataset.presetName).filter(Boolean);
+          const newOrder = Array.from(presetsList.children)
+            .map(el => el.dataset.presetName)
+            .filter(Boolean);
           UnifiedState.data.petPresetsOrder = newOrder;
           MGA_saveJSON('MGA_petPresetsOrder', UnifiedState.data.petPresetsOrder);
           refreshPresetsList(context);
@@ -17200,28 +18154,31 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             });
 
             // Update pets display after all pets placed
-            setTimeout(() => {
-              // Force update pets from room state first
-              updateActivePetsFromRoomState();
+            setTimeout(
+              () => {
+                // Force update pets from room state first
+                updateActivePetsFromRoomState();
 
-              // Then refresh the tab if it's active
-              if (UnifiedState.activeTab === 'pets') {
-                updateTabContent();
-              }
-
-              // Update all pet overlays after placing
-              UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-                if (overlay && document.contains(overlay) && tabName === 'pets') {
-                  if (overlay.className.includes('mga-overlay-content-only')) {
-                    updatePureOverlayContent(overlay, tabName);
-                    debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
-                  }
+                // Then refresh the tab if it's active
+                if (UnifiedState.activeTab === 'pets') {
+                  updateTabContent();
                 }
-              });
 
-              // Update separate window popouts
-              refreshSeparateWindowPopouts('pets');
-            }, preset.length * 50 + 1000); // Wait for all pets + extra time for game to update
+                // Update all pet overlays after placing
+                UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                  if (overlay && document.contains(overlay) && tabName === 'pets') {
+                    if (overlay.className.includes('mga-overlay-content-only')) {
+                      updatePureOverlayContent(overlay, tabName);
+                      debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
+                    }
+                  }
+                });
+
+                // Update separate window popouts
+                refreshSeparateWindowPopouts('pets');
+              },
+              preset.length * 50 + 1000
+            ); // Wait for all pets + extra time for game to update
 
             debugLog('BUTTON_INTERACTIONS', `Placed preset: ${presetName} (from added element)`);
           } else if (action === 'remove') {
@@ -17280,16 +18237,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /* ============================================================================
-       * 11. EVENT MODULE - START
-       * ============================================================================
-       * Event handlers for all UI interactions and user inputs
-       */
+     * 11. EVENT MODULE - START
+     * ============================================================================
+     * Event handlers for all UI interactions and user inputs
+     */
 
     /**
-       * Sets up event handlers for the pets tab
-       * @function setupPetsTabHandlers
-       * @param {Document|Element} context - DOM context for event binding
-       */
+     * Sets up event handlers for the pets tab
+     * @function setupPetsTabHandlers
+     * @param {Document|Element} context - DOM context for event binding
+     */
     function setupPetsTabHandlers(context = document) {
       productionLog('🚨 [CRITICAL] Setting up pet preset handlers');
 
@@ -17373,7 +18330,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Note: Removed aggressive event blocking that was preventing UI interactions
 
         // Create input isolation system
-        const createInputIsolation = function(inputElement) {
+        const createInputIsolation = function (inputElement) {
           // Prevent ALL game key interference when input is focused
           const isolateKeyEvent = e => {
             if (document.activeElement === inputElement) {
@@ -17501,20 +18458,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Wait for store operations to complete, then place preset pets
           const baseDelay = currentPets.length > 0 ? 300 : 100;
           preset.forEach((p, i) => {
-            setTimeout(() => {
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'PlacePet',
-                itemId: p.id,
-                position: { x: 17 + i * 2, y: 13 },
-                localTileIndex: 64,
-                tileType: 'Boardwalk'
-              });
-            }, baseDelay + (i * 100));
+            setTimeout(
+              () => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'PlacePet',
+                  itemId: p.id,
+                  position: { x: 17 + i * 2, y: 13 },
+                  localTileIndex: 64,
+                  tileType: 'Boardwalk'
+                });
+              },
+              baseDelay + i * 100
+            );
           });
 
           // Multiple refresh waves to catch all pet placements
-          const totalDelay = baseDelay + (preset.length * 100);
+          const totalDelay = baseDelay + preset.length * 100;
 
           setTimeout(() => {
             updateActivePetsFromRoomState();
@@ -17879,9 +18839,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       showSkeleton: (element, lines = 3) => {
         if (!element) return;
-        const skeletonLines = Array(lines).fill(0).map(() =>
-          `<div class="mga-skeleton" style="height: 20px; margin-bottom: 8px; width: ${Math.floor(Math.random() * 40 + 60)}%;"></div>`
-        ).join('');
+        const skeletonLines = Array(lines)
+          .fill(0)
+          .map(
+            () =>
+              `<div class="mga-skeleton" style="height: 20px; margin-bottom: 8px; width: ${Math.floor(Math.random() * 40 + 60)}%;"></div>`
+          )
+          .join('');
         element.innerHTML = `<div style="padding: 20px;">${skeletonLines}</div>`;
       },
 
@@ -17968,10 +18932,38 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // BEFORE CLEAR: Show what exists in each storage
           const beforeClear = {
             memory: UnifiedState.data.petAbilityLogs?.length || 0,
-            gmMain: (() => { try { const v = GM_getValue('MGA_petAbilityLogs', null); return v ? JSON.parse(v).length : 0; } catch (e) { return 0; }})(),
-            gmArchive: (() => { try { const v = GM_getValue('MGA_petAbilityLogs_archive', null); return v ? JSON.parse(v).length : 0; } catch (e) { return 0; }})(),
-            lsMain: (() => { try { const v = window.localStorage?.getItem('MGA_petAbilityLogs'); return v ? JSON.parse(v).length : 0; } catch (e) { return 0; }})(),
-            lsArchive: (() => { try { const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive'); return v ? JSON.parse(v).length : 0; } catch (e) { return 0; }})()
+            gmMain: (() => {
+              try {
+                const v = GM_getValue('MGA_petAbilityLogs', null);
+                return v ? JSON.parse(v).length : 0;
+              } catch (e) {
+                return 0;
+              }
+            })(),
+            gmArchive: (() => {
+              try {
+                const v = GM_getValue('MGA_petAbilityLogs_archive', null);
+                return v ? JSON.parse(v).length : 0;
+              } catch (e) {
+                return 0;
+              }
+            })(),
+            lsMain: (() => {
+              try {
+                const v = window.localStorage?.getItem('MGA_petAbilityLogs');
+                return v ? JSON.parse(v).length : 0;
+              } catch (e) {
+                return 0;
+              }
+            })(),
+            lsArchive: (() => {
+              try {
+                const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive');
+                return v ? JSON.parse(v).length : 0;
+              } catch (e) {
+                return 0;
+              }
+            })()
           };
 
           logDebug('ABILITY-LOGS', '📊 BEFORE CLEAR - Log counts:', beforeClear);
@@ -17980,7 +18972,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           if (UnifiedState.data.petAbilityLogs?.length > 0) {
             logDebug('ABILITY-LOGS', '📋 Current logs in memory:');
             UnifiedState.data.petAbilityLogs.forEach((log, i) => {
-              logDebug('ABILITY-LOGS', `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`);
+              logDebug(
+                'ABILITY-LOGS',
+                `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`
+              );
             });
           }
 
@@ -18045,8 +19040,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             memory: UnifiedState.data.petAbilityLogs?.length || 0,
             gmMain: verifyMain?.length || 0,
             gmArchive: verifyArchive?.length || 0,
-            lsMain: verifyLS ? (() => { try { return JSON.parse(verifyLS).length; } catch (e) { return 'parse-error'; }})() : 0,
-            lsArchive: (() => { try { const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive'); return v ? JSON.parse(v).length : 0; } catch (e) { return 0; }})(),
+            lsMain: verifyLS
+              ? (() => {
+                  try {
+                    return JSON.parse(verifyLS).length;
+                  } catch (e) {
+                    return 'parse-error';
+                  }
+                })()
+              : 0,
+            lsArchive: (() => {
+              try {
+                const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive');
+                return v ? JSON.parse(v).length : 0;
+              } catch (e) {
+                return 0;
+              }
+            })(),
             compatArray: verifyCompat
           };
 
@@ -18058,8 +19068,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           });
 
           // If ANY logs remain, show which ones
-          const totalRemaining = Object.values(afterClear).reduce((sum, val) =>
-            sum + (typeof val === 'number' ? val : 0), 0
+          const totalRemaining = Object.values(afterClear).reduce(
+            (sum, val) => sum + (typeof val === 'number' ? val : 0),
+            0
           );
 
           if (totalRemaining > 0) {
@@ -18070,7 +19081,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             if (verifyMain && verifyMain.length > 0) {
               logDebug('ABILITY-LOGS', '❌ PERSISTENT LOGS IN GM STORAGE:');
               verifyMain.forEach((log, i) => {
-                logDebug('ABILITY-LOGS', `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`);
+                logDebug(
+                  'ABILITY-LOGS',
+                  `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`
+                );
               });
             }
           } else {
@@ -18104,7 +19118,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           if (totalWithLogs === 0) {
             showNotificationToast('✅ No ability logs found in any storage location', 'success');
           } else {
-            showNotificationToast(`📊 Found logs in ${totalWithLogs} storage location(s). Check console for details.`, 'info');
+            showNotificationToast(
+              `📊 Found logs in ${totalWithLogs} storage location(s). Check console for details.`,
+              'info'
+            );
           }
         });
       }
@@ -18238,6 +19255,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         filterMode: UnifiedState.data.filterMode
       });
 
+      // Diagnostic logging for FIX_VALIDATION
+      if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+        console.log('[FIX_ABILITY_LOGS] Update called:', {
+          totalLogs: logs.length,
+          filteredLogs: filteredLogs.length,
+          filterMode: UnifiedState.data.filterMode,
+          elementFound: !!abilityLogs,
+          contextType: context === document ? 'document' : 'overlay'
+        });
+      }
+
       const htmlParts = [];
       filteredLogs.forEach((log, index) => {
         const category = categorizeAbilityToFilterKey(log.abilityType);
@@ -18253,7 +19281,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         const catData = categoryData[category] || categoryData.other;
         const formattedTime = formatTimestamp(log.timestamp);
-        const isRecent = (Date.now() - log.timestamp) < 10000; // Less than 10 seconds ago
+        const isRecent = Date.now() - log.timestamp < 10000; // Less than 10 seconds ago
         const displayAbilityName = normalizeAbilityName(log.abilityType);
 
         htmlParts.push(`
@@ -18266,8 +19294,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           </span>
                       </div>
                       <div class="mga-log-ability">${displayAbilityName}</div>
-                      ${log.data && Object.keys(log.data).length > 0 ?
-    `<div class="mga-log-details">${formatLogData(log.data)}</div>` : ''}
+                      ${
+                        log.data && Object.keys(log.data).length > 0
+                          ? `<div class="mga-log-details">${formatLogData(log.data)}</div>`
+                          : ''
+                      }
                   </div>
               `);
       });
@@ -18278,9 +19309,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       if (htmlParts.length === 0) {
         const mode = UnifiedState.data.filterMode || 'categories';
-        const modeText = mode === 'categories' ? 'category filters' :
-          mode === 'byPet' ? 'pet filters' :
-            'custom filters';
+        const modeText =
+          mode === 'categories' ? 'category filters' : mode === 'byPet' ? 'pet filters' : 'custom filters';
         tempContainer.innerHTML = `<div class="mga-log-empty">
                   <div style="color: #888; text-align: center; padding: 20px;">
                       <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
@@ -18395,13 +19425,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const now = Date.now();
       const diff = now - timestamp;
 
-      if (diff < 60000) { // Less than 1 minute
+      if (diff < 60000) {
+        // Less than 1 minute
         const seconds = Math.floor(diff / 1000);
         return `${seconds}s ago`;
-      } else if (diff < 3600000) { // Less than 1 hour
+      } else if (diff < 3600000) {
+        // Less than 1 hour
         const minutes = Math.floor(diff / 60000);
         return `${minutes}m ago`;
-      } else if (diff < 86400000) { // Less than 1 day
+      } else if (diff < 86400000) {
+        // Less than 1 day
         const hours = Math.floor(diff / 3600000);
         return `${hours}h ago`;
       } else {
@@ -18427,6 +19460,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function updateAllAbilityLogDisplays(force = false) {
       // OPTIMIZED: Skip if no new logs (unless forced by settings change)
       const currentLogCount = UnifiedState.data.petAbilityLogs?.length || 0;
+
+      // Debug logging for ability logs
+      if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+        console.log('[FIX_ABILITY_LOGS] Update called:', {
+          force,
+          currentLogCount,
+          lastLogCount,
+          willUpdate: force || currentLogCount !== lastLogCount,
+          petAbilityLogsExists: !!UnifiedState.data.petAbilityLogs
+        });
+      }
+
       if (!force && currentLogCount === lastLogCount) {
         debugLog('ABILITY_LOGS', 'Skipping update - no new logs');
         return;
@@ -18446,7 +19491,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         if (overlay.querySelector('#ability-logs')) {
           updateAbilityLogDisplay(overlay);
-          debugLog('ABILITY_LOGS', 'Updated overlay/widget ability logs', { overlayId: overlay.id || overlay.className });
+          debugLog('ABILITY_LOGS', 'Updated overlay/widget ability logs', {
+            overlayId: overlay.id || overlay.className
+          });
         }
       });
 
@@ -18596,7 +19643,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Use debounced save to reduce I/O operations
       // Only save if not in clear session
       const clearSession = localStorage.getItem('MGA_logs_clear_session');
-      if (!clearSession || (Date.now() - parseInt(clearSession, 10)) > 86400000) {
+      if (!clearSession || Date.now() - parseInt(clearSession, 10) > 86400000) {
         MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
       } else {
         logDebug('ABILITY-LOGS', '⏸️ Skipping save - clear session active');
@@ -18689,7 +19736,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       container.innerHTML = '';
 
       if (abilities.length === 0) {
-        container.innerHTML = '<div style="color: #888; text-align: center;">No individual abilities found in logs</div>';
+        container.innerHTML =
+          '<div style="color: #888; text-align: center;">No individual abilities found in logs</div>';
         return;
       }
 
@@ -18792,10 +19840,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Enhanced shouldLogAbility function matching PAL4 logic
     function shouldLogAbility(abilityType, petName = null) {
       // Filter out ProduceMutationBoost abilities - user doesn't want these logged
-      if (abilityType && (
-        abilityType.includes('ProduceMutationBoost') ||
-              abilityType.includes('PetMutationBoost')
-      )) {
+      if (abilityType && (abilityType.includes('ProduceMutationBoost') || abilityType.includes('PetMutationBoost'))) {
         return false;
       }
 
@@ -18826,7 +19871,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let category = 'other';
       if (cleanType.includes('xp') && cleanType.includes('boost')) category = 'xpBoost';
       else if (cleanType.includes('hatch') && cleanType.includes('xp')) category = 'xpBoost';
-      else if (cleanType.includes('crop') && (cleanType.includes('size') || cleanType.includes('scale'))) category = 'cropSizeBoost';
+      else if (cleanType.includes('crop') && (cleanType.includes('size') || cleanType.includes('scale')))
+        category = 'cropSizeBoost';
       else if (cleanType.includes('sell') && cleanType.includes('boost')) category = 'selling';
       else if (cleanType.includes('refund')) category = 'selling';
       else if (cleanType.includes('double') && cleanType.includes('harvest')) category = 'harvesting';
@@ -18842,15 +19888,35 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function setupSeedsTabHandlers(context = document) {
       // Seed ID mapping for initialization
       const seedIdMap = {
-        'Carrot': 'Carrot', 'Strawberry': 'Strawberry', 'Aloe': 'Aloe',
-        'Blueberry': 'Blueberry', 'Apple': 'Apple', 'Tulip': 'OrangeTulip',
-        'Tomato': 'Tomato', 'Daffodil': 'Daffodil', 'Sunflower': 'Sunflower', 'Corn': 'Corn',
-        'Watermelon': 'Watermelon', 'Pumpkin': 'Pumpkin', 'Echeveria': 'Echeveria',
-        'Coconut': 'Coconut', 'Banana': 'Banana', 'Lily': 'Lily',
-        'BurrosTail': 'BurrosTail', 'Mushroom': 'Mushroom', 'Cactus': 'Cactus',
-        'Bamboo': 'Bamboo', 'Grape': 'Grape', 'Pepper': 'Pepper',
-        'Lemon': 'Lemon', 'PassionFruit': 'PassionFruit', 'DragonFruit': 'DragonFruit',
-        'Lychee': 'Lychee', 'Starweaver': 'Starweaver', 'Moonbinder': 'Moonbinder', 'Dawnbinder': 'Dawnbinder'
+        Carrot: 'Carrot',
+        Strawberry: 'Strawberry',
+        Aloe: 'Aloe',
+        Blueberry: 'Blueberry',
+        Apple: 'Apple',
+        Tulip: 'OrangeTulip',
+        Tomato: 'Tomato',
+        Daffodil: 'Daffodil',
+        Sunflower: 'Sunflower',
+        Corn: 'Corn',
+        Watermelon: 'Watermelon',
+        Pumpkin: 'Pumpkin',
+        Echeveria: 'Echeveria',
+        Coconut: 'Coconut',
+        Banana: 'Banana',
+        Lily: 'Lily',
+        BurrosTail: 'BurrosTail',
+        Mushroom: 'Mushroom',
+        Cactus: 'Cactus',
+        Bamboo: 'Bamboo',
+        Grape: 'Grape',
+        Pepper: 'Pepper',
+        Lemon: 'Lemon',
+        PassionFruit: 'PassionFruit',
+        DragonFruit: 'DragonFruit',
+        Lychee: 'Lychee',
+        Starweaver: 'Starweaver',
+        Moonbinder: 'Moonbinder',
+        Dawnbinder: 'Dawnbinder'
       };
 
       context.querySelectorAll('.seed-checkbox').forEach(checkbox => {
@@ -18915,7 +19981,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         autoDeleteCheckbox.addEventListener('change', e => {
           if (e.target.checked) {
             // Confirmation dialog for enabling auto-delete
-            const selectedSeedsText = UnifiedState.data.seedsToDelete.length > 0 ? UnifiedState.data.seedsToDelete.join(', ') : 'No seeds currently selected';
+            const selectedSeedsText =
+              UnifiedState.data.seedsToDelete.length > 0
+                ? UnifiedState.data.seedsToDelete.join(', ')
+                : 'No seeds currently selected';
             const confirmMessage = `⚠️ WARNING: Auto-Delete will IRREVERSIBLY delete seeds!\n\nSelected seeds for auto-deletion:\n${selectedSeedsText}\n\nAuto-delete will continuously remove these seed types from your inventory as soon as they appear. This action cannot be undone.\n\nAre you sure you want to enable Auto-Delete?`;
 
             if (!confirm(confirmMessage)) {
@@ -19015,7 +20084,26 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (selectRareBtn && !selectRareBtn.hasAttribute('data-handler-setup')) {
         selectRareBtn.setAttribute('data-handler-setup', 'true');
         selectRareBtn.addEventListener('click', () => {
-          const rareSeeds = ['Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail', 'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee'];
+          const rareSeeds = [
+            'Daffodil',
+            'Corn',
+            'Watermelon',
+            'Pumpkin',
+            'Echeveria',
+            'Coconut',
+            'Banana',
+            'Lily',
+            'BurrosTail',
+            'Mushroom',
+            'Cactus',
+            'Bamboo',
+            'Grape',
+            'Pepper',
+            'Lemon',
+            'PassionFruit',
+            'DragonFruit',
+            'Lychee'
+          ];
           selectSeedsByList(context, rareSeeds);
           debugLog('BUTTON_INTERACTIONS', 'Selected rare+ seeds');
         });
@@ -19062,19 +20150,41 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function calculateSelectedSeedsValue(context) {
       const seedValues = {
         // Common seeds
-        'Carrot': 10, 'Strawberry': 12, 'Aloe': 15,
+        Carrot: 10,
+        Strawberry: 12,
+        Aloe: 15,
         // Uncommon seeds
-        'Apple': 25, 'Tulip': 30, 'Tomato': 35, 'Blueberry': 40,
+        Apple: 25,
+        Tulip: 30,
+        Tomato: 35,
+        Blueberry: 40,
         // Rare seeds
-        'Daffodil': 75, 'Sunflower': 85, 'Corn': 80, 'Watermelon': 90, 'Pumpkin': 100,
+        Daffodil: 75,
+        Sunflower: 85,
+        Corn: 80,
+        Watermelon: 90,
+        Pumpkin: 100,
         // Legendary seeds
-        'Echeveria': 200, 'Coconut': 250, 'Banana': 300, 'Lily': 350, 'BurrosTail': 400,
+        Echeveria: 200,
+        Coconut: 250,
+        Banana: 300,
+        Lily: 350,
+        BurrosTail: 400,
         // Mythical seeds
-        'Mushroom': 500, 'Cactus': 600, 'Bamboo': 750, 'Grape': 800,
+        Mushroom: 500,
+        Cactus: 600,
+        Bamboo: 750,
+        Grape: 800,
         // Divine seeds
-        'Pepper': 1000, 'Lemon': 1200, 'PassionFruit': 1500, 'DragonFruit': 2000, 'Lychee': 2500,
+        Pepper: 1000,
+        Lemon: 1200,
+        PassionFruit: 1500,
+        DragonFruit: 2000,
+        Lychee: 2500,
         // Celestial seeds
-        'Starweaver': 5000, 'Moonbinder': 7500, 'Dawnbinder': 10000
+        Starweaver: 5000,
+        Moonbinder: 7500,
+        Dawnbinder: 10000
       };
 
       if (!UnifiedState.atoms.inventory || !UnifiedState.atoms.inventory.items) {
@@ -19085,8 +20195,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const inventory = UnifiedState.atoms.inventory.items;
 
       UnifiedState.data.seedsToDelete.forEach(seedType => {
-        const inventoryItem = inventory.find(item =>
-          item && item.species && (item.species === seedType || item.species === seedType.replace('Tulip', 'OrangeTulip'))
+        const inventoryItem = inventory.find(
+          item =>
+            item &&
+            item.species &&
+            (item.species === seedType || item.species === seedType.replace('Tulip', 'OrangeTulip'))
         );
 
         if (inventoryItem) {
@@ -19175,7 +20288,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         updateTabContent(); // Refresh display to show new key and reset button
         document.removeEventListener('keydown', recordHandler, true);
 
-        productionLog(`🎮 [HOTKEYS] Remapped ${key}: ${UnifiedState.data.hotkeys.gameKeys[key].original} → ${keyCombo}`);
+        productionLog(
+          `🎮 [HOTKEYS] Remapped ${key}: ${UnifiedState.data.hotkeys.gameKeys[key].original} → ${keyCombo}`
+        );
       };
 
       document.addEventListener('keydown', recordHandler, true);
@@ -19261,13 +20376,121 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // ==================== HOTKEY INTERCEPTION & SIMULATION ====================
 
-    function isTypingInInput() {
+    function shouldBlockHotkey(event) {
       const active = document.activeElement;
-      return active && (
-        active.tagName === 'INPUT' ||
-              active.tagName === 'TEXTAREA' ||
-              active.isContentEditable
+      if (!active) return false;
+
+      // Basic input elements
+      const tagName = active.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+        return true;
+      }
+
+      // SPECIFIC CHECK for game's Chakra UI chat input
+      if (active.classList?.contains('chakra-input')) {
+        if (UnifiedState.data.settings?.debugMode) {
+          console.log('[FIX_HOTKEYS] Blocking - Chakra UI input detected');
+        }
+        return true;
+      }
+
+      // Contenteditable
+      if (active.contentEditable === 'true' || active.isContentEditable) {
+        return true;
+      }
+
+      // ARIA role
+      if (active.getAttribute('role') === 'textbox') {
+        return true;
+      }
+
+      // Shadow DOM traversal
+      if (event && event.composedPath) {
+        const path = event.composedPath();
+        for (const element of path) {
+          if (!element.tagName) continue;
+
+          const tag = element.tagName.toLowerCase();
+          if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+            return true;
+          }
+
+          if (element.contentEditable === 'true' || element.getAttribute?.('role') === 'textbox') {
+            return true;
+          }
+        }
+      }
+
+      // Discord chat detection
+      const discordSelectors = [
+        '.chat-input-container',
+        '[class*="textArea"]',
+        '[class*="slateTextArea"]',
+        '.markup-input'
+      ];
+
+      for (const selector of discordSelectors) {
+        try {
+          const chatElement = document.querySelector(selector);
+          if (chatElement && chatElement.contains(active)) {
+            return true;
+          }
+        } catch {}
+      }
+
+      // In-game chat detection - check for common game chat patterns
+      // Look for input fields that might be chat, even if not marked as such
+      const activeClasses = active.className || '';
+      const activeId = active.id || '';
+
+      // Check if active element has chat-related classes or IDs
+      const chatPatterns = ['chat', 'message', 'input', 'text', 'field', 'edit'];
+      const hasChatPattern = chatPatterns.some(
+        pattern => activeClasses.toLowerCase().includes(pattern) || activeId.toLowerCase().includes(pattern)
       );
+
+      if (hasChatPattern && (tagName === 'div' || tagName === 'span' || active.isContentEditable)) {
+        // Likely a chat input
+        console.log('[FIX_HOTKEYS] Blocking hotkey - detected chat input:', {
+          tag: tagName,
+          classes: activeClasses,
+          id: activeId,
+          contentEditable: active.contentEditable
+        });
+        return true;
+      }
+
+      // Check parent elements for chat containers
+      let parent = active.parentElement;
+      let depth = 0;
+      while (parent && depth < 5) {
+        const parentClasses = parent.className || '';
+        const parentId = parent.id || '';
+
+        if (
+          chatPatterns.some(
+            pattern => parentClasses.toLowerCase().includes(pattern) || parentId.toLowerCase().includes(pattern)
+          )
+        ) {
+          console.log('[FIX_HOTKEYS] Blocking hotkey - active element in chat container:', {
+            parentTag: parent.tagName,
+            parentClasses,
+            parentId,
+            activeTag: tagName
+          });
+          return true;
+        }
+
+        parent = parent.parentElement;
+        depth++;
+      }
+
+      return false;
+    }
+
+    // Legacy alias for backwards compatibility
+    function isTypingInInput() {
+      return shouldBlockHotkey(null);
     }
 
     function parseKeyCombo(combo) {
@@ -19284,20 +20507,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Handle special keys
       const codeMap = {
         ' ': 'Space',
-        'space': 'Space',
-        'enter': 'Enter',
-        'tab': 'Tab',
-        'escape': 'Escape',
-        'backspace': 'Backspace',
-        'delete': 'Delete',
-        'arrowup': 'ArrowUp',
-        'arrowdown': 'ArrowDown',
-        'arrowleft': 'ArrowLeft',
-        'arrowright': 'ArrowRight',
-        'home': 'Home',
-        'end': 'End',
-        'pageup': 'PageUp',
-        'pagedown': 'PageDown',
+        space: 'Space',
+        enter: 'Enter',
+        tab: 'Tab',
+        escape: 'Escape',
+        backspace: 'Backspace',
+        delete: 'Delete',
+        arrowup: 'ArrowUp',
+        arrowdown: 'ArrowDown',
+        arrowleft: 'ArrowLeft',
+        arrowright: 'ArrowRight',
+        home: 'Home',
+        end: 'End',
+        pageup: 'PageUp',
+        pagedown: 'PageDown',
         '-': 'Minus',
         '=': 'Equal',
         '[': 'BracketLeft',
@@ -19341,9 +20564,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       return (
         event.ctrlKey === parsed.ctrl &&
-              event.altKey === parsed.alt &&
-              event.shiftKey === parsed.shift &&
-              (eventKey === parsed.key || (parsed.key === ' ' && eventKey === ' '))
+        event.altKey === parsed.alt &&
+        event.shiftKey === parsed.shift &&
+        (eventKey === parsed.key || (parsed.key === ' ' && eventKey === ' '))
       );
     }
 
@@ -19408,7 +20631,36 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Simulated events have isTrusted: false, real user keypresses have isTrusted: true
       if (!e.isTrusted) return;
 
-      if (!UnifiedState.data.hotkeys.enabled || isTypingInInput() || currentlyRecordingHotkey || isRoomSearch || isRoomSearchFocused || isAddRoomInput || isAddRoomFocused) return;
+      // Block hotkeys when typing in inputs (enhanced with shadow DOM support)
+      if (shouldBlockHotkey(e)) {
+        // CRITICAL: Stop event from reaching game's hotkey handler
+        // DO NOT use preventDefault() - that blocks typing in the input!
+        // stopImmediatePropagation() prevents OTHER handlers from seeing this event
+        e.stopImmediatePropagation();
+
+        // Log when hotkey is blocked (helps diagnose chat detection issues)
+        if (UnifiedState.data.settings?.debugMode) {
+          const active = document.activeElement;
+          console.log('[FIX_HOTKEYS] Hotkey blocked - typing detected:', {
+            key: e.key,
+            tag: active?.tagName,
+            id: active?.id,
+            classes: active?.className,
+            contentEditable: active?.contentEditable
+          });
+        }
+        return;
+      }
+
+      if (
+        !UnifiedState.data.hotkeys.enabled ||
+        currentlyRecordingHotkey ||
+        isRoomSearch ||
+        isRoomSearchFocused ||
+        isAddRoomInput ||
+        isAddRoomFocused
+      )
+        return;
 
       const isKeyDown = e.type === 'keydown';
       const isKeyUp = e.type === 'keyup';
@@ -19478,7 +20730,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           e.preventDefault();
           e.stopPropagation();
           if (UnifiedState.data.settings.debugMode && !e.repeat) {
-            productionLog(`🚫 [HOTKEYS] Suppressed ${config.original} (remapped to ${config.custom} for ${config.name})`);
+            productionLog(
+              `🚫 [HOTKEYS] Suppressed ${config.original} (remapped to ${config.custom} for ${config.name})`
+            );
           }
           return false;
         }
@@ -19510,7 +20764,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Hotkey buttons
       context.querySelectorAll('.hotkey-button').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
           const key = this.dataset.key;
           startRecordingHotkey(key, this);
         });
@@ -19518,7 +20772,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Reset buttons
       context.querySelectorAll('.hotkey-reset').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
           const key = this.dataset.key;
           UnifiedState.data.hotkeys.gameKeys[key].custom = null;
           MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
@@ -19529,7 +20783,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // MGTools hotkey buttons
       context.querySelectorAll('.hotkey-button-mgtools').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
           const key = this.dataset.key;
           startRecordingHotkeyMGTools(key, this);
         });
@@ -19537,7 +20791,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // MGTools reset buttons
       context.querySelectorAll('.hotkey-reset-mgtools').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
           const key = this.dataset.key;
           UnifiedState.data.hotkeys.mgToolsKeys[key].custom = null;
           MGA_saveJSON('MGA_hotkeys', UnifiedState.data.hotkeys);
@@ -19583,8 +20837,34 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     function setupProtectTabHandlers(context = document) {
       // Actual game crop species (from shop)
-      const cropSpecies = ['Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'DawnCelestial', 'MoonCelestial'];
-      const cropMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'Dawnlit', 'Amberlit', 'Dawnbound', 'Amberbound', 'Lock All Mutations', 'Lock Only Non-Mutated'];
+      const cropSpecies = [
+        'Mushroom',
+        'Cactus',
+        'Bamboo',
+        'Grape',
+        'Pepper',
+        'Lemon',
+        'PassionFruit',
+        'DragonFruit',
+        'Lychee',
+        'Sunflower',
+        'Starweaver',
+        'DawnCelestial',
+        'MoonCelestial'
+      ];
+      const cropMutations = [
+        'Rainbow',
+        'Frozen',
+        'Wet',
+        'Chilled',
+        'Gold',
+        'Dawnlit',
+        'Amberlit',
+        'Dawnbound',
+        'Amberbound',
+        'Lock All Mutations',
+        'Lock Only Non-Mutated'
+      ];
 
       // Add new setting for frozen exception
       if (!UnifiedState.data.protectionSettings) {
@@ -19614,60 +20894,76 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Generate species checkboxes
       const speciesList = context.querySelector('#protect-species-list');
       if (speciesList) {
-        speciesList.innerHTML = cropSpecies.map(species => `
+        speciesList.innerHTML = cropSpecies
+          .map(
+            species => `
                   <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
                       <input type="checkbox" class="protect-species-checkbox" value="${species}"
                           ${lockedCrops.species?.includes(species) ? 'checked' : ''}
                           style="cursor: pointer;">
                       <span style="font-size: 12px;">${species}</span>
                   </label>
-              `).join('');
+              `
+          )
+          .join('');
       }
 
       // Generate mutation checkboxes
       const mutationsList = context.querySelector('#protect-mutations-list');
       if (mutationsList) {
-        mutationsList.innerHTML = cropMutations.map(mutation => `
+        mutationsList.innerHTML = cropMutations
+          .map(
+            mutation => `
                   <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
                       <input type="checkbox" class="protect-mutation-checkbox" value="${mutation}"
                           ${lockedCrops.mutations?.includes(mutation) ? 'checked' : ''}
                           style="cursor: pointer;">
                       <span style="font-size: 12px;">${mutation}</span>
                   </label>
-              `).join('');
+              `
+          )
+          .join('');
       }
 
       // Generate pet ability checkboxes
       const petAbilities = ['Rainbow Granter', 'Gold Granter'];
       const petAbilitiesList = context.querySelector('#protect-pet-abilities-list');
       if (petAbilitiesList) {
-        petAbilitiesList.innerHTML = petAbilities.map(ability => `
+        petAbilitiesList.innerHTML = petAbilities
+          .map(
+            ability => `
                   <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
                       <input type="checkbox" class="protect-pet-ability-checkbox" value="${ability}"
                           ${UnifiedState.data.lockedPetAbilities?.includes(ability) ? 'checked' : ''}
                           style="cursor: pointer;">
                       <span style="font-size: 12px;">${ability}</span>
                   </label>
-              `).join('');
+              `
+          )
+          .join('');
       }
 
       // Generate decor checkboxes
       const decorList = context.querySelector('#protect-decor-list');
       if (decorList) {
-        decorList.innerHTML = DECOR_ITEMS.map(decor => `
+        decorList.innerHTML = DECOR_ITEMS.map(
+          decor => `
                   <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px; background: rgba(74, 158, 255, 0.30); border-radius: 4px;">
                       <input type="checkbox" class="protect-decor-checkbox" value="${decor.id}"
                           ${UnifiedState.data.lockedDecor?.includes(decor.id) ? 'checked' : ''}
                           style="cursor: pointer;">
                       <span style="font-size: 11px;">${decor.name}</span>
                   </label>
-              `).join('');
+              `
+        ).join('');
       }
 
       // Diagnostic logging
       const speciesCheckboxes = context.querySelectorAll('.protect-species-checkbox');
       const mutationCheckboxes = context.querySelectorAll('.protect-mutation-checkbox');
-      console.log(`✅ [Protect] Found ${speciesCheckboxes.length} species checkboxes, ${mutationCheckboxes.length} mutation checkboxes`);
+      console.log(
+        `✅ [Protect] Found ${speciesCheckboxes.length} species checkboxes, ${mutationCheckboxes.length} mutation checkboxes`
+      );
 
       // Handle species checkbox changes
       context.querySelectorAll('.protect-species-checkbox').forEach(checkbox => {
@@ -19698,7 +20994,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Special handling for "Lock All Mutations" - it's a "select all" toggle
           if (mutation === 'Lock All Mutations') {
             const allMutationCheckboxes = context.querySelectorAll('.protect-mutation-checkbox');
-            const otherMutations = ['Rainbow', 'Frozen', 'Wet', 'Chilled', 'Gold', 'Dawnlit', 'Amberlit', 'Dawnbound', 'Amberbound'];
+            const otherMutations = [
+              'Rainbow',
+              'Frozen',
+              'Wet',
+              'Chilled',
+              'Gold',
+              'Dawnlit',
+              'Amberlit',
+              'Dawnbound',
+              'Amberbound'
+            ];
 
             if (e.target.checked) {
               // Check all other mutation checkboxes
@@ -19795,9 +21101,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           MGA_saveJSON('MGA_data', UnifiedState.data);
 
           // Uncheck all checkboxes
-          context.querySelectorAll('.protect-species-checkbox, .protect-mutation-checkbox, .protect-decor-checkbox, .protect-pet-ability-checkbox').forEach(cb => {
-            cb.checked = false;
-          });
+          context
+            .querySelectorAll(
+              '.protect-species-checkbox, .protect-mutation-checkbox, .protect-decor-checkbox, .protect-pet-ability-checkbox'
+            )
+            .forEach(cb => {
+              cb.checked = false;
+            });
 
           updateProtectStatus(context);
           applyHarvestRule();
@@ -19854,7 +21164,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const lockedCrops = UnifiedState.data.lockedCrops || { species: [], mutations: [] };
       const lockedDecor = UnifiedState.data.lockedDecor || [];
       const lockedPetAbilities = UnifiedState.data.lockedPetAbilities || [];
-      const hasLocks = lockedCrops.species.length > 0 || lockedCrops.mutations.length > 0 || lockedDecor.length > 0 || lockedPetAbilities.length > 0;
+      const hasLocks =
+        lockedCrops.species.length > 0 ||
+        lockedCrops.mutations.length > 0 ||
+        lockedDecor.length > 0 ||
+        lockedPetAbilities.length > 0;
 
       if (!hasLocks) {
         statusDisplay.innerHTML = '<div style="color: #888;">No protections are currently active.</div>';
@@ -19872,10 +21186,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         html += `<div style="margin-bottom: 8px;"><strong>🐾 Locked Pet Abilities:</strong> ${lockedPetAbilities.join(', ')}</div>`;
       }
       if (lockedDecor.length > 0) {
-        const decorNames = lockedDecor.map(id => {
-          const decor = DECOR_ITEMS.find(d => d.id === id);
-          return decor ? decor.name : id;
-        }).join(', ');
+        const decorNames = lockedDecor
+          .map(id => {
+            const decor = DECOR_ITEMS.find(d => d.id === id);
+            return decor ? decor.name : id;
+          })
+          .join(', ');
         html += `<div><strong>🏛️ Locked Decor:</strong> ${decorNames}</div>`;
       }
 
@@ -19913,8 +21229,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // If any locked mutation is present, check for frozen exception
         if (freshLockedCrops.mutations && freshLockedCrops.mutations.length > 0) {
-          const regularMutations = freshLockedCrops.mutations.filter(m =>
-            m !== 'Lock All Mutations' && m !== 'Lock Only Non-Mutated'
+          const regularMutations = freshLockedCrops.mutations.filter(
+            m => m !== 'Lock All Mutations' && m !== 'Lock Only Non-Mutated'
           );
           const hasLockedMutation = regularMutations.some(m => mutationsLocal.includes(m));
           if (hasLockedMutation) {
@@ -19962,10 +21278,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         roomConnectionRetries = 0;
         console.log('✅ MagicCircle_RoomConnection found - initializing protection hooks');
 
-        const originalSendMessage = targetWindow.MagicCircle_RoomConnection.sendMessage.bind(targetWindow.MagicCircle_RoomConnection);
+        const originalSendMessage = targetWindow.MagicCircle_RoomConnection.sendMessage.bind(
+          targetWindow.MagicCircle_RoomConnection
+        );
 
         // Wrap sendMessage to intercept messages for protection and tracking
-        targetWindow.MagicCircle_RoomConnection.sendMessage = function(message, ...rest) {
+        targetWindow.MagicCircle_RoomConnection.sendMessage = function (message, ...rest) {
           try {
             if (!message || typeof message.type !== 'string') {
               return originalSendMessage(message, ...rest);
@@ -20004,7 +21322,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Check sell blocking
             if (isSellMessage && friendBonus < targetWindow.sellBlockThreshold) {
-              console.warn(`[SellBlock] Blocked ${msgType} (friendBonus=${friendBonus} < ${targetWindow.sellBlockThreshold})`);
+              console.warn(
+                `[SellBlock] Blocked ${msgType} (friendBonus=${friendBonus} < ${targetWindow.sellBlockThreshold})`
+              );
               return;
             }
 
@@ -20024,11 +21344,72 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 console.log(`[HarvestCheck] Species: ${species}, Mutations:`, slotMutations);
                 console.log(`[HarvestCheck] currentHarvestRule exists:`, !!targetWindow.currentHarvestRule);
 
-                if (targetWindow.currentHarvestRule && !targetWindow.currentHarvestRule({ species, mutations: slotMutations })) {
+                if (
+                  targetWindow.currentHarvestRule &&
+                  !targetWindow.currentHarvestRule({ species, mutations: slotMutations })
+                ) {
                   console.log(`🔒 BLOCKED HarvestCrop: ${species} with mutations [${slotMutations.join(', ')}]`);
                   return;
                 }
                 console.log(`✅ ALLOWED HarvestCrop: ${species} with mutations [${slotMutations.join(', ')}]`);
+
+                // DIAGNOSTIC: Log when debug mode is enabled
+                if (UnifiedState.data.settings?.debugMode) {
+                  console.log('[FIX_HARVEST] Harvest handler called for:', species, 'Will attempt sync in 100ms...');
+                }
+
+                // Sync slot index after harvest - works for both single and multi-harvest crops
+                // For single-harvest: game doesn't advance slot, sync returns null (no change)
+                // For multi-harvest: game advances slot, sync updates MGTools to match
+                const preHarvestIndex = window._mgtools_currentSlotIndex || 0;
+
+                // Use polyfill from multi-harvest helpers
+                // eslint-disable-next-line no-undef
+                const qmt = typeof queueMicrotask === 'function' ? queueMicrotask : fn => Promise.resolve().then(fn);
+
+                // Wait for game to update atoms after harvest
+                qmt(() => {
+                  setTimeout(() => {
+                    try {
+                      // Use globally exposed sync function
+                      if (!window.syncSlotIndexFromGame) {
+                        if (UnifiedState.data.settings?.debugMode) {
+                          console.error('[FIX_HARVEST] ERROR: syncSlotIndexFromGame not found on window!');
+                        }
+                        return;
+                      }
+
+                      const newIndex = window.syncSlotIndexFromGame();
+
+                      // Log slot sync when debug mode is enabled
+                      if (UnifiedState.data.settings?.debugMode) {
+                        console.log('[FIX_HARVEST] Post-harvest slot sync:', {
+                          species,
+                          preHarvest: preHarvestIndex,
+                          postHarvest: newIndex !== null ? newIndex : preHarvestIndex,
+                          slotAdvanced: newIndex !== null,
+                          isMultiHarvest: newIndex !== null,
+                          note:
+                            newIndex === null
+                              ? 'Single-harvest crop (expected - no slot advance)'
+                              : 'Multi-harvest detected - slot advanced'
+                        });
+                      }
+
+                      // Force refresh the value display after slot sync
+                      if (typeof insertTurtleEstimate === 'function') {
+                        requestAnimationFrame(() => {
+                          insertTurtleEstimate();
+                          if (UnifiedState.data.settings?.debugMode) {
+                            console.log('[FIX_HARVEST] Refreshed value display');
+                          }
+                        });
+                      }
+                    } catch (error) {
+                      console.error('[FIX_HARVEST] Sync error:', error);
+                    }
+                  }, 100); // Small delay to let game update atom
+                });
               } else {
                 console.warn(`[HarvestCheck] No slot data found for slot ${message.slot}, index ${message.slotsIndex}`);
               }
@@ -20084,7 +21465,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   const hasRainbowMutation = petMutations.includes('Rainbow');
 
                   if (UnifiedState.data.settings?.debugMode) {
-                    console.log(`🐾 [PetSellDebug] Has Gold mutation: ${hasGoldMutation}, Has Rainbow mutation: ${hasRainbowMutation}`);
+                    console.log(
+                      `🐾 [PetSellDebug] Has Gold mutation: ${hasGoldMutation}, Has Rainbow mutation: ${hasRainbowMutation}`
+                    );
                   }
 
                   // Block if mutation matches locked ability
@@ -20095,12 +21478,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   const shouldBlockRainbow = hasRainbowMutation && isRainbowGranterLocked;
 
                   if (UnifiedState.data.settings?.debugMode) {
-                    console.log(`🐾 [PetSellDebug] Should block gold: ${shouldBlockGold}, Should block rainbow: ${shouldBlockRainbow}`);
+                    console.log(
+                      `🐾 [PetSellDebug] Should block gold: ${shouldBlockGold}, Should block rainbow: ${shouldBlockRainbow}`
+                    );
                   }
 
                   if (shouldBlockGold || shouldBlockRainbow) {
                     const blockedType = shouldBlockGold ? 'Gold' : 'Rainbow';
-                    console.warn(`🐾 [PetLock] ❌ BLOCKED selling ${blockedType} pet (${blockedType} Granter is locked)`);
+                    console.warn(
+                      `🐾 [PetLock] ❌ BLOCKED selling ${blockedType} pet (${blockedType} Granter is locked)`
+                    );
                     return; // Block the sale
                   } else if (UnifiedState.data.settings?.debugMode) {
                     console.log(`🐾 [PetSellDebug] ✅ Pet mutations not locked, allowing sale`);
@@ -20187,7 +21574,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
 
             return originalSendMessage(message, ...rest);
-
           } catch (err) {
             console.error('[SendMessageHook] Error:', err);
             return originalSendMessage(message, ...rest);
@@ -20211,39 +21597,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           UnifiedState.data.settings.notifications.enabled = e.target.checked;
           MGA_saveJSON('MGA_data', UnifiedState.data);
           productionLog(`🔔 [NOTIFICATIONS] ${e.target.checked ? 'Enabled' : 'Disabled'} notifications`);
-
-          // Update quick toggle button if it exists
-          const quickToggle = context.querySelector('#notification-quick-toggle');
-          if (quickToggle) {
-            updateQuickToggleButton(quickToggle, e.target.checked);
-          }
         });
-      }
-
-      // Quick notification toggle button
-      const quickToggleButton = context.querySelector('#notification-quick-toggle');
-      if (quickToggleButton && !quickToggleButton.hasAttribute('data-handler-setup')) {
-        quickToggleButton.setAttribute('data-handler-setup', 'true');
-        quickToggleButton.addEventListener('click', () => {
-          const newState = !UnifiedState.data.settings.notifications.enabled;
-          UnifiedState.data.settings.notifications.enabled = newState;
-          MGA_saveJSON('MGA_data', UnifiedState.data);
-          productionLog(`🔔 [NOTIFICATIONS] Quick toggle: ${newState ? 'Enabled' : 'Disabled'} notifications`);
-
-          // Update button appearance
-          updateQuickToggleButton(quickToggleButton, newState);
-
-          // Update checkbox if it exists
-          if (notificationEnabledCheckbox) {
-            notificationEnabledCheckbox.checked = newState;
-          }
-        });
-      }
-
-      // Helper function to update quick toggle button
-      function updateQuickToggleButton(button, enabled) {
-        button.style.background = enabled ? '#4a9eff' : '#666';
-        button.textContent = enabled ? '🔊 Turn OFF Notifications' : '🔇 Turn ON Notifications';
       }
 
       // Volume slider
@@ -20285,7 +21639,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               acknowledgmentCheckbox.checked = true;
               acknowledgmentCheckbox.disabled = true; // Lock it on
               UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
-              productionLog(`🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+              productionLog(
+                `🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`
+              );
             } else {
               acknowledgmentCheckbox.disabled = false; // Unlock when continuous is off
             }
@@ -20350,7 +21706,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               acknowledgmentCheckbox.checked = true;
               acknowledgmentCheckbox.disabled = true; // Lock it on
               UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
-              productionLog(`🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+              productionLog(
+                `🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`
+              );
             } else {
               // When changing away from continuous, unlock the acknowledgment checkbox
               // (unless continuous mode checkbox is still enabled)
@@ -20388,8 +21746,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         testNotificationBtn.addEventListener('click', () => {
           const notifications = UnifiedState.data.settings.notifications;
           playSelectedNotification();
-          queueNotification('🔔 Test notification - This is how alerts will look!', notifications.requiresAcknowledgment);
-          productionLog(`🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`);
+          queueNotification(
+            '🔔 Test notification - This is how alerts will look!',
+            notifications.requiresAcknowledgment
+          );
+          productionLog(
+            `🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`
+          );
         });
       }
 
@@ -20491,7 +21854,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               notifications.watchedDecor = notifications.watchedDecor.filter(id => id !== decor.id);
             }
             MGA_saveJSON('MGA_data', UnifiedState.data);
-            productionLog(`🎨 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${decor.id} to/from watch list`);
+            productionLog(
+              `🎨 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${decor.id} to/from watch list`
+            );
             updateLastSeenDisplay();
           });
         }
@@ -20741,7 +22106,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const hasCustom = GM_getValue(`mgtools_custom_sound_${type.id}`, null) !== null;
 
           const controlDiv = document.createElement('div');
-          controlDiv.style.cssText = 'border: 1px solid rgba(255, 255, 255, 0.57); padding: 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.48);';
+          controlDiv.style.cssText =
+            'border: 1px solid rgba(255, 255, 255, 0.57); padding: 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.48);';
           controlDiv.innerHTML = `
                       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                           <label class="mga-label" style="margin: 0;">${type.label}</label>
@@ -20765,8 +22131,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           fileInput.addEventListener('change', e => {
             const file = e.target.files[0];
             if (!file) return;
-            if (file.size > 2 * 1024 * 1024) { alert('❌ File too large! Max 2MB'); return; }
-            if (!file.type.startsWith('audio/')) { alert('❌ Please upload an audio file'); return; }
+            if (file.size > 2 * 1024 * 1024) {
+              alert('❌ File too large! Max 2MB');
+              return;
+            }
+            if (!file.type.startsWith('audio/')) {
+              alert('❌ Please upload an audio file');
+              return;
+            }
 
             const reader = new FileReader();
             reader.onload = event => {
@@ -20811,7 +22183,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     function setupSettingsTabHandlers(context = document) {
       console.log('🚨 [CRITICAL-DEBUG] setupSettingsTabHandlers ENTERED');
-      productionLog('⚙️ [SETTINGS] setupSettingsTabHandlers called', { context: context === document ? 'document' : 'custom' });
+      productionLog('⚙️ [SETTINGS] setupSettingsTabHandlers called', {
+        context: context === document ? 'document' : 'custom'
+      });
       console.log('🚨 [CRITICAL-DEBUG] Context type:', context === document ? 'DOCUMENT' : 'ELEMENT', context);
 
       // Compatibility Mode toggle button
@@ -20992,16 +22366,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         });
       }
 
-      // Texture animation toggle
-      const animatedCheckbox = context.querySelector('#texture-animated-checkbox');
-      if (animatedCheckbox) {
-        animatedCheckbox.addEventListener('change', e => {
-          UnifiedState.data.settings.textureAnimated = e.target.checked;
-          applyTheme();
-          MGA_saveJSON('MGA_data', UnifiedState.data);
-        });
-      }
-
       // Ultra-compact mode checkbox
       const ultraCompactCheckbox = context.querySelector('#ultra-compact-checkbox');
       if (ultraCompactCheckbox) {
@@ -21165,7 +22529,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const clearHotkeysBtn = context.querySelector('#clear-hotkeys-btn');
       if (clearHotkeysBtn) {
         clearHotkeysBtn.addEventListener('click', () => {
-          if (confirm('Clear all pet preset hotkeys? This will not delete your presets, only the hotkey assignments.')) {
+          if (
+            confirm('Clear all pet preset hotkeys? This will not delete your presets, only the hotkey assignments.')
+          ) {
             UnifiedState.data.petPresetHotkeys = {};
             MGA_saveJSON('MGA_petPresetHotkeys', UnifiedState.data.petPresetHotkeys);
             productionLog('[SETTINGS] All pet preset hotkeys cleared');
@@ -21183,23 +22549,35 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (weatherCheckbox && !weatherCheckbox.hasAttribute('data-handler-setup')) {
         weatherCheckbox.setAttribute('data-handler-setup', 'true');
         try {
-          weatherCheckbox.checked = !!(UnifiedState && UnifiedState.data && UnifiedState.data.settings && UnifiedState.data.settings.hideWeather);
+          weatherCheckbox.checked = !!(
+            UnifiedState &&
+            UnifiedState.data &&
+            UnifiedState.data.settings &&
+            UnifiedState.data.settings.hideWeather
+          );
         } catch (_) {}
         const cloned = weatherCheckbox.cloneNode(true);
         weatherCheckbox.parentNode.replaceChild(cloned, weatherCheckbox);
         cloned.addEventListener('change', e => {
           if (!UnifiedState || !UnifiedState.data || !UnifiedState.data.settings) return;
           UnifiedState.data.settings.hideWeather = !!e.target.checked;
-          try { MGA_saveJSON('MGA_data', UnifiedState.data); } catch (err) { console.error('Weather save failed:', err); }
-          try { applyWeatherSetting(); } catch (err) { console.error('applyWeatherSetting failed:', err); }
+          try {
+            MGA_saveJSON('MGA_data', UnifiedState.data);
+          } catch (err) {
+            console.error('Weather save failed:', err);
+          }
+          try {
+            applyWeatherSetting();
+          } catch (err) {
+            console.error('applyWeatherSetting failed:', err);
+          }
           productionLog(`🌧️ [WEATHER] Toggle set to ${e.target.checked ? 'HIDE' : 'SHOW'}`);
         });
       }
-
     }
 
     // ==================== CROP HIGHLIGHTING SYSTEM ====================
-    let applyCropHighlighting = function() {
+    let applyCropHighlighting = function () {
       try {
         // Get values from UI
         const highlightSpecies = targetDocument.querySelector('#highlight-species-select')?.value || null;
@@ -21249,19 +22627,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const calculatorUrls = {
         'sell-price': 'https://daserix.github.io/magic-garden-calculator/#/sell-price-calculator',
         'weight-probability': 'https://daserix.github.io/magic-garden-calculator/#/weight-probability-calculator',
-        'pet-appearance-probability': 'https://daserix.github.io/magic-garden-calculator/#/pet-appearance-probability-calculator',
+        'pet-appearance-probability':
+          'https://daserix.github.io/magic-garden-calculator/#/pet-appearance-probability-calculator',
         'ability-trigger-time': 'https://daserix.github.io/magic-garden-calculator/#/ability-trigger-time-calculator',
         'import-garden': 'https://daserix.github.io/magic-garden-calculator/#/garden'
       };
 
       // Wiki mapping
       const wikiUrls = {
-        'crops': 'https://magicgarden.fandom.com/wiki/Crops',
-        'pets': 'https://magicgarden.fandom.com/wiki/Pets',
-        'abilities': 'https://magicgarden.fandom.com/wiki/Abilities',
-        'weather': 'https://magicgarden.fandom.com/wiki/Weather_Events',
-        'multipliers': 'https://magicgarden.fandom.com/wiki/Multipliers',
-        'shops': 'https://magicgarden.fandom.com/wiki/Shops'
+        crops: 'https://magicgarden.fandom.com/wiki/Crops',
+        pets: 'https://magicgarden.fandom.com/wiki/Pets',
+        abilities: 'https://magicgarden.fandom.com/wiki/Abilities',
+        weather: 'https://magicgarden.fandom.com/wiki/Weather_Events',
+        multipliers: 'https://magicgarden.fandom.com/wiki/Multipliers',
+        shops: 'https://magicgarden.fandom.com/wiki/Shops'
       };
 
       // Add click handlers to all calculator cards
@@ -21341,7 +22720,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       if (UnifiedState.data.settings.debugMode) {
-        productionLog(`🧮 Set up handlers for ${toolCards.length} calculator tools and ${wikiCards.length} wiki resources`);
+        productionLog(
+          `🧮 Set up handlers for ${toolCards.length} calculator tools and ${wikiCards.length} wiki resources`
+        );
       }
     }
 
@@ -21529,7 +22910,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           // Expose full value for console inspection
-          try { window[windowKey] = value; } catch (e) {}
+          try {
+            window[windowKey] = value;
+          } catch (e) {}
 
           return value;
         };
@@ -21539,7 +22922,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // Tile override utility functions (MGA namespaced to prevent conflicts)
-    window.MGA_Internal.setTileSpecies = function(index, species) {
+    window.MGA_Internal.setTileSpecies = function (index, species) {
       if (species == null) {
         delete window.__tileOverrides[index];
       } else {
@@ -21547,7 +22930,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
     };
 
-    window.MGA_Internal.setTileSlotTargetScale = function(tileIndex, slotIndex, targetScale) {
+    window.MGA_Internal.setTileSlotTargetScale = function (tileIndex, slotIndex, targetScale) {
       if (!window.__slotTargetOverrides[tileIndex]) {
         window.__slotTargetOverrides[tileIndex] = {};
       }
@@ -21558,33 +22941,40 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
     };
 
-    window.MGA_Internal.removeTileOverrides = function(tileIndex) {
+    window.MGA_Internal.removeTileOverrides = function (tileIndex) {
       delete window.__tileOverrides[tileIndex];
       delete window.__slotTargetOverrides[tileIndex];
     };
 
-    window.MGA_Internal.removeAllTileOverrides = function() {
+    window.MGA_Internal.removeAllTileOverrides = function () {
       window.__tileOverrides = {};
       window.__slotTargetOverrides = {};
     };
 
     // Advanced tile filtering functions
-    window.applyToAllTilesExcept = function(skipSpecies = 'Starweaver', slotIndex = 0, targetScale = 0.1, newSpecies = null) {
+    window.applyToAllTilesExcept = function (
+      skipSpecies = 'Starweaver',
+      slotIndex = 0,
+      targetScale = 0.1,
+      newSpecies = null
+    ) {
       const tileObjects = window.gardenInfo?.garden?.tileObjects;
       if (!tileObjects) return;
 
-      const entries = Array.isArray(tileObjects) ? tileObjects.map((t,i)=>({ tile:t,index:i })) :
-        tileObjects instanceof Map ? Array.from(tileObjects.entries()).map(([k,v])=>({ tile:v,index:k })) :
-          Object.keys(tileObjects).map(k => ({ tile: tileObjects[k], index: isFinite(k) ? Number(k) : k }));
+      const entries = Array.isArray(tileObjects)
+        ? tileObjects.map((t, i) => ({ tile: t, index: i }))
+        : tileObjects instanceof Map
+          ? Array.from(tileObjects.entries()).map(([k, v]) => ({ tile: v, index: k }))
+          : Object.keys(tileObjects).map(k => ({ tile: tileObjects[k], index: isFinite(k) ? Number(k) : k }));
 
-      entries.forEach(({ tile,index })=>{
+      entries.forEach(({ tile, index }) => {
         if (!tile || tile.species === skipSpecies) return;
         if (newSpecies != null) window.setTileSpecies(index, newSpecies);
         if (targetScale != null) window.setTileSlotTargetScale(index, slotIndex, targetScale);
       });
     };
 
-    window.applyToAllTilesFiltered = function({
+    window.applyToAllTilesFiltered = function ({
       skipSpecies = 'Starweaver',
       slotIndex = 0,
       targetScale = 0.1,
@@ -21594,11 +22984,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const tileObjects = window.gardenInfo?.garden?.tileObjects;
       if (!tileObjects) return;
 
-      const entries = Array.isArray(tileObjects) ? tileObjects.map((t,i)=>({ tile:t,index:i })) :
-        tileObjects instanceof Map ? Array.from(tileObjects.entries()).map(([k,v])=>({ tile:v,index:k })) :
-          Object.keys(tileObjects).map(k => ({ tile: tileObjects[k], index: isFinite(k) ? Number(k) : k }));
+      const entries = Array.isArray(tileObjects)
+        ? tileObjects.map((t, i) => ({ tile: t, index: i }))
+        : tileObjects instanceof Map
+          ? Array.from(tileObjects.entries()).map(([k, v]) => ({ tile: v, index: k }))
+          : Object.keys(tileObjects).map(k => ({ tile: tileObjects[k], index: isFinite(k) ? Number(k) : k }));
 
-      entries.forEach(({ tile,index }) => {
+      entries.forEach(({ tile, index }) => {
         if (!tile || tile.species === skipSpecies) return;
 
         const slot = tile.slots?.[slotIndex];
@@ -21613,7 +23005,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     };
 
     // Main crop highlighting function
-    window.highlightTilesByMutation = function({
+    window.highlightTilesByMutation = function ({
       highlightSpecies = null, // string or array of species
       highlightMutations = [], // array of mutations to match
       slotIndex = 0,
@@ -21625,15 +23017,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (!tileObjects) return;
 
       const entries = Array.isArray(tileObjects)
-        ? tileObjects.map((t,i)=>({ tile:t,index:i }))
+        ? tileObjects.map((t, i) => ({ tile: t, index: i }))
         : tileObjects instanceof Map
-          ? Array.from(tileObjects.entries()).map(([k,v])=>({ tile:v,index:k }))
+          ? Array.from(tileObjects.entries()).map(([k, v]) => ({ tile: v, index: k }))
           : Object.keys(tileObjects).map(k => ({ tile: tileObjects[k], index: isFinite(k) ? Number(k) : k }));
 
       // Normalize species array
-      const speciesArr = Array.isArray(highlightSpecies) ? highlightSpecies : (highlightSpecies ? [highlightSpecies] : []);
+      const speciesArr = Array.isArray(highlightSpecies)
+        ? highlightSpecies
+        : highlightSpecies
+          ? [highlightSpecies]
+          : [];
 
-      entries.forEach(({ tile,index }) => {
+      entries.forEach(({ tile, index }) => {
         if (!tile) return;
 
         const slot = tile.slots?.[slotIndex];
@@ -21643,7 +23039,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Highlight if species is in the array
         const matchesSpecies = speciesArr.length === 0 || speciesArr.includes(tile.species);
-        const matchesMutations = !highlightMutations || highlightMutations.length === 0 || highlightMutations.includes(null) || highlightMutations.some(m => mutations.includes(m)) || highlightMutations.every(m => mutations.includes(m));
+        const matchesMutations =
+          !highlightMutations ||
+          highlightMutations.length === 0 ||
+          highlightMutations.includes(null) ||
+          highlightMutations.some(m => mutations.includes(m)) ||
+          highlightMutations.every(m => mutations.includes(m));
 
         if (matchesSpecies && matchesMutations) {
           if (highlightScale != null) window.setTileSlotTargetScale(index, slotIndex, highlightScale);
@@ -21664,8 +23065,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       try {
-        hookAtomForTileOverrides('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom', 'gardenInfo');
-        hookAtomForTileOverrides('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom', 'currentCrop');
+        hookAtomForTileOverrides(
+          '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom',
+          'gardenInfo'
+        );
+        hookAtomForTileOverrides(
+          '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom',
+          'currentCrop'
+        );
         debugLog('CROP_HIGHLIGHT', 'Crop highlighting atom hooks initialized');
       } catch (error) {
         debugError('CROP_HIGHLIGHT', 'Failed to initialize crop highlighting atoms', error);
@@ -21707,9 +23114,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       if (window.gardenInfo?.garden?.tileObjects) {
         const tileObjects = window.gardenInfo.garden.tileObjects;
-        const tileCount = Array.isArray(tileObjects) ? tileObjects.length :
-          tileObjects instanceof Map ? tileObjects.size :
-            Object.keys(tileObjects).length;
+        const tileCount = Array.isArray(tileObjects)
+          ? tileObjects.length
+          : tileObjects instanceof Map
+            ? tileObjects.size
+            : Object.keys(tileObjects).length;
         productionLog('  Garden tiles available:', tileCount);
 
         // Show first few tiles for debugging
@@ -21807,7 +23216,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           queueNotification(`❌ Crop highlighting failed: ${highlightError.message}`, false);
           return false;
         }
-
       } catch (error) {
         productionError('❌ Failed to apply crop highlighting:', error);
         queueNotification(`❌ Crop highlighting system error: ${error.message}`, false);
@@ -21817,7 +23225,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Automatic highlighting with Ctrl+C (from working reference)
     function setupAutomaticCropHighlighting() {
-      window.addEventListener('keydown', function(e) {
+      window.addEventListener('keydown', function (e) {
         // Ignore when typing in input fields
         const active = document.activeElement;
         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
@@ -21881,14 +23289,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // BUGFIX: Add ability log verification command
     window.MGA_AbilityLogDebug = {
-      checkLogs: function() {
+      checkLogs: function () {
         const allLogs = MGA_getAllLogs();
-        const oldLogs = allLogs.filter(log =>
-          log.abilityType && /produce\s*scale\s*boost/i.test(log.abilityType)
-        );
-        const newLogs = allLogs.filter(log =>
-          log.abilityType && /crop\s*size\s*boost/i.test(log.abilityType)
-        );
+        const oldLogs = allLogs.filter(log => log.abilityType && /produce\s*scale\s*boost/i.test(log.abilityType));
+        const newLogs = allLogs.filter(log => log.abilityType && /crop\s*size\s*boost/i.test(log.abilityType));
 
         console.log('=== ABILITY LOG VERIFICATION ===');
         console.log('Old "Produce Scale Boost" logs:', oldLogs.length);
@@ -21902,7 +23306,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         return { oldCount: oldLogs.length, newCount: newLogs.length, total: allLogs.length };
       },
-      listAllAbilities: function() {
+      listAllAbilities: function () {
         const allLogs = MGA_getAllLogs();
         const abilityTypes = [...new Set(allLogs.map(log => log.abilityType))].sort();
         console.log('=== ALL UNIQUE ABILITIES IN LOGS ===');
@@ -21919,7 +23323,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       debug: debugCropHighlighting,
       apply: applyCropHighlightingWithDebug,
       clear: clearCropHighlighting,
-      testHighlight: function(species = 'Aloe') {
+      testHighlight: function (species = 'Aloe') {
         productionLog(`🧪 Testing highlight for ${species}...`);
         if (typeof window.removeAllTileOverrides === 'function') {
           window.removeAllTileOverrides();
@@ -21940,14 +23344,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
         }, 100);
       },
-      listAvailableSpecies: function() {
+      listAvailableSpecies: function () {
         if (window.gardenInfo?.garden?.tileObjects) {
           const tileObjects = window.gardenInfo.garden.tileObjects;
           const species = new Set();
 
-          const entries = Array.isArray(tileObjects) ? tileObjects :
-            tileObjects instanceof Map ? Array.from(tileObjects.values()) :
-              Object.values(tileObjects);
+          const entries = Array.isArray(tileObjects)
+            ? tileObjects
+            : tileObjects instanceof Map
+              ? Array.from(tileObjects.values())
+              : Object.values(tileObjects);
 
           entries.forEach(tile => {
             if (tile?.species) species.add(tile.species);
@@ -21960,7 +23366,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           return [];
         }
       },
-      checkFunctions: function() {
+      checkFunctions: function () {
         productionLog('🔍 Crop highlighting function status:');
         productionLog('  removeAllTileOverrides:', typeof window.removeAllTileOverrides);
         productionLog('  highlightTilesByMutation:', typeof window.highlightTilesByMutation);
@@ -21969,7 +23375,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         productionLog('  gardenInfo available:', !!window.gardenInfo);
         productionLog('  currentCrop available:', !!window.currentCrop);
       },
-      forceRefresh: function() {
+      forceRefresh: function () {
         productionLog('🔄 Forcing multiple refresh attempts...');
 
         // Method 1: Visibility change
@@ -22002,8 +23408,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         setTimeout(() => {
           productionLog('🔄 Re-hooking atoms...');
           if (targetWindow.jotaiAtomCache) {
-            hookAtomForTileOverrides('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom', 'gardenInfo');
-            hookAtomForTileOverrides('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom', 'currentCrop');
+            hookAtomForTileOverrides(
+              '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom',
+              'gardenInfo'
+            );
+            hookAtomForTileOverrides(
+              '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom',
+              'currentCrop'
+            );
           }
         }, 100);
 
@@ -22022,7 +23434,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           productionLog('❌ Could not trigger mouse movement');
         }
       },
-      inspectOverrides: function() {
+      inspectOverrides: function () {
         productionLog('🔍 Current tile overrides:');
         productionLog('  Species overrides:', window.__tileOverrides);
         productionLog('  Scale overrides:', window.__slotTargetOverrides);
@@ -22033,20 +23445,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         if (speciesCount > 0) {
           productionLog('📋 Sample species overrides:');
-          Object.entries(window.__tileOverrides).slice(0, 5).forEach(([index, species]) => {
-            productionLog(`    Tile ${index} → ${species}`);
-          });
+          Object.entries(window.__tileOverrides)
+            .slice(0, 5)
+            .forEach(([index, species]) => {
+              productionLog(`    Tile ${index} → ${species}`);
+            });
         }
       },
-      enableDebugMode: function() {
+      enableDebugMode: function () {
         UnifiedState.data.settings.debugMode = true;
         productionLog('🐛 Debug mode enabled - you will see detailed tile modification logs');
       },
-      disableDebugMode: function() {
+      disableDebugMode: function () {
         UnifiedState.data.settings.debugMode = false;
         productionLog('🔇 Debug mode disabled');
       },
-      strongRefresh: function() {
+      strongRefresh: function () {
         productionLog('💪 Attempting strong refresh with multiple methods...');
         this.forceRefresh();
 
@@ -22060,9 +23474,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             if (window.gardenInfo?.garden?.tileObjects) {
               productionLog('🎯 Triggering direct garden re-read...');
               const tileObjects = window.gardenInfo.garden.tileObjects;
-              const count = Array.isArray(tileObjects) ? tileObjects.length :
-                tileObjects instanceof Map ? tileObjects.size :
-                  Object.keys(tileObjects).length;
+              const count = Array.isArray(tileObjects)
+                ? tileObjects.length
+                : tileObjects instanceof Map
+                  ? tileObjects.size
+                  : Object.keys(tileObjects).length;
               productionLog(`📊 Garden has ${count} tiles - forcing re-process...`);
 
               // Force a property access that might trigger re-rendering
@@ -22176,9 +23592,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Universal theme generation function with dual opacity support
     function generateThemeStyles(settings = UnifiedState.data.settings, isPopout = false) {
       // Use different opacity based on window type
-      const opacity = isPopout ?
-        (settings.popoutOpacity / 100) :
-        (settings.opacity / 100);
+      const opacity = isPopout ? settings.popoutOpacity / 100 : settings.opacity / 100;
 
       // Apply opacity boost only at 100% to ensure truly solid panels
       let effectiveOpacity = opacity;
@@ -22189,44 +23603,268 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Define gradient styles - ALL themes now use effectiveOpacity for true 100% support
       const gradients = {
         // ⚫ BLACK ACCENT THEMES (Solid backgrounds with vibrant accent colors)
-        'black-crimson': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(26, 0, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-emerald': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 26, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-royal': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(13, 0, 21, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-gold': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(26, 20, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-ice': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 13, 26, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-flame': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(26, 13, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-toxic': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(10, 26, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-pink': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(26, 0, 20, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-matrix': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 17, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-sunset': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(26, 10, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-blood': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(40, 0, 0, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-neon': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 20, 30, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-storm': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(10, 0, 30, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-sapphire': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 10, 40, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-aqua': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(0, 25, 25, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
-        'black-phantom': 'linear-gradient(135deg, rgba(0, 0, 0, ' + effectiveOpacity + ') 0%, rgba(20, 20, 20, ' + effectiveOpacity + ') 50%, rgba(0, 0, 0, ' + effectiveOpacity + ') 100%)',
+        'black-crimson':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(26, 0, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-emerald':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 26, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-royal':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(13, 0, 21, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-gold':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(26, 20, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-ice':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 13, 26, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-flame':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(26, 13, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-toxic':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(10, 26, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-pink':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(26, 0, 20, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-matrix':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 17, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-sunset':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(26, 10, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-blood':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(40, 0, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-neon':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 20, 30, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-storm':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(10, 0, 30, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-sapphire':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 10, 40, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-aqua':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 25, 25, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-phantom':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(20, 20, 20, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
 
         // 🌈 ORIGINAL THEMES
-        'blue-purple': 'linear-gradient(135deg, rgba(20, 20, 35, ' + effectiveOpacity + ') 0%, rgba(30, 30, 50, ' + effectiveOpacity + ') 100%)',
-        'green-blue': 'linear-gradient(135deg, rgba(20, 35, 20, ' + effectiveOpacity + ') 0%, rgba(30, 40, 60, ' + effectiveOpacity + ') 100%)',
-        'red-orange': 'linear-gradient(135deg, rgba(35, 20, 20, ' + effectiveOpacity + ') 0%, rgba(50, 35, 30, ' + effectiveOpacity + ') 100%)',
-        'purple-pink': 'linear-gradient(135deg, rgba(35, 20, 35, ' + effectiveOpacity + ') 0%, rgba(50, 30, 45, ' + effectiveOpacity + ') 100%)',
-        'gold-yellow': 'linear-gradient(135deg, rgba(35, 30, 20, ' + effectiveOpacity + ') 0%, rgba(45, 40, 25, ' + effectiveOpacity + ') 100%)',
+        'blue-purple':
+          'linear-gradient(135deg, rgba(20, 20, 35, ' +
+          effectiveOpacity +
+          ') 0%, rgba(30, 30, 50, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'green-blue':
+          'linear-gradient(135deg, rgba(20, 35, 20, ' +
+          effectiveOpacity +
+          ') 0%, rgba(30, 40, 60, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'red-orange':
+          'linear-gradient(135deg, rgba(35, 20, 20, ' +
+          effectiveOpacity +
+          ') 0%, rgba(50, 35, 30, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'purple-pink':
+          'linear-gradient(135deg, rgba(35, 20, 35, ' +
+          effectiveOpacity +
+          ') 0%, rgba(50, 30, 45, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'gold-yellow':
+          'linear-gradient(135deg, rgba(35, 30, 20, ' +
+          effectiveOpacity +
+          ') 0%, rgba(45, 40, 25, ' +
+          effectiveOpacity +
+          ') 100%)',
         // New vibrant gradients - using effectiveOpacity for better high-level opacity
-        'electric-neon': 'linear-gradient(135deg, rgba(0, 100, 255, ' + (effectiveOpacity * 0.3) + ') 0%, rgba(147, 51, 234, ' + (effectiveOpacity * 0.4) + ') 100%)',
-        'sunset-fire': 'linear-gradient(135deg, rgba(255, 94, 77, ' + (effectiveOpacity * 0.3) + ') 0%, rgba(255, 154, 0, ' + (effectiveOpacity * 0.4) + ') 100%)',
-        'emerald-cyan': 'linear-gradient(135deg, rgba(16, 185, 129, ' + (effectiveOpacity * 0.3) + ') 0%, rgba(6, 182, 212, ' + (effectiveOpacity * 0.4) + ') 100%)',
-        'royal-gold': 'linear-gradient(135deg, rgba(139, 69, 19, ' + (effectiveOpacity * 0.4) + ') 0%, rgba(255, 215, 0, ' + (effectiveOpacity * 0.3) + ') 100%)',
-        'crimson-blaze': 'linear-gradient(135deg, rgba(220, 38, 127, ' + (effectiveOpacity * 0.3) + ') 0%, rgba(249, 115, 22, ' + (effectiveOpacity * 0.4) + ') 100%)',
-        'ocean-deep': 'linear-gradient(135deg, rgba(15, 23, 42, ' + (effectiveOpacity * 0.8) + ') 0%, rgba(30, 64, 175, ' + (effectiveOpacity * 0.6) + ') 100%)',
-        'forest-mystique': 'linear-gradient(135deg, rgba(20, 83, 45, ' + (effectiveOpacity * 0.6) + ') 0%, rgba(34, 197, 94, ' + (effectiveOpacity * 0.4) + ') 100%)',
-        'cosmic-purple': 'linear-gradient(135deg, rgba(88, 28, 135, ' + (effectiveOpacity * 0.6) + ') 0%, rgba(168, 85, 247, ' + (effectiveOpacity * 0.4) + ') 100%)',
-        'rainbow-burst': 'linear-gradient(135deg, rgba(239, 68, 68, ' + (effectiveOpacity * 0.25) + ') 0%, rgba(245, 158, 11, ' + (effectiveOpacity * 0.25) + ') 25%, rgba(34, 197, 94, ' + (effectiveOpacity * 0.25) + ') 50%, rgba(59, 130, 246, ' + (effectiveOpacity * 0.25) + ') 75%, rgba(147, 51, 234, ' + (effectiveOpacity * 0.25) + ') 100%)',
+        'electric-neon':
+          'linear-gradient(135deg, rgba(0, 100, 255, ' +
+          effectiveOpacity * 0.3 +
+          ') 0%, rgba(147, 51, 234, ' +
+          effectiveOpacity * 0.4 +
+          ') 100%)',
+        'sunset-fire':
+          'linear-gradient(135deg, rgba(255, 94, 77, ' +
+          effectiveOpacity * 0.3 +
+          ') 0%, rgba(255, 154, 0, ' +
+          effectiveOpacity * 0.4 +
+          ') 100%)',
+        'emerald-cyan':
+          'linear-gradient(135deg, rgba(16, 185, 129, ' +
+          effectiveOpacity * 0.3 +
+          ') 0%, rgba(6, 182, 212, ' +
+          effectiveOpacity * 0.4 +
+          ') 100%)',
+        'royal-gold':
+          'linear-gradient(135deg, rgba(139, 69, 19, ' +
+          effectiveOpacity * 0.4 +
+          ') 0%, rgba(255, 215, 0, ' +
+          effectiveOpacity * 0.3 +
+          ') 100%)',
+        'crimson-blaze':
+          'linear-gradient(135deg, rgba(220, 38, 127, ' +
+          effectiveOpacity * 0.3 +
+          ') 0%, rgba(249, 115, 22, ' +
+          effectiveOpacity * 0.4 +
+          ') 100%)',
+        'ocean-deep':
+          'linear-gradient(135deg, rgba(15, 23, 42, ' +
+          effectiveOpacity * 0.8 +
+          ') 0%, rgba(30, 64, 175, ' +
+          effectiveOpacity * 0.6 +
+          ') 100%)',
+        'forest-mystique':
+          'linear-gradient(135deg, rgba(20, 83, 45, ' +
+          effectiveOpacity * 0.6 +
+          ') 0%, rgba(34, 197, 94, ' +
+          effectiveOpacity * 0.4 +
+          ') 100%)',
+        'cosmic-purple':
+          'linear-gradient(135deg, rgba(88, 28, 135, ' +
+          effectiveOpacity * 0.6 +
+          ') 0%, rgba(168, 85, 247, ' +
+          effectiveOpacity * 0.4 +
+          ') 100%)',
+        'rainbow-burst':
+          'linear-gradient(135deg, rgba(239, 68, 68, ' +
+          effectiveOpacity * 0.25 +
+          ') 0%, rgba(245, 158, 11, ' +
+          effectiveOpacity * 0.25 +
+          ') 25%, rgba(34, 197, 94, ' +
+          effectiveOpacity * 0.25 +
+          ') 50%, rgba(59, 130, 246, ' +
+          effectiveOpacity * 0.25 +
+          ') 75%, rgba(147, 51, 234, ' +
+          effectiveOpacity * 0.25 +
+          ') 100%)',
         // Premium metallic themes - FIXED for visibility with darker, richer tones
-        'steel-blue': 'linear-gradient(135deg, rgba(30, 41, 59, ' + (effectiveOpacity * 0.95) + ') 0%, rgba(51, 65, 85, ' + (effectiveOpacity * 0.9) + ') 25%, rgba(71, 85, 105, ' + (effectiveOpacity * 0.85) + ') 50%, rgba(30, 58, 138, ' + (effectiveOpacity * 0.8) + ') 100%)',
-        'chrome-silver': 'linear-gradient(135deg, rgba(55, 65, 81, ' + (effectiveOpacity * 0.9) + ') 0%, rgba(75, 85, 99, ' + (effectiveOpacity * 0.85) + ') 25%, rgba(100, 116, 139, ' + (effectiveOpacity * 0.8) + ') 50%, rgba(71, 85, 105, ' + (effectiveOpacity * 0.9) + ') 100%)',
-        'titanium-gray': 'linear-gradient(135deg, rgba(31, 41, 55, ' + (effectiveOpacity * 0.95) + ') 0%, rgba(55, 65, 81, ' + (effectiveOpacity * 0.9) + ') 25%, rgba(75, 85, 99, ' + (effectiveOpacity * 0.85) + ') 50%, rgba(107, 114, 128, ' + (effectiveOpacity * 0.8) + ') 100%)',
-        'platinum-white': 'linear-gradient(135deg, rgba(75, 85, 99, ' + (effectiveOpacity * 0.85) + ') 0%, rgba(100, 116, 139, ' + (effectiveOpacity * 0.8) + ') 25%, rgba(148, 163, 184, ' + (effectiveOpacity * 0.75) + ') 50%, rgba(156, 163, 175, ' + (effectiveOpacity * 0.7) + ') 100%)'
+        'steel-blue':
+          'linear-gradient(135deg, rgba(30, 41, 59, ' +
+          effectiveOpacity * 0.95 +
+          ') 0%, rgba(51, 65, 85, ' +
+          effectiveOpacity * 0.9 +
+          ') 25%, rgba(71, 85, 105, ' +
+          effectiveOpacity * 0.85 +
+          ') 50%, rgba(30, 58, 138, ' +
+          effectiveOpacity * 0.8 +
+          ') 100%)',
+        'chrome-silver':
+          'linear-gradient(135deg, rgba(55, 65, 81, ' +
+          effectiveOpacity * 0.9 +
+          ') 0%, rgba(75, 85, 99, ' +
+          effectiveOpacity * 0.85 +
+          ') 25%, rgba(100, 116, 139, ' +
+          effectiveOpacity * 0.8 +
+          ') 50%, rgba(71, 85, 105, ' +
+          effectiveOpacity * 0.9 +
+          ') 100%)',
+        'titanium-gray':
+          'linear-gradient(135deg, rgba(31, 41, 55, ' +
+          effectiveOpacity * 0.95 +
+          ') 0%, rgba(55, 65, 81, ' +
+          effectiveOpacity * 0.9 +
+          ') 25%, rgba(75, 85, 99, ' +
+          effectiveOpacity * 0.85 +
+          ') 50%, rgba(107, 114, 128, ' +
+          effectiveOpacity * 0.8 +
+          ') 100%)',
+        'platinum-white':
+          'linear-gradient(135deg, rgba(75, 85, 99, ' +
+          effectiveOpacity * 0.85 +
+          ') 0%, rgba(100, 116, 139, ' +
+          effectiveOpacity * 0.8 +
+          ') 25%, rgba(148, 163, 184, ' +
+          effectiveOpacity * 0.75 +
+          ') 50%, rgba(156, 163, 175, ' +
+          effectiveOpacity * 0.7 +
+          ') 100%)'
       };
 
       const background = gradients[settings.gradientStyle] || gradients['blue-purple'];
@@ -22300,7 +23938,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // ========== PROFESSIONAL TEXTURE SYSTEM 2.0 ==========
       // 25 premium patterns with proper visibility (0.12-0.25 opacity)
       const textures = {
-        'none': '',
+        none: '',
 
         // ===== MODERN GLASS (Apple iOS Glassmorphism) =====
         'frosted-glass': `
@@ -22462,20 +24100,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                       transparent 20px),
                   linear-gradient(135deg, rgba(203, 213, 225, 0.10), rgba(148, 163, 184, 0.05))
               `,
-        'waves': `
+        waves: `
                   repeating-radial-gradient(circle at 50% 50%,
                       transparent 0px,
                       rgba(100, 116, 139, 0.30) 12px,
                       transparent 24px),
                   radial-gradient(circle at 50% 50%, rgba(148, 163, 184, 0.18), transparent 60%)
               `,
-        'triangles': `
+        triangles: `
                   linear-gradient(45deg, rgba(100, 116, 139, 0.35) 25%, transparent 25%),
                   linear-gradient(-45deg, rgba(100, 116, 139, 0.35) 25%, transparent 25%),
                   linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.28) 75%),
                   linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.28) 75%)
               `,
-        'crosshatch': `
+        crosshatch: `
                   repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(100, 116, 139, 0.32) 4px, rgba(100, 116, 139, 0.32) 5px),
                   repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(148, 163, 184, 0.28) 4px, rgba(148, 163, 184, 0.28) 5px)
               `,
@@ -22515,9 +24153,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         'dots-pro': '25px 25px, 20px 20px, 100% 100%',
         'grid-pro': '30px 30px, 30px 30px, 60px 60px, 60px 60px',
         'diagonal-pro': '100% 100%, 100% 100%',
-        'waves': '100% 100%, 100% 100%',
-        'triangles': '30px 30px, 30px 30px, 30px 30px, 30px 30px',
-        'crosshatch': '100% 100%, 100% 100%',
+        waves: '100% 100%, 100% 100%',
+        triangles: '30px 30px, 30px 30px, 30px 30px, 30px 30px',
+        crosshatch: '100% 100%, 100% 100%',
         'perlin-noise': 'cover, 100% 100%',
         'gradient-mesh': '100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%'
       };
@@ -22527,15 +24165,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let textureBgSize = textureBackgroundSize[textureStyle] || 'auto';
 
       // Apply intensity multiplier to texture opacity
-      const textureIntensity = (settings.textureIntensity !== undefined) ? settings.textureIntensity : 75;
+      const textureIntensity = settings.textureIntensity !== undefined ? settings.textureIntensity : 75;
       const intensityMultiplier = textureIntensity / 100; // 0-100% direct mapping
 
       if (texturePattern && intensityMultiplier !== 1.0) {
         // Multiply all rgba() opacity values by intensity multiplier
-        texturePattern = texturePattern.replace(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\)/g, (match, r, g, b, a) => {
-          const newAlpha = Math.min(1, parseFloat(a) * intensityMultiplier);
-          return `rgba(${r}, ${g}, ${b}, ${newAlpha.toFixed(3)})`;
-        });
+        texturePattern = texturePattern.replace(
+          /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\)/g,
+          (match, r, g, b, a) => {
+            const newAlpha = Math.min(1, parseFloat(a) * intensityMultiplier);
+            return `rgba(${r}, ${g}, ${b}, ${newAlpha.toFixed(3)})`;
+          }
+        );
 
         // Also handle SVG opacity attributes
         texturePattern = texturePattern.replace(/opacity='([0-9.]+)'/g, (match, a) => {
@@ -22644,7 +24285,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
       element.style.boxShadow = themeStyles.boxShadow;
 
-      if (opacity > 0.05) { // Lower threshold for backdrop filter
+      if (opacity > 0.05) {
+        // Lower threshold for backdrop filter
         // Scale blur intensity with opacity for better visual effect
         const blurIntensity = Math.max(2, Math.min(12, 12 * opacity));
         element.style.backdropFilter = `blur(${blurIntensity}px)`;
@@ -22662,7 +24304,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       element.style.setProperty('--theme-accent-border', accentColor.border);
 
       // Apply dynamic scaling if this is an overlay
-      if (element.classList.contains('mga-overlay') || element.id && element.id.includes('overlay')) {
+      if (element.classList.contains('mga-overlay') || (element.id && element.id.includes('overlay'))) {
         const width = element.offsetWidth || 400;
         const scale = calculateScale(width);
         element.style.setProperty('--panel-scale', scale);
@@ -22799,7 +24441,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const originalAlert = window.alert;
       const originalConfirm = window.confirm;
 
-      window.alert = function(message) {
+      window.alert = function (message) {
         if (!modalSettings.enabled) return originalAlert.call(window, message);
 
         const now = Date.now();
@@ -22812,7 +24454,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return originalAlert.call(window, message);
       };
 
-      window.confirm = function(message) {
+      window.confirm = function (message) {
         if (!modalSettings.enabled) return originalConfirm.call(window, message);
 
         const now = Date.now();
@@ -22828,12 +24470,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Prevent multiple overlapping modal dialogs
       let activeModalCount = 0;
       const originalCreateElement = targetDocument.createElement;
-      targetDocument.createElement = function(tagName) {
+      targetDocument.createElement = function (tagName) {
         const element = originalCreateElement.call(document, tagName);
 
-        if (tagName.toLowerCase() === 'dialog' ||
-                  (element.className && element.className.includes('modal'))) {
-
+        if (tagName.toLowerCase() === 'dialog' || (element.className && element.className.includes('modal'))) {
           if (activeModalCount >= modalSettings.queueLimit) {
             debugLog('MODAL_SPAM', 'Modal blocked due to queue limit');
             return element; // Return but don't increment count
@@ -22890,7 +24530,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Apply theme background, border, and effects to dock
       dock.style.background = themeStyles.background;
-      dock.style.border = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.15})`;
+      dock.style.border = `1px solid rgba(255, 255, 255, ${(themeStyles.opacity / 100) * 0.15})`;
       dock.style.boxShadow = themeStyles.boxShadow;
       dock.style.backdropFilter = 'blur(20px)';
     }
@@ -22934,7 +24574,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       } else {
         sidebar.style.background = themeStyles.background;
       }
-      sidebar.style.borderRight = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.15})`;
+      sidebar.style.borderRight = `1px solid rgba(255, 255, 255, ${(themeStyles.opacity / 100) * 0.15})`;
       sidebar.style.boxShadow = `4px 0 24px rgba(0, 0, 0, 0.6), ${themeStyles.boxShadow}`;
       sidebar.style.backdropFilter = 'blur(20px)';
 
@@ -22947,7 +24587,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } else {
           header.style.background = themeStyles.background;
         }
-        header.style.borderBottom = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.2})`;
+        header.style.borderBottom = `1px solid rgba(255, 255, 255, ${(themeStyles.opacity / 100) * 0.2})`;
       }
 
       // Remove accent-specific CSS if it exists
@@ -23110,7 +24750,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } else {
           popout.style.background = themeStyles.background;
         }
-        popout.style.border = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.15})`;
+        popout.style.border = `1px solid rgba(255, 255, 255, ${(themeStyles.opacity / 100) * 0.15})`;
         popout.style.boxShadow = themeStyles.boxShadow;
 
         // Style header
@@ -23122,7 +24762,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           } else {
             header.style.background = themeStyles.background;
           }
-          header.style.borderBottom = `1px solid rgba(255, 255, 255, ${themeStyles.opacity / 100 * 0.2})`;
+          header.style.borderBottom = `1px solid rgba(255, 255, 255, ${(themeStyles.opacity / 100) * 0.2})`;
         }
 
         // Keep body background solid for content readability
@@ -23166,7 +24806,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const currentHeight = parseInt(panel.style.height) || 600;
         panel.style.width = Math.max(250, currentWidth * 0.7) + 'px';
         panel.style.height = Math.max(300, currentHeight * 0.8) + 'px';
-
       } else {
         // Remove ultra-compact styles
         panel.classList.remove('mga-ultra-compact');
@@ -23243,9 +24882,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const containerRect = tabsContainer.getBoundingClientRect();
 
         if (tabRect.right > containerRect.right) {
-          tabsContainer.scrollLeft += (tabRect.right - containerRect.right) + 10;
+          tabsContainer.scrollLeft += tabRect.right - containerRect.right + 10;
         } else if (tabRect.left < containerRect.left) {
-          tabsContainer.scrollLeft -= (containerRect.left - tabRect.left) + 10;
+          tabsContainer.scrollLeft -= containerRect.left - tabRect.left + 10;
         }
       }
     }
@@ -23323,7 +24962,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // This prevents false triggers on page refresh when same ability state reloads
         if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 3000) {
           if (UnifiedState.data.settings?.debugMode) {
-            productionLog(`🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${Math.abs(currentTimestamp - lastKnown)}ms)`);
+            productionLog(
+              `🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${Math.abs(currentTimestamp - lastKnown)}ms)`
+            );
           }
           return;
         }
@@ -23401,7 +25042,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Use debounced save to reduce I/O operations during frequent ability triggers
         // Only save if not in clear session
         const clearSession = localStorage.getItem('MGA_logs_clear_session');
-        if (!clearSession || (Date.now() - parseInt(clearSession, 10)) > 86400000) {
+        if (!clearSession || Date.now() - parseInt(clearSession, 10) > 86400000) {
           MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
         } else {
           logDebug('ABILITY-LOGS', '⏸️ Skipping save - clear session active');
@@ -23412,10 +25053,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const abilityType = trigger.abilityId || '';
 
           // Filter out ProduceMutationBoost/PetMutationBoost - these are passive and shouldn't trigger notifications
-          if (abilityType && (
-            abilityType.includes('ProduceMutationBoost') ||
-                      abilityType.includes('PetMutationBoost')
-          )) {
+          if (
+            abilityType &&
+            (abilityType.includes('ProduceMutationBoost') || abilityType.includes('PetMutationBoost'))
+          ) {
             return; // Skip notification for mutation boosts
           }
 
@@ -23510,16 +25151,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       const headers = 'Date,Time,Pet Name,Ability Type,Details\r\n';
-      const csvContent = allLogs.map(log => {
-        const date = new Date(log.timestamp);
-        return [
-          date.toLocaleDateString(),
-          date.toLocaleTimeString(),
-          log.petName,
-          normalizeAbilityName(log.abilityType),
-          JSON.stringify(log.data || '')
-        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
-      }).join('\r\n');
+      const csvContent = allLogs
+        .map(log => {
+          const date = new Date(log.timestamp);
+          return [
+            date.toLocaleDateString(),
+            date.toLocaleTimeString(),
+            log.petName,
+            normalizeAbilityName(log.abilityType),
+            JSON.stringify(log.data || '')
+          ]
+            .map(field => `"${String(field).replace(/"/g, '""')}"`)
+            .join(',');
+        })
+        .join('\r\n');
 
       const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = targetDocument.createElement('a');
@@ -23665,10 +25310,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             let shouldUpdate = false;
             mutations.forEach(mutation => {
               // Check if changes are related to inventory or game state
-              if (mutation.target.className &&
-                              (mutation.target.className.includes('inventory') ||
-                               mutation.target.className.includes('garden') ||
-                               mutation.target.className.includes('crop'))) {
+              if (
+                mutation.target.className &&
+                (mutation.target.className.includes('inventory') ||
+                  mutation.target.className.includes('garden') ||
+                  mutation.target.className.includes('crop'))
+              ) {
                 shouldUpdate = true;
               }
             });
@@ -23705,7 +25352,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const cached = this.cache[type];
         const now = Date.now();
 
-        if (!forceRefresh && cached && (now - cached.lastUpdate) < this.throttleMs) {
+        if (!forceRefresh && cached && now - cached.lastUpdate < this.throttleMs) {
           return cached.value;
         }
 
@@ -23884,7 +25531,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             acc[key] = {
               value: cached.value,
               age: now - cached.lastUpdate,
-              fresh: (now - cached.lastUpdate) < this.throttleMs
+              fresh: now - cached.lastUpdate < this.throttleMs
             };
             return acc;
           }, {}),
@@ -23938,7 +25585,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // ==================== SEED DELETION ====================
     function deleteSelectedSeeds() {
-      if (!UnifiedState.atoms.inventory || !UnifiedState.atoms.inventory.items || !UnifiedState.data.seedsToDelete.length) {
+      if (
+        !UnifiedState.atoms.inventory ||
+        !UnifiedState.atoms.inventory.items ||
+        !UnifiedState.data.seedsToDelete.length
+      ) {
         productionWarn('⚠️ No seeds selected for deletion!');
         return;
       }
@@ -23954,15 +25605,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // seedsToDelete now contains internal IDs (e.g., "OrangeTulip"), so direct comparison works
       productionLog('🌱 [SEED-DELETE-DEBUG] Deletion attempt:', {
         seedsToDelete: UnifiedState.data.seedsToDelete,
-        inventoryItems: UnifiedState.atoms.inventory.items?.map(item => ({ species: item.species, quantity: item.quantity })) || 'No inventory',
+        inventoryItems:
+          UnifiedState.atoms.inventory.items?.map(item => ({ species: item.species, quantity: item.quantity })) ||
+          'No inventory',
         inventoryCount: UnifiedState.atoms.inventory.items?.length || 0
       });
 
-      const itemsToDelete = UnifiedState.atoms.inventory.items.filter(item =>
-        item && item.species && UnifiedState.data.seedsToDelete.includes(item.species)
+      const itemsToDelete = UnifiedState.atoms.inventory.items.filter(
+        item => item && item.species && UnifiedState.data.seedsToDelete.includes(item.species)
       );
 
-      productionLog('🌱 [SEED-DELETE-DEBUG] Items found for deletion:', itemsToDelete.map(item => ({ species: item.species, quantity: item.quantity })));
+      productionLog(
+        '🌱 [SEED-DELETE-DEBUG] Items found for deletion:',
+        itemsToDelete.map(item => ({ species: item.species, quantity: item.quantity }))
+      );
 
       if (!itemsToDelete.length) {
         productionLog('🌱 [SEED-DELETE-DEBUG] No matching items found. Details:', {
@@ -23991,7 +25647,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         UnifiedState.data.seedsToDelete = [];
 
         // Clear checkboxes in main panel
-        targetDocument.querySelectorAll('.seed-checkbox').forEach(cb => cb.checked = false);
+        targetDocument.querySelectorAll('.seed-checkbox').forEach(cb => (cb.checked = false));
 
         // Update main tab content
         if (UnifiedState.activeTab === 'seeds') {
@@ -24004,7 +25660,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             if (overlay.className.includes('mga-overlay-content-only')) {
               updatePureOverlayContent(overlay, tabName);
               // Also clear checkboxes in overlay
-              overlay.querySelectorAll('.seed-checkbox').forEach(cb => cb.checked = false);
+              overlay.querySelectorAll('.seed-checkbox').forEach(cb => (cb.checked = false));
               debugLog('OVERLAY_LIFECYCLE', 'Updated pure seeds overlay after deletion');
             }
           }
@@ -24022,30 +25678,34 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       clearManagedInterval('autoDelete');
 
       // Use managed interval to prevent memory leaks
-      setManagedInterval('autoDelete', () => {
-        if (UnifiedState.data.autoDeleteEnabled && UnifiedState.data.seedsToDelete.length) {
-          const inventory = UnifiedState.atoms.inventory;
-          if (!inventory || !inventory.items) return;
+      setManagedInterval(
+        'autoDelete',
+        () => {
+          if (UnifiedState.data.autoDeleteEnabled && UnifiedState.data.seedsToDelete.length) {
+            const inventory = UnifiedState.atoms.inventory;
+            if (!inventory || !inventory.items) return;
 
-          // seedsToDelete now contains internal IDs (e.g., "OrangeTulip"), so direct comparison works
-          UnifiedState.data.seedsToDelete.forEach(seedToDelete => {
-            const matchingItems = inventory.items.filter(item =>
-              item && item.species && item.species === seedToDelete
-            );
+            // seedsToDelete now contains internal IDs (e.g., "OrangeTulip"), so direct comparison works
+            UnifiedState.data.seedsToDelete.forEach(seedToDelete => {
+              const matchingItems = inventory.items.filter(
+                item => item && item.species && item.species === seedToDelete
+              );
 
-            matchingItems.forEach(item => {
-              const qty = item.quantity || 0;
-              for (let i = 0; i < qty; i++) {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'Wish',
-                  itemId: seedToDelete
-                });
-              }
+              matchingItems.forEach(item => {
+                const qty = item.quantity || 0;
+                for (let i = 0; i < qty; i++) {
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'Wish',
+                    itemId: seedToDelete
+                  });
+                }
+              });
             });
-          });
-        }
-      }, 2000);
+          }
+        },
+        2000
+      );
     }
 
     function stopAutoDelete() {
@@ -24366,7 +26026,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Helper function to update timer elements across all contexts
       const updateTimerElement = (id, value) => {
         // Choose formatter based on timer type
-        const formatter = (id === 'timer-lunar') ? formatTimeHoursMinutes : formatTime;
+        const formatter = id === 'timer-lunar' ? formatTimeHoursMinutes : formatTime;
         const formattedValue = formatter(value);
 
         // Update main window
@@ -24405,7 +26065,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // ==================== DEBUGGING UTILITIES ====================
-    window.debugPets = function() {
+    window.debugPets = function () {
       productionLog('🔍 [DEBUG] Debugging pets data...');
       productionLog('🐾 UnifiedState.atoms.activePets:', UnifiedState.atoms.activePets);
       productionLog('🐾 window.activePets:', window.activePets);
@@ -24420,10 +26080,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Check jotai atoms
       if (targetWindow.jotaiAtomCache) {
         const allAtoms = Array.from(targetWindow.jotaiAtomCache.keys());
-        const petAtoms = allAtoms.filter(key =>
-          key.toLowerCase().includes('pet') ||
-                  key.toLowerCase().includes('slot') ||
-                  key.toLowerCase().includes('animal')
+        const petAtoms = allAtoms.filter(
+          key =>
+            key.toLowerCase().includes('pet') ||
+            key.toLowerCase().includes('slot') ||
+            key.toLowerCase().includes('animal')
         );
         productionLog('🔍 Pet-related atoms found:', petAtoms);
       }
@@ -24432,7 +26093,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     };
 
     // Manual fallback to force update Active Pets display
-    window.forceUpdateActivePets = function() {
+    window.forceUpdateActivePets = function () {
       productionLog('🔧 [MANUAL] Force updating Active Pets display...');
 
       // Try to get pets from room state as fallback
@@ -24442,11 +26103,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         if (petSlots && Array.isArray(petSlots)) {
           // Convert room state format to our expected format
-          const activePetsFromRoom = petSlots.filter(slot => slot && slot.item).map(slot => ({
-            id: slot.item.id,
-            petSpecies: slot.item.species || 'Unknown',
-            mutations: slot.item.mutations || []
-          }));
+          const activePetsFromRoom = petSlots
+            .filter(slot => slot && slot.item)
+            .map(slot => ({
+              id: slot.item.id,
+              petSpecies: slot.item.species || 'Unknown',
+              mutations: slot.item.mutations || []
+            }));
 
           productionLog('🐾 [FALLBACK] Found pets in room state:', activePetsFromRoom);
 
@@ -24471,7 +26134,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       return null;
     };
 
-
     // ==================== INITIALIZATION ====================
     function initializeAtoms() {
       productionLog('🔗 [SIMPLE-ATOMS] Starting simple atom initialization...');
@@ -24481,27 +26143,31 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       updateActivePetsFromRoomState(); // Get initial pets immediately
 
       // Set up periodic pet detection (reduced frequency to minimize console spam)
-      setManagedInterval('petDetection', () => {
-        updateActivePetsFromRoomState();
+      setManagedInterval(
+        'petDetection',
+        () => {
+          updateActivePetsFromRoomState();
 
-        // ALSO check window.activePets directly (set by atom hook)
-        if (window.activePets && Array.isArray(window.activePets) && window.activePets.length > 0) {
-          productionLog('🐾 [PERIODIC-CHECK] Found pets in window.activePets:', window.activePets);
+          // ALSO check window.activePets directly (set by atom hook)
+          if (window.activePets && Array.isArray(window.activePets) && window.activePets.length > 0) {
+            productionLog('🐾 [PERIODIC-CHECK] Found pets in window.activePets:', window.activePets);
 
-          // Update UnifiedState
-          if (!UnifiedState.atoms.activePets || UnifiedState.atoms.activePets.length !== window.activePets.length) {
-            UnifiedState.atoms.activePets = window.activePets;
+            // Update UnifiedState
+            if (!UnifiedState.atoms.activePets || UnifiedState.atoms.activePets.length !== window.activePets.length) {
+              UnifiedState.atoms.activePets = window.activePets;
 
-            // Force UI update
-            if (UnifiedState.activeTab === 'pets') {
-              const context = document.getElementById('mga-tab-content');
-              if (context) {
-                updateTabContent('pets', context);
+              // Force UI update
+              if (UnifiedState.activeTab === 'pets') {
+                const context = document.getElementById('mga-tab-content');
+                if (context) {
+                  updateTabContent('pets', context);
+                }
               }
             }
           }
-        }
-      }, 30000); // Check every 30 seconds
+        },
+        30000
+      ); // Check every 30 seconds
 
       // Hook #1: Pet SPECIES data (for active pets display)
       hookAtom(
@@ -24526,8 +26192,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           if (Array.isArray(actualPetSlots)) {
             // DEBUG: Log raw slot data to understand structure
             if (UnifiedState.data.settings?.debugMode) {
-              actualPetSlots.forEach((slot, i) => {
-              });
+              actualPetSlots.forEach((slot, i) => {});
             }
 
             const activePets = actualPetSlots
@@ -24564,9 +26229,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const previousPets = UnifiedState.atoms.activePets || [];
 
             // Check if pets changed (count OR species/abilities)
-            const petsChanged = activePets.length !== previousCount ||
-                                         JSON.stringify(activePets.map(p => ({ s: p.petSpecies, a: p.abilities }))) !==
-                                         JSON.stringify(previousPets.map(p => ({ s: p.petSpecies, a: p.abilities })));
+            const petsChanged =
+              activePets.length !== previousCount ||
+              JSON.stringify(activePets.map(p => ({ s: p.petSpecies, a: p.abilities }))) !==
+                JSON.stringify(previousPets.map(p => ({ s: p.petSpecies, a: p.abilities })));
 
             if (petsChanged) {
               // Update UI if pets tab is active
@@ -24585,7 +26251,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               });
 
               // TURTLE TIMER: Refresh tooltip when pets change
-              (targetDocument || document).querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
+              (targetDocument || document)
+                .querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
                 .forEach(el => el.remove());
 
               setTimeout(() => {
@@ -24727,7 +26394,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // CRITICAL: Check if window.activePets already exists after hooks are set up
       setTimeout(() => {
         if (window.activePets && Array.isArray(window.activePets) && window.activePets.length > 0) {
-          productionLog('🐾 [INIT-CHECK] Found existing pets in window.activePets after hook setup:', window.activePets);
+          productionLog(
+            '🐾 [INIT-CHECK] Found existing pets in window.activePets after hook setup:',
+            window.activePets
+          );
           UnifiedState.atoms.activePets = window.activePets;
 
           // Force UI update if on pets tab
@@ -24762,7 +26432,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       function checkAndFavoriteNewItems(inventory) {
         if (!inventory?.items) return;
-        if (!UnifiedState.data.settings.autoFavorite.species.length && !UnifiedState.data.settings.autoFavorite.mutations.length) return;
+        if (
+          !UnifiedState.data.settings.autoFavorite.species.length &&
+          !UnifiedState.data.settings.autoFavorite.mutations.length
+        )
+          return;
 
         const favoritedIds = new Set(inventory.favoritedItemIds || []);
         const targetSpecies = new Set(UnifiedState.data.settings.autoFavorite.species);
@@ -24804,7 +26478,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Function to favorite ALL items of a species (called when checkbox is checked)
-      targetWindow.favoriteSpecies = function(speciesName) {
+      targetWindow.favoriteSpecies = function (speciesName) {
         if (!targetWindow.myData?.inventory?.items) {
           productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
           return;
@@ -24841,19 +26515,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (count > 0) {
           productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} ${speciesName} crops`);
         } else {
-          productionLog(`ℹ️ [AUTO-FAVORITE] No ${speciesName} crops to favorite (already favorited or none in inventory)`);
+          productionLog(
+            `ℹ️ [AUTO-FAVORITE] No ${speciesName} crops to favorite (already favorited or none in inventory)`
+          );
         }
       };
 
       // DISABLED: Script never unfavorites - only adds favorites
-      targetWindow.unfavoriteSpecies = function(speciesName) {
-        productionLog(`🔒 [AUTO-FAVORITE] Checkbox unchecked for ${speciesName} - Auto-favorite disabled, but existing favorites are preserved (script never removes favorites)`);
+      targetWindow.unfavoriteSpecies = function (speciesName) {
+        productionLog(
+          `🔒 [AUTO-FAVORITE] Checkbox unchecked for ${speciesName} - Auto-favorite disabled, but existing favorites are preserved (script never removes favorites)`
+        );
         // Do nothing - script only adds favorites, never removes them
         // This protects user's manually-favorited items (pets, eggs, crops, etc.)
       };
 
       // Function to favorite ALL items with a specific mutation (called when mutation checkbox is checked)
-      targetWindow.favoriteMutation = function(mutationName) {
+      targetWindow.favoriteMutation = function (mutationName) {
         if (!targetWindow.myData?.inventory?.items) {
           productionLog('🌟 [AUTO-FAVORITE] No myData available yet - waiting for game to load');
           return;
@@ -24881,7 +26559,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 itemId: item.id
               });
               count++;
-              productionLog(`🌟 [AUTO-FAVORITE] Favoriting ${item.species} with ${mutationName} mutation (id: ${item.id})`);
+              productionLog(
+                `🌟 [AUTO-FAVORITE] Favoriting ${item.species} with ${mutationName} mutation (id: ${item.id})`
+              );
             } else {
               productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
             }
@@ -24891,13 +26571,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (count > 0) {
           productionLog(`✅ [AUTO-FAVORITE] Favorited ${count} crops with ${mutationName} mutation`);
         } else {
-          productionLog(`ℹ️ [AUTO-FAVORITE] No crops with ${mutationName} mutation to favorite (already favorited or none in inventory)`);
+          productionLog(
+            `ℹ️ [AUTO-FAVORITE] No crops with ${mutationName} mutation to favorite (already favorited or none in inventory)`
+          );
         }
       };
 
       // DISABLED: Script never unfavorites - only adds favorites
-      targetWindow.unfavoriteMutation = function(mutationName) {
-        productionLog(`🔒 [AUTO-FAVORITE] Checkbox unchecked for ${mutationName} mutation - Auto-favorite disabled, but existing favorites are preserved (script never removes favorites)`);
+      targetWindow.unfavoriteMutation = function (mutationName) {
+        productionLog(
+          `🔒 [AUTO-FAVORITE] Checkbox unchecked for ${mutationName} mutation - Auto-favorite disabled, but existing favorites are preserved (script never removes favorites)`
+        );
         // Do nothing - script only adds favorites, never removes them
         // This protects user's manually-favorited items (pets, eggs, crops, etc.)
       };
@@ -24912,12 +26596,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const inventoryCount = targetWindow.myData?.inventory?.items?.length || 0;
 
         if (!hasMyData || !hasConnection) {
-          productionLog(`🔍 [AUTO-FAVORITE-DEBUG] myData: ${hasMyData}, Connection: ${hasConnection}, Inventory: ${hasInventory}, Items: ${inventoryCount}`);
+          productionLog(
+            `🔍 [AUTO-FAVORITE-DEBUG] myData: ${hasMyData}, Connection: ${hasConnection}, Inventory: ${hasInventory}, Items: ${inventoryCount}`
+          );
         }
       }, 5000);
 
       // Expose test function for manual testing
-      targetWindow.testAutoFavorite = function() {
+      targetWindow.testAutoFavorite = function () {
         productionLog('🧪 [AUTO-FAVORITE-TEST] Starting diagnostic test...');
         productionLog('🧪 myData exists:', !!targetWindow.myData);
         productionLog('🧪 MagicCircle_RoomConnection exists:', !!targetWindow.MagicCircle_RoomConnection);
@@ -24960,16 +26646,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         });
       }
 
-      const turtles = (activePets || []).filter(p =>
-        p &&
-              p.petSpecies === 'Turtle' &&
-              p.hunger > 0 &&
-              p.abilities?.some(a =>
-                a === 'Plant Growth Boost II' ||
-                  a === 'PlantGrowthBoostII' ||
-                  a === 'Plant Growth Boost 2' ||
-                  (typeof a === 'string' && a.toLowerCase().includes('plant') && a.toLowerCase().includes('growth') && (a.includes('II') || a.includes('2')))
-              )
+      const turtles = (activePets || []).filter(
+        p =>
+          p &&
+          p.petSpecies === 'Turtle' &&
+          p.hunger > 0 &&
+          p.abilities?.some(
+            a =>
+              a === 'Plant Growth Boost II' ||
+              a === 'PlantGrowthBoostII' ||
+              a === 'Plant Growth Boost 2' ||
+              (typeof a === 'string' &&
+                a.toLowerCase().includes('plant') &&
+                a.toLowerCase().includes('growth') &&
+                (a.includes('II') || a.includes('2')))
+          )
       );
 
       if (UnifiedState.data.settings?.debugMode) {
@@ -24988,10 +26679,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let expectedMinutesRemoved = 0;
 
       turtles.forEach(p => {
-        const xpComponent = Math.min(Math.floor((p.xp || 0) / (100 * 3600) * 30), 30);
+        const xpComponent = Math.min(Math.floor(((p.xp || 0) / (100 * 3600)) * 30), 30);
         const scaleComponent = Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) - 30;
         const base = xpComponent + scaleComponent;
-        const minutesRemoved = (base / 100 * 5) * 60 * (1 - Math.pow(1 - 0.27 * base / 100, 1 / 60));
+        const minutesRemoved = (base / 100) * 5 * 60 * (1 - Math.pow(1 - (0.27 * base) / 100, 1 / 60));
 
         if (UnifiedState.data.settings?.debugMode) {
           logDebug('TURTLE', 'Turtle calculation:', {
@@ -25061,21 +26752,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // ==================== GENERIC ABILITY EXPECTATIONS ====================
     function getAbilityExpectations(activePets, abilityName, minutesPerBase = 5, odds = 0.27) {
-      const pets = (activePets || []).filter(p =>
-        p &&
-          p.hunger > 0 &&
-          p.abilities?.some(a => a === abilityName)
-      );
+      const pets = (activePets || []).filter(p => p && p.hunger > 0 && p.abilities?.some(a => a === abilityName));
 
       let expectedMinutesRemoved = 0;
 
       pets.forEach(p => {
         const base =
-              Math.min(Math.floor((p.xp || 0) / (100 * 3600) * 30), 30)
-              + Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80)
-              - 30;
+          Math.min(Math.floor(((p.xp || 0) / (100 * 3600)) * 30), 30) +
+          Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) -
+          30;
 
-        expectedMinutesRemoved += (base / 100 * minutesPerBase) * 60 * (1 - Math.pow(1 - odds * base / 100, 1 / 60));
+        expectedMinutesRemoved += (base / 100) * minutesPerBase * 60 * (1 - Math.pow(1 - (odds * base) / 100, 1 / 60));
       });
 
       return {
@@ -25095,7 +26782,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const doc = targetDocument || document;
 
       // Remove existing turtle estimates and slot values
-      doc.querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
+      doc
+        .querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
         .forEach(el => el.remove());
 
       // CORRECT SELECTOR: Get the last child's parent (where weight/mutations are shown)
@@ -25137,7 +26825,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           targetWindow.UnifiedState?.atoms?.currentCrop,
           targetWindow.garden?.currentTile?.crop,
           targetWindow.playerState?.standingOn?.crop,
-          targetWindow.jotaiAtomCache?.get?.('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom')?.debugValue
+          targetWindow.jotaiAtomCache?.get?.(
+            '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom'
+          )?.debugValue
         ];
 
         for (const loc of possibleLocations) {
@@ -25158,28 +26848,43 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           if (eggMatch) {
             const eggSpecies = eggMatch[0].replace(/\s+/g, '');
-            currentCrop = [{
-              species: eggSpecies,
-              type: 'egg',
-              category: 'egg',
-              isEgg: true
-            }];
+            currentCrop = [
+              {
+                species: eggSpecies,
+                type: 'egg',
+                category: 'egg',
+                isEgg: true
+              }
+            ];
           } else {
             // Try to find crop species (Carrot, Wheat, etc.)
             const cropPatterns = [
-              /Carrot/i, /Wheat/i, /Corn/i, /Tomato/i, /Potato/i,
-              /Pumpkin/i, /Watermelon/i, /Strawberry/i, /Blueberry/i,
-              /Rose/i, /Tulip/i, /Sunflower/i, /Daisy/i, /Lily/i
+              /Carrot/i,
+              /Wheat/i,
+              /Corn/i,
+              /Tomato/i,
+              /Potato/i,
+              /Pumpkin/i,
+              /Watermelon/i,
+              /Strawberry/i,
+              /Blueberry/i,
+              /Rose/i,
+              /Tulip/i,
+              /Sunflower/i,
+              /Daisy/i,
+              /Lily/i
             ];
 
             for (const pattern of cropPatterns) {
               const cropMatch = tooltipText.match(pattern);
               if (cropMatch) {
-                currentCrop = [{
-                  species: cropMatch[0],
-                  type: 'crop',
-                  category: 'plant'
-                }];
+                currentCrop = [
+                  {
+                    species: cropMatch[0],
+                    type: 'crop',
+                    category: 'plant'
+                  }
+                ];
                 break;
               }
             }
@@ -25203,9 +26908,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // CRITICAL: Find the ACTUAL time element in the tooltip (same way as crops)
         const timeElement = [...currentPlantTooltipFlexbox.childNodes].find(el =>
-          /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(
-            (el.textContent || '').trim()
-          )
+          /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test((el.textContent || '').trim())
         );
 
         if (!timeElement) {
@@ -25225,7 +26928,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const seconds = parseInt(timeMatch[3] || '0', 10);
 
         // Convert to total seconds
-        const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
 
         if (totalSeconds <= 0) {
           return;
@@ -25264,9 +26967,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Find time element (for growing crops)
       const timeElement = [...currentPlantTooltipFlexbox.childNodes].find(el =>
-        /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test(
-          (el.textContent || '').trim()
-        )
+        /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test((el.textContent || '').trim())
       );
 
       // Show turtle estimate if there's a time element and crop is growing
@@ -25278,7 +26979,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const sortedIndices = UnifiedState.atoms.sortedSlotIndices || window.sortedSlotIndices;
         let actualSlotIndex = slotIndex;
 
-        if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0 && slotIndex < sortedIndices.length) {
+        if (
+          sortedIndices &&
+          Array.isArray(sortedIndices) &&
+          sortedIndices.length > 0 &&
+          slotIndex < sortedIndices.length
+        ) {
           actualSlotIndex = sortedIndices[slotIndex];
         }
 
@@ -25299,11 +27005,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (slotValue > 0) {
         const slotValueEl = doc.createElement('p');
         slotValueEl.dataset.turtletimerSlotValue = 'true';
-        slotValueEl.innerHTML = `<img src="https://cdn.discordapp.com/emojis/1425389207525920808.webp?size=96" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 2px; display: inline-block;">` + Number(slotValue).toLocaleString();
+        slotValueEl.innerHTML =
+          `<img src="https://cdn.discordapp.com/emojis/1425389207525920808.webp?size=96" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 2px; display: inline-block;">` +
+          Number(slotValue).toLocaleString();
         currentPlantTooltipFlexbox.appendChild(slotValueEl);
       }
     }
-
 
     // Track current slot index for multi-harvest crops
     // Updated ONLY when cycling (X/C keys) in handleTooltipChange()
@@ -25347,7 +27054,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Validate slot index
       if (actualSlotIndex < 0 || actualSlotIndex >= currentCrop.length) {
-        console.error(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
+        console.error(
+          `[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`
+        );
         window._mgtools_currentSlotIndex = 0; // Reset to safe value
         return 0;
       }
@@ -25364,14 +27073,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const value = Math.round(multiplier * speciesVal * scale * friendBonus);
 
       // Always log for debugging the issue
-      console.log(`💰 [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`, {
-        species: slot.species,
-        speciesVal,
-        multiplier,
-        scale,
-        friendBonus,
-        value
-      });
+      console.log(
+        `💰 [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`,
+        {
+          species: slot.species,
+          speciesVal,
+          multiplier,
+          scale,
+          friendBonus,
+          value
+        }
+      );
 
       return value;
     }
@@ -25450,11 +27162,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             for (const store of possibleStores) {
               // Make sure it's NOT cookieStore (browser API)
               // And verify it looks like a Jotai store (has sub/unsub or set methods)
-              if (store &&
-                        typeof store.get === 'function' &&
-                        store !== targetWindow.cookieStore &&
-                        store !== window.cookieStore &&
-                        (typeof store.set === 'function' || typeof store.sub === 'function')) {
+              if (
+                store &&
+                typeof store.get === 'function' &&
+                store !== targetWindow.cookieStore &&
+                store !== window.cookieStore &&
+                (typeof store.set === 'function' || typeof store.sub === 'function')
+              ) {
                 targetWindow.__foundJotaiStore = store;
                 break;
               }
@@ -25462,19 +27176,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // If still not found, explore window properties
             if (!targetWindow.__foundJotaiStore) {
-              const storeKeys = Object.keys(targetWindow).filter(k =>
-                k.toLowerCase().includes('store') ||
-                        k.toLowerCase().includes('jotai')
+              const storeKeys = Object.keys(targetWindow).filter(
+                k => k.toLowerCase().includes('store') || k.toLowerCase().includes('jotai')
               );
 
               for (const key of storeKeys) {
                 const val = targetWindow[key];
-                if (val &&
-                            typeof val === 'object' &&
-                            typeof val.get === 'function' &&
-                            val !== targetWindow.cookieStore &&
-                            val !== window.cookieStore &&
-                            (typeof val.set === 'function' || typeof val.sub === 'function')) {
+                if (
+                  val &&
+                  typeof val === 'object' &&
+                  typeof val.get === 'function' &&
+                  val !== targetWindow.cookieStore &&
+                  val !== window.cookieStore &&
+                  (typeof val.set === 'function' || typeof val.sub === 'function')
+                ) {
                   targetWindow.__foundJotaiStore = val;
                   break;
                 }
@@ -25497,7 +27212,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // Step 2: Try to read atom using the store
           const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
           if (atomCache && atomCache.get) {
-            const cropAtom = atomCache.get('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom');
+            const cropAtom = atomCache.get(
+              '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom'
+            );
 
             if (cropAtom) {
               // Try to read using found store
@@ -25507,17 +27224,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
                   // Handle if it's a Promise
                   if (cropValue && typeof cropValue.then === 'function') {
-                    cropValue.then(val => {
-                      targetWindow.currentCrop = val;
-                      UnifiedState.atoms.currentCrop = val;
+                    cropValue
+                      .then(val => {
+                        targetWindow.currentCrop = val;
+                        UnifiedState.atoms.currentCrop = val;
 
-                      // Trigger update
-                      if (val && !document.querySelector('[data-turtletimer-estimate="true"]')) {
-                        insertTurtleEstimate();
-                      }
-                    }).catch(e => {
-                      // Promise rejected
-                    });
+                        // Trigger update
+                        if (val && !document.querySelector('[data-turtletimer-estimate="true"]')) {
+                          insertTurtleEstimate();
+                        }
+                      })
+                      .catch(e => {
+                        // Promise rejected
+                      });
                   } else {
                     manualCrop = cropValue;
 
@@ -25567,7 +27286,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // If player is standing on something (has crop/egg data OR tooltip is visible), ensure estimate is shown
         if (currentCrop || currentEgg || tooltipVisible) {
-          const hasExisting = doc.querySelector('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]');
+          const hasExisting = doc.querySelector(
+            '[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]'
+          );
           if (!hasExisting) {
             insertTurtleEstimate();
           }
@@ -25578,16 +27299,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const isMovementKeypress = e =>
         !e.ctrlKey &&
         !e.shiftKey &&
-        [
-          'KeyW',
-          'KeyA',
-          'KeyS',
-          'KeyD',
-          'ArrowUp',
-          'ArrowDown',
-          'ArrowLeft',
-          'ArrowRight'
-        ].includes(e.code);
+        ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code);
 
       // Curried helper: takes a handler and runs it only if it's a movement key
       const onMovementKey = handler => e => {
@@ -25599,9 +27311,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         'keydown',
         onMovementKey(() => {
           doc
-            .querySelectorAll(
-              '[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]'
-            )
+            .querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
             .forEach(el => el.remove());
         })
       );
@@ -25620,7 +27330,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       productionLog('✅ [TURTLE-TIMER] Turtle timer initialized successfully');
 
       // Expose a debug function to manually check - make it available in page context
-      const debugCropDetectionFunc = function() {
+      const debugCropDetectionFunc = function () {
         console.log('=== MANUAL CROP DETECTION DEBUG ===');
 
         // Check atom cache
@@ -25635,13 +27345,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const allKeys = Array.from(atomCache.keys ? atomCache.keys() : []);
             console.log('Total atoms:', allKeys.length);
 
-            const cropAtoms = allKeys.filter(k =>
-              k.includes('Crop') || k.includes('crop') || k.includes('Grow') || k.includes('Egg')
+            const cropAtoms = allKeys.filter(
+              k => k.includes('Crop') || k.includes('crop') || k.includes('Grow') || k.includes('Egg')
             );
             console.log('Crop-related atoms:', cropAtoms);
 
             // Try to read the current crop atom
-            const atom = atomCache.get('/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom');
+            const atom = atomCache.get(
+              '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom'
+            );
             console.log('Current crop atom:', atom);
 
             if (atom) {
@@ -25710,13 +27422,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
     }
 
-
     function loadSavedData() {
       // PERSISTENCE GUARD v3.6.6: Initialize guard to prevent premature saves during initialization
       window.MGA_PERSISTENCE_GUARD = {
         initializationSavesBlocked: true,
         finalSaveLocation: 23480,
-        warningMessage: '⚠️ BLOCKED: Premature save during initialization detected! Only final save at line ~23480 is allowed.'
+        warningMessage:
+          '⚠️ BLOCKED: Premature save during initialization detected! Only final save at line ~23480 is allowed.'
       };
       productionLog('🛡️ [PERSISTENCE-GUARD] Initialized - blocking premature saves during initialization');
 
@@ -25743,6 +27455,29 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // CRITICAL: Migrate existing localStorage data to GM storage before loading
       productionLog('🔄 [STORAGE] Checking for data migration needs...');
       try {
+        // Clean deprecated animation key
+        try {
+          const animEnabled = GM_getValue('animationEnabled');
+          if (animEnabled !== undefined) {
+            GM_deleteValue('animationEnabled');
+            if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+              console.log('[FIX_ANIMATION] Removed deprecated animationEnabled from GM storage');
+            }
+          }
+        } catch (e) {
+          // Try localStorage fallback
+          try {
+            if (localStorage.getItem('animationEnabled') !== null) {
+              localStorage.removeItem('animationEnabled');
+              if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
+                console.log('[FIX_ANIMATION] Removed deprecated animationEnabled from localStorage');
+              }
+            }
+          } catch (e2) {
+            // Silently fail if storage not available
+          }
+        }
+
         // MGA_migrateFromLocalStorage();
       } catch (migrationError) {
         console.error('❌ [MIGRATION] Migration failed, but continuing with initialization:', migrationError);
@@ -25765,11 +27500,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Load pet presets with enhanced debugging
       productionLog('📦 [STORAGE] Loading pet presets...');
       const rawPresets = localStorage.getItem('MGA_petPresets');
-      productionLog('📦 [STORAGE] Raw pet presets from localStorage:', rawPresets ? (typeof rawPresets === 'string' ? rawPresets : JSON.stringify(rawPresets)).substring(0, 200) + '...' : 'null');
+      productionLog(
+        '📦 [STORAGE] Raw pet presets from localStorage:',
+        rawPresets
+          ? (typeof rawPresets === 'string' ? rawPresets : JSON.stringify(rawPresets)).substring(0, 200) + '...'
+          : 'null'
+      );
 
       UnifiedState.data.petPresets = MGA_loadJSON('MGA_petPresets', {});
       productionLog('📦 [STORAGE] Loading pet presets, found:', Object.keys(UnifiedState.data.petPresets).length);
-      productionLog('🔍 [STORAGE-DEBUG] Pet presets type check:', typeof UnifiedState.data.petPresets, 'keys:', Object.keys(UnifiedState.data.petPresets || {}));
+      productionLog(
+        '🔍 [STORAGE-DEBUG] Pet presets type check:',
+        typeof UnifiedState.data.petPresets,
+        'keys:',
+        Object.keys(UnifiedState.data.petPresets || {})
+      );
 
       // Load pet presets order (for reordering feature)
       UnifiedState.data.petPresetsOrder = MGA_loadJSON('MGA_petPresetsOrder', []);
@@ -25778,7 +27523,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Verify presets loaded correctly
       if (Object.keys(UnifiedState.data.petPresets).length > 0) {
-        productionLog('✅ [STORAGE-VERIFY] Pet presets loaded successfully:', Object.keys(UnifiedState.data.petPresets));
+        productionLog(
+          '✅ [STORAGE-VERIFY] Pet presets loaded successfully:',
+          Object.keys(UnifiedState.data.petPresets)
+        );
       } else {
         // Only show detailed warnings in debug mode - this is normal for new users
         if (UnifiedState.data.settings?.debugMode) {
@@ -25827,8 +27575,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Check if logs were manually cleared - if so, keep them empty
-      const clearFlag = localStorage.getItem('MGA_logs_manually_cleared') ||
-                            (typeof GM_getValue !== 'undefined' ? GM_getValue('MGA_logs_manually_cleared', null) : null);
+      const clearFlag =
+        localStorage.getItem('MGA_logs_manually_cleared') ||
+        (typeof GM_getValue !== 'undefined' ? GM_getValue('MGA_logs_manually_cleared', null) : null);
       const clearSession = localStorage.getItem('MGA_logs_clear_session');
 
       // Declare skipLogLoading once in the smallest common scope
@@ -25878,9 +27627,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // ENHANCED: Check all storage sources to see where logs will come from
         const gmRaw = typeof GM_getValue !== 'undefined' ? GM_getValue('MGA_petAbilityLogs', null) : null;
         const lsRaw = window.localStorage?.getItem('MGA_petAbilityLogs');
-        const tgRaw = (typeof targetWindow !== 'undefined' && targetWindow && targetWindow !== window)
-          ? targetWindow.localStorage?.getItem('MGA_petAbilityLogs')
-          : null;
+        const tgRaw =
+          typeof targetWindow !== 'undefined' && targetWindow && targetWindow !== window
+            ? targetWindow.localStorage?.getItem('MGA_petAbilityLogs')
+            : null;
 
         // Count logs in each source
         const countLogs = raw => {
@@ -25901,7 +27651,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           gmStorage: gmCount > 0 ? `${gmCount} logs` : 'empty',
           windowLocalStorage: lsCount > 0 ? `${lsCount} logs` : 'empty',
           targetLocalStorage: tgCount > 0 ? `${tgCount} logs` : 'empty',
-          willChoose: gmCount >= lsCount && gmCount >= tgCount ? 'GM' : (lsCount >= tgCount ? 'window.localStorage' : 'targetWindow.localStorage')
+          willChoose:
+            gmCount >= lsCount && gmCount >= tgCount
+              ? 'GM'
+              : lsCount >= tgCount
+                ? 'window.localStorage'
+                : 'targetWindow.localStorage'
         });
 
         const loadedLogs = MGA_loadJSON('MGA_petAbilityLogs', []);
@@ -25909,7 +27664,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         logDebug('STORAGE', '✅ Loaded main logs:', {
           count: loadedLogs.length,
-          sample: loadedLogs.slice(0, 3).map(l => ({ ability: l.abilityType, time: new Date(l.timestamp).toLocaleTimeString() }))
+          sample: loadedLogs
+            .slice(0, 3)
+            .map(l => ({ ability: l.abilityType, time: new Date(l.timestamp).toLocaleTimeString() }))
         });
 
         // DIAGNOSTIC: If logs appeared from nowhere after clear, log a warning
@@ -25957,7 +27714,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       logDebug('STORAGE', 'Archive logs:', {
         skippedDueToClear: wasManuallyCleared,
         count: archivedLogs.length,
-        logs: archivedLogs.slice(0, 5).map(l => ({ ability: l.abilityType, time: new Date(l.timestamp).toLocaleTimeString() }))
+        logs: archivedLogs
+          .slice(0, 5)
+          .map(l => ({ ability: l.abilityType, time: new Date(l.timestamp).toLocaleTimeString() }))
       });
 
       let archivedMigrationNeeded = false;
@@ -25994,7 +27753,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } else if (migrationNeeded) {
           productionLog('✅ [MIGRATION] Migrated old "Produce Scale Boost" logs to "Crop Size Boost"');
         } else if (normalizationNeeded) {
-          productionLog('✅ [MIGRATION] Normalized malformed ability names (fixed missing spaces before roman numerals)');
+          productionLog(
+            '✅ [MIGRATION] Normalized malformed ability names (fixed missing spaces before roman numerals)'
+          );
         }
       }
 
@@ -26014,11 +27775,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Sticky clear: do not remove here; will be cleared on first new log add.
       }
 
-      productionLog('📦 [STORAGE] Loading pet ability logs, found:', UnifiedState.data.petAbilityLogs.length, 'entries');
+      productionLog(
+        '📦 [STORAGE] Loading pet ability logs, found:',
+        UnifiedState.data.petAbilityLogs.length,
+        'entries'
+      );
 
       // Check if mainscript.txt pet ability logging is active
       if (window.petAbilityLogs && Array.isArray(window.petAbilityLogs)) {
-        productionLog('📝 [COMPAT] Detected mainscript.txt pet ability logging system with', window.petAbilityLogs.length, 'entries');
+        productionLog(
+          '📝 [COMPAT] Detected mainscript.txt pet ability logging system with',
+          window.petAbilityLogs.length,
+          'entries'
+        );
         productionLog('📝 [COMPAT] Both systems will run independently with separate storage');
       }
       // BUGFIX: Load from MGA_data instead of MGA_settings (saves use MGA_data)
@@ -26192,8 +27961,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Try to restore auto-favorites from backup if primary data is empty
-      if (UnifiedState.data.settings.autoFavorite.species.length === 0 &&
-              UnifiedState.data.settings.autoFavorite.mutations.length === 0) {
+      if (
+        UnifiedState.data.settings.autoFavorite.species.length === 0 &&
+        UnifiedState.data.settings.autoFavorite.mutations.length === 0
+      ) {
         try {
           const backup = localStorage.getItem('mgtools_auto_favorites');
           if (backup) {
@@ -26213,7 +27984,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Load customRooms from saved data
-      if (loadedData && loadedData.customRooms && Array.isArray(loadedData.customRooms) && loadedData.customRooms.length > 0) {
+      if (
+        loadedData &&
+        loadedData.customRooms &&
+        Array.isArray(loadedData.customRooms) &&
+        loadedData.customRooms.length > 0
+      ) {
         // Load from saved data
         UnifiedState.data.customRooms = loadedData.customRooms;
         productionLog('🏠 [ROOMS] Loaded custom rooms from storage:', UnifiedState.data.customRooms);
@@ -26228,7 +28004,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         // Custom rooms will be saved at the end of loadSavedData (line ~23444)
-        productionLog('🏠 [ROOMS] Initialized custom rooms (first time - will save at end of init):', UnifiedState.data.customRooms);
+        productionLog(
+          '🏠 [ROOMS] Initialized custom rooms (first time - will save at end of init):',
+          UnifiedState.data.customRooms
+        );
+      }
+
+      // Load room status from storage (player counts for custom rooms)
+      const savedRoomStatus = MGA_loadJSON('MGA_roomStatus', null);
+      if (savedRoomStatus && savedRoomStatus.counts) {
+        UnifiedState.data.roomStatus = savedRoomStatus;
+        productionLog('🏠 [ROOMS] Loaded saved room status:', Object.keys(savedRoomStatus.counts).length, 'rooms');
+      } else {
+        UnifiedState.data.roomStatus = { counts: {}, lastUpdate: {} };
+        productionLog('🏠 [ROOMS] Initialized empty room status (first time or no saved data)');
       }
 
       // Load hotkeys data
@@ -26312,7 +28101,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         UnifiedState.data.autoDeleteEnabled = MGA_loadJSON('MGA_autoDeleteEnabled', false);
         productionLog('📦 [STORAGE] Loaded autoDeleteEnabled from legacy key');
       }
-      productionLog('🔍 [STORAGE-DEBUG] Seeds type check:', typeof UnifiedState.data.seedsToDelete, 'length:', UnifiedState.data.seedsToDelete?.length || 0);
+      productionLog(
+        '🔍 [STORAGE-DEBUG] Seeds type check:',
+        typeof UnifiedState.data.seedsToDelete,
+        'length:',
+        UnifiedState.data.seedsToDelete?.length || 0
+      );
 
       productionLog('📦 [STORAGE] Loading seed deletion settings:', {
         seedsToDelete: UnifiedState.data.seedsToDelete.length + ' seeds',
@@ -26331,7 +28125,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Only show in debug mode - this is normal for users who haven't configured seed auto-delete
         if (UnifiedState.data.settings?.debugMode) {
           productionLog('ℹ️ [STORAGE-VERIFY] No seed auto-delete selections (not configured yet)');
-          productionLog('   localStorage check:', localStorage.getItem('MGA_seedsToDelete') ? 'Data exists' : 'No data');
+          productionLog(
+            '   localStorage check:',
+            localStorage.getItem('MGA_seedsToDelete') ? 'Data exists' : 'No data'
+          );
         }
 
         // Enhanced debugging for seeds (debug mode only)
@@ -26341,7 +28138,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const dataAsString = typeof rawSeedsData === 'string' ? rawSeedsData : JSON.stringify(rawSeedsData);
             productionLog('   Raw seeds data length:', dataAsString.length);
             productionLog('   Raw seeds data preview:', dataAsString.substring(0, 100));
-            productionLog('   Seeds data type:', typeof rawSeedsData, Array.isArray(rawSeedsData) ? `array with ${rawSeedsData.length} items` : 'not array');
+            productionLog(
+              '   Seeds data type:',
+              typeof rawSeedsData,
+              Array.isArray(rawSeedsData) ? `array with ${rawSeedsData.length} items` : 'not array'
+            );
             if (typeof rawSeedsData !== 'object') {
               console.error('❌ [STORAGE-ERROR] Seeds data exists but is not an object - storage wrapper issue!');
             }
@@ -26375,7 +28176,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Load decor protection settings from MGA_data
       if (loadedData && loadedData.lockedDecor && Array.isArray(loadedData.lockedDecor)) {
         UnifiedState.data.lockedDecor = loadedData.lockedDecor;
-        productionLog('📦 [STORAGE] Loaded decor protection locks from MGA_data:', UnifiedState.data.lockedDecor.length);
+        productionLog(
+          '📦 [STORAGE] Loaded decor protection locks from MGA_data:',
+          UnifiedState.data.lockedDecor.length
+        );
       } else {
         UnifiedState.data.lockedDecor = [];
         productionLog('📦 [STORAGE] Initialized decor protection with defaults');
@@ -26384,7 +28188,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Load pet abilities protection settings from MGA_data
       if (loadedData && loadedData.lockedPetAbilities && Array.isArray(loadedData.lockedPetAbilities)) {
         UnifiedState.data.lockedPetAbilities = loadedData.lockedPetAbilities;
-        productionLog('📦 [STORAGE] Loaded pet abilities protection locks from MGA_data:', UnifiedState.data.lockedPetAbilities.length);
+        productionLog(
+          '📦 [STORAGE] Loaded pet abilities protection locks from MGA_data:',
+          UnifiedState.data.lockedPetAbilities.length
+        );
       } else {
         UnifiedState.data.lockedPetAbilities = [];
         productionLog('📦 [STORAGE] Initialized pet abilities protection with defaults');
@@ -26402,18 +28209,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       UnifiedState.data.lastAbilityTimestamps = MGA_loadJSON('MGA_lastAbilityTimestamps', {});
 
       // Clean up old ability timestamps (keep only last 24 hours to prevent memory bloat)
-      const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
       Object.keys(UnifiedState.data.lastAbilityTimestamps).forEach(petId => {
         if (UnifiedState.data.lastAbilityTimestamps[petId] < dayAgo) {
           delete UnifiedState.data.lastAbilityTimestamps[petId];
         }
       });
 
-
       // ==================== SAVE COMPLETE STATE ====================
       // CRITICAL: Save AFTER all data has been loaded from loadedData to prevent data loss
       MGA_saveJSON('MGA_data', UnifiedState.data);
-      productionLog('💾 [STORAGE] Saved complete merged state (settings, customRooms, seedsToDelete, lockedCrops, sellBlockThreshold)');
+      productionLog(
+        '💾 [STORAGE] Saved complete merged state (settings, customRooms, seedsToDelete, lockedCrops, sellBlockThreshold)'
+      );
 
       // PERSISTENCE GUARD v3.8.6: Clear guard - initialization complete, saves now allowed
       if (window.MGA_PERSISTENCE_GUARD) {
@@ -26560,11 +28368,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Check if we're taking too long
           const elapsed = performance.now() - startTime;
-          if (elapsed > 50) { // If checks take more than 50ms
-            productionWarn(`⚠️ [PERFORMANCE] Notification checks took ${elapsed.toFixed(2)}ms - throttling next checks`);
+          if (elapsed > 50) {
+            // If checks take more than 50ms
+            productionWarn(
+              `⚠️ [PERFORMANCE] Notification checks took ${elapsed.toFixed(2)}ms - throttling next checks`
+            );
             skipNextChecks = 2; // Skip next 2 checks (20 seconds total)
           }
-
         } catch (error) {
           console.error('❌ [CRITICAL] Error in notification interval:', error);
         }
@@ -26606,10 +28416,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 const pet = activePets[petIndex];
                 const timeUntilHungry = calculateTimeUntilHungry(pet);
                 const timerText = formatHungerTimer(timeUntilHungry);
-                const timerColor = timeUntilHungry === null ? '#999' :
-                  timeUntilHungry <= 0 ? '#8B0000' :
-                    timeUntilHungry < 5 * 60 * 1000 ? '#ff4444' :
-                      timeUntilHungry < 15 * 60 * 1000 ? '#ffa500' : '#4caf50';
+                const timerColor =
+                  timeUntilHungry === null
+                    ? '#999'
+                    : timeUntilHungry <= 0
+                      ? '#8B0000'
+                      : timeUntilHungry < 5 * 60 * 1000
+                        ? '#ff4444'
+                        : timeUntilHungry < 15 * 60 * 1000
+                          ? '#ffa500'
+                          : '#4caf50';
                 element.textContent = timerText;
                 element.style.color = timerColor;
               }
@@ -26630,53 +28446,63 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // BUGFIX: Visibility-aware performance optimization (from v1.11.3)
       // Slower refresh when tab is hidden to save CPU/battery
-      document.addEventListener('visibilitychange', function() {
-        const hidden = document.hidden;
-        productionLog(`👁️ [VISIBILITY] Tab ${hidden ? 'hidden' : 'visible'} - adjusting intervals`);
+      document.addEventListener(
+        'visibilitychange',
+        function () {
+          const hidden = document.hidden;
+          productionLog(`👁️ [VISIBILITY] Tab ${hidden ? 'hidden' : 'visible'} - adjusting intervals`);
 
-        // Adjust ability monitoring interval
-        if (window.abilityMonitoringInterval) {
-          clearInterval(window.abilityMonitoringInterval);
-        }
-        window.abilityMonitoringInterval = setInterval(() => {
-          monitorPetAbilities();
-        }, hidden ? 5000 : 3000); // 5s when hidden, 3s when visible
-
-        // Adjust notification interval
-        if (window.notificationInterval) {
-          clearInterval(window.notificationInterval);
-        }
-        window.notificationInterval = setInterval(() => {
-          // ... notification logic (same as above)
-          if (skipNextChecks > 0) {
-            skipNextChecks--;
-            return;
+          // Adjust ability monitoring interval
+          if (window.abilityMonitoringInterval) {
+            clearInterval(window.abilityMonitoringInterval);
           }
-          const currentWeather = window.roomState?.child?.data?.weather || window.roomState?.weather || null;
-          const isWeatherActive = currentWeather && currentWeather !== 'none' && currentWeather !== 'clear';
-          notificationCheckCounter++;
-          if (isWeatherActive && notificationCheckCounter % 2 !== 0) return;
+          window.abilityMonitoringInterval = setInterval(
+            () => {
+              monitorPetAbilities();
+            },
+            hidden ? 5000 : 3000
+          ); // 5s when hidden, 3s when visible
 
-          const startTime = performance.now();
-          try {
-            try {
-              checkPetHunger();
-            } catch (hungerError) {
-              console.error('Error in checkPetHunger:', hungerError);
-            }
-          } catch (error) {
-            console.error('Critical error in notification checks:', error);
+          // Adjust notification interval
+          if (window.notificationInterval) {
+            clearInterval(window.notificationInterval);
           }
+          window.notificationInterval = setInterval(
+            () => {
+              // ... notification logic (same as above)
+              if (skipNextChecks > 0) {
+                skipNextChecks--;
+                return;
+              }
+              const currentWeather = window.roomState?.child?.data?.weather || window.roomState?.weather || null;
+              const isWeatherActive = currentWeather && currentWeather !== 'none' && currentWeather !== 'clear';
+              notificationCheckCounter++;
+              if (isWeatherActive && notificationCheckCounter % 2 !== 0) return;
 
-          const checkDuration = performance.now() - startTime;
-          if (checkDuration > 50) {
-            productionLog(`⏱️ [PERFORMANCE] Notification checks took ${checkDuration.toFixed(2)}ms`);
-            skipNextChecks = 2;
-          }
-        }, hidden ? 20000 : 10000); // 20s when hidden, 10s when visible
+              const startTime = performance.now();
+              try {
+                try {
+                  checkPetHunger();
+                } catch (hungerError) {
+                  console.error('Error in checkPetHunger:', hungerError);
+                }
+              } catch (error) {
+                console.error('Critical error in notification checks:', error);
+              }
 
-        productionLog(`👁️ [VISIBILITY] Intervals adjusted for ${hidden ? 'background' : 'foreground'} mode`);
-      }, { passive: true });
+              const checkDuration = performance.now() - startTime;
+              if (checkDuration > 50) {
+                productionLog(`⏱️ [PERFORMANCE] Notification checks took ${checkDuration.toFixed(2)}ms`);
+                skipNextChecks = 2;
+              }
+            },
+            hidden ? 20000 : 10000
+          ); // 20s when hidden, 10s when visible
+
+          productionLog(`👁️ [VISIBILITY] Intervals adjusted for ${hidden ? 'background' : 'foreground'} mode`);
+        },
+        { passive: true }
+      );
     }
 
     // ==================== NAVIGATION HELPERS ====================
@@ -26706,16 +28532,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     function getFocusableElements() {
-      return Array.from(targetDocument.querySelectorAll(
-        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      )).filter(el => el.offsetParent !== null); // Only visible elements
+      return Array.from(
+        targetDocument.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter(el => el.offsetParent !== null); // Only visible elements
     }
 
     function getSiblingsInDirection(element, direction) {
       const parent = element.parentElement;
-      const siblings = Array.from(parent.children).filter(el =>
-        el !== element && getFocusableElements().includes(el)
-      );
+      const siblings = Array.from(parent.children).filter(el => el !== element && getFocusableElements().includes(el));
 
       // Simple directional logic - could be enhanced with position calculations
       return siblings;
@@ -26772,7 +28598,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Close separate windows
       UnifiedState.popoutWindows.forEach(window => {
-        try { window.close(); } catch (e) {}
+        try {
+          window.close();
+        } catch (e) {}
       });
       UnifiedState.popoutWindows.clear();
     }
@@ -26888,9 +28716,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       const renderCommands = (filter = '') => {
         commandsList.innerHTML = '';
-        const filtered = commands.filter(cmd =>
-          cmd.name.toLowerCase().includes(filter.toLowerCase())
-        );
+        const filtered = commands.filter(cmd => cmd.name.toLowerCase().includes(filter.toLowerCase()));
 
         filtered.forEach((cmd, index) => {
           const item = targetDocument.createElement('div');
@@ -26988,7 +28814,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Search through all content
         const searchResults = searchAllContent(query);
-        results.innerHTML = searchResults.map(result => `
+        results.innerHTML = searchResults
+          .map(
+            result => `
                   <div style="padding: 8px; cursor: pointer; border-radius: 4px; margin: 4px 0;"
                        onmouseover="this.style.background='#374151'"
                        onmouseout="this.style.background='transparent'"
@@ -26997,7 +28825,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                       <div style="color: white; font-size: 14px;">${result.title}</div>
                       <div style="color: #9ca3af; font-size: 11px;">${result.preview}</div>
                   </div>
-              `).join('');
+              `
+          )
+          .join('');
       });
 
       input.addEventListener('keydown', e => {
@@ -27013,14 +28843,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       input.focus();
     }
 
-
     // ==================== CROP HIGHLIGHTING SYSTEM ====================
     // Ctrl+H clears highlights, UI in settings for crop highlighting
     function setupCropHighlightingSystem() {
       productionLog('🌱 [DEBUG] setupCropHighlightingSystem() called - setting up crop highlighting...');
       // FIRST: Verify crop highlighting utilities are installed
       if (typeof window.removeAllTileOverrides !== 'function') {
-        debugLog('CROP_HIGHLIGHT', 'Crop highlighting utilities not available - they should have been installed earlier');
+        debugLog(
+          'CROP_HIGHLIGHT',
+          'Crop highlighting utilities not available - they should have been installed earlier'
+        );
       } else {
         debugLog('CROP_HIGHLIGHT', 'Crop highlighting utilities confirmed available');
       }
@@ -27105,22 +28937,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         'Alt+G': () => openTabInPopout('settings'),
 
         // Navigation
-        'Tab': e => handleTabNavigation(e, true),
+        Tab: e => handleTabNavigation(e, true),
         'Shift+Tab': e => handleTabNavigation(e, false),
-        'ArrowUp': e => handleArrowNavigation(e, 'up'),
-        'ArrowDown': e => handleArrowNavigation(e, 'down'),
-        'ArrowLeft': e => handleArrowNavigation(e, 'left'),
-        'ArrowRight': e => handleArrowNavigation(e, 'right'),
+        ArrowUp: e => handleArrowNavigation(e, 'up'),
+        ArrowDown: e => handleArrowNavigation(e, 'down'),
+        ArrowLeft: e => handleArrowNavigation(e, 'left'),
+        ArrowRight: e => handleArrowNavigation(e, 'right'),
 
         // Quick Actions
         'Ctrl+K': e => openCommandPalette(e),
         'Ctrl+F': e => openQuickSearch(e),
         'Ctrl+B': () => toggleShopWindows(),
-        'Enter': e => handleEnterKey(e),
-        'Space': e => handleSpaceKey(e),
+        Enter: e => handleEnterKey(e),
+        Space: e => handleSpaceKey(e),
 
         // Window Management
-        'Escape': () => handleEscapeKey(),
+        Escape: () => handleEscapeKey(),
         'Alt+W': () => closeAllPopouts(),
         'Alt+R': () => refreshAllContent(),
 
@@ -27160,10 +28992,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           return;
         }
         // Skip if active element is an input (chat focus)
-        if (document.activeElement &&
-                  (document.activeElement.tagName === 'INPUT' ||
-                   document.activeElement.tagName === 'TEXTAREA' ||
-                   document.activeElement.isContentEditable)) {
+        if (
+          document.activeElement &&
+          (document.activeElement.tagName === 'INPUT' ||
+            document.activeElement.tagName === 'TEXTAREA' ||
+            document.activeElement.isContentEditable)
+        ) {
           return;
         }
 
@@ -27207,17 +29041,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           if (PS && typeof PS.setPosition === 'function') {
             await PS.setPosition(x, y);
             targetWindow.MagicCircle_RoomConnection.sendMessage({
-              'scopePath': [
-                'Room',
-                'Quinoa'
-              ],
-              'type': 'PlayerPosition',
-              'position': {
-                'x': x,
-                'y': y
+              scopePath: ['Room', 'Quinoa'],
+              type: 'PlayerPosition',
+              position: {
+                x: x,
+                y: y
               }
             });
-            try { globalThis.__lastLocalTeleport = { x, y, at: Date.now() }; } catch (e) {}
+            try {
+              globalThis.__lastLocalTeleport = { x, y, at: Date.now() };
+            } catch (e) {}
             return { ok: true, x, y, method: 'PlayerService.setPosition' };
           }
         } catch (e) {
@@ -27233,7 +29066,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           let positionAtom = null;
           for (const a of cache.values()) {
             const lbl = a?.debugLabel || a?.label || '';
-            if (String(lbl) === 'positionAtom') { positionAtom = a; break; }
+            if (String(lbl) === 'positionAtom') {
+              positionAtom = a;
+              break;
+            }
           }
           if (!positionAtom) return { ok: false, error: 'positionAtom not found in atom cache' };
 
@@ -27245,17 +29081,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               if (!atom || typeof atom.write !== 'function') continue;
               const orig = atom.write;
               // avoid double-wrap
-              if (atom.__lt_origWrite) { patched.push(atom); continue; }
+              if (atom.__lt_origWrite) {
+                patched.push(atom);
+                continue;
+              }
 
               atom.__lt_origWrite = orig;
-              atom.write = function(get, set, ...args) {
+              atom.write = function (get, set, ...args) {
                 if (!capturedSet) {
                   capturedSet = set;
                   // restore patched writes immediately after capture (so we don't keep wrappers)
                   for (const p of patched) {
                     if (p.__lt_origWrite) {
-                      try { p.write = p.__lt_origWrite; } catch (e) {}
-                      try { delete p.__lt_origWrite; } catch (e) {}
+                      try {
+                        p.write = p.__lt_origWrite;
+                      } catch (e) {}
+                      try {
+                        delete p.__lt_origWrite;
+                      } catch (e) {}
                     }
                   }
                 }
@@ -27265,7 +29108,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
 
             // trigger the app to call writes (same trick used before)
-            try { globalThis.dispatchEvent?.(new Event('visibilitychange')); } catch (e) {}
+            try {
+              globalThis.dispatchEvent?.(new Event('visibilitychange'));
+            } catch (e) {}
 
             // wait for capture (short loop)
             const until = Date.now() + timeout;
@@ -27276,8 +29121,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             // restore any remaining patched atoms
             for (const p of patched) {
               if (p.__lt_origWrite) {
-                try { p.write = p.__lt_origWrite; } catch (e) {}
-                try { delete p.__lt_origWrite; } catch (e) {}
+                try {
+                  p.write = p.__lt_origWrite;
+                } catch (e) {}
+                try {
+                  delete p.__lt_origWrite;
+                } catch (e) {}
               }
             }
           }
@@ -27287,7 +29136,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // perform the local-only set (this does NOT send teleport packet)
           try {
             capturedSet(positionAtom, { x, y });
-            try { globalThis.__lastLocalTeleport = { x, y, at: Date.now() }; } catch (e) {}
+            try {
+              globalThis.__lastLocalTeleport = { x, y, at: Date.now() };
+            } catch (e) {}
             return { ok: true, x, y, method: 'jotai-capture' };
           } catch (err) {
             return { ok: false, error: 'capturedSet failed: ' + String(err) };
@@ -27323,8 +29174,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         e.stopPropagation();
 
         try {
-          const slots = targetWindow.MagicCircle_RoomConnection
-            ?.lastRoomStateJsonable?.child?.data?.userSlots;
+          const slots = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable?.child?.data?.userSlots;
           if (!Array.isArray(slots)) {
             productionWarn('⚠️ userSlots not found in room state');
             return;
@@ -27387,7 +29237,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
                 // Debug: List available atoms
                 if (UnifiedState.data.settings.debugMode) {
-                  productionLog(`🔍 CLIENT: Available atoms in cache:`, Array.from(targetWindow.jotaiAtomCache.keys()).filter(key => key.includes('position') || key.includes('Position') || key.includes('player') || key.includes('Player')));
+                  productionLog(
+                    `🔍 CLIENT: Available atoms in cache:`,
+                    Array.from(targetWindow.jotaiAtomCache.keys()).filter(
+                      key =>
+                        key.includes('position') ||
+                        key.includes('Position') ||
+                        key.includes('player') ||
+                        key.includes('Player')
+                    )
+                  );
                 }
               }
             }
@@ -27410,7 +29269,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Method 1D: Fallback to PlayerService
             if (!clientUpdateSuccess) {
-              const PS = targetWindow.PlayerService || (targetWindow.Quinoa?.PlayerService);
+              const PS = targetWindow.PlayerService || targetWindow.Quinoa?.PlayerService;
               if (PS?.setPosition) {
                 await PS.setPosition(pos.x, pos.y);
                 clientUpdateSuccess = true;
@@ -27427,7 +29286,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 PlayerService: !!(targetWindow.PlayerService || targetWindow.Quinoa?.PlayerService)
               });
             }
-
           } catch (error) {
             productionLog(`❌ CLIENT: Client-side position update failed:`, error);
           }
@@ -27462,7 +29320,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             if (!serverSyncSuccess) {
               productionLog(`❌ SERVER: All server sync methods failed`);
             }
-
           } catch (error) {
             productionLog(`❌ SERVER: Server sync failed:`, error);
           }
@@ -27474,7 +29331,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           if (clientUpdateSuccess && serverSyncSuccess) {
             productionLog(`🎉 COMPLETE SUCCESS: Player teleported to (${pos.x}, ${pos.y})!`);
-            debugLog('TELEPORT', `Complete teleport success for Alt+${num} to userSlots[${num - 1}] @ (${pos.x}, ${pos.y})`);
+            debugLog(
+              'TELEPORT',
+              `Complete teleport success for Alt+${num} to userSlots[${num - 1}] @ (${pos.x}, ${pos.y})`
+            );
           } else if (clientUpdateSuccess) {
             productionWarn(`⚠️ PARTIAL: You moved but others may not see it (server sync failed)`);
           } else if (serverSyncSuccess) {
@@ -27482,7 +29342,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           } else {
             console.error(`❌ TOTAL FAILURE: Neither client nor server teleport worked`);
           }
-
         } catch (err) {
           console.error('❌ Alt-slot teleport error:', err);
           debugError('TELEPORT', 'Alt-slot teleport error', err);
@@ -27554,7 +29413,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         UnifiedState.initialized = true;
         productionLog('✅ Magic Garden Assistant Demo initialized successfully!');
         productionLog('🎯 Try the features - they work with realistic demo data');
-
       } catch (error) {
         console.error('❌ Failed to initialize demo mode:', error);
         debugError('STANDALONE_INIT', 'Demo initialization failed', error);
@@ -27569,12 +29427,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       for (let i = 0; i < count; i++) {
         tiles[i] = {
           objectType: 'plant',
-          slots: [{
-            species: species[i % species.length],
-            endTime: Date.now() - 1000, // Ready for harvest
-            targetScale: 1 + Math.random() * 0.5, // Random scale
-            mutations: i % 3 === 0 ? ['Gold'] : [] // Some have mutations
-          }]
+          slots: [
+            {
+              species: species[i % species.length],
+              endTime: Date.now() - 1000, // Ready for harvest
+              targetScale: 1 + Math.random() * 0.5, // Random scale
+              mutations: i % 3 === 0 ? ['Gold'] : [] // Some have mutations
+            }
+          ]
         };
       }
 
@@ -27624,17 +29484,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     /* ============================================================================
-       * 12. INITIALIZATION MODULE - MAIN BOOTSTRAP
-       * ============================================================================
-       * Main script initialization and startup sequence
-       */
+     * 12. INITIALIZATION MODULE - MAIN BOOTSTRAP
+     * ============================================================================
+     * Main script initialization and startup sequence
+     */
 
     /**
-       * Main script initialization function
-       * Bootstraps all modules and starts the application
-       * @function initializeScript
-       * @returns {void}
-       */
+     * Main script initialization function
+     * Bootstraps all modules and starts the application
+     * @function initializeScript
+     * @returns {void}
+     */
     function initializeScript() {
       // DEBUG: Log initialization attempt
       if (window.MGA_DEBUG) {
@@ -27670,7 +29530,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let retryCount = 0;
       const maxRetries = 3;
       // CRITICAL FIX: If game is already ready, don't delay! Only delay if we need to retry
-      const gameAlreadyReady = (targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache) && targetWindow.MagicCircle_RoomConnection;
+      const gameAlreadyReady =
+        (targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache) && targetWindow.MagicCircle_RoomConnection;
       const initialDelay = gameAlreadyReady ? 0 : 2000;
 
       const attemptInit = () => {
@@ -27703,7 +29564,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           continueInitialization();
         } else if (retryCount < maxRetries) {
           retryCount++;
-          productionLog(`⏳ Game not ready (jotaiAtomCache: ${!!targetWindow.jotaiAtomCache}, RoomConnection: ${!!targetWindow.MagicCircle_RoomConnection}), retry ${retryCount}/${maxRetries} in 1s...`);
+          productionLog(
+            `⏳ Game not ready (jotaiAtomCache: ${!!targetWindow.jotaiAtomCache}, RoomConnection: ${!!targetWindow.MagicCircle_RoomConnection}), retry ${retryCount}/${maxRetries} in 1s...`
+          );
           if (window.MGA_DEBUG) {
             window.MGA_DEBUG.logStage('GAME_NOT_READY_RETRYING', { retryCount, gameReadiness });
           }
@@ -27740,7 +29603,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       function continueInitialization() {
         productionLog('🌱 Magic Garden Unified Assistant initializing...');
-        productionLog('📊 Connection Status:', targetWindow.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
+        productionLog(
+          '📊 Connection Status:',
+          targetWindow.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found'
+        );
 
         if (window.MGA_DEBUG) {
           window.MGA_DEBUG.logStage('CONTINUE_INITIALIZATION', {
@@ -27767,7 +29633,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // ==================== SORT INVENTORY BUTTON (FIX ISSUE D) ====================
 
           // FIX BUG #1: Full autosort.txt implementation (v3.8.6) - replaces stub
-          const sortInventoryKeepHeadAndSendMovesOptimized = function(inventoryObj, options = {}) {
+          const sortInventoryKeepHeadAndSendMovesOptimized = function (inventoryObj, options = {}) {
             if (!inventoryObj || !Array.isArray(inventoryObj.items)) {
               console.error('[MGTOOLS-FIX-D] Invalid inventory object passed to sorter.');
               return null;
@@ -27778,36 +29644,63 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Default pet rarity map (lower = earlier in sort)
             const defaultPetRarityMap = {
-              'Capybara': 0, 'Peacock': 0.1, 'Butterfly': 0.2, // Mythical
-              'Turtle': 1, 'Goat': 1.1, // Legendary
-              'Cow': 2, 'Pig': 2.1, // Rare
-              'Chicken': 3, 'Dragonfly': 3.1, // Uncommon
-              'Bee': 4, 'Worm': 4.1, 'Snail': 4.2 // Common
+              Capybara: 0,
+              Peacock: 0.1,
+              Butterfly: 0.2, // Mythical
+              Turtle: 1,
+              Goat: 1.1, // Legendary
+              Cow: 2,
+              Pig: 2.1, // Rare
+              Chicken: 3,
+              Dragonfly: 3.1, // Uncommon
+              Bee: 4,
+              Worm: 4.1,
+              Snail: 4.2 // Common
             };
             const petRarityMap = Object.assign({}, defaultPetRarityMap, options.petRarityMap || {});
 
             // helpers
-            const toNum = v => (typeof v === 'number' ? v : (Number(v) || 0));
+            const toNum = v => (typeof v === 'number' ? v : Number(v) || 0);
             const toStr = v => (v == null ? '' : String(v));
 
             function groupRank(item) {
               if (!item) return 6;
               switch (item.itemType) {
-                case 'Seed': return 0;
-                case 'Produce': return 1;
-                case 'Pet': return 2;
-                case 'Egg': return 3;
-                case 'Decor': return 4;
-                default: return 5;
+                case 'Seed':
+                  return 0;
+                case 'Produce':
+                  return 1;
+                case 'Pet':
+                  return 2;
+                case 'Egg':
+                  return 3;
+                case 'Decor':
+                  return 4;
+                default:
+                  return 5;
               }
             }
 
-            function seedMetric(it) { return toNum(it.quantity); }
-            function produceMetric(it) { return toNum(it.scale); }
-            function petXpMetric(it) { return toNum(it.xp); }
-            function eggMetric(it) { return toNum(it.quantity); }
-            function decorMetric(it) { return toStr(it.decorId).toLowerCase(); }
-            function fallbackKey(it) { return (it && (it.species || it.decorId || it.toolId || it.eggId || it.id || '')).toString().toLowerCase(); }
+            function seedMetric(it) {
+              return toNum(it.quantity);
+            }
+            function produceMetric(it) {
+              return toNum(it.scale);
+            }
+            function petXpMetric(it) {
+              return toNum(it.xp);
+            }
+            function eggMetric(it) {
+              return toNum(it.quantity);
+            }
+            function decorMetric(it) {
+              return toStr(it.decorId).toLowerCase();
+            }
+            function fallbackKey(it) {
+              return (it && (it.species || it.decorId || it.toolId || it.eggId || it.id || ''))
+                .toString()
+                .toLowerCase();
+            }
 
             function petRarityRank(species) {
               if (!species) return Number.MAX_SAFE_INTEGER;
@@ -27821,20 +29714,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // comparator for tail sorting
             function cmp(a, b) {
-              const ga = groupRank(a), gb = groupRank(b);
+              const ga = groupRank(a),
+                gb = groupRank(b);
               if (ga !== gb) return ga - gb;
               switch (ga) {
-                case 0: { // Seeds: quantity desc, tie -> species A-Z
+                case 0: {
+                  // Seeds: quantity desc, tie -> species A-Z
                   const d = seedMetric(b) - seedMetric(a);
                   if (d !== 0) return d;
                   break;
                 }
-                case 1: { // Produce: scale desc
+                case 1: {
+                  // Produce: scale desc
                   const d = produceMetric(b) - produceMetric(a);
                   if (d !== 0) return d;
                   break;
                 }
-                case 2: { // Pets
+                case 2: {
+                  // Pets
                   if (petSortBy === 'rarity') {
                     const ra = petRarityRank(a.petSpecies || a.species);
                     const rb = petRarityRank(b.petSpecies || b.species);
@@ -27855,20 +29752,25 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   }
                   break;
                 }
-                case 3: { // Eggs: quantity desc
+                case 3: {
+                  // Eggs: quantity desc
                   const d = eggMetric(b) - eggMetric(a);
                   if (d !== 0) return d;
                   break;
                 }
-                case 4: { // Decor: A-Z by decorId
-                  const da = decorMetric(a), db = decorMetric(b);
+                case 4: {
+                  // Decor: A-Z by decorId
+                  const da = decorMetric(a),
+                    db = decorMetric(b);
                   if (da < db) return -1;
                   if (da > db) return 1;
                   break;
                 }
-                default: break;
+                default:
+                  break;
               }
-              const fa = fallbackKey(a), fb = fallbackKey(b);
+              const fa = fallbackKey(a),
+                fb = fallbackKey(b);
               if (fa < fb) return -1;
               if (fa > fb) return 1;
               return 0;
@@ -27925,7 +29827,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   continue;
                 }
                 // pets without id: match by petSpecies and prefer higher xp
-                if (desiredItem.itemType === 'Pet' && desiredItem.petSpecies && it.itemType === 'Pet' && it.petSpecies === desiredItem.petSpecies) {
+                if (
+                  desiredItem.itemType === 'Pet' &&
+                  desiredItem.petSpecies &&
+                  it.itemType === 'Pet' &&
+                  it.petSpecies === desiredItem.petSpecies
+                ) {
                   candidates.push({ idx: i, score: toNum(it.xp) });
                   continue;
                 }
@@ -27937,11 +29844,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 for (let i = 0; i < working.length; i++) {
                   const it = working[i];
                   if (!it) continue;
-                  if ((it.id && it.id === want) ||
-                                  (it.species && it.species === want) ||
-                                  (it.toolId && it.toolId === want) ||
-                                  (it.eggId && it.eggId === want) ||
-                                  (it.decorId && it.decorId === want)) {
+                  if (
+                    (it.id && it.id === want) ||
+                    (it.species && it.species === want) ||
+                    (it.toolId && it.toolId === want) ||
+                    (it.eggId && it.eggId === want) ||
+                    (it.decorId && it.decorId === want)
+                  ) {
                     return i;
                   }
                 }
@@ -27960,7 +29869,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 moveItemId: moveItemId,
                 toInventoryIndex: toIndex
               };
-              if (targetWindow && targetWindow.MagicCircle_RoomConnection && typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function') {
+              if (
+                targetWindow &&
+                targetWindow.MagicCircle_RoomConnection &&
+                typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function'
+              ) {
                 targetWindow.MagicCircle_RoomConnection.sendMessage(msg);
               } else {
                 console.warn('[MGTOOLS-FIX-D] MagicCircle_RoomConnection not available — simulated move:', msg);
@@ -27975,10 +29888,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
               const desiredKey = getMoveItemId(desiredItem);
               const workingKey = getMoveItemId(workingItem);
-              const alreadySame = desiredKey && workingKey && (
-                desiredKey === workingKey ||
-                          (desiredItem.species && workingItem.species && desiredItem.species === workingItem.species)
-              );
+              const alreadySame =
+                desiredKey &&
+                workingKey &&
+                (desiredKey === workingKey ||
+                  (desiredItem.species && workingItem.species && desiredItem.species === workingItem.species));
               if (alreadySame) continue;
 
               const curIndex = findIndexInWorking(desiredItem);
@@ -28008,9 +29922,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           };
 
           // Add Sort Inventory button after each CLEAR FILTERS button
-          const addSortButtonAfterClearFilters = function() {
-            const clearButtons = Array.from(targetDocument.querySelectorAll('button'))
-              .filter(btn => btn.textContent.trim().toUpperCase() === 'CLEAR FILTERS');
+          const addSortButtonAfterClearFilters = function () {
+            const clearButtons = Array.from(targetDocument.querySelectorAll('button')).filter(
+              btn => btn.textContent.trim().toUpperCase() === 'CLEAR FILTERS'
+            );
 
             clearButtons.forEach(clearButton => {
               if (clearButton.dataset.sortBtnAdded === 'true') return;
@@ -28044,12 +29959,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 const petSortBy = ev.shiftKey ? 'xp' : 'rarity';
 
                 // 3-TIER FALLBACK: UnifiedState → targetWindow → window search
-                const inventoryObj = UnifiedState.atoms.inventory ||
-                                           targetWindow.inventory ||
-                                           targetWindow.Inventory ||
-                                           targetWindow.gameInventory ||
-                                           (typeof inventory !== 'undefined' && inventory) ||
-                                           null;
+                const inventoryObj =
+                  UnifiedState.atoms.inventory ||
+                  targetWindow.inventory ||
+                  targetWindow.Inventory ||
+                  targetWindow.gameInventory ||
+                  (typeof inventory !== 'undefined' && inventory) ||
+                  null;
 
                 if (!inventoryObj || !Array.isArray(inventoryObj.items)) {
                   console.error('[MGTOOLS-FIX-D] Could not find inventory object. Searching window keys...');
@@ -28062,7 +29978,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                         sortInventoryKeepHeadAndSendMovesOptimized(candidate, { fixedCount: 9, petSortBy });
                         return;
                       }
-                    } catch (e) { /* ignore */ }
+                    } catch (e) {
+                      /* ignore */
+                    }
                   }
                   console.error('[MGTOOLS-FIX-D] ❌ Failed to find inventory object anywhere');
                   return;
@@ -28081,7 +29999,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           };
 
           // Initialize Sort Inventory button with mutation observer
-          const initializeSortInventoryButton = function() {
+          const initializeSortInventoryButton = function () {
             console.log('[MGTOOLS-FIX-D] 🚀 Initializing Sort Inventory button...');
 
             // Initial injection
@@ -28104,28 +30022,28 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // ==================== INSTANT FEED BUTTONS ====================
           // Pet species and their compatible crops (from game data)
           const PET_FEED_CATALOG = {
-            'Worm': ['Carrot', 'Strawberry', 'Aloe', 'Tomato', 'Apple'],
-            'Snail': ['Blueberry', 'Tomato', 'Corn', 'Daffodil'],
-            'Bee': ['Strawberry', 'Blueberry', 'OrangeTulip', 'Daffodil', 'Lily'],
-            'Chicken': ['Aloe', 'Corn', 'Watermelon', 'Pumpkin'],
-            'Bunny': ['Carrot', 'Strawberry', 'Blueberry', 'Echeveria'],
-            'Dragonfly': ['Apple', 'OrangeTulip', 'Echeveria'],
-            'Pig': ['Watermelon', 'Pumpkin', 'Mushroom', 'Bamboo'],
-            'Cow': ['Coconut', 'Banana', 'BurrosTail', 'Mushroom'],
-            'Squirrel': ['Pumpkin', 'Banana', 'Grape'],
-            'Turtle': ['Watermelon', 'BurrosTail', 'Bamboo', 'Pepper'],
-            'Goat': ['Pumpkin', 'Coconut', 'Cactus', 'Pepper'],
-            'Butterfly': ['Daffodil', 'Lily', 'Grape', 'Lemon', 'Sunflower'],
-            'Capybara': ['Lemon', 'PassionFruit', 'DragonFruit', 'Lychee'],
-            'Peacock': ['Cactus', 'Sunflower', 'Lychee'],
-            'Copycat': []
+            Worm: ['Carrot', 'Strawberry', 'Aloe', 'Tomato', 'Apple'],
+            Snail: ['Blueberry', 'Tomato', 'Corn', 'Daffodil'],
+            Bee: ['Strawberry', 'Blueberry', 'OrangeTulip', 'Daffodil', 'Lily'],
+            Chicken: ['Aloe', 'Corn', 'Watermelon', 'Pumpkin'],
+            Bunny: ['Carrot', 'Strawberry', 'Blueberry', 'Echeveria'],
+            Dragonfly: ['Apple', 'OrangeTulip', 'Echeveria'],
+            Pig: ['Watermelon', 'Pumpkin', 'Mushroom', 'Bamboo'],
+            Cow: ['Coconut', 'Banana', 'BurrosTail', 'Mushroom'],
+            Squirrel: ['Pumpkin', 'Banana', 'Grape'],
+            Turtle: ['Watermelon', 'BurrosTail', 'Bamboo', 'Pepper'],
+            Goat: ['Pumpkin', 'Coconut', 'Cactus', 'Pepper'],
+            Butterfly: ['Daffodil', 'Lily', 'Grape', 'Lemon', 'Sunflower'],
+            Capybara: ['Lemon', 'PassionFruit', 'DragonFruit', 'Lychee'],
+            Peacock: ['Cactus', 'Sunflower', 'Lychee'],
+            Copycat: []
           };
 
           // Safely derive the inventory item id the server expects
           const getInventoryItemId = item => item?.itemId ?? item?.inventoryItemId ?? item?.id ?? null;
 
           // Create instant feed button with game-native styling
-          const createInstantFeedButton = function(petIndex) {
+          const createInstantFeedButton = function (petIndex) {
             const btn = targetDocument.createElement('button');
             btn.className = 'mgtools-instant-feed-btn';
             btn.textContent = 'Feed'; // Always start with "Feed" text
@@ -28176,7 +30094,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               handleInstantFeed(petIndex, btn);
             });
 
-
             return btn;
           };
 
@@ -28184,7 +30101,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const usedCropIds = new Set();
 
           // Visual feedback for feed action
-          const flashButton = function(btn, type) {
+          const flashButton = function (btn, type) {
             const color = type === 'success' ? '#4CAF50' : '#F44336';
             const originalBorder = btn.style.borderColor;
             const originalShadow = btn.style.boxShadow;
@@ -28200,7 +30117,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Handle instant feed logic with auto-favorite protection (ASYNC)
           // SIMPLE INSTANT FEED - Just like native button
-          const handleInstantFeed = async function(petIndex, buttonEl) {
+          const handleInstantFeed = async function (petIndex, buttonEl) {
             if (buttonEl.disabled) return;
 
             // Show loading state AFTER click (not before)
@@ -28311,7 +30228,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               // Tier 2: UnifiedState atoms
               if (!inventoryItems || inventoryItems.length === 0) {
                 if (UnifiedState.atoms.inventory?.items) {
-                  inventoryItems = UnifiedState.atoms.inventory.items.filter(i => i.itemType === 'Produce' || i.itemType === 'Crop');
+                  inventoryItems = UnifiedState.atoms.inventory.items.filter(
+                    i => i.itemType === 'Produce' || i.itemType === 'Crop'
+                  );
                   console.log('[MGTOOLS-FIX-A] Using UnifiedState inventory (Tier 2)');
                 }
               }
@@ -28410,15 +30329,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
               // Double-check crop still exists in current inventory
               const currentInventory = inventoryItems || [];
-              const cropStillExists = currentInventory.some(item =>
-                (item.id === cropItemId) ||
-                (item.inventoryItemId === cropItemId) ||
-                (item.itemId === cropItemId)
+              const cropStillExists = currentInventory.some(
+                item => item.id === cropItemId || item.inventoryItemId === cropItemId || item.itemId === cropItemId
               );
 
               if (!cropStillExists) {
                 console.error('[Feed] Crop no longer in inventory! ID:', cropItemId);
-                console.log('[Feed] Current inventory IDs:', currentInventory.map(i => i.id || i.inventoryItemId || i.itemId));
+                console.log(
+                  '[Feed] Current inventory IDs:',
+                  currentInventory.map(i => i.id || i.inventoryItemId || i.itemId)
+                );
                 // Remove from usedCropIds to allow selecting a different crop
                 usedCropIds.delete(cropItemId);
                 flashButton(buttonEl, 'error');
@@ -28430,9 +30350,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
               // 2) Rebind/refresh petItemId from current slots (prevents stale ids)
               const slotsNow = readMyPetSlots() || [];
-              const reboundPetItemId = (slotsNow?.[petIndex]?.id) || petItemId;
+              const reboundPetItemId = slotsNow?.[petIndex]?.id || petItemId;
               if (reboundPetItemId !== petItemId) {
-                console.warn('[Feed-Guard] Rebound petItemId from slots', { old: petItemId, new: reboundPetItemId, petIndex });
+                console.warn('[Feed-Guard] Rebound petItemId from slots', {
+                  old: petItemId,
+                  new: reboundPetItemId,
+                  petIndex
+                });
               }
 
               // 3) Send with proper inventory item id
@@ -28472,7 +30396,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 buttonEl.textContent = 'Feed';
                 buttonEl.style.opacity = '1';
               }
-
             } catch (error) {
               console.error('[MGTools Feed] Error:', error);
               flashButton(buttonEl, 'error');
@@ -28485,7 +30408,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           };
 
           // Wait for pet hunger to increase (like reference implementation does)
-          const waitForHungerIncrease = async function(petIndex, previousHunger, timeout = 2000) {
+          const waitForHungerIncrease = async function (petIndex, previousHunger, timeout = 2000) {
             const startTime = performance.now();
             const HUNGER_EPSILON = 0.1; // Minimum hunger increase to consider success (0.1%)
 
@@ -28512,7 +30435,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
                   if (hungerChange >= HUNGER_EPSILON || currentHunger <= 1) {
                     // Hunger decreased (pet was fed) or pet is full
-                    console.log(`[MGTools Feed] Pet ${petIndex + 1} hunger decreased by ${hungerChange.toFixed(2)}ms (${previousHunger.toFixed(2)}ms → ${currentHunger.toFixed(2)}ms)`);
+                    console.log(
+                      `[MGTools Feed] Pet ${petIndex + 1} hunger decreased by ${hungerChange.toFixed(2)}ms (${previousHunger.toFixed(2)}ms → ${currentHunger.toFixed(2)}ms)`
+                    );
                     return { success: true, hungerBefore: previousHunger, hungerAfter: currentHunger };
                   }
                 }
@@ -28525,18 +30450,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
 
             // Timeout - operation may have failed
-            console.warn(`[MGTools Feed] Timeout waiting for pet ${petIndex + 1} hunger to change from ${previousHunger?.toFixed(2)}ms`);
+            console.warn(
+              `[MGTools Feed] Timeout waiting for pet ${petIndex + 1} hunger to change from ${previousHunger?.toFixed(2)}ms`
+            );
             return { success: false, hungerBefore: previousHunger, hungerAfter: previousHunger };
           };
 
           // Get TRULY FRESH inventory data using stored atom reference
-          const getFreshInventoryFromAtoms = async function() {
+          const getFreshInventoryFromAtoms = async function () {
             try {
               // Use getAtomValueFresh to get fresh inventory from the hooked atom
               const freshInventory = getAtomValueFresh('inventory');
 
               if (freshInventory && freshInventory.items && Array.isArray(freshInventory.items)) {
-                console.log(`[MGTools Feed] 🔄 Got FRESH inventory from hooked atom: ${freshInventory.items.length} items`);
+                console.log(
+                  `[MGTools Feed] 🔄 Got FRESH inventory from hooked atom: ${freshInventory.items.length} items`
+                );
                 return freshInventory.items;
               }
 
@@ -28555,7 +30484,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
               console.error('[MGTools Feed] No inventory data available from any source!');
               return [];
-
             } catch (error) {
               console.error('[MGTools Feed] Error getting fresh inventory:', error);
               // Final fallback
@@ -28567,7 +30495,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           let isInjecting = false;
 
           // Inject instant feed buttons next to pet avatars
-          const injectInstantFeedButtons = function() {
+          const injectInstantFeedButtons = function () {
             // Prevent re-entry while already injecting (avoids MutationObserver infinite loop)
             if (isInjecting) {
               return;
@@ -28604,21 +30532,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               const minTop = 80;
               const maxTop = viewportHeight - 100;
 
-              const petAvatarCanvases = allCanvases.filter(canvas => {
-                const rect = canvas.getBoundingClientRect();
-                const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
-                const hasReasonableSize = rect.width > 20 && rect.width < 200 &&
-                                                    rect.height > 20 && rect.height < 200;
-                const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
+              const petAvatarCanvases = allCanvases
+                .filter(canvas => {
+                  const rect = canvas.getBoundingClientRect();
+                  const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
+                  const hasReasonableSize =
+                    rect.width > 20 && rect.width < 200 && rect.height > 20 && rect.height < 200;
+                  const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
 
-                if (isOnScreen && hasReasonableSize && isInValidVerticalRange) {
-                }
+                  if (isOnScreen && hasReasonableSize && isInValidVerticalRange) {
+                  }
 
-                return isOnScreen && hasReasonableSize && isInValidVerticalRange;
-              })
+                  return isOnScreen && hasReasonableSize && isInValidVerticalRange;
+                })
                 .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
                 .slice(0, 3);
-
 
               if (petAvatarCanvases.length === 0) {
                 console.warn('[MGTools Feed] ⚠️ No pet avatar canvases found!');
@@ -28689,7 +30617,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   targetContainer.appendChild(btn);
 
                   productionLog(`[MGTools Feed] Injected feed button ${index + 1}`);
-
                 } catch (err) {
                   console.error(`[MGTools Feed] Error processing canvas ${index + 1}:`, err);
                 }
@@ -28697,7 +30624,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
               // Reset flag after successful injection
               isInjecting = false;
-
             } catch (error) {
               console.error('[MGTools Feed] Error in injectInstantFeedButtons:', error);
               isInjecting = false; // Reset flag even on error
@@ -28705,7 +30631,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           };
 
           // Initialize instant feed buttons with polling (reliable for CSS visibility changes)
-          const initializeInstantFeedButtons = function() {
+          const initializeInstantFeedButtons = function () {
             console.log('[MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...');
 
             // Try to capture jotaiStore early (but don't block if unavailable)
@@ -28728,24 +30654,27 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               const maxTop = viewportHeight - 100;
 
               // Filter to pet avatar canvases (left side, reasonable size, visible)
-              const petAvatarCanvases = allCanvases.filter(canvas => {
-                const rect = canvas.getBoundingClientRect();
+              const petAvatarCanvases = allCanvases
+                .filter(canvas => {
+                  const rect = canvas.getBoundingClientRect();
 
-                // Check if visible (not hidden with CSS)
-                const computedStyle = targetWindow.getComputedStyle(canvas);
-                const isVisible = computedStyle.display !== 'none' &&
-                                           computedStyle.visibility !== 'hidden' &&
-                                           rect.width > 0 && rect.height > 0;
+                  // Check if visible (not hidden with CSS)
+                  const computedStyle = targetWindow.getComputedStyle(canvas);
+                  const isVisible =
+                    computedStyle.display !== 'none' &&
+                    computedStyle.visibility !== 'hidden' &&
+                    rect.width > 0 &&
+                    rect.height > 0;
 
-                if (!isVisible) return false;
+                  if (!isVisible) return false;
 
-                const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
-                const hasReasonableSize = rect.width > 20 && rect.width < 200 &&
-                                                    rect.height > 20 && rect.height < 200;
-                const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
+                  const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
+                  const hasReasonableSize =
+                    rect.width > 20 && rect.width < 200 && rect.height > 20 && rect.height < 200;
+                  const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
 
-                return isOnScreen && hasReasonableSize && isInValidVerticalRange;
-              })
+                  return isOnScreen && hasReasonableSize && isInValidVerticalRange;
+                })
                 .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
                 .slice(0, 3);
 
@@ -28852,7 +30781,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
             targetWindow.MGToolsIntervals.push(pollInterval);
 
-            console.log('[MGTools Feed] ✅ Polling active (500ms) - buttons will auto-reappear when containers become visible');
+            console.log(
+              '[MGTools Feed] ✅ Polling active (500ms) - buttons will auto-reappear when containers become visible'
+            );
             productionLog('✅ [MGTools] Instant feed buttons initialized with polling detection');
           };
 
@@ -28950,7 +30881,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 console.error('[MGTools] Error initializing sort inventory button:', error);
               }
             }, 1500); // Slightly longer delay to ensure inventory UI is ready
-
           } catch (error) {
             console.error('❌ Error creating UI:', error);
 
@@ -29130,28 +31060,34 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           productionLog('✅ Magic Garden Unified Assistant initialized successfully!');
 
           // Remove test UI after successful initialization
-          const testUI = targetDocument.querySelector('div[style*="Test UI Active"]') ||
-                            targetDocument.querySelector('div[style*="MGA Test UI"]') ||
-                            Array.from(targetDocument.querySelectorAll('div')).find(div =>
-                              div.textContent && div.textContent.includes('Test UI Active'));
+          const testUI =
+            targetDocument.querySelector('div[style*="Test UI Active"]') ||
+            targetDocument.querySelector('div[style*="MGA Test UI"]') ||
+            Array.from(targetDocument.querySelectorAll('div')).find(
+              div => div.textContent && div.textContent.includes('Test UI Active')
+            );
           if (testUI) {
             testUI.remove();
             debugLog('UI_LIFECYCLE', 'Test UI removed after successful initialization');
           }
 
           // Check connection status periodically using managed interval
-          setManagedInterval('connectionCheck', () => {
-            const hasConnection = targetWindow.MagicCircle_RoomConnection &&
-                                      typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function';
-            if (!UnifiedState.connectionStatus && hasConnection) {
-              productionLog('🔌 Game connection established!');
-              UnifiedState.connectionStatus = true;
-            } else if (UnifiedState.connectionStatus && !hasConnection) {
-              productionWarn('⚠️ Game connection lost!');
-              UnifiedState.connectionStatus = false;
-            }
-          }, 5000);
-
+          setManagedInterval(
+            'connectionCheck',
+            () => {
+              const hasConnection =
+                targetWindow.MagicCircle_RoomConnection &&
+                typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function';
+              if (!UnifiedState.connectionStatus && hasConnection) {
+                productionLog('🔌 Game connection established!');
+                UnifiedState.connectionStatus = true;
+              } else if (UnifiedState.connectionStatus && !hasConnection) {
+                productionWarn('⚠️ Game connection lost!');
+                UnifiedState.connectionStatus = false;
+              }
+            },
+            5000
+          );
         } catch (error) {
           console.error('❌ Failed to initialize Magic Garden Unified Assistant:', error);
           console.error('Stack trace:', error.stack);
@@ -29215,22 +31151,22 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // More flexible game readiness check - be less strict about requirements
         const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
         const hasAtoms = atomCache && typeof atomCache === 'object';
-        const hasConnection = targetWindow.MagicCircle_RoomConnection && typeof targetWindow.MagicCircle_RoomConnection === 'object';
+        const hasConnection =
+          targetWindow.MagicCircle_RoomConnection && typeof targetWindow.MagicCircle_RoomConnection === 'object';
         const hasBasicDom = targetDocument.body && document.readyState === 'complete';
 
         // Check for alternative game indicators if primary ones fail (use regular document for game detection)
-        const hasGameElements = document.querySelector('canvas') ||
-                                    document.querySelector('[class*="game"]') ||
-                                    document.querySelector('[id*="game"]') ||
-                                    document.querySelector('div[style*="position"]');
+        const hasGameElements =
+          document.querySelector('canvas') ||
+          document.querySelector('[class*="game"]') ||
+          document.querySelector('[id*="game"]') ||
+          document.querySelector('div[style*="position"]');
 
         // Additional check: verify atoms actually contain expected keys
         const atomsReady = hasAtoms && atomCache.size > 0;
 
         // Be more lenient - initialize if we have DOM ready and some game indicators
-        if ((atomsReady && hasConnection && hasBasicDom) ||
-                  (hasBasicDom && hasGameElements && attempts >= 10)) {
-
+        if ((atomsReady && hasConnection && hasBasicDom) || (hasBasicDom && hasGameElements && attempts >= 10)) {
           if (atomsReady && hasConnection) {
             productionLog('✅ Game atoms and connection fully ready - switching to full mode');
             productionLog('📊 [GAME-READY] Atoms count:', atomCache.size);
@@ -29243,7 +31179,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         // Debug logging for what's missing
-        if (attempts % 8 === 0) { // Every 4 seconds
+        if (attempts % 8 === 0) {
+          // Every 4 seconds
           productionLog('⏳ [GAME-WAIT] Still waiting...', {
             hasAtoms,
             atomsCount: hasAtoms ? atomCache.size : 0,
@@ -29261,25 +31198,31 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       if (!checkGameReady()) {
         // Use managed interval for game check
-        setManagedInterval('gameCheck', () => {
-          attempts++;
+        setManagedInterval(
+          'gameCheck',
+          () => {
+            attempts++;
 
-          if (checkGameReady() || attempts >= maxAttempts) {
-            clearManagedInterval('gameCheck');
+            if (checkGameReady() || attempts >= maxAttempts) {
+              clearManagedInterval('gameCheck');
 
-            if (attempts >= maxAttempts) {
-              productionLog('⚠️ Game readiness timeout - falling back to demo mode');
-              productionLog('💡 You can try MGA.init() later if the game loads');
-              initializeStandalone();
+              if (attempts >= maxAttempts) {
+                productionLog('⚠️ Game readiness timeout - falling back to demo mode');
+                productionLog('💡 You can try MGA.init() later if the game loads');
+                initializeStandalone();
+              }
             }
-          }
-        }, 500);
+          },
+          500
+        );
       }
     }
 
     // Start environment-based initialization
     /* CHECKPOINT removed: CALLING_MAIN_INITIALIZATION */
-    console.log('🔍🔍🔍 [EXECUTION] Reached end of startMGAInitialization, about to call initializeBasedOnEnvironment()');
+    console.log(
+      '🔍🔍🔍 [EXECUTION] Reached end of startMGAInitialization, about to call initializeBasedOnEnvironment()'
+    );
     try {
       console.log('🔍 [EXECUTION] Calling initializeBasedOnEnvironment()...');
       initializeBasedOnEnvironment();
@@ -29312,16 +31255,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }, 5000);
 
     /* ============================================================================
-       * 13. PUBLIC API MODULE
-       * ============================================================================
-       * External interfaces and debugging utilities
-       */
+     * 13. PUBLIC API MODULE
+     * ============================================================================
+     * External interfaces and debugging utilities
+     */
 
     /**
-       * Public API for debugging and external access
-       * @namespace MGA
-       * @global
-       */
+     * Public API for debugging and external access
+     * @namespace MGA
+     * @global
+     */
     window.MGA = {
       state: UnifiedState,
 
@@ -29422,8 +31365,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         },
 
         checkConnection: () => {
-          const hasConnection = targetWindow.MagicCircle_RoomConnection &&
-                                      typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function';
+          const hasConnection =
+            targetWindow.MagicCircle_RoomConnection &&
+            typeof targetWindow.MagicCircle_RoomConnection.sendMessage === 'function';
           productionLog('🔌 Connection Status:', hasConnection ? '✅ Available' : '❌ Not Available');
           productionLog('📡 RoomConnection Object:', targetWindow.MagicCircle_RoomConnection);
           return hasConnection;
@@ -29561,14 +31505,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         abilityLogs: () => exportAbilityLogs(),
 
         allData: () => {
-          const data = JSON.stringify({
-            petPresets: UnifiedState.data.petPresets,
-            petAbilityLogs: UnifiedState.data.petAbilityLogs,
-            settings: {
-              seedsToDelete: UnifiedState.data.seedsToDelete,
-              autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled
-            }
-          }, null, 2);
+          const data = JSON.stringify(
+            {
+              petPresets: UnifiedState.data.petPresets,
+              petAbilityLogs: UnifiedState.data.petAbilityLogs,
+              settings: {
+                seedsToDelete: UnifiedState.data.seedsToDelete,
+                autoDeleteEnabled: UnifiedState.data.autoDeleteEnabled
+              }
+            },
+            null,
+            2
+          );
           const blob = new Blob([data], { type: 'application/json' });
           const link = targetDocument.createElement('a');
           link.href = URL.createObjectURL(blob);
@@ -29752,9 +31700,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       showSkeleton: (element, lines = 3) => {
         if (!element) return;
-        const skeletonLines = Array(lines).fill(0).map(() =>
-          `<div class="mga-skeleton" style="height: 20px; margin-bottom: 8px; width: ${Math.floor(Math.random() * 40 + 60)}%;"></div>`
-        ).join('');
+        const skeletonLines = Array(lines)
+          .fill(0)
+          .map(
+            () =>
+              `<div class="mga-skeleton" style="height: 20px; margin-bottom: 8px; width: ${Math.floor(Math.random() * 40 + 60)}%;"></div>`
+          )
+          .join('');
         element.innerHTML = `<div style="padding: 20px;">${skeletonLines}</div>`;
       },
 
@@ -29783,7 +31735,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // ==================== ERROR RECOVERY MECHANISMS ====================
     window.MGA_ErrorRecovery = {
       wrapFunction: (fn, fallback = null, context = 'Unknown') => {
-        return function(...args) {
+        return function (...args) {
           try {
             return fn.apply(this, args);
           } catch (error) {
@@ -29853,13 +31805,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       throttle: (func, limit) => {
         let inThrottle;
-        return function() {
+        return function () {
           const args = arguments;
           const context = this;
           if (!inThrottle) {
             func.apply(context, args);
             inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
+            setTimeout(() => (inThrottle = false), limit);
           }
         };
       },
@@ -29908,8 +31860,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (!element) return;
 
         // Don't interfere with button interactions - check if target is a button or interactive element
-        if (e.target && typeof e.target.matches === 'function' &&
-                  (e.target.matches('button, input, select, .mga-btn') || e.target.closest('button, .mga-btn'))) {
+        if (
+          e.target &&
+          typeof e.target.matches === 'function' &&
+          (e.target.matches('button, input, select, .mga-btn') || e.target.closest('button, .mga-btn'))
+        ) {
           return; // Skip tooltip for interactive elements to prevent hover interference
         }
 
@@ -29939,8 +31894,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         // Don't interfere with button hover states
-        if (e.target && typeof e.target.matches === 'function' &&
-                  (e.target.matches('button, input, select, .mga-btn') || e.target.closest('button, .mga-btn'))) {
+        if (
+          e.target &&
+          typeof e.target.matches === 'function' &&
+          (e.target.matches('button, input, select, .mga-btn') || e.target.closest('button, .mga-btn'))
+        ) {
           return;
         }
 
@@ -30052,26 +32010,27 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     styleSheet.textContent = additionalStyles;
     targetDocument.head.appendChild(styleSheet);
 
-
-
-
     // ==================== AUTO-SAVE ====================
     // Auto-save data every 30 seconds using managed interval
-    setManagedInterval('autoSave', () => {
-      MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
-      // Only save ability logs if not in clear session
-      const clearSession = localStorage.getItem('MGA_logs_clear_session');
-      if (!clearSession || (Date.now() - parseInt(clearSession, 10)) > 86400000) {
-        MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
-      }
-      MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
-      MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
+    setManagedInterval(
+      'autoSave',
+      () => {
+        MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+        // Only save ability logs if not in clear session
+        const clearSession = localStorage.getItem('MGA_logs_clear_session');
+        if (!clearSession || Date.now() - parseInt(clearSession, 10) > 86400000) {
+          MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+        }
+        MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
+        MGA_saveJSON('MGA_autoDeleteEnabled', UnifiedState.data.autoDeleteEnabled);
 
-      // Update resource tracking
-      if (window.resourceDashboard) {
-        window.resourceDashboard.updateResourceHistory();
-      }
-    }, 30000);
+        // Update resource tracking
+        if (window.resourceDashboard) {
+          window.resourceDashboard.updateResourceHistory();
+        }
+      },
+      30000
+    );
 
     // ==================== CLEANUP ====================
     window.addEventListener('beforeunload', () => {
@@ -30079,7 +32038,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
       // Only save ability logs if not in clear session
       const clearSession = localStorage.getItem('MGA_logs_clear_session');
-      if (!clearSession || (Date.now() - parseInt(clearSession, 10)) > 86400000) {
+      if (!clearSession || Date.now() - parseInt(clearSession, 10) > 86400000) {
         MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
       }
       MGA_saveJSON('MGA_seedsToDelete', UnifiedState.data.seedsToDelete);
@@ -30097,32 +32056,32 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // ==================== VERSION INFO ====================
     productionLog(
       '╔════════════════════════════════════════╗\n' +
-          '║   🌱 Magic Garden Unified Assistant    ║\n' +
-          '║            Version 1.3.2               ║\n' +
-          '║                                        ║\n' +
-          '║  🎮 Works in ANY browser console!     ║\n' +
-          '║  • Game Mode: Full integration        ║\n' +
-          '║  • Demo Mode: Standalone with samples ║\n' +
-          '║                                        ║\n' +
-          '║  Features:                             ║\n' +
-          '║  • Pet Loadout Management             ║\n' +
-          '║  • Ability Log Tracking               ║\n' +
-          '║  • Seed Deletion & Auto-Delete        ║\n' +
-          '║  • Value Calculations                 ║\n' +
-          '║  • Restock & Event Timers            ║\n' +
-          '║  • Theme Customization                ║\n' +
-          '║  • Pop-out Windows                    ║\n' +
-          '║                                        ║\n' +
-          '║  Controls:                            ║\n' +
-          '║  • window.MGA - Full API              ║\n' +
-          '║  • MGA.showPanel() - Show UI          ║\n' +
-          '║  • MGA.init() - Manual start          ║\n' +
-          '║  • Alt+M - Toggle apanel               ║\n' +
-          '║                                        ║\n' +
-          '║  Debugging (if issues occur):         ║\n' +
-          '║  • MGA.debug.debugStorage() - Storage ║\n' +
-          '║  • MGA_debugStorage() - Same as above ║\n' +
-          '╚════════════════════════════════════════╝'
+        '║   🌱 Magic Garden Unified Assistant    ║\n' +
+        '║            Version 1.3.2               ║\n' +
+        '║                                        ║\n' +
+        '║  🎮 Works in ANY browser console!     ║\n' +
+        '║  • Game Mode: Full integration        ║\n' +
+        '║  • Demo Mode: Standalone with samples ║\n' +
+        '║                                        ║\n' +
+        '║  Features:                             ║\n' +
+        '║  • Pet Loadout Management             ║\n' +
+        '║  • Ability Log Tracking               ║\n' +
+        '║  • Seed Deletion & Auto-Delete        ║\n' +
+        '║  • Value Calculations                 ║\n' +
+        '║  • Restock & Event Timers            ║\n' +
+        '║  • Theme Customization                ║\n' +
+        '║  • Pop-out Windows                    ║\n' +
+        '║                                        ║\n' +
+        '║  Controls:                            ║\n' +
+        '║  • window.MGA - Full API              ║\n' +
+        '║  • MGA.showPanel() - Show UI          ║\n' +
+        '║  • MGA.init() - Manual start          ║\n' +
+        '║  • Alt+M - Toggle apanel               ║\n' +
+        '║                                        ║\n' +
+        '║  Debugging (if issues occur):         ║\n' +
+        '║  • MGA.debug.debugStorage() - Storage ║\n' +
+        '║  • MGA_debugStorage() - Same as above ║\n' +
+        '╚════════════════════════════════════════╝'
     );
 
     // ==================== IMMEDIATE INITIALIZATION TEST ====================
@@ -30133,13 +32092,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Final checkpoint - script execution complete
     /* CHECKPOINT removed: SCRIPT_EXECUTION_COMPLETE */
     productionLog('✅ Magic Garden Assistant script finished loading');
-
   }
 })();
 
-
 /* ==== MGTP Overlay + Ability Logs Proxy + Rooms /info + WS Watcher (2025-10-07) ==== */
-(function(){
+(function () {
   'use strict';
   const d = document;
 
@@ -30147,7 +32104,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const rootHost = d.createElement('div');
   rootHost.id = 'mgtp-overlay-root';
   rootHost.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
-  const shadow = rootHost.attachShadow({ mode:'open' });
+  const shadow = rootHost.attachShadow({ mode: 'open' });
   const style = d.createElement('style');
   style.textContent = `
       .wrap{position:absolute;transform:translate(-50%,-100%); background:transparent; pointer-events:none; font-family: system-ui, sans-serif;}
@@ -30156,103 +32113,142 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       .slot{font-size:14px; color:#ffd24d;}
       .hidden{display:none;}
     `;
-  const wrap = d.createElement('div'); wrap.className = 'wrap hidden';
-  const est = d.createElement('div'); est.className = 'line estimate';
-  const slot = d.createElement('div'); slot.className = 'line slot';
-  wrap.appendChild(est); wrap.appendChild(slot);
-  shadow.appendChild(style); shadow.appendChild(wrap);
+  const wrap = d.createElement('div');
+  wrap.className = 'wrap hidden';
+  const est = d.createElement('div');
+  est.className = 'line estimate';
+  const slot = d.createElement('div');
+  slot.className = 'line slot';
+  wrap.appendChild(est);
+  wrap.appendChild(slot);
+  shadow.appendChild(style);
+  shadow.appendChild(wrap);
   d.documentElement.appendChild(rootHost);
 
-  function placeAtRect(rect){
-    wrap.style.left = (rect.left + rect.width / 2) + 'px';
-    wrap.style.top = (rect.top + 2) + 'px';
+  function placeAtRect(rect) {
+    wrap.style.left = rect.left + rect.width / 2 + 'px';
+    wrap.style.top = rect.top + 2 + 'px';
   }
-  function visible(v){ wrap.classList.toggle('hidden', !v); }
+  function visible(v) {
+    wrap.classList.toggle('hidden', !v);
+  }
 
-  function bestAnchorFrom(el){
+  function bestAnchorFrom(el) {
     try {
       if (el && el.getBoundingClientRect) return el.getBoundingClientRect();
     } catch {}
     // fallback: any visible tooltip-like container
-    const cand = d.querySelectorAll('[role="tooltip"], [data-popper-placement], .chakra-tooltip, .chakra-tooltip__popper');
-    let best = null, bestArea = -1;
-    cand.forEach(e=>{
+    const cand = d.querySelectorAll(
+      '[role="tooltip"], [data-popper-placement], .chakra-tooltip, .chakra-tooltip__popper'
+    );
+    let best = null,
+      bestArea = -1;
+    cand.forEach(e => {
       const r = e.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0){
+      if (r.width > 0 && r.height > 0) {
         // avoid pet panel/sidebar
         if (e.closest('[data-panel="pet-stats"], .pet-panel, [data-sidebar]')) return;
         const area = r.width * r.height;
-        if (area > bestArea){ bestArea = area; best = r; }
+        if (area > bestArea) {
+          bestArea = area;
+          best = r;
+        }
       }
     });
     if (best) return best;
     // viewport fallback
-    return { left: innerWidth / 2 - 1, top: innerHeight / 2 - 1, width:2, height:2 };
+    return { left: innerWidth / 2 - 1, top: innerHeight / 2 - 1, width: 2, height: 2 };
   }
 
   window.MGTP_slotOverlay = {
-    update({ estimateText, slotValueText, anchorElement } = {}){
+    update({ estimateText, slotValueText, anchorElement } = {}) {
       const hasEst = !!(estimateText && String(estimateText).trim());
       const hasSlot = !!(slotValueText && String(slotValueText).trim());
       est.textContent = hasEst ? String(estimateText) : '';
       slot.textContent = hasSlot ? String(slotValueText) : '';
-      if (!hasEst && !hasSlot){ visible(false); return; }
+      if (!hasEst && !hasSlot) {
+        visible(false);
+        return;
+      }
       const r = bestAnchorFrom(anchorElement);
       placeAtRect(r);
       visible(true);
     },
-    hide(){ visible(false); }
+    hide() {
+      visible(false);
+    }
   };
 
   // ---------- Ability Logs: Sticky Clear + Proxy dedupe ----------
   const CLEAR_FLAG = 'MGA_logs_manually_cleared';
   const SESSION_FLAG = 'MGA_logs_clear_session';
-  function clearFlagIfNeededOnAdd(){
+  function clearFlagIfNeededOnAdd() {
     // BUGFIX v3.7.8: Clear BOTH flags when new logs are added
-    if (localStorage.getItem(CLEAR_FLAG) === 'true'){
-      try { localStorage.removeItem(CLEAR_FLAG);} catch {}
+    if (localStorage.getItem(CLEAR_FLAG) === 'true') {
+      try {
+        localStorage.removeItem(CLEAR_FLAG);
+      } catch {}
     }
-    if (localStorage.getItem(SESSION_FLAG)){
-      try { localStorage.removeItem(SESSION_FLAG);} catch {}
+    if (localStorage.getItem(SESSION_FLAG)) {
+      try {
+        localStorage.removeItem(SESSION_FLAG);
+      } catch {}
     }
   }
-  function wrapLogsArray(arr){
+  function wrapLogsArray(arr) {
     let arrLocal = arr;
     if (!Array.isArray(arrLocal)) arrLocal = [];
     const seen = new Set();
-    const fp = l=> {
-      const t = (l && l.abilityType) || '', p = (l && l.petName) || '';
+    const fp = l => {
+      const t = (l && l.abilityType) || '',
+        p = (l && l.petName) || '';
       const ts = String((l && l.timestamp) || 0);
-      let h = 2166136261 >>> 0, s = (t + '|' + p + '|' + ts);
-      for (let i = 0;i < s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h,16777619); }
+      let h = 2166136261 >>> 0,
+        s = t + '|' + p + '|' + ts;
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
       return (h >>> 0).toString(36);
     };
-    const dedupePush = item=>{
+    const dedupePush = item => {
       const id = item.id || fp(item);
       if (seen.has(id)) return 0;
-      seen.add(id); arrLocal.push({ ...item, id }); return 1;
+      seen.add(id);
+      arrLocal.push({ ...item, id });
+      return 1;
     };
-      // seed seen
-    for (const it of arrLocal){ seen.add(it.id || fp(it)); }
+    // seed seen
+    for (const it of arrLocal) {
+      seen.add(it.id || fp(it));
+    }
     return new Proxy(arrLocal, {
-      get(target, prop, recv){
-        if (['push','unshift','splice','concat'].includes(prop)) {
-          return function(...args){
+      get(target, prop, recv) {
+        if (['push', 'unshift', 'splice', 'concat'].includes(prop)) {
+          return function (...args) {
             let added = 0;
-            if (prop === 'push' || prop === 'unshift'){
-              for (const it of args){ added += dedupePush(it); }
+            if (prop === 'push' || prop === 'unshift') {
+              for (const it of args) {
+                added += dedupePush(it);
+              }
               if (added > 0) clearFlagIfNeededOnAdd();
               return target.length;
             }
-            if (prop === 'splice'){
+            if (prop === 'splice') {
               // if items provided after start/deleteCount, dedupe them
-              if (args.length > 2){
-                const start = args[0] >>> 0, del = args[1] >>> 0, newItems = args.slice(2);
-                const before = target.slice(0,start);
+              if (args.length > 2) {
+                const start = args[0] >>> 0,
+                  del = args[1] >>> 0,
+                  newItems = args.slice(2);
+                const before = target.slice(0, start);
                 const after = target.slice(start + del);
                 const rebuilt = wrapLogsArray(before);
-                for (const it of newItems){ dedupePush.call({ arr:rebuilt }, it); }
-                for (const it of after){ dedupePush.call({ arr:rebuilt }, it); }
+                for (const it of newItems) {
+                  dedupePush.call({ arr: rebuilt }, it);
+                }
+                for (const it of after) {
+                  dedupePush.call({ arr: rebuilt }, it);
+                }
                 while (target.length) target.pop();
                 for (const it of rebuilt) target.push(it);
                 clearFlagIfNeededOnAdd();
@@ -30264,9 +32260,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
         return Reflect.get(target, prop, recv);
       },
-      set(target, key, val){
+      set(target, key, val) {
         // direct index sets count as add
-        if (!isNaN(key)){
+        if (!isNaN(key)) {
           const added = dedupePush(val);
           if (added > 0) clearFlagIfNeededOnAdd();
           return true;
@@ -30277,41 +32273,55 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   }
 
   // Install proxy once UnifiedState is ready
-  (function waitUnified(){
+  (function waitUnified() {
     const us = window.UnifiedState && UnifiedState.data;
-    if (us){
-      if (!us.petAbilityLogs || !us.petAbilityLogs.__proxied){
+    if (us) {
+      if (!us.petAbilityLogs || !us.petAbilityLogs.__proxied) {
         us.petAbilityLogs = wrapLogsArray(us.petAbilityLogs || []);
-        Object.defineProperty(us.petAbilityLogs, '__proxied', { value:true });
+        Object.defineProperty(us.petAbilityLogs, '__proxied', { value: true });
       }
       // Intercept clear button globally to ensure sticky clear + full purge
-      d.addEventListener('click', function(e){
-        const tgt = e.target;
-        if (tgt && tgt.id === 'clear-ability-logs'){
-          e.preventDefault(); e.stopImmediatePropagation();
-          try {
-            us.petAbilityLogs.length = 0;
-            if (typeof GM_setValue !== 'undefined'){ GM_setValue('MGA_petAbilityLogs', JSON.stringify([])); }
-            localStorage.setItem('MGA_petAbilityLogs', JSON.stringify([]));
-            localStorage.setItem(CLEAR_FLAG, 'true'); // keep sticky until next new log
-            const archKeys = ['MGA_petAbilityLogs_archive'];
-            archKeys.forEach(k=>{
-              try { if (typeof GM_setValue !== 'undefined') GM_setValue(k, JSON.stringify([])); } catch {}
-              try { localStorage.removeItem(k);} catch {}
-            });
-            if (window.updateAbilityLogDisplay){
-              try { window.updateAbilityLogDisplay(document);} catch {}
+      d.addEventListener(
+        'click',
+        function (e) {
+          const tgt = e.target;
+          if (tgt && tgt.id === 'clear-ability-logs') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            try {
+              us.petAbilityLogs.length = 0;
+              if (typeof GM_setValue !== 'undefined') {
+                GM_setValue('MGA_petAbilityLogs', JSON.stringify([]));
+              }
+              localStorage.setItem('MGA_petAbilityLogs', JSON.stringify([]));
+              localStorage.setItem(CLEAR_FLAG, 'true'); // keep sticky until next new log
+              const archKeys = ['MGA_petAbilityLogs_archive'];
+              archKeys.forEach(k => {
+                try {
+                  if (typeof GM_setValue !== 'undefined') GM_setValue(k, JSON.stringify([]));
+                } catch {}
+                try {
+                  localStorage.removeItem(k);
+                } catch {}
+              });
+              if (window.updateAbilityLogDisplay) {
+                try {
+                  window.updateAbilityLogDisplay(document);
+                } catch {}
+              }
+            } catch (err) {
+              console.error('[MGTP] clear logs failed', err);
             }
-          } catch (err){ console.error('[MGTP] clear logs failed', err); }
-        }
-      }, true);
+          }
+        },
+        true
+      );
       return;
     }
     setTimeout(waitUnified, 200);
   })();
 
-
-  function rerenderRoomsUI(){
+  function rerenderRoomsUI() {
     try {
       // BUGFIX: Use getRoomStatusTabContent directly (not window.getRoomStatusTabContent) - same scope
       if (typeof getRoomStatusTabContent !== 'function') {
@@ -30337,7 +32347,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           updated = true;
         }
       });
-    } catch (e){
+    } catch (e) {
       if (typeof logDebug === 'function') {
         logDebug('ROOMS-UI', '❌ Render error:', e);
       }
@@ -30345,7 +32355,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   }
 
   // ---------- Rooms via /api/rooms/{code}/info with Fallbacks ----------
-  (function roomsInfo(){
+  (function roomsInfo() {
     // CRITICAL: Detect correct window scope (Tampermonkey uses unsafeWindow)
     // This IIFE is in separate scope from main script, so we need to detect which window has our data
     const isUserscript = typeof unsafeWindow !== 'undefined';
@@ -30355,8 +32365,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     const globalScope = correctWindow;
     const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
     const apiBase = getApiBase();
-    const API_V1 = name=> `${apiBase}/api/rooms/${encodeURIComponent(name)}/info`;
-    const TRACKED = (correctWindow.UnifiedState?.data?.customRooms || correctWindow.TRACKED_ROOMS || ['MG1','MG2','MG3','MG4','MG5','MG6','MG7','MG8','MG9','MG10','SLAY']);
+    const API_V1 = name => `${apiBase}/api/rooms/${encodeURIComponent(name)}/info`;
+    const TRACKED = correctWindow.UnifiedState?.data?.customRooms ||
+      correctWindow.TRACKED_ROOMS || ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'SLAY'];
     let extra = new Set();
     const counts = {};
 
@@ -30369,13 +32380,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (!data) return 0;
 
       // Try multiple field names
-      const count = data?.numPlayers ??
-                     data?.players?.online ??
-                     data?.players?.count ??
-                     data?.online ??
-                     data?.count ??
-                     data?.playerCount ??
-                     0;
+      const count =
+        data?.numPlayers ??
+        data?.players?.online ??
+        data?.players?.count ??
+        data?.online ??
+        data?.count ??
+        data?.playerCount ??
+        0;
 
       return Math.max(0, Number(count) || 0);
     }
@@ -30385,7 +32397,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const r = await fetch(url, {
         method: 'GET',
         credentials: 'include',
-        headers: { 'Accept':'application/json' },
+        headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(10000)
       });
 
@@ -30408,7 +32420,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         GM_xmlhttpRequest({
           method: 'GET',
           url: url,
-          headers: { 'Accept': 'application/json' },
+          headers: { Accept: 'application/json' },
           timeout: 10000,
           onload: response => {
             if (response.status >= 200 && response.status < 300) {
@@ -30428,7 +32440,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
     }
 
-    async function fetchOne(roomIdOrName){
+    async function fetchOne(roomIdOrName) {
       const roomDebugMode = correctWindow.UnifiedState?.data?.settings?.roomDebugMode;
       const isDiscordRoom = roomIdOrName.includes('i-') && roomIdOrName.includes('-gc-');
 
@@ -30493,7 +32505,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Log failures only in debug mode
         if (roomDebugMode) {
-          console.warn(`[ROOMS] ⚠️ ${isDiscordRoom ? 'Discord room' : 'Room'} ${roomIdOrName.substring(0, 30)}... failed:`, e.message);
+          console.warn(
+            `[ROOMS] ⚠️ ${isDiscordRoom ? 'Discord room' : 'Room'} ${roomIdOrName.substring(0, 30)}... failed:`,
+            e.message
+          );
         }
       }
     }
@@ -30501,19 +32516,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Track last poll time when UI was hidden (for reduced frequency)
     let lastTickWhenHidden = 0;
 
-    async function tick(){
+    async function tick() {
       const roomDebugMode = correctWindow.UnifiedState?.data?.settings?.roomDebugMode;
 
       // SMART POLLING: Reduce frequency when Rooms UI is closed (not skip entirely)
-      const roomsUIVisible = document.querySelector('.mga-sidebar[data-visible="true"] [data-tab="rooms"]') ||
-                               document.querySelector('#room-status-list') ||
-                               document.querySelector('[data-mga-popout="rooms"]');
+      const roomsUIVisible =
+        document.querySelector('.mga-sidebar[data-visible="true"] [data-tab="rooms"]') ||
+        document.querySelector('#room-status-list') ||
+        document.querySelector('[data-mga-popout="rooms"]');
 
       // If UI not visible, only poll every 30 seconds instead of every 5 seconds
       if (!roomsUIVisible) {
         const now = Date.now();
         // Skip this tick if we polled less than 30 seconds ago while hidden
-        if (lastTickWhenHidden > 0 && (now - lastTickWhenHidden < 30000)) {
+        if (lastTickWhenHidden > 0 && now - lastTickWhenHidden < 30000) {
           if (roomDebugMode) {
             const secondsSinceLastPoll = Math.floor((now - lastTickWhenHidden) / 1000);
             console.log(`[ROOMS] ⏸️ Skipping tick - UI hidden (last poll ${secondsSinceLastPoll}s ago)`);
@@ -30530,9 +32546,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // Include Discord rooms from RoomRegistry for play1-play50 and country rooms
-      const discordRoomIds = (typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord)
-        ? correctWindow.RoomRegistry.discord.map(r => r.id)
-        : [];
+      const discordRoomIds =
+        typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord
+          ? correctWindow.RoomRegistry.discord.map(r => r.id)
+          : [];
 
       // CRITICAL: Build roomId -> name lookup for Discord rooms
       // This allows us to store counts by display name (e.g., 'PLAY1') instead of long ID
@@ -30548,7 +32565,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const names = [...TRACKED, ...extra, ...discordRoomIds];
 
       if (roomDebugMode) {
-        console.log(`[ROOMS] 🔄 Tick running: ${names.length} total rooms (${TRACKED.length} MG/Custom, ${discordRoomIds.length} Discord)`);
+        console.log(
+          `[ROOMS] 🔄 Tick running: ${names.length} total rooms (${TRACKED.length} MG/Custom, ${discordRoomIds.length} Discord)`
+        );
       }
 
       try {
@@ -30558,7 +32577,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (roomDebugMode) {
           const discordKeys = Object.keys(counts).filter(k => k.startsWith('PLAY'));
           if (discordKeys.length > 0) {
-            console.log('[ROOMS] 📝 Sample Discord room counts:', discordKeys.slice(0, 5).map(k => `${k}:${counts[k]}`).join(', '));
+            console.log(
+              '[ROOMS] 📝 Sample Discord room counts:',
+              discordKeys
+                .slice(0, 5)
+                .map(k => `${k}:${counts[k]}`)
+                .join(', ')
+            );
           }
         }
       } catch (e) {
@@ -30566,18 +32591,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // write into UnifiedState so UI updates
-      if (typeof correctWindow.UnifiedState !== 'undefined' && correctWindow.UnifiedState?.data){
+      if (typeof correctWindow.UnifiedState !== 'undefined' && correctWindow.UnifiedState?.data) {
         correctWindow.UnifiedState.data.roomStatus = correctWindow.UnifiedState.data.roomStatus || {};
         // CRITICAL: Directly replace counts to ensure fresh data
         correctWindow.UnifiedState.data.roomStatus.counts = { ...counts };
+
+        // ADDED: Persist to storage
+        MGA_saveJSON('MGA_roomStatus', correctWindow.UnifiedState.data.roomStatus);
 
         if (roomDebugMode) {
           console.log(`[ROOMS] ✅ Updated ${Object.keys(counts).length} room counts in UnifiedState`);
         }
 
         // refresh any open rooms views
-        if (typeof window.refreshSeparateWindowPopouts === 'function'){
-          try { window.refreshSeparateWindowPopouts('rooms'); } catch {}
+        if (typeof window.refreshSeparateWindowPopouts === 'function') {
+          try {
+            window.refreshSeparateWindowPopouts('rooms');
+          } catch {}
         }
         try {
           rerenderRoomsUI();
@@ -30586,31 +32616,42 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } catch {}
         // Inline rooms lists
         const list = document.getElementById('room-status-list');
-        if (list){
+        if (list) {
           // trigger the existing re-render path if available
-          if (typeof window.updateRoomStatusUI === 'function'){ window.updateRoomStatusUI(); } else {
+          if (typeof window.updateRoomStatusUI === 'function') {
+            window.updateRoomStatusUI();
+          } else {
             // minimal DOM update: replace counts in .room-count els
-            list.querySelectorAll('.room-row').forEach(row=>{
+            list.querySelectorAll('.room-row').forEach(row => {
               const code = (row.getAttribute('data-room') || '').toUpperCase();
               const span = row.querySelector('.room-count');
-              if (span && code){ span.textContent = String(counts[code] ?? window.UnifiedState.data.roomStatus.counts[code] ?? 0); }
+              if (span && code) {
+                span.textContent = String(counts[code] ?? window.UnifiedState.data.roomStatus.counts[code] ?? 0);
+              }
             });
           }
         }
       }
     }
     // Watch the search input to include searched room
-    const obs = new MutationObserver(()=>{
+    const obs = new MutationObserver(() => {
       const inp = document.getElementById('room-search-input');
-      if (inp && !inp.__mgtpBound){
+      if (inp && !inp.__mgtpBound) {
         inp.__mgtpBound = true;
-        inp.addEventListener('input', ()=>{
+        inp.addEventListener('input', () => {
           const q = (inp.value || '').trim().toUpperCase();
-          extra = new Set(q ? q.split(',').map(s=>s.trim()).filter(Boolean) : []);
+          extra = new Set(
+            q
+              ? q
+                  .split(',')
+                  .map(s => s.trim())
+                  .filter(Boolean)
+              : []
+          );
         });
       }
     });
-    obs.observe(document.documentElement, { subtree:true, childList:true });
+    obs.observe(document.documentElement, { subtree: true, childList: true });
 
     // Wait for UnifiedState and RoomRegistry to be ready before starting polling
     function startPollingWhenReady() {
@@ -30630,7 +32671,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Expose diagnostic function for testing
     // Usage: testDiscordRoomFetch() or testDiscordRoomFetch('room-id')
-    correctWindow.testDiscordRoomFetch = async function(roomId) {
+    correctWindow.testDiscordRoomFetch = async function (roomId) {
       const testId = roomId || 'i-1425232387037462538-gc-1399110335469977781-1411124424676999308';
       const url = `${apiBase}/api/rooms/${encodeURIComponent(testId)}/info`;
 
@@ -30641,7 +32682,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const response = await fetch(url, {
           method: 'GET',
           credentials: 'include',
-          headers: { 'Accept':'application/json' }
+          headers: { Accept: 'application/json' }
         });
 
         if (!response.ok) {
@@ -30652,7 +32693,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         const data = await response.json();
         console.log('[ROOMS TEST] ✅ Success! Players:', data.numPlayers ?? 'NOT FOUND', '| Full data:', data);
-
       } catch (e) {
         console.error('[ROOMS TEST] ❌ Fetch failed:', e);
       }
@@ -30670,8 +32710,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     let userNotified = false;
 
     // Platform detection for context-aware reconnection
-    const isDiscord = /discord|overlay|electron/i.test(navigator.userAgent) ||
-                          !!(window.DiscordNative || window.__discordApp);
+    const isDiscord =
+      /discord|overlay|electron/i.test(navigator.userAgent) || !!(window.DiscordNative || window.__discordApp);
     const isIframe = window !== window.top;
     const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -30680,12 +32720,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // In compat mode (Discord/managed devices), we override this to always return false
     if (typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.wsReconnectWhenHidden) {
       try {
-        const originalDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden') ||
-                                          Object.getOwnPropertyDescriptor(document, 'hidden');
+        const originalDescriptor =
+          Object.getOwnPropertyDescriptor(Document.prototype, 'hidden') ||
+          Object.getOwnPropertyDescriptor(document, 'hidden');
 
         if (originalDescriptor && originalDescriptor.get) {
           Object.defineProperty(document, 'hidden', {
-            get: function() {
+            get: function () {
               // Always return false in compat mode to allow reconnection
               return false;
             },
@@ -30696,12 +32737,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         // Also patch visibilityState
-        const originalVisibilityDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState') ||
-                                                    Object.getOwnPropertyDescriptor(document, 'visibilityState');
+        const originalVisibilityDescriptor =
+          Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState') ||
+          Object.getOwnPropertyDescriptor(document, 'visibilityState');
 
         if (originalVisibilityDescriptor && originalVisibilityDescriptor.get) {
           Object.defineProperty(document, 'visibilityState', {
-            get: function() {
+            get: function () {
               // Always return 'visible' in compat mode
               return 'visible';
             },
@@ -30881,7 +32923,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       attempts++;
 
       if (typeof productionLog === 'function') {
-        productionLog(`[WebSocket] Reconnect attempt ${attempts}/${MAX_ATTEMPTS} in ${wait}ms (code: ${code}, reason: "${reason || 'none'}")`);
+        productionLog(
+          `[WebSocket] Reconnect attempt ${attempts}/${MAX_ATTEMPTS} in ${wait}ms (code: ${code}, reason: "${reason || 'none'}")`
+        );
       }
 
       // Show user feedback
@@ -30920,7 +32964,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // Patch WebSocket constructor
-    window.WebSocket = function(url, protocols) {
+    window.WebSocket = function (url, protocols) {
       const ws = new Native(url, protocols);
 
       // Reset attempts on successful connection
@@ -31004,7 +33048,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
   // ==================== DOM UPDATE DETECTION (BACKUP METHOD) ====================
   // BUGFIX v3.7.8: Re-enabled with smarter detection to avoid false positives
-  (function() {
+  (function () {
     let updateDetected = false; // Shared flag to prevent duplicate refreshes
 
     function checkForGameUpdatePopup() {
@@ -31053,26 +33097,36 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       productionLog('✅ [DOM] Game update popup monitor initialized');
     }
   })();
-
 })();
-
 
 /* MGTOOLS_MERGE_BLOCK_v1 */
 
 /* 1) Ability Logs: ghost-free hard clear with tombstone and writers lifting the flag */
-(function(){
+(function () {
   const LOG_MAIN = 'MGA_petAbilityLogs';
   const LOG_ARCH = 'MGA_petAbilityLogs_archive';
   const FLAG = 'MGA_logs_manually_cleared';
 
-  function gmGet(k, d = null){ try { const raw = typeof GM_getValue === 'function' ? GM_getValue(k, null) : null; if (raw == null) return d; return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch {return d;} }
-  function gmSet(k, v){ try { if (typeof GM_setValue === 'function') GM_setValue(k, JSON.stringify(v)); } catch {} }
+  function gmGet(k, d = null) {
+    try {
+      const raw = typeof GM_getValue === 'function' ? GM_getValue(k, null) : null;
+      if (raw == null) return d;
+      return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch {
+      return d;
+    }
+  }
+  function gmSet(k, v) {
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(k, JSON.stringify(v));
+    } catch {}
+  }
 
   // Enforce tombstone on read paths (localStorage + GM)
   try {
     const _get = Storage.prototype.getItem;
-    if (!_get.__mgtoolsPatched){
-      Storage.prototype.getItem = function(k){
+    if (!_get.__mgtoolsPatched) {
+      Storage.prototype.getItem = function (k) {
         if ((k === LOG_MAIN || k === LOG_ARCH) && localStorage.getItem(FLAG) === 'true') return '[]';
         return _get.apply(this, arguments);
       };
@@ -31081,9 +33135,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   } catch {}
 
   try {
-    if (typeof GM_getValue === 'function' && !GM_getValue.__mgtoolsPatched){
+    if (typeof GM_getValue === 'function' && !GM_getValue.__mgtoolsPatched) {
       const _gm = GM_getValue;
-      window.GM_getValue = function(k, d){
+      window.GM_getValue = function (k, d) {
         if ((k === LOG_MAIN || k === LOG_ARCH) && localStorage.getItem(FLAG) === 'true') return '[]';
         return _gm.apply(this, arguments);
       };
@@ -31092,12 +33146,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   } catch {}
 
   try {
-    if (typeof GM_setValue === 'function' && !GM_setValue.__mgtoolsPatched){
+    if (typeof GM_setValue === 'function' && !GM_setValue.__mgtoolsPatched) {
       const _gm = GM_setValue;
-      window.GM_setValue = function(k, v){
-        if (k === LOG_MAIN){
+      window.GM_setValue = function (k, v) {
+        if (k === LOG_MAIN) {
           try {
-            const arr = Array.isArray(v) ? v : (typeof v === 'string' ? JSON.parse(v) : []);
+            const arr = Array.isArray(v) ? v : typeof v === 'string' ? JSON.parse(v) : [];
             if (arr && arr.length) localStorage.removeItem(FLAG);
           } catch {}
         }
@@ -31107,28 +33161,41 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
   } catch {}
 
-  function hardClear(){
+  function hardClear() {
     try {
       localStorage.setItem(FLAG, 'true');
       gmSet(LOG_MAIN, []);
       gmSet(LOG_ARCH, []);
-      try { localStorage.removeItem(LOG_MAIN); localStorage.removeItem(LOG_ARCH); } catch {}
+      try {
+        localStorage.removeItem(LOG_MAIN);
+        localStorage.removeItem(LOG_ARCH);
+      } catch {}
       if (window.UnifiedState?.data) window.UnifiedState.data.petAbilityLogs = [];
       if (Array.isArray(window.petAbilityLogs)) window.petAbilityLogs.length = 0;
-    } catch (e){ console.error('[MGTools] hardClear logs failed', e); }
+    } catch (e) {
+      console.error('[MGTools] hardClear logs failed', e);
+    }
   }
   window.MGTOOLS_hardClearAbilityLogs = hardClear;
 
-  document.addEventListener('click', ev=>{
-    const t = ev.target && ev.target.closest('#clear-ability-logs,[data-role="clear-ability-logs"],[data-action="clear-ability-logs"],[data-mga-clear-logs],#mga-clear-logs');
-    if (t){ hardClear(); }
-  }, true);
+  document.addEventListener(
+    'click',
+    ev => {
+      const t =
+        ev.target &&
+        ev.target.closest(
+          '#clear-ability-logs,[data-role="clear-ability-logs"],[data-action="clear-ability-logs"],[data-mga-clear-logs],#mga-clear-logs'
+        );
+      if (t) {
+        hardClear();
+      }
+    },
+    true
+  );
 
   // REMOVED v3.7.8: Startup sanitizer was preventing ability logs from persisting
   // The sanitizer ran for 16 seconds and cleared logs even after new abilities were added
   // Proper flag management already exists in the proxy (line 26681-26685)
 })();
-
-
 
 /* WebSocket reconnect handled by enhanced implementation above (lines 22603+) */
