@@ -4,8 +4,8 @@
 // @version      3.9.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
-// @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
-// @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
+// @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
+// @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
 // @match        https://starweaver.org/r/*
@@ -133,7 +133,7 @@ async function rcSend(payload, opts = {}) {
  * MGTools - Magic Garden Enhancement Suite
  * A comprehensive userscript for enhancing the Magic Garden gaming experience
  *
- * @version 3.8.9
+ * @version 3.9.3
  * @author Unified Script
  * @license MIT
  */
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.9 - UI reliability fixes and Alt+M toolbar toggle');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.9.3 - Pet swapping works everywhere + live inventory counter');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '3.9.3',
+      CURRENT: '3.9.2',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -12445,6 +12445,37 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       return sidebar;
     }
 
+    // Update inventory counter displays
+    let inventoryUpdateInterval = null;
+    function updateInventoryCounters() {
+      const inventory = UnifiedState.atoms.inventory;
+      const currentCount = inventory?.items?.length || 0;
+      const maxCount = 100;
+
+      // Determine color based on fullness
+      let inventoryColor = '#4caf50'; // Green
+      if (currentCount >= 100) {
+        inventoryColor = '#ff4444'; // Red
+      } else if (currentCount >= 95) {
+        inventoryColor = '#ffa500'; // Yellow
+      }
+
+      // Update all inventory counter elements
+      targetDocument.querySelectorAll('.shop-inventory-count, #shop-inventory-count').forEach(el => {
+        if (el.textContent !== String(currentCount)) {
+          el.textContent = currentCount;
+        }
+      });
+
+      // Update counter colors
+      targetDocument.querySelectorAll('.shop-inventory-counter, #shop-inventory-counter').forEach(el => {
+        if (el.style.color !== inventoryColor) {
+          el.style.color = inventoryColor;
+          el.style.borderLeftColor = inventoryColor;
+        }
+      });
+    }
+
     function toggleShopWindows() {
       if (shopWindowsOpen) {
         // Close both sidebars
@@ -12455,12 +12486,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           eggShopWindow.classList.remove('open');
         }
         shopWindowsOpen = false;
+
+        // Stop inventory counter updates
+        if (inventoryUpdateInterval) {
+          clearInterval(inventoryUpdateInterval);
+          inventoryUpdateInterval = null;
+        }
       } else {
         // Open both sidebars
         if (!seedShopWindow) createShopSidebars();
         seedShopWindow.classList.add('open');
         eggShopWindow.classList.add('open');
         shopWindowsOpen = true;
+
+        // Start inventory counter updates (every 500ms)
+        updateInventoryCounters(); // Update immediately
+        if (inventoryUpdateInterval) clearInterval(inventoryUpdateInterval);
+        inventoryUpdateInterval = setInterval(updateInventoryCounters, 500);
       }
     }
 
@@ -13540,6 +13582,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const eggList = contextLocal.querySelector('#shop-egg-list');
 
       if (!seedList || !eggList) return;
+
+      // Start inventory counter updates for shop tab
+      if (typeof updateInventoryCounters === 'function') {
+        updateInventoryCounters(); // Update immediately
+        // Update every 500ms while shop tab is active
+        const shopTabInterval = setInterval(() => {
+          // Stop if shop tab is no longer visible
+          if (UnifiedState.activeTab !== 'shop' && !contextLocal.querySelector('#shop-inventory-counter')) {
+            clearInterval(shopTabInterval);
+          } else {
+            updateInventoryCounters();
+          }
+        }, 500);
+      }
 
       // Seed/Egg item definition
       const SEED_SPECIES = [
@@ -28729,27 +28785,36 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      // Store current pets
-      (UnifiedState.atoms.activePets || []).forEach(p => {
-        safeSendMessage({
-          scopePath: ['Room', 'Quinoa'],
-          type: 'StorePet',
-          itemId: p.id
-        });
-      });
+      const currentPets = UnifiedState.atoms.activePets || [];
 
-      // Place preset pets with delays
-      preset.forEach((p, i) => {
-        setTimeout(() => {
-          safeSendMessage({
-            scopePath: ['Room', 'Quinoa'],
-            type: 'PlacePet',
-            itemId: p.id,
-            position: { x: 17 + i * 2, y: 13 },
-            localTileIndex: 64,
-            tileType: 'Boardwalk'
-          });
-        }, i * 50);
+      // Always use SwapPet for atomic swapping (works regardless of inventory space)
+      productionLog('[PETS] Using SwapPet for atomic swapping');
+
+      preset.forEach((presetPet, i) => {
+        const currentPet = currentPets[i];
+        if (currentPet) {
+          // Swap: active pet <-> inventory pet
+          setTimeout(() => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'SwapPet',
+              petSlotId: currentPet.id,
+              petInventoryId: presetPet.id
+            });
+          }, i * 100);
+        } else {
+          // No pet in this slot, just place
+          setTimeout(() => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'PlacePet',
+              itemId: presetPet.id,
+              position: { x: 17 + i * 2, y: 13 },
+              localTileIndex: 64,
+              tileType: 'Boardwalk'
+            });
+          }, i * 100);
+        }
       });
 
       productionLog(`✅ [PETS] Loaded pet preset`);
