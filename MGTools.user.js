@@ -7343,9 +7343,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               console.log(`🔄 [SLOT-KEY] New crop detected, reset index to 0`);
             }
 
-            if (e.key.toLowerCase() === 'x') {
+            if (e.key.toLowerCase() === 'c') {
               updateSlotIndex('forward');
-            } else if (e.key.toLowerCase() === 'c') {
+            } else if (e.key.toLowerCase() === 'x') {
               updateSlotIndex('backward');
             }
           },
