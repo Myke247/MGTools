@@ -1,5 +1,20 @@
 # Changelog - MGTools
 
+## Version 3.9.1 (2025-10-21)
+
+**Bug Fixes:**
+- Fixed custom room player counts persisting correctly
+- Fixed hotkeys no longer interfering with chat input
+- Fixed crop value display updating immediately after harvest
+
+**Improvements:**
+- Code quality and formatting improvements
+- Better code organization
+- Enhanced development tooling
+- Removed unnecessary debug console spam
+
+---
+
 ## Version 3.8.9 (2025-10-20)
 
 **New Features:**
