@@ -1,5 +1,10 @@
 # Changelog - MGTools
 
+## Version 3.9.2 (2025-10-21)
+
+**Hotfix:**
+- Fix crop value display when switching crops on plants with more than one slot
+
 ## Version 3.9.1 (2025-10-21)
 
 **Bug Fixes:**
