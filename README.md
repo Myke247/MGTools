@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.9.3** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.9.4** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.9.3-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.9.4-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -27,6 +27,7 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 ## ✨ Key Features
 
 ### 🐾 Pet Management
+
 - **NEW: Instant Feed Buttons** - Click "Feed" next to each pet to instantly feed them compatible crops
 - Save unlimited pet loadout presets
 - Quick-swap with custom hotkeys
@@ -35,18 +36,21 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - Auto-respects MGTools favorited crops
 
 ### ⚡ Ability Tracking
+
 - Real-time ability logs with timestamps
 - Notifications for important abilities (Rainbow/Gold/Egg/Plant Growth)
 - Custom filters and search
 - Clear logs and export functionality
 
 ### 🌱 Seed Manager
+
 - Auto-delete unwanted seeds by species
 - Track valuable mutations (Rainbow, Frozen, Wet, Chill)
 - Watched seed list for collection tracking
 - Bulk actions for seed management
 
 ### 💎 Value Calculators
+
 - **Live Crop Slot Values** - Shows total value when hovering over crops (centered, gold text)
 - **Turtle Timer Estimate** - Countdown shows when hovering over growing crops
 - Inventory value tracking
@@ -54,12 +58,14 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - Friend bonus integration
 
 ### ⏱️ Smart Timers
+
 - **Turtle Timer** with countdown badge on dock
 - Notifications at 100%, 50%, and ready milestones
 - Custom timers with pause/resume
 - Shop refresh tracker
 
 ### 🏠 Room Monitor & Management
+
 - **Discord Room Support** - All 87 Discord rooms show live player counts (play1-50 + country rooms)
 - **Smart Network Optimization** - 83% reduced traffic when Rooms tab is closed
 - **Custom Room Management** - Add, delete, and reorder your tracked rooms
@@ -69,12 +75,14 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - All changes save automatically and persist across sessions
 
 ### 🛒 Quick Shop
+
 - **Alt+B** hotkey for instant seed/egg/decor browsing
 - Auto-refresh detection
 - Manual refresh button
 - Stock tracking
 
 ### 🔒 Crop Protection
+
 - Lock crops by species (Pepper, Starweaver, Lychee, etc.)
 - Lock crops by mutation (Rainbow, Frozen, Wet, Chilled, Gold)
 - **Lock All Mutations** - Quick toggle for all mutation types
@@ -83,6 +91,7 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - Prevents accidental harvesting
 
 ### 🔧 Tools & Calculators
+
 - **Sell Price Calculator**
 - **Weight Probability Calculator**
 - **Pet Appearance Probability Calculator**
@@ -91,6 +100,7 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - **Wiki Resources** - Quick access to Crops, Pets, Abilities, Weather, Multipliers, Shops
 
 ### 🎨 Theme System
+
 - 15+ preset themes (Gaming, Minimal, Vibrant, Dark, Luxury, Steel, Chrome, Titanium, and more)
 - **NEW: Premium Texture System** - 25 professional texture overlays with real-time controls
 - Texture intensity slider (0-100%), scale control, 4 blend modes, animation toggle
@@ -99,12 +109,14 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - Gradient styles with 12 unique color schemes
 
 ### 🔔 Notifications
+
 - Pet hunger alerts (5min and 15min warnings)
 - Shop restock notifications
 - Ability event notifications
 - Turtle timer milestones
 
 ### ⌨️ Hotkeys
+
 - **Alt+M** - Toggle toolbar visibility (hide/show dock and sidebar)
 - Customizable keyboard shortcuts for all features
 - Tab navigation (Ctrl+1-7)
@@ -119,18 +131,21 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 ### Method 1: One-Click Install (Recommended)
 
 **For Chrome, Edge, Brave, Opera:**
+
 1. Install [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
 2. Click [**Install MGTools**](https://github.com/Myke247/MGTools/raw/main/MGTools.user.js)
 3. Click **Install** when Tampermonkey opens
 4. Done! Visit [Magic Garden](https://magiccircle.gg/r/)
 
 **For Firefox:**
+
 1. Install [Tampermonkey](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
 2. Click [**Install MGTools**](https://github.com/Myke247/MGTools/raw/main/MGTools.user.js)
 3. Click **Install** when Tampermonkey opens
 4. Done! Visit [Magic Garden](https://magiccircle.gg/r/)
 
 **For Safari:**
+
 1. Install [Tampermonkey](https://apps.apple.com/us/app/tampermonkey/id1482490089)
 2. Enable the extension in Safari preferences
 3. Click [**Install MGTools**](https://github.com/Myke247/MGTools/raw/main/MGTools.user.js)
@@ -187,12 +202,15 @@ When you first load Magic Garden with MGTools:
 The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) of your screen.
 
 **Primary Tabs** (always visible):
+
 - 🐾 Pets | ⚡ Abilities | 🌱 Seeds | 💎 Values | ⏱️ Timers | 🏠 Rooms | 🛒 Shop
 
 **Tail Group** (hover ⋯ to reveal):
+
 - 🔧 Tools | ❓ Help | 🔔 Alerts | ⌨️ Hotkeys | ⚙️ Settings
 
 **Dock Controls:**
+
 - Click **↔️/↕️** button to flip between horizontal/vertical orientation
 - **Drag** the dock to move it anywhere on screen
 - **Click** any tab to open the sidebar with that feature
@@ -203,39 +221,47 @@ The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) 
 ### Quick Actions
 
 **Save Pet Preset**:
+
 1. Go to Pets tab
 2. Arrange your pets in-game
 3. Click "Save Current Pets"
 4. Enter preset name
 
 **Load Pet Preset**:
+
 - Click preset name in Pets tab
 - Or set custom hotkey in Settings
 
 **Feed Pets Instantly**:
+
 - Look for "Feed" button next to each active pet
 - Click to automatically feed compatible crops
 - Respects your MGTools favorited crops
 
 **Open Shop**:
+
 - Press **Alt+B** to toggle seed/egg shop
 
 **Lock Crops**:
+
 1. Go to Protect tab
 2. Check species/mutations you want protected
 3. Locked crops can't be harvested until unlocked
 
 **View Crop Values**:
+
 - Stand on any crop in-game
 - Value appears in tooltip (gold text)
 - Shows total slot value with friend bonus
 
 **Set Turtle Timer**:
+
 1. Click Timers tab
 2. Click "Start Turtle Timer" when you plant
 3. Countdown appears on Timers dock badge
 
 **Manage Custom Rooms** (NEW!):
+
 1. Click Rooms tab (🏠)
 2. **Search for any room**: Type room code in search box at top
 3. **Add custom rooms**: Enter room code at bottom and click "Add"
@@ -260,6 +286,7 @@ The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) 
 ## ⌨️ Keyboard Shortcuts
 
 ### Tab Navigation
+
 - `Ctrl+1` - Pets tab
 - `Ctrl+2` - Abilities tab
 - `Ctrl+3` - Seeds tab
@@ -269,6 +296,7 @@ The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) 
 - `Ctrl+7` - Shop tab
 
 ### Quick Actions
+
 - `Alt+M` - Toggle toolbar visibility (hide/show all UI)
 - `Alt+B` - Toggle shop sidebars
 - `Escape` - Close shop/modals
@@ -277,6 +305,7 @@ The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) 
 - `Ctrl+Shift+H` - Toggle highlight panel
 
 ### Custom Hotkeys
+
 Configure your own shortcuts in the **⌨️ Hotkeys** tab!
 
 ---
@@ -284,6 +313,7 @@ Configure your own shortcuts in the **⌨️ Hotkeys** tab!
 ## 🎨 Themes & Styles
 
 ### Preset Themes (15+)
+
 1. **Gaming** - Purple/pink gradients with vibrant accents
 2. **Minimal** - Clean blue/cyan with subtle effects
 3. **Vibrant** - Bold magenta/purple energy
@@ -301,6 +331,7 @@ Configure your own shortcuts in the **⌨️ Hotkeys** tab!
 15. **Arctic** - Cool white/blue
 
 ### Gradient Styles (12 options)
+
 - Gaming, Minimal, Dark Blue, Midnight, Obsidian Gold, Purple Dream, Ocean Depths, Forest Mist, Sunset Glow, Royal Purple, Gold-Yellow, Rainbow Burst
 
 **Custom Theme Editor**: Modify every color, gradient, opacity, and effect in Settings!
@@ -350,6 +381,7 @@ Track crop growth with precision:
 MGTools works when playing Magic Garden through **Discord's activity embed**, but with limitations:
 
 **Recommended Setup:**
+
 1. Right-click the game in Discord
 2. Click **"Open in Browser"** or **"Pop Out"**
 3. MGTools will work perfectly in the new window/tab
@@ -361,6 +393,7 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 ## 🆘 Troubleshooting
 
 ### UI Not Appearing?
+
 - Make sure Tampermonkey is enabled (check browser toolbar)
 - Check that MGTools is active in Tampermonkey dashboard
 - Verify script is enabled for `magiccircle.gg` and `magicgarden.gg`
@@ -368,23 +401,27 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 - Check browser console (F12) for errors
 
 ### Crop Values Not Showing?
+
 - Make sure you're standing directly on a crop tile
 - Check that tooltip appears (hover cursor over crop)
 - Values appear in gold text below crop info
 - Try reinstalling the script (delete and reinstall from GitHub)
 
 ### Features Not Working?
+
 - Ensure you're on the latest version (check Settings → About)
 - Try exporting your data, then reinstalling the script
 - Clear browser cache and reload page
 - Check for script conflicts in Tampermonkey
 
 ### Shop Not Refreshing?
+
 - Click the **🔄 Refresh** button in shop sidebar
 - Check notifications are enabled in **🔔 Notifications** tab
 - Verify Alt+B hotkey is not conflicting with browser shortcuts
 
 ### Performance Issues?
+
 - Enable **Production Mode** in Settings (already on by default)
 - Reduce opacity to 95%+ to enable auto-compact mode
 - Disable weather effects in Settings if needed
@@ -395,12 +432,14 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 ## 📊 Data Export/Import
 
 ### Backup Your Data
+
 1. Go to **⚙️ Settings** tab
 2. Scroll to "Data Management" section
 3. Click **Export Settings**
 4. Save the `.json` file somewhere safe
 
 ### Restore Your Data
+
 1. Go to **⚙️ Settings** tab
 2. Scroll to "Data Management" section
 3. Click **Import Settings**
@@ -408,6 +447,7 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 5. All data restored instantly!
 
 ### What's Included
+
 - Pet presets (all saved loadouts)
 - Pet preset custom hotkeys
 - Seed watch lists
@@ -434,8 +474,9 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.9.2)
-- **v3.9.2**: Bug fixes and UI improvements - Fixed notification system and keyboard shortcuts. Improved code quality.
+### Latest Updates (v3.9.4)
+
+- **v3.9.4**: Notification improvements - Fixed continuous notification mode to work as intended.
 - **v3.9.1**: Bug fixes and code quality improvements - Fixed custom room player counts, hotkey chat conflicts, and crop value updates. Improved code organization.
 - **v3.8.9**: Alt+M toolbar toggle - Press Alt+M to hide/show the entire MGTools interface. State persists across reloads.
 - **v3.8.8**: Shop UI improvements - Better inventory management and accurate stock display.
@@ -453,7 +494,7 @@ Open Source - Free to use, modify, and share!
 ## 🙏 Credits
 
 **Created by**: Myke247
-*Normie, Daserix, & Ghastly
+\*Normie, Daserix, & Ghastly
 **Community**: Magic Garden players
 
 Special thanks to all contributors and testers!
@@ -468,4 +509,4 @@ Thanks for using MGTools! May your gardens flourish and your pets stay fed! 🌱
 
 ---
 
-*Made with ❤️ for the Magic Garden community*
+_Made with ❤️ for the Magic Garden community_
