@@ -133,7 +133,7 @@ async function rcSend(payload, opts = {}) {
  * MGTools - Magic Garden Enhancement Suite
  * A comprehensive userscript for enhancing the Magic Garden gaming experience
  *
- * @version 3.8.9
+ * @version 3.9.2
  * @author Unified Script
  * @license MIT
  */
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.8.9 - UI reliability fixes and Alt+M toolbar toggle');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 3.9.3 - CRITICAL: Force initialization when gameReady=true');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '3.9.1',
+      CURRENT: '3.9.2',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -1328,38 +1328,53 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Get atom from cache by label
       const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
       if (!atomCache) {
+        console.warn(`[STORE] ❌ No atom cache available`);
         return null;
       }
 
-      // Find atom with matching label
-      let targetAtom = null;
-      let atomKey = null;
+      // BUGFIX v3.9.2: The atom cache is a WeakMap keyed by ATOM OBJECT, not by string path
+      // We need to search through all entries to find the atom with matching debugLabel
+      // The cache structure is: WeakMap<AtomObject, {v: value}>
 
-      for (const [key, atom] of atomCache.entries()) {
-        const label = atom?.debugLabel || atom?.label || '';
+      let atomKey = null; // This will be the atom object itself
+      let atomPath = null; // This will be the string path (for logging)
+
+      for (const [key, value] of atomCache.entries()) {
+        // key is the atom object, value is state like {v: actualValue}
+        const label = key?.debugLabel || key?.label || '';
         if (label === atomLabel || label.includes(atomLabel)) {
-          targetAtom = atom;
-          atomKey = key;
+          atomKey = key; // Store the atom object (this is the WeakMap key)
+          atomPath = key?.debugLabel || atomLabel;
           break;
         }
       }
 
-      if (!targetAtom || !atomKey) {
+      if (!atomKey) {
+        // DIAGNOSTIC: List all atom labels to find the correct one
+        const allLabels = [];
+        for (const [key, value] of atomCache.entries()) {
+          const label = key?.debugLabel || key?.label || '(no label)';
+          if (label.toLowerCase().includes('pet') || label.toLowerCase().includes('slot')) {
+            allLabels.push(label);
+          }
+        }
+        console.warn(`[STORE] ❌ Could not find atom with label '${atomLabel}'`);
+        console.warn(`[STORE] 🔍 Pet-related atoms found in cache:`, allLabels);
         return null;
       }
 
-      // PRIORITY 1: Try direct atom cache read first (Tier 1) - v3.8.7 fix
-      // This works even when jotaiStore capture fails
+      // PRIORITY 1: Try direct atom cache read first (Tier 1) - v3.9.2 fix
+      // atomKey is the atom object, use it to get the state from the cache
       const atomState = atomCache.get(atomKey);
       if (atomState && 'v' in atomState) {
-        console.log(`[STORE] ✅ Tier 1: Read '${atomLabel}' directly from atom cache`);
+        console.log(`[STORE] ✅ Tier 1: Read '${atomLabel}' directly from atom cache (value exists)`);
         return atomState.v;
       }
 
       // PRIORITY 2: Try using jotaiStore if available (fallback)
       if (jotaiStore) {
         try {
-          const value = await jotaiStore.get(targetAtom);
+          const value = await jotaiStore.get(atomKey);
           console.log(`[STORE] ✅ Tier 2: Read '${atomLabel}' via jotaiStore`);
           return value;
         } catch (err) {
@@ -1372,7 +1387,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         jotaiStore = captureJotaiStore();
         if (jotaiStore) {
           try {
-            const value = await jotaiStore.get(targetAtom);
+            const value = await jotaiStore.get(atomKey);
             console.log(`[STORE] ✅ Tier 3: Read '${atomLabel}' via late-captured jotaiStore`);
             return value;
           } catch (err) {
@@ -1381,7 +1396,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       }
 
-      console.warn(`[STORE] ❌ Could not read atom '${atomLabel}' - all tiers failed (cache state:`, atomState, ')');
+      console.warn(
+        `[STORE] ❌ Could not read atom '${atomLabel}' - all tiers failed (atomState:`,
+        atomState,
+        'hasV:',
+        atomState && 'v' in atomState,
+        ')'
+      );
       return null;
     } catch (error) {
       console.error(`[STORE] Error getting atom '${atomLabel}':`, error);
@@ -5388,15 +5409,55 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function normalizeAbilityName(name) {
       if (!name || typeof name !== 'string') return name;
 
-      // Fix missing spaces before roman numerals
-      const normalized = name
-        .replace(/([a-z])III$/i, '$1 III') // "FinderIII" → "Finder III"
-        .replace(/([a-z])II$/i, '$1 II') // "FinderII" → "Finder II"
-        .replace(/([a-z])I$/i, '$1 I') // "FinderI" → "Finder I"
-        .replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost') // Game renamed this ability
-        .trim();
+      // Step 1: Handle legacy migration (produce scale boost → Crop Size Boost)
+      let normalized = name.replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost');
 
-      // Log normalization if name was changed
+      // Step 2: If already has spaces, just fix roman numerals and return
+      if (normalized.includes(' ')) {
+        normalized = normalized
+          .replace(/([a-z]) ?III$/i, '$1 III') // "Finder III" or "FinderIII" → "Finder III"
+          .replace(/([a-z]) ?II$/i, '$1 II') // "Finder II" or "FinderII" → "Finder II"
+          .replace(/([a-z]) ?I$/i, '$1 I') // "Finder I" or "FinderI" → "Finder I"
+          .trim();
+
+        // Log normalization if name was changed
+        if (normalized !== name && UnifiedState.data.settings?.debugMode) {
+          logDebug('ABILITY-LOGS', `📝 Normalized ability name: "${name}" → "${normalized}"`);
+        }
+
+        return normalized;
+      }
+
+      // Step 3: Convert camelCase to Title Case with spaces
+      // Game sends: PlantGrowthBoostII, EggGrowthBoostII, XPBoostI, etc.
+      // We need: Plant Growth Boost II, Egg Growth Boost II, XP Boost I, etc.
+
+      // CRITICAL: Extract roman numerals from end BEFORE camelCase conversion
+      // This prevents "II" from becoming "I I" during space insertion
+      let romanNumeral = '';
+      const romanMatch = normalized.match(/([IV]+)$/);
+      if (romanMatch) {
+        romanNumeral = romanMatch[1];
+        normalized = normalized.slice(0, -romanNumeral.length);
+      }
+
+      // Handle XP specially (preserve as uppercase)
+      normalized = normalized.replace(/XP/g, 'Xp'); // Temporarily mark as "Xp"
+
+      // Insert space before capital letters (camelCase → words)
+      normalized = normalized.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+      // Restore XP to uppercase
+      normalized = normalized.replace(/Xp/g, 'XP');
+
+      // Re-attach roman numerals with proper spacing
+      if (romanNumeral) {
+        normalized = normalized + ' ' + romanNumeral;
+      }
+
+      normalized = normalized.trim();
+
+      // Log normalization if name was changed (helps debug ability matching issues)
       if (normalized !== name && UnifiedState.data.settings?.debugMode) {
         logDebug('ABILITY-LOGS', `📝 Normalized ability name: "${name}" → "${normalized}"`);
       }
@@ -5405,13 +5466,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // List of all known ability types for validation
+    // IMPORTANT: Keep this list in sync with the notifications UI abilities list
     const KNOWN_ABILITY_TYPES = [
       // XP Boosts
       'XP Boost I',
       'XP Boost II',
       'XP Boost III',
-      'Hatch XP Boost I',
-      'Hatch XP Boost II',
+      'Hatch XP Boost',
 
       // Crop Size Boosts
       'Crop Size Boost I',
@@ -5421,30 +5482,31 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       'Sell Boost I',
       'Sell Boost II',
       'Sell Boost III',
+      'Selling Refund',
       'Coin Finder I',
       'Coin Finder II',
 
       // Harvesting
-      'Harvesting',
-      'Auto Harvest',
+      'Double Harvest',
 
       // Growth Speed
       'Plant Growth Boost I',
       'Plant Growth Boost II',
-      'Plant Growth Boost III',
       'Egg Growth Boost I',
       'Egg Growth Boost II',
 
-      // Seeds
+      // Seeds & Special Mutations
       'Seed Finder I',
       'Seed Finder II',
-      'Special Mutations',
+      'Rainbow Mutation',
+      'Gold Mutation',
 
       // Other
       'Hunger Boost I',
       'Hunger Boost II',
       'Max Strength Boost I',
-      'Max Strength Boost II'
+      'Max Strength Boost II',
+      'Crop Eater'
     ];
 
     function isKnownAbilityType(abilityType) {
@@ -14622,25 +14684,132 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Play continuous warning sound (repeats until acknowledged)
     let continuousAlarmInterval = null;
-    function startContinuousAlarm(volume = 0.4) {
-      if (continuousAlarmInterval) return; // Already playing
+    let continuousAlarmAudio = null;
 
+    function startContinuousAlarm(volume = 0.4) {
+      // Improved guard clause: Only block if both interval AND audio are active and valid
+      if (continuousAlarmInterval && continuousAlarmAudio) {
+        productionLog('🔊 [NOTIFICATIONS] Continuous alarm already playing');
+        return;
+      }
+
+      // Check if there's a custom sound uploaded for notifications
+      const customSound = GM_getValue('mgtools_custom_sound_notification', null);
+
+      if (customSound) {
+        // BUGFIX v3.9.2: Use setInterval instead of audio.loop for reliable continuous playback
+        // HTML5 audio.loop can have gaps or compatibility issues
+        continuousAlarmAudio = new Audio(customSound);
+        continuousAlarmAudio.volume = volume;
+
+        let intervalSetupComplete = false; // Prevent duplicate setup
+
+        // Helper function to set up the looping interval
+        const setupLoopingInterval = duration => {
+          if (intervalSetupComplete) return; // Already set up
+          intervalSetupComplete = true;
+
+          productionLog(`🔊 [NOTIFICATIONS] Setting up continuous alarm loop (duration: ${duration}ms)`);
+
+          // Play immediately
+          continuousAlarmAudio.play().catch(err => {
+            productionError('Failed to play custom continuous alarm:', err);
+            // Fallback to default warbling if custom sound fails
+            continuousAlarmAudio = null;
+            startDefaultContinuousAlarm(volume);
+            return;
+          });
+
+          // Set up interval to replay when audio ends
+          continuousAlarmInterval = setInterval(() => {
+            if (!continuousAlarmAudio) {
+              clearInterval(continuousAlarmInterval);
+              continuousAlarmInterval = null;
+              return;
+            }
+            continuousAlarmAudio.currentTime = 0;
+            continuousAlarmAudio.play().catch(err => {
+              productionError('Failed to loop custom continuous alarm:', err);
+              stopContinuousAlarm();
+              startDefaultContinuousAlarm(volume);
+            });
+          }, duration);
+
+          productionLog(
+            '🚨 [NOTIFICATIONS] Continuous alarm started (custom sound, looping) - requires acknowledgment!'
+          );
+        };
+
+        // BUGFIX v3.9.2: loadedmetadata doesn't fire reliably for cached audio
+        // Use multiple strategies to get duration:
+
+        // Strategy 1: loadedmetadata event (fires for newly loaded audio)
+        continuousAlarmAudio.addEventListener(
+          'loadedmetadata',
+          () => {
+            const duration = continuousAlarmAudio.duration * 1000; // Convert to ms
+            if (duration && duration !== Infinity) {
+              productionLog(`✅ [NOTIFICATIONS] Got duration from loadedmetadata: ${duration}ms`);
+              setupLoopingInterval(duration);
+            }
+          },
+          { once: true }
+        );
+
+        // Strategy 2: canplaythrough event (fires for cached audio)
+        continuousAlarmAudio.addEventListener(
+          'canplaythrough',
+          () => {
+            const duration = continuousAlarmAudio.duration * 1000; // Convert to ms
+            if (duration && duration !== Infinity) {
+              productionLog(`✅ [NOTIFICATIONS] Got duration from canplaythrough: ${duration}ms`);
+              setupLoopingInterval(duration);
+            }
+          },
+          { once: true }
+        );
+
+        // Strategy 3: Timeout fallback (if neither event fires within 500ms)
+        setTimeout(() => {
+          if (!intervalSetupComplete) {
+            productionLog('⚠️ [NOTIFICATIONS] Metadata events did not fire, using default 3s duration');
+            setupLoopingInterval(3000); // Default to 3 seconds
+          }
+        }, 500);
+
+        // Start loading
+        continuousAlarmAudio.load();
+      } else {
+        // Default warbling alarm
+        startDefaultContinuousAlarm(volume);
+        productionLog('🚨 [NOTIFICATIONS] Continuous alarm started (warbling) - requires acknowledgment!');
+      }
+    }
+
+    function startDefaultContinuousAlarm(volume) {
       let tone = 800;
       continuousAlarmInterval = setInterval(() => {
         // Warbling effect
         tone = tone === 800 ? 1200 : 800;
         playNotificationSound(tone, 300, volume);
       }, 350);
-
-      productionLog('🚨 [NOTIFICATIONS] Continuous alarm started - requires acknowledgment!');
     }
 
     function stopContinuousAlarm() {
+      // Stop interval-based alarm (default warbling)
       if (continuousAlarmInterval) {
         clearInterval(continuousAlarmInterval);
         continuousAlarmInterval = null;
-        productionLog('✅ [NOTIFICATIONS] Continuous alarm stopped');
       }
+
+      // Stop audio-based alarm (custom sound)
+      if (continuousAlarmAudio) {
+        continuousAlarmAudio.pause();
+        continuousAlarmAudio.currentTime = 0;
+        continuousAlarmAudio = null;
+      }
+
+      productionLog('✅ [NOTIFICATIONS] Continuous alarm stopped');
     }
 
     // Play epic notification (multiple tones in sequence)
@@ -14671,6 +14840,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const notifications = UnifiedState.data.settings.notifications;
       const volume = notifications.volume || 0.3;
       const type = notifications.notificationType || 'triple';
+      const continuousEnabled = notifications.continuousEnabled || false;
+
+      // BUGFIX v3.9.2: If continuous mode is enabled, ALWAYS use continuous alarm
+      // regardless of the selected notification type
+      if (continuousEnabled) {
+        productionLog(`🔊 [NOTIFICATIONS] Continuous mode enabled - using continuous alarm (ignoring ${type} setting)`);
+        startContinuousAlarm(volume);
+        return;
+      }
 
       productionLog(`🔊 [NOTIFICATIONS] Playing ${type} notification at ${Math.round(volume * 100)}% volume`);
 
@@ -14862,8 +15040,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       const hasAcknowledgmentRequired = notificationQueue.some(n => n.requiresAcknowledgment);
 
-      // If only one notification and no acknowledgment required, use regular notification
-      if (notificationQueue.length === 1 && !hasAcknowledgmentRequired) {
+      // If only one notification (regardless of acknowledgment), use single notification display
+      if (notificationQueue.length === 1) {
         const notif = notificationQueue[0];
         showVisualNotification(notif.message, notif.requiresAcknowledgment);
         notificationQueue = [];
@@ -14880,7 +15058,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      // Create batched modal (only if acknowledgment is required)
+      // Create batched modal (only for multiple notifications requiring acknowledgment)
       const notification = targetDocument.createElement('div');
       notification.className = 'mga-batched-notification';
 
@@ -14941,6 +15119,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         dismissAllNotifications();
       };
 
+      // Play the selected notification sound (including continuous alarm if enabled)
+      playSelectedNotification();
+
       // Add backdrop
       const backdrop = targetDocument.createElement('div');
       backdrop.className = 'mga-notification-backdrop';
@@ -14962,9 +15143,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       targetDocument.body.appendChild(notification);
 
       currentNotificationModal = notification;
-
-      // Stop continuous alarm if playing
-      stopContinuousAlarm();
     }
 
     // Dismiss all notifications
@@ -15119,6 +15297,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Set as current modal for tracking
         currentNotificationModal = notification;
 
+        // Play the selected notification sound (including continuous alarm if enabled)
+        playSelectedNotification();
+
         // Link backdrop removal to button click
         ackButton.onclick = () => {
           stopContinuousAlarm();
@@ -15148,6 +15329,35 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   border: 2px solid rgba(255,255,255,0.3);
               `;
         notification.textContent = message;
+
+        // Play the selected notification sound once (never continuous for auto-dismiss)
+        const notifications = UnifiedState.data.settings.notifications;
+        const volume = notifications.volume || 0.3;
+        const type = notifications.notificationType || 'triple';
+
+        // Play sound once based on type (continuous setting requires acknowledgment, so we play triple instead)
+        switch (type) {
+          case 'continuous':
+            // Continuous requires acknowledgment, so play triple tone instead for auto-dismiss
+            playNotificationSound(800, 200, volume);
+            setTimeout(() => playNotificationSound(1000, 200, volume), 250);
+            setTimeout(() => playNotificationSound(1200, 200, volume), 500);
+            break;
+          case 'triple':
+            playNotificationSound(800, 200, volume);
+            setTimeout(() => playNotificationSound(1000, 200, volume), 250);
+            setTimeout(() => playNotificationSound(1200, 200, volume), 500);
+            break;
+          case 'double':
+            playNotificationSound(800, 200, volume);
+            setTimeout(() => playNotificationSound(1200, 200, volume), 300);
+            break;
+          case 'single':
+            playNotificationSound(1000, 300, volume);
+            break;
+          default:
+            playNotificationSound(800, 200, volume);
+        }
 
         // Remove after 5 seconds
         setTimeout(() => {
@@ -16443,166 +16653,125 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function getHelpTabContent() {
       return `
               <div class="mga-section">
-                  <div class="mga-section-title">🚀 Getting Started</div>
+                  <div class="mga-section-title">❓ Basic Controls</div>
                   <div style="margin-bottom: 16px;">
-                      <p style="margin-bottom: 8px;"><strong>Magic Garden Unified</strong> provides a hybrid dock interface with powerful tools for managing pets, tracking abilities, shop automation, and resource monitoring.</p>
-                      <p style="margin-bottom: 8px;">Click dock icons to open sidebars, or Shift+Click to open floating widgets. Drag the dock from its edges to reposition.</p>
+                      <p style="margin-bottom: 12px;"><strong>MGTools adds a dock interface at the bottom/left of your screen with tabs for pets, abilities, seeds, shop, and more.</strong></p>
+
+                      <p style="margin-bottom: 8px; font-weight: bold;">How to use tabs:</p>
+                      <ul style="margin-left: 16px; margin-bottom: 12px;">
+                          <li style="margin-bottom: 4px;"><strong>Regular Click:</strong> Opens sidebar panel</li>
+                          <li style="margin-bottom: 4px;"><strong>Shift + Click:</strong> Opens floating popout window</li>
+                          <li style="margin-bottom: 4px;"><strong>Drag dock edges:</strong> Reposition the dock anywhere on screen</li>
+                          <li style="margin-bottom: 4px;"><strong>Orientation button:</strong> Toggle horizontal/vertical layout</li>
+                          <li style="margin-bottom: 4px;"><strong>Three dots (...) button:</strong> Hover to reveal Tools, Help, Settings, etc.</li>
+                      </ul>
                   </div>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">🎛️ Dock Controls</div>
-                  <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Click Icon:</strong> Opens slide-out sidebar</li>
-                      <li style="margin-bottom: 4px;"><strong>Shift+Click Icon:</strong> Opens floating popout widget</li>
-                      <li style="margin-bottom: 4px;"><strong>Drag from edges:</strong> Reposition the dock (grab cursor appears near edges)</li>
-                      <li style="margin-bottom: 4px;"><strong>↔ Icon:</strong> Toggle horizontal/vertical orientation</li>
-                      <li style="margin-bottom: 4px;"><strong>⋯ Icon:</strong> Hover to reveal Tools, Settings, Hotkeys, Notifications, Help</li>
-                  </ul>
-              </div>
+                  <div class="mga-section-title">❓ Keyboard Shortcuts</div>
+                  <div style="margin-bottom: 16px;">
+                      <p style="margin-bottom: 8px;"><strong>Built-in shortcuts:</strong></p>
+                      <ul style="margin-left: 16px; margin-bottom: 12px;">
+                          <li style="margin-bottom: 4px;"><code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt + M</code> = Hide/show all MGTools UI</li>
+                          <li style="margin-bottom: 4px;"><code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt + B</code> = Toggle shop sidebars</li>
+                          <li style="margin-bottom: 4px;"><code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Escape</code> = Close shop sidebars</li>
+                      </ul>
 
-              <div class="mga-section">
-                  <div class="mga-section-title">⌨️ Keyboard Shortcuts</div>
-                  <div class="mga-help-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin-bottom: 16px;">
-                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+B</code>
-                      <span>Toggle Shop (opens/closes both seed and egg sidebars)</span>
-                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Escape</code>
-                      <span>Close shop sidebars</span>
-                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Custom</code>
-                      <span>Set your own hotkeys for tabs and pet presets in Hotkeys tab (⌨️)</span>
+                      <p style="margin-bottom: 8px; padding: 8px; background: rgba(74, 158, 255, 0.20); border-radius: 4px; border-left: 3px solid #4a9eff;">
+                          <strong>Custom Hotkeys:</strong> Go to the Hotkeys tab (three dots menu) to set your own keyboard shortcuts for tabs and pet presets. Press any key combination you want, then save it.
+                      </p>
                   </div>
-                  <p style="font-size: 11px; color: #888; margin-top: 12px; padding: 8px; background: rgba(255, 200, 100, 0.30); border-radius: 4px; border-left: 3px solid #ffc864;">
-                      <strong>⚠️ Note:</strong> Ctrl+1-9 removed to avoid conflicts with game hotbar controls.<br>
-                      Use the Hotkeys tab to set custom keys for opening tabs and loading pet presets!
-                  </p>
-                  <p style="font-size: 11px; color: #888; margin-top: 8px; padding: 8px; background: rgba(74, 158, 255, 0.30); border-radius: 4px; border-left: 3px solid #4a9eff;">
-                      <strong>🎮 Pet Preset Hotkeys:</strong><br>
-                      • Click "Set Hotkey" button next to any preset<br>
-                      • Press your desired key combination<br>
-                      • Hotkey will instantly load that preset when pressed<br>
-                      • Perfect for quick pet swapping during gameplay!
-                  </p>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">📊 Turtle Timer & Slot Value</div>
+                  <div class="mga-section-title">❓ Pet Presets</div>
                   <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Slot Value:</strong> Always shows when standing on crops (💰 gold text)</li>
-                      <li style="margin-bottom: 4px;"><strong>Turtle Timer:</strong> Green countdown shown when turtle pet is active</li>
-                      <li style="margin-bottom: 4px;"><strong>Display Location:</strong> Appears below crop growth timer in-game</li>
-                      <li style="margin-bottom: 4px;"><strong>Values:</strong> Calculated from species value × scale × hybrid multiplier × friend bonus</li>
+                      <li style="margin-bottom: 4px;"><strong>Save:</strong> Arrange pets in-game, then click "Save Current Pets" in Pets tab</li>
+                      <li style="margin-bottom: 4px;"><strong>Load:</strong> Click preset name to instantly equip those pets</li>
+                      <li style="margin-bottom: 4px;"><strong>Hotkeys:</strong> Click "Set Hotkey" button next to preset, then press your desired key combo</li>
+                      <li style="margin-bottom: 4px;"><strong>Reorder:</strong> Drag presets or use up/down arrows to organize</li>
+                      <li style="margin-bottom: 4px;"><strong>Feed:</strong> Click "Feed" button next to active pets to auto-feed compatible crops</li>
                   </ul>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">🔴🟢 Version Indicator</div>
+                  <div class="mga-section-title">❓ Crop Protection</div>
                   <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Green Dot (●):</strong> You're up to date! ✓</li>
-                      <li style="margin-bottom: 4px;"><strong>Yellow Dot (●):</strong> Development version (newer than GitHub)</li>
-                      <li style="margin-bottom: 4px;"><strong>Red Dot (●):</strong> Update available</li>
-                      <li style="margin-bottom: 4px;"><strong>Orange Dot (●):</strong> Version check failed (network/404 error)</li>
-                      <li style="margin-bottom: 4px;"><strong>Click Dot:</strong> Manually refresh version check (bypasses GitHub cache)</li>
-                      <li style="margin-bottom: 4px;"><strong>Shift+Click Dot:</strong> Open script on GitHub (when red/orange)</li>
-                      <li style="margin-bottom: 4px;"><strong>Location:</strong> Hover ⋯ icon in dock to reveal version dot</li>
-                      <li style="margin-bottom: 4px;"><strong>How it works:</strong> Checks GitHub for version.json or magicgardenunified.user.js (tries main/master branches with cache-busting)</li>
-                      <li style="margin-bottom: 4px;"><strong>Cache delay:</strong> GitHub CDN caches files ~2-5 min, click dot to force refresh</li>
+                      <li style="margin-bottom: 4px;"><strong>Lock by Species:</strong> Check boxes for crop types you want protected (Pepper, Starweaver, etc.)</li>
+                      <li style="margin-bottom: 4px;"><strong>Lock by Mutation:</strong> Check boxes for mutations you want protected (Rainbow, Frozen, etc.)</li>
+                      <li style="margin-bottom: 4px;"><strong>Friend Bonus Protection:</strong> Set minimum bonus percentage before selling is allowed</li>
+                      <li style="margin-bottom: 4px;"><strong>Default:</strong> Everything unlocked until you check a box</li>
+                      <li style="margin-bottom: 4px;"><strong>Effect:</strong> Locked crops cannot be harvested (manual or auto) until unlocked</li>
                   </ul>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">🐾 Pet Management</div>
+                  <div class="mga-section-title">❓ Notifications</div>
                   <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Save Presets:</strong> Store your current pet setup with a custom name</li>
-                      <li style="margin-bottom: 4px;"><strong>Load Presets:</strong> Quickly deploy saved pet configurations</li>
-                      <li style="margin-bottom: 4px;"><strong>Reorder Presets:</strong> Use ↑↓ arrows or drag-and-drop to organize your preset list</li>
+                      <li style="margin-bottom: 4px;"><strong>Sound Types:</strong> Choose beep, alarm, fanfare, or continuous</li>
+                      <li style="margin-bottom: 4px;"><strong>Continuous Mode:</strong> Enable checkbox to make alarm loop until you click "Acknowledge"</li>
+                      <li style="margin-bottom: 4px;"><strong>Prompts:</strong> When enabled, shows red modal requiring click to dismiss</li>
+                      <li style="margin-bottom: 4px;"><strong>Test Button:</strong> Click to preview your current notification settings</li>
+                      <li style="margin-bottom: 4px;"><strong>Custom Sounds:</strong> Upload your own audio files for notifications</li>
                   </ul>
-              </div>
-
-              <div class="mga-section">
-                  <div class="mga-section-title">🔒 Crop Protection</div>
-                  <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Lock Species:</strong> Prevent harvesting specific crop types (e.g., Pepper, Starweaver)</li>
-                      <li style="margin-bottom: 4px;"><strong>Lock Mutations:</strong> Block harvesting crops with certain mutations (Rainbow, Frozen)</li>
-                      <li style="margin-bottom: 4px;"><strong>All Unlocked by Default:</strong> Crops can be harvested normally until you lock them</li>
-                      <li style="margin-bottom: 4px;"><strong>Sell Protection:</strong> Set minimum friend bonus threshold (1.0x-1.5x / 0%-50%) before selling allowed</li>
-                      <li style="margin-bottom: 4px;"><strong>Smart Blocking:</strong> Prevents both manual and automated harvesting of locked crops</li>
-                      <li style="margin-bottom: 4px;"><strong>Real-time Updates:</strong> Changes take effect immediately without reload</li>
-                      <li style="margin-bottom: 4px;"><strong>Status Display:</strong> View all currently protected crops at a glance</li>
-                  </ul>
-                  <p style="font-size: 11px; color: #888; margin-top: 12px; padding: 8px; background: rgba(74, 158, 255, 0.30); border-radius: 4px; border-left: 3px solid #4a9eff;">
-                      <strong>💡 Pro Tip:</strong> Use crop protection to safeguard valuable mutations while auto-harvesting everything else. Set sell protection to 1.5x (50% bonus) to ensure you only sell during maximum friend bonus!
+                  <p style="margin-bottom: 8px; padding: 8px; background: rgba(255, 200, 100, 0.20); border-radius: 4px; border-left: 3px solid #ffc864;">
+                      <strong>Note:</strong> First time using notifications, you may need to click somewhere on the page first due to browser autoplay restrictions.
                   </p>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">⚡ Ability Tracking</div>
+                  <div class="mga-section-title">❓ Shop Interface</div>
                   <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Automatic Logging:</strong> All pet abilities are tracked automatically</li>
-                      <li style="margin-bottom: 4px;"><strong>Filter by Category:</strong> View specific types of abilities (XP, Selling, etc.)</li>
-                      <li style="margin-bottom: 4px;"><strong>Filter by Pet:</strong> See abilities from specific pet species</li>
-                      <li style="margin-bottom: 4px;"><strong>Detailed Timestamps:</strong> Enable to show HH:MM:SS format timestamps</li>
-                      <li style="margin-bottom: 4px;"><strong>Export Data:</strong> Download ability logs as CSV for analysis</li>
+                      <li style="margin-bottom: 4px;"><strong>Open Shop:</strong> Press Alt+B or click Shop tab</li>
+                      <li style="margin-bottom: 4px;"><strong>Layout:</strong> Seeds on left sidebar, eggs on right sidebar</li>
+                      <li style="margin-bottom: 4px;"><strong>Purchase:</strong> Click "Buy 1" or "Buy All" buttons</li>
+                      <li style="margin-bottom: 4px;"><strong>Restock Detection:</strong> Automatically resets purchase counts when shop restocks</li>
+                      <li style="margin-bottom: 4px;"><strong>Notifications:</strong> Get alerts for rare items (configure in Notifications tab)</li>
                   </ul>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">🌱 Seeds & Automation</div>
+                  <div class="mga-section-title">❓ Crop Values & Timer</div>
                   <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Mass Deletion:</strong> Select multiple seed types for bulk deletion</li>
-                      <li style="margin-bottom: 4px;"><strong>Auto-Delete:</strong> Automatically remove unwanted seeds as they appear</li>
-                      <li style="margin-bottom: 4px;"><strong>Value Calculation:</strong> See total value of selected seeds before deletion</li>
-                      <li style="margin-bottom: 4px;"><strong>Quick Selection:</strong> Use preset buttons for common seed types</li>
+                      <li style="margin-bottom: 4px;"><strong>Slot Value:</strong> Stand on any crop to see total value (gold text)</li>
+                      <li style="margin-bottom: 4px;"><strong>Turtle Timer:</strong> Green countdown when turtle pet is active</li>
+                      <li style="margin-bottom: 4px;"><strong>Location:</strong> Appears below crop growth timer in-game tooltip</li>
+                      <li style="margin-bottom: 4px;"><strong>Calculation:</strong> Species value × scale × hybrid × friend bonus</li>
                   </ul>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">🛒 Shop Interface</div>
+                  <div class="mga-section-title">❓ Version Indicator</div>
                   <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Dual Sidebars:</strong> Seeds on left, eggs on right (both open together)</li>
-                      <li style="margin-bottom: 4px;"><strong>Color-Coded Names:</strong> Item rarity shown by text color (rainbow for celestial)</li>
-                      <li style="margin-bottom: 4px;"><strong>Auto-Restock Detection:</strong> Purchase tracking resets when shop restocks</li>
-                      <li style="margin-bottom: 4px;"><strong>Sort & Filter:</strong> Show available only, sort by value</li>
-                      <li style="margin-bottom: 4px;"><strong>Quick Purchase:</strong> Buy 1 or All buttons for each item</li>
-                  </ul>
-              </div>
-
-              <div class="mga-section">
-                  <div class="mga-section-title">🔔 Notifications</div>
-                  <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Shop Monitoring:</strong> Get alerts when rare seeds/eggs appear</li>
-                      <li style="margin-bottom: 4px;"><strong>Multiple Notifications:</strong> Single click dismisses all pending alerts</li>
-                      <li style="margin-bottom: 4px;"><strong>Continuous Mode:</strong> Must be enabled via checkbox for persistent alerts</li>
-                      <li style="margin-bottom: 4px;"><strong>Sound Types:</strong> Choose from beep, alarm, fanfare, or continuous alerts</li>
-                  </ul>
-              </div>
-
-              <div class="mga-section">
-                  <div class="mga-section-title">🎨 Customization</div>
-                  <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Themes:</strong> Switch between normal, dark, and other visual themes</li>
-                      <li style="margin-bottom: 4px;"><strong>Compact Modes:</strong> Use compact or ultra-compact layouts to save space</li>
-                      <li style="margin-bottom: 4px;"><strong>Overlays:</strong> Pop out tabs into separate in-game overlays</li>
-                      <li style="margin-bottom: 4px;"><strong>Crop Highlighting:</strong> Visually highlight specific crops in your garden</li>
+                      <li style="margin-bottom: 4px;"><strong>Green Dot:</strong> Up to date</li>
+                      <li style="margin-bottom: 4px;"><strong>Red Dot:</strong> Update available</li>
+                      <li style="margin-bottom: 4px;"><strong>Yellow Dot:</strong> Development version</li>
+                      <li style="margin-bottom: 4px;"><strong>Orange Dot:</strong> Version check failed</li>
+                      <li style="margin-bottom: 4px;"><strong>Click Dot:</strong> Manually check for updates</li>
+                      <li style="margin-bottom: 4px;"><strong>Shift + Click Dot:</strong> Open GitHub page (when update available)</li>
                   </ul>
               </div>
 
               <div class="mga-section">
                   <div class="mga-section-title">❓ Troubleshooting</div>
                   <ul style="margin-left: 16px; margin-bottom: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Crop Highlighting Not Working:</strong> Ensure the game is fully loaded before using highlighting</li>
-                      <li style="margin-bottom: 4px;"><strong>Notifications Not Playing:</strong> Check volume settings and browser audio permissions</li>
-                      <li style="margin-bottom: 4px;"><strong>Pet Presets Not Saving:</strong> Wait for success confirmation before switching tabs</li>
-                      <li style="margin-bottom: 4px;"><strong>Performance Issues:</strong> Try compact mode or disable debug logging in settings</li>
+                      <li style="margin-bottom: 4px;"><strong>UI not appearing:</strong> Refresh page, check Tampermonkey is enabled</li>
+                      <li style="margin-bottom: 4px;"><strong>Notifications silent:</strong> Click "Test Notification" button, check browser volume/permissions</li>
+                      <li style="margin-bottom: 4px;"><strong>Hotkeys not working:</strong> Make sure you're not typing in chat/input field</li>
+                      <li style="margin-bottom: 4px;"><strong>Pet presets fail:</strong> Wait for green success message before switching tabs</li>
+                      <li style="margin-bottom: 4px;"><strong>Crop values missing:</strong> Make sure you're standing directly on the crop tile</li>
+                      <li style="margin-bottom: 4px;"><strong>Performance issues:</strong> Enable compact mode in Settings</li>
                   </ul>
               </div>
 
               <div class="mga-section">
-                  <div class="mga-section-title">💡 Tips & Best Practices</div>
+                  <div class="mga-section-title">❓ Data Backup</div>
                   <ul style="margin-left: 16px;">
-                      <li style="margin-bottom: 4px;"><strong>Regular Backups:</strong> Export ability logs periodically for data safety</li>
-                      <li style="margin-bottom: 4px;"><strong>Preset Organization:</strong> Use descriptive names and reorder presets by frequency of use</li>
-                      <li style="margin-bottom: 4px;"><strong>Notification Management:</strong> Enable continuous mode only for critical alerts</li>
-                      <li style="margin-bottom: 4px;"><strong>Resource Monitoring:</strong> Use the Values tab to track inventory and garden worth</li>
+                      <li style="margin-bottom: 4px;"><strong>Export Settings:</strong> Go to Settings tab, scroll down, click "Export Settings"</li>
+                      <li style="margin-bottom: 4px;"><strong>Import Settings:</strong> Click "Import Settings" and select your .json backup file</li>
+                      <li style="margin-bottom: 4px;"><strong>What's saved:</strong> Pet presets, hotkeys, theme settings, protection rules, all preferences</li>
+                      <li style="margin-bottom: 4px;"><strong>Recommended:</strong> Export before major updates or script reinstalls</li>
                   </ul>
               </div>
           `;
@@ -17191,33 +17360,35 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
                       <div id="individual-abilities-notification-list" style="display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 400px; overflow-y: auto; padding: 4px;">
                           ${(() => {
+                            // IMPORTANT: Keep this list in sync with KNOWN_ABILITY_TYPES
                             // Comprehensive list of all abilities organized by category
                             const abilities = [
                               // XP Boosts
                               { name: 'XP Boost I', category: '💫 XP Boosts' },
                               { name: 'XP Boost II', category: '💫 XP Boosts' },
                               { name: 'XP Boost III', category: '💫 XP Boosts' },
-                              { name: 'XP Boost IV', category: '💫 XP Boosts' },
                               { name: 'Hatch XP Boost', category: '💫 XP Boosts' },
-                              // Crop Size Boosts (only I and II exist in game)
+                              // Crop Size Boosts
                               { name: 'Crop Size Boost I', category: '📈 Crop Size Boosts' },
                               { name: 'Crop Size Boost II', category: '📈 Crop Size Boosts' },
                               // Selling
                               { name: 'Sell Boost I', category: '💰 Selling' },
                               { name: 'Sell Boost II', category: '💰 Selling' },
                               { name: 'Sell Boost III', category: '💰 Selling' },
-                              { name: 'Sell Boost IV', category: '💰 Selling' },
                               { name: 'Selling Refund', category: '💰 Selling' },
+                              { name: 'Coin Finder I', category: '💰 Selling' },
+                              { name: 'Coin Finder II', category: '💰 Selling' },
                               // Harvesting
                               { name: 'Double Harvest', category: '🌾 Harvesting' },
                               // Growth Speed
                               { name: 'Plant Growth Boost I', category: '🐢 Growth Speed' },
                               { name: 'Plant Growth Boost II', category: '🐢 Growth Speed' },
-                              { name: 'Plant Growth Boost III', category: '🐢 Growth Speed' },
+                              { name: 'Egg Growth Boost I', category: '🐢 Growth Speed' },
+                              { name: 'Egg Growth Boost II', category: '🐢 Growth Speed' },
                               // Special Mutations
                               { name: 'Rainbow Mutation', category: '🌈 Special' },
                               { name: 'Gold Mutation', category: '🌈 Special' },
-                              // Other
+                              // Seeds & Other
                               { name: 'Seed Finder I', category: '🔧 Other' },
                               { name: 'Seed Finder II', category: '🔧 Other' },
                               { name: 'Hunger Boost I', category: '🔧 Other' },
@@ -21745,13 +21916,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         testNotificationBtn.setAttribute('data-handler-setup', 'true');
         testNotificationBtn.addEventListener('click', () => {
           const notifications = UnifiedState.data.settings.notifications;
-          playSelectedNotification();
           queueNotification(
             '🔔 Test notification - This is how alerts will look!',
             notifications.requiresAcknowledgment
           );
           productionLog(
-            `🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`
+            `🔔 [NOTIFICATIONS] Test notification queued - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`
           );
         });
       }
@@ -24917,16 +25087,91 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       return null; // Multiple crops or no crops - can't determine accurately
     }
 
-    function monitorPetAbilities() {
-      if (!UnifiedState.atoms.petAbility || !UnifiedState.atoms.activePets) return;
+    async function monitorPetAbilities() {
+      // CRITICAL FIX v3.9.2: Directly read from atomReferences (stored by hookAtom)
+      // The hookAtom callback only fires when atom.read() is called, but the game doesn't re-read
+      // the atom when abilities trigger. So we must poll the atom directly using atomReferences.
+      try {
+        const ref = atomReferences.get('petAbility');
+        if (!ref) {
+          if (UnifiedState.data.settings?.debugMode && !window._abilityRefWarningLogged) {
+            window._abilityRefWarningLogged = true;
+            productionLog(`⚠️ [ABILITY-DIRECT] No atom reference stored for 'petAbility' - hook may not be ready yet`);
+          }
+          return;
+        }
+
+        // Read current state from the atom cache using the stored reference
+        const currentState = ref.atomCache.get(ref.atomPath);
+        if (currentState && 'v' in currentState) {
+          const petSlotsArray = currentState.v;
+
+          if (petSlotsArray && Array.isArray(petSlotsArray)) {
+            // Transform ARRAY → MAP (monitorPetAbilities expects a map keyed by pet.id)
+            const petAbilityMap = {};
+            petSlotsArray.forEach((petSlot, index) => {
+              if (petSlot && petSlot.id) {
+                petAbilityMap[petSlot.id] = petSlot;
+              }
+            });
+
+            // Store transformed map in UnifiedState
+            UnifiedState.atoms.petAbility = petAbilityMap;
+
+            // Log transformation (using productionLog so it's always visible)
+            if (UnifiedState.data.settings?.debugMode && !window._abilityDirectReadLogged) {
+              window._abilityDirectReadLogged = true;
+              productionLog(`🐾 [ABILITY-DIRECT] Reading directly from atomReferences (${petSlotsArray.length} pets)`);
+            }
+          }
+        }
+      } catch (error) {
+        if (UnifiedState.data.settings?.debugMode) {
+          productionLog(`⚠️ [ABILITY-DIRECT] Failed to read from atomReferences:`, error);
+        }
+      }
+
+      if (!UnifiedState.atoms.petAbility || !UnifiedState.atoms.activePets) {
+        // Changed from logDebug to productionLog so it's always visible
+        if (UnifiedState.data.settings?.debugMode) {
+          productionLog('❌ [ABILITY-MONITOR] Monitoring skipped - missing data:', {
+            hasPetAbility: !!UnifiedState.atoms.petAbility,
+            hasActivePets: !!UnifiedState.atoms.activePets,
+            petAbilityType: typeof UnifiedState.atoms.petAbility,
+            isArray: Array.isArray(UnifiedState.atoms.petAbility)
+          });
+        }
+        return;
+      }
+
+      // Debug logging to show data structure (only on first successful run)
+      if (UnifiedState.data.settings?.debugMode && !window._abilityMonitorDebugLogged) {
+        window._abilityMonitorDebugLogged = true;
+        productionLog('✅ [ABILITY-MONITOR] Monitoring active:', {
+          activePetsCount: UnifiedState.atoms.activePets.length,
+          petAbilityKeys: Object.keys(UnifiedState.atoms.petAbility),
+          isPetAbilityMap: !Array.isArray(UnifiedState.atoms.petAbility)
+        });
+      }
 
       let hasNewAbility = false;
-
       UnifiedState.atoms.activePets.forEach((pet, index) => {
-        if (!pet || !pet.id) return;
+        if (!pet || !pet.id) {
+          return;
+        }
 
         const abilityData = UnifiedState.atoms.petAbility[pet.id];
-        if (!abilityData || !abilityData.lastAbilityTrigger) return;
+        if (!abilityData || !abilityData.lastAbilityTrigger) {
+          // Debug logging for missing ability data (changed from logDebug to productionLog)
+          if (UnifiedState.data.settings?.debugMode) {
+            productionLog(`⏭️ [ABILITY-MONITOR] Skipping pet ${pet.petSpecies} - no ability data:`, {
+              petId: pet.id,
+              hasAbilityData: !!abilityData,
+              hasTrigger: !!abilityData?.lastAbilityTrigger
+            });
+          }
+          return;
+        }
 
         const trigger = abilityData.lastAbilityTrigger;
         const currentTimestamp = trigger.performedAt;
@@ -24960,11 +25205,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Additional validation: If timestamp is very recent (within 3 seconds), skip
         // BUGFIX v3.7.8: Reduced from 10s to 3s to allow rapid abilities (Gold Granter → Rainbow Granter)
         // This prevents false triggers on page refresh when same ability state reloads
-        if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 3000) {
+        const timeDiff = lastKnown ? Math.abs(currentTimestamp - lastKnown) : null;
+        if (lastKnown && timeDiff < 3000) {
           if (UnifiedState.data.settings?.debugMode) {
-            productionLog(
-              `🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${Math.abs(currentTimestamp - lastKnown)}ms)`
-            );
+            productionLog(`🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${timeDiff}ms)`);
           }
           return;
         }
@@ -25016,8 +25260,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
 
         // Normalize ability name to fix potential typos (e.g., "Seed FinderII" → "Seed Finder II")
+        // CRITICAL: Also converts camelCase to Title Case (e.g., "PlantGrowthBoostII" → "Plant Growth Boost II")
         const rawAbilityType = trigger.abilityId || 'Unknown Ability';
         const normalizedAbilityType = normalizeAbilityName(rawAbilityType);
+
+        // Debug logging to help diagnose notification matching issues
+        if (rawAbilityType !== normalizedAbilityType) {
+          logDebug('ABILITY-LOGS', `🔄 Ability normalization: "${rawAbilityType}" → "${normalizedAbilityType}"`);
+        }
 
         const abilityLog = {
           petName: displayName,
@@ -25050,7 +25300,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Check if we should notify for this ability
         if (UnifiedState.data.settings.notifications.abilityNotificationsEnabled) {
-          const abilityType = trigger.abilityId || '';
+          // BUGFIX: Use normalized ability name to match against watchedAbilities list
+          // The UI stores normalized names (e.g., "XP Boost I"), not raw IDs
+          const abilityType = normalizedAbilityType;
 
           // Filter out ProduceMutationBoost/PetMutationBoost - these are passive and shouldn't trigger notifications
           if (
@@ -25067,21 +25319,28 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           // - Empty array = all abilities enabled (default/backward compatible)
           // - ['__NONE__'] = no abilities enabled (user clicked "Select None")
           // - [...abilities] = only those specific abilities enabled
+          // BUGFIX: Filter out __NONE__ from the array - it's a UI artifact that shouldn't persist
+          const cleanedWatchedAbilities = watchedAbilities.filter(a => a !== '__NONE__');
+
           let shouldNotify = false;
 
-          if (watchedAbilities.length === 0) {
-            // Empty array means all abilities
-            shouldNotify = true;
-          } else if (watchedAbilities.includes('__NONE__')) {
-            // Special marker means none
+          if (
+            cleanedWatchedAbilities.length === 0 &&
+            watchedAbilities.length > 0 &&
+            watchedAbilities.includes('__NONE__')
+          ) {
+            // Only __NONE__ in array means no abilities
             shouldNotify = false;
+          } else if (cleanedWatchedAbilities.length === 0) {
+            // Empty array (after removing __NONE__) means all abilities
+            shouldNotify = true;
           } else {
-            // Check if this specific ability is in the list
-            shouldNotify = watchedAbilities.includes(abilityType);
+            // Check if this specific ability is in the cleaned list (using normalized name)
+            shouldNotify = cleanedWatchedAbilities.includes(abilityType);
           }
 
           if (shouldNotify) {
-            const displayAbilityName = normalizeAbilityName(abilityType);
+            const displayAbilityName = abilityType; // Already normalized
             productionLog(`🎯 [ABILITY-NOTIFY] ${abilityLog.petName} triggered ${displayAbilityName}`);
 
             // Play ability notification sound based on settings
@@ -26288,11 +26547,39 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myPetSlotInfosAtom',
         'petAbility',
         value => {
+          // CRITICAL BUGFIX: Transform pet slots ARRAY into MAP keyed by pet.id
+          // monitorPetAbilities() expects UnifiedState.atoms.petAbility[pet.id]
+          // but myPetSlotInfosAtom returns an array, not a map
+          if (!value) return value;
+
+          let petAbilityMap = value; // Default to raw value if not an array
+
+          if (Array.isArray(value)) {
+            petAbilityMap = {};
+            value.forEach((petSlot, index) => {
+              if (petSlot && petSlot.id) {
+                petAbilityMap[petSlot.id] = petSlot;
+              }
+            });
+
+            // Debug logging (only log when structure changes significantly)
+            if (UnifiedState.data.settings?.debugMode) {
+              productionLog(`🐾 [ABILITY-HOOK] Transformed pet slots array → map (${value.length} pets)`);
+            }
+          }
+
+          // Store transformed map (hookAtom will use this return value)
+          // This ensures UnifiedState.atoms.petAbility is a map, not an array
+          UnifiedState.atoms.petAbility = petAbilityMap;
+
           // BUGFIX v3.7.8: Event-driven monitoring to catch abilities immediately
           // Polling still runs every 3s as backup for missed events
-          if (value && typeof monitorPetAbilities === 'function') {
+          if (typeof monitorPetAbilities === 'function') {
             monitorPetAbilities();
           }
+
+          // Return transformed value for hookAtom to store
+          return petAbilityMap;
         }
       );
 
@@ -28287,7 +28574,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     function startIntervals() {
-      productionLog('🚨🚨🚨 [CRITICAL] startIntervals() CALLED 🚨🚨🚨');
+      productionLog('⏱️ Starting monitoring intervals...');
 
       // Mark that intervals have been started
       window._mgaIntervalsStarted = true;
@@ -28300,11 +28587,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       window.timerManager = initializeTimerManager();
 
       // OPTIMIZED: Monitor abilities every 3 seconds (reduced from 2s for better FPS)
-      productionLog('🚨 [CRITICAL] Setting up ability monitoring timer...');
       window.abilityMonitoringInterval = setInterval(() => {
-        monitorPetAbilities();
+        try {
+          monitorPetAbilities();
+        } catch (error) {
+          if (UnifiedState.data.settings?.debugMode) {
+            productionLog('❌ Error in monitorPetAbilities:', error);
+          }
+        }
       }, 3000);
-      productionLog('🚨 [CRITICAL] Ability monitoring started with simple setInterval (3s)');
 
       // OPTIMIZED: Update timers every 2 seconds (reduced from 1s)
       window.timerManager.startTimer('timers', () => updateTimers(), 2000);
@@ -30939,8 +31230,27 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           initializeTurtleTimer();
 
           // Start monitoring intervals
-          productionLog('⏱️ Starting monitoring intervals...');
-          startIntervals();
+          try {
+            if (typeof startIntervals === 'function') {
+              startIntervals();
+            } else {
+              // EMERGENCY FALLBACK: Start ability monitoring directly
+              window.abilityMonitoringInterval = setInterval(() => {
+                if (typeof monitorPetAbilities === 'function') {
+                  monitorPetAbilities();
+                }
+              }, 3000);
+              productionLog('🚨 [EMERGENCY] Ability monitoring started via emergency fallback');
+            }
+          } catch (error) {
+            // EMERGENCY FALLBACK: Start ability monitoring directly
+            window.abilityMonitoringInterval = setInterval(() => {
+              if (typeof monitorPetAbilities === 'function') {
+                monitorPetAbilities();
+              }
+            }, 3000);
+            productionLog('🚨 [EMERGENCY] Ability monitoring started after startIntervals error');
+          }
 
           // Apply saved theme settings
           productionLog('🎨 Applying saved theme settings...');
@@ -31107,6 +31417,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       console.log('🔍 [EXECUTION] detectEnvironment() returned:', environment);
       /* CHECKPOINT removed: DETECT_ENVIRONMENT_COMPLETE */
 
+      // CRITICAL FIX v3.9.2: Add console.log to bypass any productionLog issues
+      console.log('📊 [CRITICAL] Environment:', JSON.stringify(environment));
+      console.log('📊 [CRITICAL] Init Strategy:', environment.initStrategy);
+
       productionLog('📊 Environment Analysis:', {
         domain: environment.domain,
         strategy: environment.initStrategy,
@@ -31115,28 +31429,40 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         hasConnection: environment.hasMagicCircleConnection
       });
 
+      // EMERGENCY FAILSAFE v3.9.2: If gameReady is true, FORCE initialization regardless of strategy
+      if (environment.gameReady === true) {
+        console.log('🚨 [EMERGENCY-FAILSAFE] gameReady=true detected - FORCING initializeScript()');
+        initializeScript();
+        return; // Exit early after forcing initialization
+      }
+
       switch (environment.initStrategy) {
         case 'game-ready':
+          console.log('✅ [SWITCH] Case: game-ready');
           productionLog('✅ Game environment ready - initializing with full integration');
           initializeScript();
           break;
 
         case 'game-wait':
+          console.log('⏳ [SWITCH] Case: game-wait');
           productionLog('⏳ Game environment detected - waiting for game atoms...');
           waitForGameReady();
           break;
 
         case 'standalone':
+          console.log('🎮 [SWITCH] Case: standalone');
           productionLog('🎮 Standalone environment - initializing demo mode');
           initializeStandalone();
           break;
 
         case 'skip':
+          console.log('⏭️ [SWITCH] Case: skip');
           productionLog('⏭️ Skipping initialization - script will run in game iframe only');
           // Do not initialize on Discord page itself
           break;
 
         default:
+          console.log('❓ [SWITCH] Case: default (unknown)');
           productionLog('❓ Unknown environment - attempting standalone mode');
           initializeStandalone();
           break;
