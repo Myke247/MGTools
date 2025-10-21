@@ -8310,9 +8310,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       versionIndicator.className = 'mgh-dock-item version-indicator';
       versionIndicator.innerHTML = '●';
       versionIndicator.style.fontSize = '12px';
-      versionIndicator.style.color = '#888'; // Gray while checking
+      versionIndicator.style.color = IS_LIVE_BETA ? '#ff9500' : '#00ff00'; // Orange for beta, green for stable
       versionIndicator.style.cursor = 'pointer';
-      versionIndicator.title = `v${CURRENT_VERSION} - Checking for updates... (click to refresh)`;
+      versionIndicator.title = `v${CURRENT_VERSION} (${IS_LIVE_BETA ? 'BETA' : 'STABLE'}) - Checking for updates... (click to refresh)`;
 
       // Click to manually refresh version check
       versionIndicator.addEventListener('click', e => {
