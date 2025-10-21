@@ -2,8 +2,16 @@
 
 ## Version 3.9.2 (2025-10-21)
 
-**Hotfix:**
-- Fix crop value display when switching crops on plants with more than one slot
+**Bug Fixes:**
+- Fixed pet ability notifications not firing correctly
+- Fixed keyboard shortcuts for crop slot navigation (C/X swapped)
+- Fixed crop value display when switching crops on plants with more than one slot
+
+**Improvements:**
+- Cleaned up debug console output
+- Code quality and formatting improvements
+
+---
 
 ## Version 3.9.1 (2025-10-21)
 

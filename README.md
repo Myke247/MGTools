@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.9.1** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.9.2** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.9.1-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.9.2-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -434,7 +434,8 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.9.1)
+### Latest Updates (v3.9.2)
+- **v3.9.2**: Bug fixes and UI improvements - Fixed notification system and keyboard shortcuts. Improved code quality.
 - **v3.9.1**: Bug fixes and code quality improvements - Fixed custom room player counts, hotkey chat conflicts, and crop value updates. Improved code organization.
 - **v3.8.9**: Alt+M toolbar toggle - Press Alt+M to hide/show the entire MGTools interface. State persists across reloads.
 - **v3.8.8**: Shop UI improvements - Better inventory management and accurate stock display.
