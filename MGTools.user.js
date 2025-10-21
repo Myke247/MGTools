@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      3.9.0
+// @version      3.9.2
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '3.9.0',
+      CURRENT: '3.9.2',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -3106,6 +3106,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             enabled: true,
             volume: 0.3,
             notificationType: 'epic', // Options: 'simple', 'triple', 'alarm', 'epic', 'continuous'
+            previousNotificationType: 'epic', // Stores previous selection when switching to continuous
             requiresAcknowledgment: false,
             continuousEnabled: false, // Controls whether continuous option is available
             watchedSeeds: ['Carrot', 'Sunflower', 'Moonbinder', 'Dawnbinder', 'Starweaver'],
@@ -14706,7 +14707,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     function playCustomOrDefaultSound(soundType, defaultPlayFunc, volume) {
       const customSound = GM_getValue(`mgtools_custom_sound_${soundType}`, null);
+
       if (customSound) {
+        // Check if we're in continuous mode - custom sounds can't loop, so use default alarm instead
+        const notificationType = UnifiedState.data.settings.notifications.notificationType;
+        if (notificationType === 'continuous') {
+          productionLog(`🎵 [CUSTOM-SOUND] Continuous mode active - using alarm instead of custom ${soundType} sound`);
+          startContinuousAlarm(volume);
+          return;
+        }
+
         try {
           const audio = new Audio(customSound);
           audio.volume = volume || 0.3;
@@ -14721,20 +14731,92 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
     }
 
+    function playGeneralNotificationSound(volume) {
+      const type = UnifiedState.data.settings.notifications.notificationType || 'epic';
+
+      switch (type) {
+        case 'simple':
+          playNotificationSound(1000, 300, volume);
+          break;
+        case 'triple':
+          playTripleBeepNotification(volume);
+          break;
+        case 'alarm':
+          playAlarmNotification(volume);
+          break;
+        case 'epic':
+          playEpicNotification(volume);
+          break;
+        case 'continuous':
+          startContinuousAlarm(volume);
+          break;
+        default:
+          playEpicNotification(volume);
+      }
+    }
+
     function playShopNotificationSound(volume) {
-      playCustomOrDefaultSound('shop', playTripleBeepNotification, volume);
+      playCustomOrDefaultSound('shop', playGeneralNotificationSound, volume);
     }
 
     function playPetNotificationSound(volume) {
-      playCustomOrDefaultSound('pet', playDoubleBeepNotification, volume);
+      playCustomOrDefaultSound('pet', playGeneralNotificationSound, volume);
     }
 
     function playAbilityNotificationSound(volume) {
-      playCustomOrDefaultSound('ability', playSingleBeepNotification, volume);
+      const customSound = GM_getValue('mgtools_custom_sound_ability', null);
+      if (customSound) {
+        try {
+          const audio = new Audio(customSound);
+          audio.volume = volume || 0.2;
+          audio.play();
+          productionLog('🎵 [CUSTOM-SOUND] Playing custom ability sound');
+        } catch (err) {
+          console.error('Failed to play custom ability sound:', err);
+          // Fall through to default sound logic
+        }
+      }
+
+      // If no custom sound or custom sound failed, use user's selected default
+      if (!customSound) {
+        const abilitySound = UnifiedState.data.settings.notifications.abilityNotificationSound || 'single';
+
+        switch (abilitySound) {
+          case 'single':
+            playSingleBeepNotification(volume);
+            break;
+          case 'double':
+            playDoubleBeepNotification(volume);
+            break;
+          case 'triple':
+            playTripleBeepNotification(volume);
+            break;
+          case 'chime':
+            playChimeNotification(volume);
+            break;
+          case 'alert':
+            playAlertNotification(volume);
+            break;
+          case 'buzz':
+            playBuzzNotification(volume);
+            break;
+          case 'ding':
+            playDingNotification(volume);
+            break;
+          case 'chirp':
+            playChirpNotification(volume);
+            break;
+          case 'epic':
+            playEpicNotification(volume);
+            break;
+          default:
+            playSingleBeepNotification(volume);
+        }
+      }
     }
 
     function playWeatherNotificationSound(volume) {
-      playCustomOrDefaultSound('weather', playTripleBeepNotification, volume);
+      playCustomOrDefaultSound('weather', playGeneralNotificationSound, volume);
     }
 
     // Check if an item is on the watch list (case-insensitive for seeds)
@@ -14963,8 +15045,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       currentNotificationModal = notification;
 
-      // Stop continuous alarm if playing
-      stopContinuousAlarm();
+      // NOTE: Don't stop continuous alarm here - it should keep playing until acknowledged
+      // The alarm will be stopped when the user clicks the acknowledge button
     }
 
     // Dismiss all notifications
@@ -17161,6 +17243,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           <option value="buzz" ${settings.notifications.abilityNotificationSound === 'buzz' ? 'selected' : ''}>📳 Buzz (Energetic)</option>
                           <option value="ding" ${settings.notifications.abilityNotificationSound === 'ding' ? 'selected' : ''}>🔔 Ding (Clear)</option>
                           <option value="chirp" ${settings.notifications.abilityNotificationSound === 'chirp' ? 'selected' : ''}>🐦 Chirp (Cute)</option>
+                          <option value="epic" ${settings.notifications.abilityNotificationSound === 'epic' ? 'selected' : ''}>🎵 Epic Fanfare</option>
                       </select>
                   </div>
 
@@ -21627,6 +21710,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             acknowledgmentCheckbox.disabled = true;
             UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
           }
+
+          // CRITICAL: Also ensure dropdown is set to continuous if checkbox is checked
+          const notificationTypeSelect = context.querySelector('#notification-type-select');
+          if (notificationTypeSelect) {
+            notificationTypeSelect.value = 'continuous';
+            UnifiedState.data.settings.notifications.notificationType = 'continuous';
+            productionLog('🔊 [NOTIFICATIONS] Auto-selected continuous in dropdown (checkbox was checked on load)');
+          }
         }
 
         continuousCheckbox.addEventListener('change', e => {
@@ -21654,11 +21745,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             if (continuousOption) {
               continuousOption.disabled = !e.target.checked;
 
-              // If unchecking and continuous is selected, change to epic
-              if (!e.target.checked && notificationTypeSelect.value === 'continuous') {
-                notificationTypeSelect.value = 'epic';
-                UnifiedState.data.settings.notifications.notificationType = 'epic';
-                productionLog(`🔊 [NOTIFICATIONS] Continuous mode disabled, reverted to epic`);
+              if (e.target.checked) {
+                // When checking: Save current selection and auto-select continuous
+                if (notificationTypeSelect.value !== 'continuous') {
+                  UnifiedState.data.settings.notifications.previousNotificationType = notificationTypeSelect.value;
+                  notificationTypeSelect.value = 'continuous';
+                  UnifiedState.data.settings.notifications.notificationType = 'continuous';
+                  productionLog(
+                    `🔊 [NOTIFICATIONS] Saved previous type (${UnifiedState.data.settings.notifications.previousNotificationType}), auto-selected continuous`
+                  );
+                }
+              } else {
+                // When unchecking: Restore previous selection (or default to epic)
+                if (notificationTypeSelect.value === 'continuous') {
+                  const previousType = UnifiedState.data.settings.notifications.previousNotificationType || 'epic';
+                  notificationTypeSelect.value = previousType;
+                  UnifiedState.data.settings.notifications.notificationType = previousType;
+                  productionLog(`🔊 [NOTIFICATIONS] Continuous mode disabled, reverted to ${previousType}`);
+                }
               }
             }
           }
@@ -25086,36 +25190,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             // Play ability notification sound based on settings
             const abilityVolume = UnifiedState.data.settings.notifications.abilityNotificationVolume || 0.2;
-            const abilitySound = UnifiedState.data.settings.notifications.abilityNotificationSound || 'single';
-
-            switch (abilitySound) {
-              case 'single':
-                playSingleBeepNotification(abilityVolume);
-                break;
-              case 'double':
-                playDoubleBeepNotification(abilityVolume);
-                break;
-              case 'triple':
-                playTripleBeepNotification(abilityVolume);
-                break;
-              case 'chime':
-                playChimeNotification(abilityVolume);
-                break;
-              case 'alert':
-                playAlertNotification(abilityVolume);
-                break;
-              case 'buzz':
-                playBuzzNotification(abilityVolume);
-                break;
-              case 'ding':
-                playDingNotification(abilityVolume);
-                break;
-              case 'chirp':
-                playChirpNotification(abilityVolume);
-                break;
-              default:
-                playSingleBeepNotification(abilityVolume);
-            }
+            playAbilityNotificationSound(abilityVolume);
 
             // Show toast
             showNotificationToast(`✨ ${abilityLog.petName}: ${displayAbilityName}`, 'success');
