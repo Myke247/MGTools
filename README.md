@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.9.4** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 3.9.3** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.9.4-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-3.9.3-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 

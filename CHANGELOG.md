@@ -1,6 +1,6 @@
 # Changelog - MGTools
 
-## Version 3.9.4 (2025-10-21)
+## Version 3.9.3 (2025-10-21)
 
 **Bug Fixes:**
 
