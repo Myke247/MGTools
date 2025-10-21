@@ -7910,9 +7910,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     async function checkVersion(indicatorElement) {
       // Skip version check on Discord to avoid CSP violations
       if (isDiscordPage) {
-        const branchName = IS_LIVE_BETA ? 'Live Beta' : 'Stable';
+        const branchLabel = IS_LIVE_BETA ? 'BETA' : 'STABLE';
         indicatorElement.style.color = IS_LIVE_BETA ? '#ff9500' : '#00ff00'; // Orange for beta, green for stable
-        indicatorElement.title = `v${CURRENT_VERSION} (${branchName}) - Version check disabled on Discord\nShift+Click: Stable • Shift+Alt+Click: Live Beta`;
+
+        const tooltipLines = [
+          `CURRENT VERSION: v${CURRENT_VERSION} (${branchLabel})`,
+          `STATUS: Version check disabled on Discord`,
+          '',
+          'Shift+Click: Install Stable',
+          'Shift+Alt+Click: Install Beta'
+        ];
+
+        indicatorElement.title = tooltipLines.join('\n');
         indicatorElement.style.cursor = 'pointer';
 
         indicatorElement.addEventListener('click', e => {
@@ -7961,8 +7970,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         if (!stableVersion && !betaVersion) {
           // Both failed
+          const branchLabel = IS_LIVE_BETA ? 'BETA' : 'STABLE';
           indicatorElement.style.color = IS_LIVE_BETA ? '#ff9500' : '#ffa500';
-          indicatorElement.title = `v${CURRENT_VERSION} (${IS_LIVE_BETA ? 'Live Beta' : 'Stable'}) - Check failed\nClick: Retry • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
+
+          const tooltipLines = [
+            `CURRENT VERSION: v${CURRENT_VERSION} (${branchLabel})`,
+            `STATUS: Version check failed`,
+            '',
+            'Click: Retry',
+            'Shift+Click: Install Stable',
+            'Shift+Alt+Click: Install Beta'
+          ];
+
+          indicatorElement.title = tooltipLines.join('\n');
           indicatorElement.style.cursor = 'pointer';
 
           const newIndicator = indicatorElement.cloneNode(true);
@@ -7976,7 +7996,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               window.open(STABLE_DOWNLOAD_URL, '_blank');
             } else {
               newIndicator.style.color = '#888';
-              newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
+              newIndicator.title = 'Checking for updates...';
               checkVersion(newIndicator);
             }
           });
@@ -7985,43 +8005,54 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Compare current version with the appropriate branch version
         const relevantVersion = IS_LIVE_BETA ? betaVersion : stableVersion;
-        const otherVersion = IS_LIVE_BETA ? stableVersion : betaVersion;
         const versionComparison = compareVersions(CURRENT_VERSION, relevantVersion);
 
-        // Build version info string (always show both versions)
-        const versionInfo = `Stable: v${stableVersion || '?'} | Beta: v${betaVersion || '?'}`;
-
-        // Determine color and message
+        // Determine color and status
         let color, statusMsg;
+        const branchLabel = IS_LIVE_BETA ? 'BETA' : 'STABLE';
 
         if (IS_LIVE_BETA) {
           // On Live Beta branch - use orange/yellow colors
           if (versionComparison === 0) {
             color = '#ff9500'; // Orange for up-to-date beta
-            statusMsg = 'Up to date';
+            statusMsg = 'UP TO DATE';
           } else if (versionComparison > 0) {
             color = '#ffff00'; // Yellow for dev beta
-            statusMsg = 'Development version';
+            statusMsg = 'DEV VERSION';
           } else {
             color = '#ff00ff'; // Magenta for outdated beta
-            statusMsg = `Update available: v${relevantVersion}`;
+            statusMsg = 'UPDATE AVAILABLE';
           }
         } else {
           // On Stable branch - use green colors
           if (versionComparison === 0) {
-            color = '#00ff00'; // Green for up-to-date stable
-            statusMsg = 'Up to date';
+            color = '#00ff00'; // Bright green for up-to-date stable
+            statusMsg = 'UP TO DATE';
           } else if (versionComparison > 0) {
-            color = '#90ff90'; // Light green for dev stable
-            statusMsg = 'Development version';
+            color = '#90ee90'; // Light green for dev stable
+            statusMsg = 'DEV VERSION';
           } else {
             color = '#ff0000'; // Red for outdated stable
-            statusMsg = `Update available: v${relevantVersion}`;
+            statusMsg = 'UPDATE AVAILABLE';
           }
         }
 
+        // Build clear, easy-to-read tooltip
+        const tooltipLines = [
+          `CURRENT VERSION: v${CURRENT_VERSION} (${branchLabel})`,
+          `STATUS: ${statusMsg}`,
+          '',
+          `GitHub Versions:`,
+          `  Stable: v${stableVersion || 'Loading...'}`,
+          `  Beta: v${betaVersion || 'Loading...'}`,
+          '',
+          'Click: Recheck',
+          'Shift+Click: Install Stable',
+          'Shift+Alt+Click: Install Beta'
+        ];
+
         indicatorElement.style.color = color;
-        indicatorElement.title = `v${CURRENT_VERSION} (${IS_LIVE_BETA ? 'Live Beta' : 'Stable'}) - ${statusMsg}\n${versionInfo}\nClick: Recheck • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
+        indicatorElement.title = tooltipLines.join('\n');
         indicatorElement.style.cursor = 'pointer';
 
         // Add click handler
@@ -8042,8 +8073,19 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         });
       } catch (e) {
         // Unexpected error
+        const branchLabel = IS_LIVE_BETA ? 'BETA' : 'STABLE';
         indicatorElement.style.color = IS_LIVE_BETA ? '#ff9500' : '#ffa500';
-        indicatorElement.title = `v${CURRENT_VERSION} (${IS_LIVE_BETA ? 'Live Beta' : 'Stable'}) - Check failed\nClick: Retry • Shift+Click: Stable • Shift+Alt+Click: Live Beta`;
+
+        const tooltipLines = [
+          `CURRENT VERSION: v${CURRENT_VERSION} (${branchLabel})`,
+          `STATUS: Version check failed`,
+          '',
+          'Click: Retry',
+          'Shift+Click: Install Stable',
+          'Shift+Alt+Click: Install Beta'
+        ];
+
+        indicatorElement.title = tooltipLines.join('\n');
         indicatorElement.style.cursor = 'pointer';
 
         const newIndicator = indicatorElement.cloneNode(true);
@@ -8057,7 +8099,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             window.open(STABLE_DOWNLOAD_URL, '_blank');
           } else {
             newIndicator.style.color = '#888';
-            newIndicator.title = `v${CURRENT_VERSION} - Checking for updates...`;
+            newIndicator.title = 'Checking for updates...';
             checkVersion(newIndicator);
           }
         });
