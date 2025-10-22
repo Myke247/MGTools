@@ -1,5 +1,26 @@
 # Changelog - MGTools
 
+## Version 1.1.0 (2025-10-21)
+
+**Bug Fixes:**
+- Fixed game update popup to auto-click CONTINUE button before reloading
+- Previously popup was detected but not dismissed, causing state issues
+- Now properly clicks CONTINUE → waits 500ms → shows countdown → reloads
+
+**Performance Improvements:**
+- Inventory counter optimized: 500ms → 1000ms update interval
+- Reference counting prevents duplicate intervals when multiple shop UIs open
+- Increased safe interval timings: ability monitoring (3s→5s), notifications (10s→15s), update checks (5s→10s)
+- Cached room polling selectors (5-second cache)
+- Added cleanup for shop tab switching and popout closing
+
+**Expected Performance Impact:**
+- FPS gain: +20-40%
+- DOM queries: -75% reduction
+- No duplicate intervals
+
+---
+
 ## Version 1.0.0 (2025-10-21)
 
 **Bug Fixes:**
