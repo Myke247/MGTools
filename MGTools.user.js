@@ -33286,12 +33286,36 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (header && /game update available/i.test(header.textContent)) {
         updateDetected = true;
         if (typeof productionLog === 'function') {
-          productionLog('[DOM] Game update popup detected - triggering refresh');
+          productionLog('[DOM] Game update popup detected - attempting auto-click CONTINUE button');
         }
 
-        // Trigger the same refresh logic as WebSocket code 4710
-        if (typeof scheduleReload === 'function') {
-          scheduleReload(4710, true, 'DOM detection');
+        // Find and click the CONTINUE button before reloading
+        const continueBtn = popup.querySelector('button');
+        if (continueBtn && /continue/i.test(continueBtn.textContent)) {
+          if (typeof productionLog === 'function') {
+            productionLog('[DOM] Clicking CONTINUE button...');
+          }
+          continueBtn.click();
+
+          // Small delay to let the click process, then trigger reload
+          setTimeout(() => {
+            if (typeof productionLog === 'function') {
+              productionLog('[DOM] CONTINUE clicked - triggering refresh');
+            }
+            // Trigger the same refresh logic as WebSocket code 4710
+            if (typeof scheduleReload === 'function') {
+              scheduleReload(4710, true, 'DOM detection after button click');
+            }
+          }, 500);
+        } else {
+          // Fallback: if button not found, proceed with immediate reload
+          if (typeof productionLog === 'function') {
+            productionLog('[DOM] CONTINUE button not found - proceeding with immediate refresh');
+          }
+          // Trigger the same refresh logic as WebSocket code 4710
+          if (typeof scheduleReload === 'function') {
+            scheduleReload(4710, true, 'DOM detection');
+          }
         }
         return true;
       }
