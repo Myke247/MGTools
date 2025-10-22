@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 1.0.0** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 1.1.1** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-1.0.0-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-1.1.1-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -434,8 +434,8 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v1.0.0)
-- **v1.0.0**: Pet swapping works everywhere + live inventory counter - Fixed pet swaps to work smoothly with any inventory space. Added real-time color-coded inventory counter.
+### Latest Updates (v1.1.1)
+- **v1.1.1**: Native pet swapping with FULL inventory support - Fixed pet preset swapping to work atomically even with 100/100 items using native SwapPet messages. Enhanced version checker clarity.
 
 ---
 

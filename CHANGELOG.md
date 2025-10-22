@@ -1,5 +1,30 @@
 # Changelog - MGTools
 
+## Version 1.1.1 (2025-10-22)
+
+**Critical Bug Fix:**
+- Fixed pet swapping to work with FULL inventory (100/100 items)
+- Replaced broken StorePet/PlacePet approach with native SwapPet messages
+- Pet preset swapping now works atomically without requiring free inventory slots
+
+**Implementation Details:**
+- 5 handler locations updated to use native game swap mechanism
+- For each slot: SwapPet exchanges active pet ↔ inventory pet directly
+- Empty slots still use PlacePet, excess pets use StorePet
+- 100ms delays between operations for connection reliability
+
+**UI Improvements:**
+- Version checker now clearly shows "Your Branch (Beta/Stable)" vs "Other Branch"
+- Removed excessive debug console logs for cleaner console output
+- Beta version displays with orange/yellow colors, Stable with green colors
+
+**Why This Matters:**
+- Previous fix (v1.1.0) added delays but still failed with full inventory
+- Native SwapPet bypasses inventory space requirement completely
+- Users can now swap pets regardless of inventory fullness
+
+---
+
 ## Version 1.1.0 (2025-10-21)
 
 **Bug Fixes:**
