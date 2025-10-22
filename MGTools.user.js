@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.1.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
-// @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
-// @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js
+// @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
+// @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
 // @match        https://starweaver.org/r/*
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.0.0 - Pet swapping works everywhere + live inventory counter');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.1 - Native pet swapping (works with full inventory!)');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -8043,8 +8043,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           `STATUS: ${statusMsg}`,
           '',
           `GitHub Versions:`,
-          `  Stable: v${stableVersion || 'Loading...'}`,
-          `  Beta: v${betaVersion || 'Loading...'}`,
+          IS_LIVE_BETA
+            ? `  Your Branch (Beta): v${betaVersion || 'Loading...'}`
+            : `  Your Branch (Stable): v${stableVersion || 'Loading...'}`,
+          IS_LIVE_BETA
+            ? `  Other Branch (Stable): v${stableVersion || 'Loading...'}`
+            : `  Other Branch (Beta): v${betaVersion || 'Loading...'}`,
           '',
           'Click: Recheck',
           'Shift+Click: Install Stable',
@@ -11360,16 +11364,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // ==================== TAB CONTENTS ====================
     // Simplified pets content for popouts - JUST preset selection
     function getPetsPopoutContent() {
-      productionLog('🔍 [PETS DEBUG] getPetsPopoutContent() called');
       // Use multiple sources for pet data (same as updateActivePetsDisplay)
       const activePets = UnifiedState.atoms.activePets || window.activePets || [];
       const petPresets = UnifiedState.data.petPresets;
-      productionLog('🔍 [PETS DEBUG] Data check:', {
-        activePetsCount: activePets.length,
-        presetsCount: Object.keys(petPresets).length,
-        unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
-        windowActivePets: window.activePets?.length || 0
-      });
 
       if (Object.keys(petPresets).length === 0) {
         return `
@@ -11492,10 +11489,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
 
       html += `</div>`;
-      productionLog('🔍 [PETS DEBUG] Returning HTML:', {
-        htmlLength: html.length,
-        htmlPreview: html.substring(0, 200)
-      });
       return html;
     }
 
@@ -11503,8 +11496,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function setupPetPopoutHandlers(context = document) {
       // Find all preset cards
       const cards = context.querySelectorAll('.mga-preset-clickable[data-preset]');
-
-      productionLog(`🔧 [PETS-HANDLERS] Setting up handlers for ${cards.length} preset cards`);
 
       // Set up preset card handlers - use cloneNode to ensure clean slate
       cards.forEach((presetCard, index) => {
@@ -11514,7 +11505,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Attach fresh handler to the cloned card
         newCard.addEventListener('click', e => {
-          productionLog(`🎯 [PETS-CLICK] Clicked preset #${index}: ${e.currentTarget.dataset.preset}`);
           const presetName = e.currentTarget.dataset.preset;
 
           if (!presetName || !UnifiedState.data.petPresets[presetName]) {
@@ -11523,33 +11513,55 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           const preset = UnifiedState.data.petPresets[presetName];
+          const currentPets = UnifiedState.atoms.activePets || [];
+          const maxSlots = 3;
 
-          // Store current pets first
-          (UnifiedState.atoms.activePets || []).forEach(p => {
-            safeSendMessage({
-              scopePath: ['Room', 'Quinoa'],
-              type: 'StorePet',
-              itemId: p.id
-            });
-          });
+          // Native swap approach - works even with full inventory!
+          let delay = 0;
 
-          // Place preset pets with delay to prevent accidental clicks
-          preset.forEach((p, i) => {
-            setTimeout(() => {
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'PlacePet',
-                itemId: p.id,
-                position: { x: 17 + i * 2, y: 13 },
-                localTileIndex: 64,
-                tileType: 'Boardwalk'
-              });
-            }, i * 50); // 50ms delay between each pet placement
-          });
+          for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+            const currentPet = currentPets[slotIndex];
+            const desiredPet = preset[slotIndex];
+
+            if (currentPet && desiredPet) {
+              // Both exist: Use native SwapPet (no inventory space needed!)
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'SwapPet',
+                  petSlotId: currentPet.id,
+                  petInventoryId: desiredPet.id
+                });
+              }, delay);
+              delay += 100;
+            } else if (!currentPet && desiredPet) {
+              // Empty slot: Place new pet
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'PlacePet',
+                  itemId: desiredPet.id,
+                  position: { x: 17 + slotIndex * 2, y: 13 },
+                  localTileIndex: 64,
+                  tileType: 'Boardwalk'
+                });
+              }, delay);
+              delay += 100;
+            } else if (currentPet && !desiredPet) {
+              // Remove excess pet (preset has fewer pets)
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'StorePet',
+                  itemId: currentPet.id
+                });
+              }, delay);
+              delay += 100;
+            }
+          }
 
           // Update displays after all pets are placed (single refresh with retry)
           const refreshPetDisplays = () => {
-            productionLog('🔄 [PETS-REFRESH] Starting refresh...');
             // Force update from room state
             updateActivePetsFromRoomState();
 
@@ -11583,23 +11595,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
           };
 
-          // Single refresh after 2 seconds (gives game time to update)
-          setTimeout(
-            () => {
-              refreshPetDisplays();
-              productionLog('✅ [PETS-REFRESH] First refresh complete');
+          // Refresh after swaps complete + 500ms
+          setTimeout(() => {
+            refreshPetDisplays();
 
-              // Retry handler reattachment after a short delay to ensure reliability
-              setTimeout(() => {
-                const overlay = UnifiedState.data.popouts.overlays.get('pets');
-                if (overlay && document.contains(overlay)) {
-                  productionLog('🔄 [PETS-HANDLERS] Reattaching handlers to ensure reliability');
-                  setupPetPopoutHandlers(overlay);
-                }
-              }, 500);
-            },
-            preset.length * 50 + 2000
-          );
+            // Retry handler reattachment after a short delay to ensure reliability
+            setTimeout(() => {
+              const overlay = UnifiedState.data.popouts.overlays.get('pets');
+              if (overlay && document.contains(overlay)) {
+                setupPetPopoutHandlers(overlay);
+              }
+            }, 500);
+          }, delay + 500);
 
           // Visual feedback - gentle highlight, no transform (prevents stutter)
           // Temporarily disable pointer events to prevent hover conflicts
@@ -11610,8 +11617,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             e.currentTarget.style.background = originalBackground;
             e.currentTarget.style.pointerEvents = '';
           }, 200);
-
-          productionLog(`✅ [PETS-SWAP] Loaded preset: ${presetName}`);
         });
       });
 
@@ -11953,7 +11958,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const seedGroups = [
         { name: 'Common', color: '#fff', seeds: ['Carrot', 'Strawberry', 'Aloe'] },
         { name: 'Uncommon', color: '#0f0', seeds: ['Apple', 'Tulip', 'Tomato', 'Blueberry'] },
-        { name: 'Rare', color: '#0af', seeds: ['Daffodil', 'Corn', 'Watermelon', 'Pumpkin'] },
+        { name: 'Rare', color: '#0af', seeds: ['Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Delphinium', 'Squash'] },
         { name: 'Legendary', color: '#ff0', seeds: ['Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail'] },
         { name: 'Mythical', color: '#a0f', seeds: ['Mushroom', 'Cactus', 'Bamboo', 'Grape'] },
         {
@@ -12006,6 +12011,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         Corn: 'Corn',
         Watermelon: 'Watermelon',
         Pumpkin: 'Pumpkin',
+        Delphinium: 'Delphinium',
+        Squash: 'Squash',
         Echeveria: 'Echeveria',
         Coconut: 'Coconut',
         Banana: 'Banana',
@@ -12145,7 +12152,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     const SHOP_COLOR_GROUPS = {
       white: ['CommonEgg', 'Carrot', 'Strawberry', 'Aloe'],
       green: ['UncommonEgg', 'Apple', 'OrangeTulip', 'Tomato', 'Blueberry'],
-      blue: ['RareEgg', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin'],
+      blue: ['RareEgg', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Delphinium', 'Squash'],
       yellow: ['LegendaryEgg', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail'],
       purple: ['MythicalEgg', 'Mushroom', 'Cactus', 'Bamboo', 'Grape'],
       orange: ['Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower']
@@ -12168,6 +12175,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Seeds - Rare tier
       Daffodil: 1000,
       Corn: 1300,
+      Delphinium: 1800,
+      Squash: 2200,
       Watermelon: 2500,
       Pumpkin: 3000,
       // Seeds - Legendary tier
@@ -17882,6 +17891,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // Place a pet preset - used by both main tab and popout Place buttons
+    // Uses native SwapPet to work even when inventory is full
     function placePetPreset(presetName) {
       const preset = UnifiedState.data.petPresets[presetName];
       if (!preset) {
@@ -17889,28 +17899,52 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      // Store current pets
-      (UnifiedState.atoms.activePets || []).forEach(p => {
-        safeSendMessage({
-          scopePath: ['Room', 'Quinoa'],
-          type: 'StorePet',
-          itemId: p.id
-        });
-      });
+      const currentPets = UnifiedState.atoms.activePets || [];
+      const maxSlots = 3;
 
-      // Place preset pets with delays
-      preset.forEach((p, i) => {
-        setTimeout(() => {
-          safeSendMessage({
-            scopePath: ['Room', 'Quinoa'],
-            type: 'PlacePet',
-            itemId: p.id,
-            position: { x: 17 + i * 2, y: 13 },
-            localTileIndex: 64,
-            tileType: 'Boardwalk'
-          });
-        }, i * 50);
-      });
+      // Native swap approach - works even with full inventory!
+      let delay = 0;
+
+      for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+        const currentPet = currentPets[slotIndex];
+        const desiredPet = preset[slotIndex];
+
+        if (currentPet && desiredPet) {
+          // Both exist: Use native SwapPet (no inventory space needed!)
+          setTimeout(() => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'SwapPet',
+              petSlotId: currentPet.id,
+              petInventoryId: desiredPet.id
+            });
+          }, delay);
+          delay += 100;
+        } else if (!currentPet && desiredPet) {
+          // Empty slot: Place new pet
+          setTimeout(() => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'PlacePet',
+              itemId: desiredPet.id,
+              position: { x: 17 + slotIndex * 2, y: 13 },
+              localTileIndex: 64,
+              tileType: 'Boardwalk'
+            });
+          }, delay);
+          delay += 100;
+        } else if (currentPet && !desiredPet) {
+          // Remove excess pet (preset has fewer pets)
+          setTimeout(() => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'StorePet',
+              itemId: currentPet.id
+            });
+          }, delay);
+          delay += 100;
+        }
+      }
 
       // Update all displays after pets are placed (with backup refresh)
       const refreshAllPetDisplays = () => {
@@ -17935,23 +17969,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         refreshSeparateWindowPopouts('pets');
       };
 
-      // First refresh after 1.5 seconds
-      setTimeout(
-        () => {
-          refreshAllPetDisplays();
-          productionLog(`✅ [PETS] Placed preset "${presetName}" and updated displays (first refresh)`);
-        },
-        preset.length * 50 + 1500
-      );
+      // First refresh after swaps complete + 500ms
+      setTimeout(() => {
+        refreshAllPetDisplays();
+      }, delay + 500);
 
-      // Backup refresh after 2.5 seconds to catch slow updates
-      setTimeout(
-        () => {
-          refreshAllPetDisplays();
-          productionLog(`✅ [PETS] Backup refresh for preset "${presetName}"`);
-        },
-        preset.length * 50 + 2500
-      );
+      // Backup refresh after swaps + 1.5s to catch slow updates
+      setTimeout(() => {
+        refreshAllPetDisplays();
+      }, delay + 1500);
     }
 
     // Helper function to check if preset contains Worm with Crop Eater ability
@@ -18337,55 +18363,76 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const preset = UnifiedState.data.petPresets[presetName];
             if (!preset) return;
 
-            // Store current pets then place preset pets
-            (UnifiedState.atoms.activePets || []).forEach(p => {
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'StorePet',
-                itemId: p.id
-              });
-            });
+            const currentPets = UnifiedState.atoms.activePets || [];
+            const maxSlots = 3;
 
-            // CRITICAL FIX: Add delay between pet placements to prevent accidental clicks
-            preset.forEach((p, i) => {
-              setTimeout(() => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'PlacePet',
-                  itemId: p.id,
-                  position: { x: 17 + i * 2, y: 13 },
-                  localTileIndex: 64,
-                  tileType: 'Boardwalk'
-                });
-              }, i * 50); // 50ms delay between each pet placement
-            });
+            // Native swap approach - works even with full inventory!
+            let delay = 0;
+
+            for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+              const currentPet = currentPets[slotIndex];
+              const desiredPet = preset[slotIndex];
+
+              if (currentPet && desiredPet) {
+                // Both exist: Use native SwapPet (no inventory space needed!)
+                setTimeout(() => {
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'SwapPet',
+                    petSlotId: currentPet.id,
+                    petInventoryId: desiredPet.id
+                  });
+                }, delay);
+                delay += 100;
+              } else if (!currentPet && desiredPet) {
+                // Empty slot: Place new pet
+                setTimeout(() => {
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'PlacePet',
+                    itemId: desiredPet.id,
+                    position: { x: 17 + slotIndex * 2, y: 13 },
+                    localTileIndex: 64,
+                    tileType: 'Boardwalk'
+                  });
+                }, delay);
+                delay += 100;
+              } else if (currentPet && !desiredPet) {
+                // Remove excess pet (preset has fewer pets)
+                setTimeout(() => {
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'StorePet',
+                    itemId: currentPet.id
+                  });
+                }, delay);
+                delay += 100;
+              }
+            }
 
             // Update pets display after all pets placed
-            setTimeout(
-              () => {
-                // Force update pets from room state first
-                updateActivePetsFromRoomState();
+            setTimeout(() => {
+              // Force update pets from room state first
+              updateActivePetsFromRoomState();
 
-                // Then refresh the tab if it's active
-                if (UnifiedState.activeTab === 'pets') {
-                  updateTabContent();
-                }
+              // Then refresh the tab if it's active
+              if (UnifiedState.activeTab === 'pets') {
+                updateTabContent();
+              }
 
-                // Update all pet overlays after placing
-                UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-                  if (overlay && document.contains(overlay) && tabName === 'pets') {
-                    if (overlay.className.includes('mga-overlay-content-only')) {
-                      updatePureOverlayContent(overlay, tabName);
-                      debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
-                    }
+              // Update all pet overlays after placing
+              UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                if (overlay && document.contains(overlay) && tabName === 'pets') {
+                  if (overlay.className.includes('mga-overlay-content-only')) {
+                    updatePureOverlayContent(overlay, tabName);
+                    debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
                   }
-                });
+                }
+              });
 
-                // Update separate window popouts
-                refreshSeparateWindowPopouts('pets');
-              },
-              preset.length * 50 + 1000
-            ); // Wait for all pets + extra time for game to update
+              // Update separate window popouts
+              refreshSeparateWindowPopouts('pets');
+            }, delay + 500); // Wait for storage + all pets + extra time for game to update
 
             debugLog('BUTTON_INTERACTIONS', `Placed preset: ${presetName} (from added element)`);
           } else if (action === 'remove') {
@@ -18652,46 +18699,63 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             return;
           }
 
-          // Store current pets FIRST
           const currentPets = UnifiedState.atoms.activePets || [];
-          currentPets.forEach(p => {
-            safeSendMessage({
-              scopePath: ['Room', 'Quinoa'],
-              type: 'StorePet',
-              itemId: p.id
-            });
-          });
+          const maxSlots = 3;
 
-          // Wait for store operations to complete, then place preset pets
-          const baseDelay = currentPets.length > 0 ? 300 : 100;
-          preset.forEach((p, i) => {
-            setTimeout(
-              () => {
+          // Native swap approach - works even with full inventory!
+          let delay = 0;
+
+          for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+            const currentPet = currentPets[slotIndex];
+            const desiredPet = preset[slotIndex];
+
+            if (currentPet && desiredPet) {
+              // Both exist: Use native SwapPet (no inventory space needed!)
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'SwapPet',
+                  petSlotId: currentPet.id,
+                  petInventoryId: desiredPet.id
+                });
+              }, delay);
+              delay += 100;
+            } else if (!currentPet && desiredPet) {
+              // Empty slot: Place new pet
+              setTimeout(() => {
                 safeSendMessage({
                   scopePath: ['Room', 'Quinoa'],
                   type: 'PlacePet',
-                  itemId: p.id,
-                  position: { x: 17 + i * 2, y: 13 },
+                  itemId: desiredPet.id,
+                  position: { x: 17 + slotIndex * 2, y: 13 },
                   localTileIndex: 64,
                   tileType: 'Boardwalk'
                 });
-              },
-              baseDelay + i * 100
-            );
-          });
+              }, delay);
+              delay += 100;
+            } else if (currentPet && !desiredPet) {
+              // Remove excess pet (preset has fewer pets)
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'StorePet',
+                  itemId: currentPet.id
+                });
+              }, delay);
+              delay += 100;
+            }
+          }
 
-          // Multiple refresh waves to catch all pet placements
-          const totalDelay = baseDelay + preset.length * 100;
+          // Refresh after swaps complete
+          setTimeout(() => {
+            updateActivePetsFromRoomState();
+            updateActivePetsDisplay(context);
+          }, delay + 200);
 
           setTimeout(() => {
             updateActivePetsFromRoomState();
             updateActivePetsDisplay(context);
-          }, totalDelay + 200);
-
-          setTimeout(() => {
-            updateActivePetsFromRoomState();
-            updateActivePetsDisplay(context);
-          }, totalDelay + 600);
+          }, delay + 600);
 
           setTimeout(() => {
             updateActivePetsFromRoomState();
@@ -18704,7 +18768,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 }
               }
             });
-          }, totalDelay + 1000);
+          }, delay + 1000);
         });
       }
 
@@ -18793,26 +18857,52 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const preset = UnifiedState.data.petPresets[presetName];
             if (!preset) return;
 
-            // Store current pets
-            (UnifiedState.atoms.activePets || []).forEach(p => {
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'StorePet',
-                itemId: p.id
-              });
-            });
+            const currentPets = UnifiedState.atoms.activePets || [];
+            const maxSlots = 3;
 
-            // Place preset pets
-            preset.forEach((p, i) => {
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'PlacePet',
-                itemId: p.id,
-                position: { x: 17 + i * 2, y: 13 },
-                localTileIndex: 64,
-                tileType: 'Boardwalk'
-              });
-            });
+            // Native swap approach - works even with full inventory!
+            let delay = 0;
+
+            for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+              const currentPet = currentPets[slotIndex];
+              const desiredPet = preset[slotIndex];
+
+              if (currentPet && desiredPet) {
+                // Both exist: Use native SwapPet (no inventory space needed!)
+                setTimeout(() => {
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'SwapPet',
+                    petSlotId: currentPet.id,
+                    petInventoryId: desiredPet.id
+                  });
+                }, delay);
+                delay += 100;
+              } else if (!currentPet && desiredPet) {
+                // Empty slot: Place new pet
+                setTimeout(() => {
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'PlacePet',
+                    itemId: desiredPet.id,
+                    position: { x: 17 + slotIndex * 2, y: 13 },
+                    localTileIndex: 64,
+                    tileType: 'Boardwalk'
+                  });
+                }, delay);
+                delay += 100;
+              } else if (currentPet && !desiredPet) {
+                // Remove excess pet (preset has fewer pets)
+                setTimeout(() => {
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'StorePet',
+                    itemId: currentPet.id
+                  });
+                }, delay);
+                delay += 100;
+              }
+            }
 
             // Update pets display after placement (with delay for game to update)
             setTimeout(() => {
@@ -18836,7 +18926,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
               // Update separate window popouts
               refreshSeparateWindowPopouts('pets');
-            }, 1000); // Increased from 100ms to 1000ms to give game time to update
+            }, delay + 500);
           } else if (action === 'remove') {
             delete UnifiedState.data.petPresets[presetName];
 
@@ -18894,39 +18984,54 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           debugLog('BUTTON_INTERACTIONS', `Loading preset from popout: ${presetName}`, { preset });
 
-          // Clear existing pets
-          (UnifiedState.atoms.activePets || []).forEach(p => {
-            safeSendMessage({
-              scopePath: ['Room', 'Quinoa'],
-              type: 'RemovePet',
-              itemId: p.id
-            });
+          const currentPets = UnifiedState.atoms.activePets || [];
+
+          // Clear existing pets WITH DELAYS (50ms between each) - CRITICAL FIX for slow connections
+          currentPets.forEach((p, i) => {
+            setTimeout(() => {
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'RemovePet',
+                itemId: p.id
+              });
+            }, i * 50);
           });
 
-          // Place preset pets
+          // Calculate delay before placing new pets (wait for all RemovePet to complete)
+          const removalDelay = currentPets.length * 50 + 200; // Extra 200ms buffer
+
+          // Place preset pets with delays AFTER removal completes
           preset.forEach((p, i) => {
-            safeSendMessage({
-              scopePath: ['Room', 'Quinoa'],
-              type: 'PlacePet',
-              itemId: p.id,
-              position: { x: 17 + i * 2, y: 13 },
-              localTileIndex: 64,
-              tileType: 'Boardwalk'
-            });
+            setTimeout(
+              () => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'PlacePet',
+                  itemId: p.id,
+                  position: { x: 17 + i * 2, y: 13 },
+                  localTileIndex: 64,
+                  tileType: 'Boardwalk'
+                });
+              },
+              removalDelay + i * 50
+            );
           });
 
-          // Update popouts after loading (changed from 100ms to 1000ms for game to update)
-          setTimeout(() => {
-            updateActivePetsFromRoomState();
-            refreshSeparateWindowPopouts('pets');
-            UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-              if (overlay && document.contains(overlay) && tabName === 'pets') {
-                if (overlay.className.includes('mga-overlay-content-only')) {
-                  updatePureOverlayContent(overlay, tabName);
+          // Update popouts after removal + placement completes
+          setTimeout(
+            () => {
+              updateActivePetsFromRoomState();
+              refreshSeparateWindowPopouts('pets');
+              UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                if (overlay && document.contains(overlay) && tabName === 'pets') {
+                  if (overlay.className.includes('mga-overlay-content-only')) {
+                    updatePureOverlayContent(overlay, tabName);
+                  }
                 }
-              }
-            });
-          }, 1000);
+              });
+            },
+            removalDelay + preset.length * 50 + 1000
+          );
         });
       });
 
@@ -20107,6 +20212,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         Corn: 'Corn',
         Watermelon: 'Watermelon',
         Pumpkin: 'Pumpkin',
+        Delphinium: 'Delphinium',
+        Squash: 'Squash',
         Echeveria: 'Echeveria',
         Coconut: 'Coconut',
         Banana: 'Banana',
@@ -20296,6 +20403,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             'Corn',
             'Watermelon',
             'Pumpkin',
+            'Delphinium',
+            'Squash',
             'Echeveria',
             'Coconut',
             'Banana',
@@ -20843,7 +20952,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // CRITICAL: Stop event from reaching game's hotkey handler
         // DO NOT use preventDefault() - that blocks typing in the input!
         // stopImmediatePropagation() prevents OTHER handlers from seeing this event
-        e.stopImmediatePropagation();
+        // EXCEPTION: Allow Enter key to reach game's chat handler for message submission
+        if (e.key !== 'Enter') {
+          e.stopImmediatePropagation();
+        }
 
         // Log when hotkey is blocked (helps diagnose chat detection issues)
         if (UnifiedState.data.settings?.debugMode) {
