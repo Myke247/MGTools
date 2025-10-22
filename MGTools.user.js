@@ -2239,7 +2239,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         typeof window.petAbilityLogs !== 'undefined' ||
         document.hidden === false;
       if (hasMainScript) {
-        productionLog('📝 [COMPAT] Detected mainscript.txt is also running - compatibility mode enabled');
+        productionLog('📝 [COMPAT] Detected external scripts - compatibility mode enabled');
       } else {
         productionLog('📝 [COMPAT] No other Magic Garden scripts detected - running standalone');
       }
@@ -4864,10 +4864,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       } catch {}
 
-      // CRITICAL: Ensure we never use MainScript keys
+      // CRITICAL: Ensure we never use external script keys
       if (keyLocal && !keyLocal.startsWith('MGA_')) {
         console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
-        console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
+        console.error(`❌ [MGA-ISOLATION] This would conflict with external scripts! Adding MGA_ prefix.`);
         console.trace();
         keyLocal = 'MGA_' + keyLocal;
       }
@@ -5562,7 +5562,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       }
 
-      // 5. Window compatibility array (old mainscript.txt)
+      // 5. Window compatibility array
       if (typeof window.petAbilityLogs !== 'undefined') {
         report.sources.compatibilityArray = {
           count: Array.isArray(window.petAbilityLogs) ? window.petAbilityLogs.length : 'not-an-array',
@@ -5941,7 +5941,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               : 'GM API not available'
         },
 
-        // AutoFeed Protection
+        // External Feed Protection
         autoFeedStatus: {
           autoFeedEnabled: targetWindow.autoFeedEnabled,
           autoFeedState: targetWindow.autoFeedState,
@@ -6343,30 +6343,30 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     window.MGA_DOMCache = { getCachedElement, getCachedElements, invalidateCache };
 
     // ==================== NAMESPACE ISOLATION ====================
-    // Keep MGA functions completely isolated to prevent conflicts with MainScript.txt
+    // Keep MGA functions completely isolated to prevent conflicts with external scripts
 
     // Export MGA functions to global scope for direct access (MGA_ prefix prevents conflicts)
     window.MGA_loadJSON = MGA_loadJSON;
     window.MGA_saveJSON = MGA_saveJSON;
 
-    // MainScript Conflict Detection and Protection
+    // External Script Conflict Detection and Protection
     window.MGA_ConflictDetection = {
       mainScriptDetected: false,
       protectedGlobals: ['autoFeedEnabled', 'autoFeedState', 'autoFeedSkipFavorited', 'petAbilityLogs'],
 
-      // Ensure MGA never accesses MainScript globals
+      // Ensure MGA never accesses external script globals
       preventAccess: function () {
         if (!this.mainScriptDetected) return;
 
-        // Create safe accessors that prevent MGA from accidentally touching MainScript variables
+        // Create safe accessors that prevent MGA from accidentally touching external script variables
         this.protectedGlobals.forEach(globalVar => {
           if (window[globalVar] !== undefined) {
-            productionLog(`🔒 [MGA-ISOLATION] Ensuring MGA cannot access MainScript global: ${globalVar}`);
+            productionLog(`🔒 [MGA-ISOLATION] Ensuring MGA cannot access external script global: ${globalVar}`);
 
             // Define a read-only accessor for debugging
             Object.defineProperty(window, `MGA_SAFE_${globalVar}`, {
               get: function () {
-                productionWarn(`⚠️ [MGA-ISOLATION] MGA attempted to access MainScript global: ${globalVar}`);
+                productionWarn(`⚠️ [MGA-ISOLATION] MGA attempted to access external script global: ${globalVar}`);
                 productionWarn(`⚠️ [MGA-ISOLATION] This access was blocked to prevent interference`);
                 console.trace();
                 return undefined; // Always return undefined to MGA
@@ -6377,9 +6377,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
         });
 
-        // Specifically protect autofeed variables
-        productionLog(`🔒 [MGA-ISOLATION] MainScript autofeed protection active`);
-        productionLog(`🔒 [MGA-ISOLATION] MGA will not interfere with autofeed functionality`);
+        // Specifically protect external feed variables
+        productionLog(`🔒 [MGA-ISOLATION] External script feed protection active`);
+        productionLog(`🔒 [MGA-ISOLATION] MGA will not interfere with external feed functionality`);
       },
 
       detectMainScript: function () {
@@ -6392,11 +6392,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         this.mainScriptDetected = hasMainScriptFunctions || hasMainScriptVars || hasVisibilityOverride;
 
         if (this.mainScriptDetected) {
-          // productionLog('🔍 [MGA-ISOLATION] MainScript.txt detected - enabling full isolation mode');
-          productionLog('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or MainScript variables');
+          // productionLog('🔍 [MGA-ISOLATION] External scripts detected - enabling full isolation mode');
+          productionLog('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or external script variables');
           productionLog('📝 [MGA-ISOLATION] Protected variables:', this.protectedGlobals);
         } else {
-          productionLog('📝 [MGA-ISOLATION] No MainScript detected - running in standalone mode');
+          productionLog('📝 [MGA-ISOLATION] No external scripts detected - running in standalone mode');
         }
 
         return this.mainScriptDetected;
@@ -6410,17 +6410,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Check if we accidentally modified protected globals
         this.protectedGlobals.forEach(globalVar => {
           if (window[globalVar] !== undefined) {
-            // MainScript global exists - make sure we don't interfere
-            // productionLog(`🔍 [MGA-ISOLATION] MainScript global '${globalVar}' is active - ensuring no interference`);
+            // External script global exists - make sure we don't interfere
+            // productionLog(`🔍 [MGA-ISOLATION] External script global '${globalVar}' is active - ensuring no interference`);
           }
         });
 
-        // Check if global loadJSON/saveJSON are MainScript's versions
+        // Check if global loadJSON/saveJSON are external script's versions
         if (window.loadJSON && window.loadJSON !== MGA_loadJSON) {
-          productionLog('🔒 [MGA-ISOLATION] Global loadJSON belongs to MainScript - MGA using isolated MGA_loadJSON');
+          productionLog(
+            '🔒 [MGA-ISOLATION] Global loadJSON belongs to external script - MGA using isolated MGA_loadJSON'
+          );
         }
         if (window.saveJSON && window.saveJSON !== MGA_saveJSON) {
-          productionLog('🔒 [MGA-ISOLATION] Global saveJSON belongs to MainScript - MGA using isolated MGA_saveJSON');
+          productionLog(
+            '🔒 [MGA-ISOLATION] Global saveJSON belongs to external script - MGA using isolated MGA_saveJSON'
+          );
         }
 
         return violations.length === 0;
@@ -6441,7 +6445,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 writable: true,
                 configurable: true
               });
-              productionLog(`🛡️ [MGA-ISOLATION] Stored original value for MainScript global: ${globalVar}`);
+              productionLog(`🛡️ [MGA-ISOLATION] Stored original value for external script global: ${globalVar}`);
             } catch (protectionError) {
               productionWarn(
                 `⚠️ [MGA-ISOLATION] Could not store original value for ${globalVar}:`,
@@ -6453,11 +6457,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Simple function protection - just save references without modifying
         if (window.loadJSON && window.loadJSON !== window.MGA_loadJSON) {
-          productionLog(`🔒 [MGA-ISOLATION] MainScript loadJSON detected - storing reference`);
+          productionLog(`🔒 [MGA-ISOLATION] External script loadJSON detected - storing reference`);
           window._MGA_MAINSCRIPT_loadJSON = window.loadJSON;
         }
         if (window.saveJSON && window.saveJSON !== window.MGA_saveJSON) {
-          productionLog(`🔒 [MGA-ISOLATION] MainScript saveJSON detected - storing reference`);
+          productionLog(`🔒 [MGA-ISOLATION] External script saveJSON detected - storing reference`);
           window._MGA_MAINSCRIPT_saveJSON = window.saveJSON;
         }
       },
@@ -6515,10 +6519,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let keyLocal = key;
       const { showUserAlert = true, criticalData = false, description = keyLocal, silent = false } = options;
 
-      // CRITICAL: Ensure we never use MainScript keys
+      // CRITICAL: Ensure we never use external script keys
       if (keyLocal && !keyLocal.startsWith('MGA_')) {
         console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
-        console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
+        console.error(`❌ [MGA-ISOLATION] This would conflict with external scripts! Adding MGA_ prefix.`);
         console.trace();
         keyLocal = 'MGA_' + keyLocal;
       }
@@ -19320,7 +19324,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             logWarn('ABILITY-LOGS', '  ⚠️ Could not clear targetWindow.localStorage:', e.message);
           }
 
-          // 5. Clear compatibility array (old mainscript.txt)
+          // 5. Clear compatibility array
           try {
             if (typeof window.petAbilityLogs !== 'undefined') {
               window.petAbilityLogs = [];
@@ -26650,7 +26654,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         value => {
           // Store quinoa data for timers
           UnifiedState.atoms.quinoaData = value;
-          // Also make globalShop available for notifications (same as MainScript)
+          // Also make globalShop available for notifications
           targetWindow.globalShop = value;
           // Update timers
           updateTimers();
@@ -28092,10 +28096,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         'entries'
       );
 
-      // Check if mainscript.txt pet ability logging is active
+      // Check if external pet ability logging is active
       if (window.petAbilityLogs && Array.isArray(window.petAbilityLogs)) {
         productionLog(
-          '📝 [COMPAT] Detected mainscript.txt pet ability logging system with',
+          '📝 [COMPAT] Detected external pet ability logging system with',
           window.petAbilityLogs.length,
           'entries'
         );
@@ -31347,14 +31351,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           window._MGA_TIMESTAMP = Date.now(); // Update timestamp on completion
 
           // NOW run conflict detection after game has loaded successfully
-          // productionLog('🔍 [MGA-ISOLATION] Running post-initialization MainScript conflict detection...');
+          // productionLog('🔍 [MGA-ISOLATION] Running post-initialization external script conflict detection...');
           if (window.MGA_ConflictDetection) {
-            // Detect MainScript presence
+            // Detect external script presence
             const mainScriptDetected = window.MGA_ConflictDetection.detectMainScript();
 
-            // Only create barriers if MainScript is detected
+            // Only create barriers if external scripts detected
             if (mainScriptDetected) {
-              productionLog('🔒 [MGA-ISOLATION] MainScript detected - creating protective barriers');
+              productionLog('🔒 [MGA-ISOLATION] External scripts detected - creating protective barriers');
               window.MGA_ConflictDetection.createIsolationBarrier();
               window.MGA_ConflictDetection.preventAccess();
             }
@@ -31366,7 +31370,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             if (integrityOk && isolationOk) {
               productionLog('✅ [MGA-ISOLATION] Final integrity check passed - no conflicts detected');
               if (mainScriptDetected) {
-                productionLog('✅ [MGA-ISOLATION] Complete isolation validated - MainScript protection active');
+                productionLog('✅ [MGA-ISOLATION] Complete isolation validated - external script protection active');
               }
             } else {
               productionWarn('⚠️ [MGA-ISOLATION] Final integrity check found potential conflicts');
