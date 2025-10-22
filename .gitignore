@@ -1,10 +1,26 @@
-# Ignore everything
+# Ignore everything by default
 *
 
-# Except these essentials
+# Essential project files
 !.gitignore
 !CHANGELOG.md
 !README.md
 !MGTools.user.js
+
+# Package management (critical for dependency consistency)
 !package.json
 !package-lock.json
+
+# Development tooling configuration
+!eslint.config.mjs
+!.eslintrc.json
+!.prettierrc
+!.prettierignore
+
+# Development documentation
+!DEVELOPMENT_TOOLING.md
+
+# Explicitly ignore these directories (even if we allow files above)
+node_modules/
+dist/
+.claude/
