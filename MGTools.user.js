@@ -8912,6 +8912,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       const closeBtn = header.querySelector('span:last-child');
       closeBtn.addEventListener('click', () => {
+        // Cleanup for shop popout
+        if (tabName === 'shop') {
+          stopInventoryCounter();
+        }
         UnifiedState.data.popouts.widgets.delete(tabName); // Clean up tracking
         popout.remove();
       });
@@ -11193,6 +11197,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     window.MGA_TabCache = { getCachedTabContent, invalidateTabCache };
 
+    let lastActiveTab = null; // Track previous tab for cleanup
+
     function updateTabContent() {
       const contentEl = getCachedElement('#mga-tab-content') || document.getElementById('mga-tab-content');
 
@@ -11201,6 +11207,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         debugLog('UPDATE_TAB', 'Content element not found, skipping update (UI not ready yet)');
         return;
       }
+
+      // Cleanup when leaving shop tab
+      if (lastActiveTab === 'shop' && UnifiedState.activeTab !== 'shop') {
+        stopInventoryCounter();
+      }
+      lastActiveTab = UnifiedState.activeTab;
 
       // Preserve input state for pets tab to prevent typing interruption
       let preservedInputValue = '';
@@ -12447,6 +12459,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     // Update inventory counter displays
     let inventoryUpdateInterval = null;
+    let cachedCounterElements = null;
+    let cachedCountElements = null;
+
     function updateInventoryCounters() {
       const inventory = UnifiedState.atoms.inventory;
       const currentCount = inventory?.items?.length || 0;
@@ -12460,20 +12475,52 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         inventoryColor = '#ffa500'; // Yellow
       }
 
-      // Update all inventory counter elements
-      targetDocument.querySelectorAll('.shop-inventory-count, #shop-inventory-count').forEach(el => {
-        if (el.textContent !== String(currentCount)) {
+      // Cache DOM elements on first run or if they don't exist
+      if (!cachedCountElements || cachedCountElements.length === 0) {
+        cachedCountElements = targetDocument.querySelectorAll('.shop-inventory-count, #shop-inventory-count');
+      }
+      if (!cachedCounterElements || cachedCounterElements.length === 0) {
+        cachedCounterElements = targetDocument.querySelectorAll('.shop-inventory-counter, #shop-inventory-counter');
+      }
+
+      // Update all inventory counter elements (using cached selectors)
+      cachedCountElements.forEach(el => {
+        if (el && el.textContent !== String(currentCount)) {
           el.textContent = currentCount;
         }
       });
 
-      // Update counter colors
-      targetDocument.querySelectorAll('.shop-inventory-counter, #shop-inventory-counter').forEach(el => {
-        if (el.style.color !== inventoryColor) {
+      // Update counter colors (using cached selectors)
+      cachedCounterElements.forEach(el => {
+        if (el && el.style.color !== inventoryColor) {
           el.style.color = inventoryColor;
           el.style.borderLeftColor = inventoryColor;
         }
       });
+    }
+
+    // Start/stop inventory counter with reference counting
+    let inventoryCounterRefs = 0;
+    function startInventoryCounter() {
+      inventoryCounterRefs++;
+      if (inventoryCounterRefs === 1) {
+        // First reference - start the interval
+        updateInventoryCounters(); // Update immediately
+        if (inventoryUpdateInterval) clearInterval(inventoryUpdateInterval);
+        inventoryUpdateInterval = setInterval(updateInventoryCounters, 1000); // Optimized: 500ms→1000ms
+      }
+    }
+
+    function stopInventoryCounter() {
+      inventoryCounterRefs = Math.max(0, inventoryCounterRefs - 1);
+      if (inventoryCounterRefs === 0 && inventoryUpdateInterval) {
+        // No more references - stop the interval
+        clearInterval(inventoryUpdateInterval);
+        inventoryUpdateInterval = null;
+        // Clear cache so it refreshes next time
+        cachedCounterElements = null;
+        cachedCountElements = null;
+      }
     }
 
     function toggleShopWindows() {
@@ -12488,10 +12535,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         shopWindowsOpen = false;
 
         // Stop inventory counter updates
-        if (inventoryUpdateInterval) {
-          clearInterval(inventoryUpdateInterval);
-          inventoryUpdateInterval = null;
-        }
+        stopInventoryCounter();
       } else {
         // Open both sidebars
         if (!seedShopWindow) createShopSidebars();
@@ -12499,10 +12543,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         eggShopWindow.classList.add('open');
         shopWindowsOpen = true;
 
-        // Start inventory counter updates (every 500ms)
-        updateInventoryCounters(); // Update immediately
-        if (inventoryUpdateInterval) clearInterval(inventoryUpdateInterval);
-        inventoryUpdateInterval = setInterval(updateInventoryCounters, 500);
+        // Start inventory counter updates
+        startInventoryCounter();
       }
     }
 
@@ -13584,18 +13626,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (!seedList || !eggList) return;
 
       // Start inventory counter updates for shop tab
-      if (typeof updateInventoryCounters === 'function') {
-        updateInventoryCounters(); // Update immediately
-        // Update every 500ms while shop tab is active
-        const shopTabInterval = setInterval(() => {
-          // Stop if shop tab is no longer visible
-          if (UnifiedState.activeTab !== 'shop' && !contextLocal.querySelector('#shop-inventory-counter')) {
-            clearInterval(shopTabInterval);
-          } else {
-            updateInventoryCounters();
-          }
-        }, 500);
-      }
+      startInventoryCounter();
 
       // Seed/Egg item definition
       const SEED_SPECIES = [
@@ -28467,11 +28498,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Initialize the enhanced TimerManager (make it global for debugging)
       window.timerManager = initializeTimerManager();
 
-      // OPTIMIZED: Monitor abilities every 3 seconds (reduced from 2s for better FPS)
+      // OPTIMIZED: Monitor abilities every 5 seconds (performance improvement)
       productionLog('🚨 [CRITICAL] Setting up ability monitoring timer...');
       window.abilityMonitoringInterval = setInterval(() => {
         monitorPetAbilities();
-      }, 3000);
+      }, 5000);
       productionLog('🚨 [CRITICAL] Ability monitoring started with simple setInterval (3s)');
 
       // OPTIMIZED: Update timers every 2 seconds (reduced from 1s)
@@ -28546,7 +28577,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } catch (error) {
           console.error('❌ [CRITICAL] Error in notification interval:', error);
         }
-      }, 10000); // OPTIMIZED: Check every 10 seconds (reduced from 5s for better FPS)
+      }, 15000); // OPTIMIZED: Check every 15 seconds for better performance
 
       // Store interval reference for cleanup
       MGA_addInterval(window.notificationInterval);
@@ -32693,14 +32724,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // Track last poll time when UI was hidden (for reduced frequency)
     let lastTickWhenHidden = 0;
 
+    // Cache room UI visibility check
+    let cachedRoomsUIVisible = null;
+    let lastUICheckTime = 0;
+
     async function tick() {
       const roomDebugMode = correctWindow.UnifiedState?.data?.settings?.roomDebugMode;
 
       // SMART POLLING: Reduce frequency when Rooms UI is closed (not skip entirely)
-      const roomsUIVisible =
-        document.querySelector('.mga-sidebar[data-visible="true"] [data-tab="rooms"]') ||
-        document.querySelector('#room-status-list') ||
-        document.querySelector('[data-mga-popout="rooms"]');
+      // Cache the UI check - only re-query every 5 seconds
+      const now = Date.now();
+      if (!cachedRoomsUIVisible || now - lastUICheckTime > 5000) {
+        cachedRoomsUIVisible =
+          document.querySelector('.mga-sidebar[data-visible="true"] [data-tab="rooms"]') ||
+          document.querySelector('#room-status-list') ||
+          document.querySelector('[data-mga-popout="rooms"]');
+        lastUICheckTime = now;
+      }
+      const roomsUIVisible = cachedRoomsUIVisible;
 
       // If UI not visible, only poll every 30 seconds instead of every 5 seconds
       if (!roomsUIVisible) {
@@ -33267,8 +33308,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Periodic check as backup (every 5 seconds)
-    setInterval(checkForGameUpdatePopup, 5000);
+    // Periodic check as backup (every 10 seconds - performance optimized)
+    setInterval(checkForGameUpdatePopup, 10000);
 
     if (typeof productionLog === 'function') {
       productionLog('✅ [DOM] Game update popup monitor initialized');
