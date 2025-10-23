@@ -1,0 +1,168 @@
+You are operating on my local repo at:
+C:\Users\MLvP3\ClaudeProjectRepo
+
+Goal: Make lots of small commits for the modularization work on stacked branches that branch off each other, starting from origin/Live-Beta.
+This is a DRY RUN. Do not run any command that writes to disk or pushes to GitHub. Only print what you would run and what would be staged/committed.
+
+Rules (must follow exactly)
+
+DRY RUN ONLY — No writes. Use --dry-run where possible and otherwise just echo commands.
+
+Whitelist-only staging — Only include files directly related to modularization progress (listed below). Nothing else (no screenshots, logs, backups, scratch, tmp).
+
+No “Co-authored-by” lines or trailers in commit messages. Do not add any author trailers at all.
+
+Stacked branch structure — For each module, create a new feature branch off the previous feature branch (first one from origin/Live-Beta).
+
+Never force-push in this dry run. Use git push --dry-run only.
+
+If you see local diffs to files outside the whitelist, show them separately under “UNRELATED CHANGES (excluded by whitelist)” and do not stage them.
+
+Branch naming (stacked PR style)
+
+Base: origin/Live-Beta
+
+m1: feat/modularization/m1-storage
+
+m2: feat/modularization/m2-constants (branches from m1-storage)
+
+m3: feat/modularization/m3-logging (branches from m2-constants)
+
+m4: feat/modularization/m4-compat (branches from m3-logging)
+(If any already exist locally/remotely, show how you’d sync/rebase in DRY RUN only.)
+
+Whitelist (commit-only set)
+
+.gitignore
+
+MODULARIZATION_PROGRESS.md
+
+build.js
+
+src/index.js
+
+src/core/storage.js (Module 1)
+
+src/utils/constants.js (Module 2)
+
+src/core/logging.js (Module 3)
+
+src/core/compat.js (Module 4)
+
+(Optional, only if diffs are strictly modularization-scaffold & headers) MGTools.user.js or mgtools.user.js
+
+If this file includes unrelated bugfixes or feature changes, exclude it and list it under “UNRELATED CHANGES”.
+
+Always exclude (examples/patterns)
+
+node_modules/, dist/, *.log, *.tmp, *.backup, consolelogs*.txt
+
+*.png, *.jpg, *.jpeg, *.gif, *.webp
+
+mgdebug*, debug*, *.bak, *.old
+
+What I want you to print (no execution)
+
+Repo state summary
+
+Current directory and confirmation it exists
+
+git remote -v (DRY RUN: just show what you’d run)
+
+git fetch --all --prune (show command only)
+
+git branch -vv & git status --porcelain=v1 (show commands only)
+
+The detected default branch and the presence of origin/Live-Beta
+
+.gitignore check (DRY)
+
+Show the exact .gitignore contents you’d ensure exist (append if missing):
+
+node_modules/
+dist/
+*.log
+*.tmp
+*.backup
+consolelogs*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+mgdebug*
+debug*
+
+
+Do not write it. Just display the diff you’d create if changes are needed.
+
+File inventory & whitelist diff
+
+List which whitelist files exist vs missing.
+
+For each whitelist file that exists, show git diff --name-only and a short --stat (commands and the output you’d expect) to confirm scope.
+
+Separately list any non-whitelisted modified/untracked files as “UNRELATED CHANGES (excluded)”.
+
+Stacked-branches plan (DRY)
+For each module (m1..m4), print the exact commands you’d run, but do not run them. For example:
+
+m1 (storage)
+
+git switch -c feat/modularization/m1-storage origin/Live-Beta
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/core/storage.js
+git commit --dry-run -m "Phase 2: Module 1 — storage layer; no behavior changes"
+git push --dry-run -u origin feat/modularization/m1-storage
+
+
+m2 (constants) (branch from m1)
+
+git switch -c feat/modularization/m2-constants feat/modularization/m1-storage
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/utils/constants.js
+git commit --dry-run -m "Phase 2: Module 2 — constants/config; no behavior changes"
+git push --dry-run -u origin feat/modularization/m2-constants
+
+
+m3 (logging) (branch from m2)
+
+git switch -c feat/modularization/m3-logging feat/modularization/m2-constants
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/core/logging.js
+git commit --dry-run -m "Phase 2: Module 3 — logging; unified logger; no behavior changes"
+git push --dry-run -u origin feat/modularization/m3-logging
+
+
+m4 (compat) (branch from m3)
+
+git switch -c feat/modularization/m4-compat feat/modularization/m3-logging
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/core/compat.js
+git commit --dry-run -m "Phase 2: Module 4 — compatibility layer (CSP/Discord/context); no behavior changes"
+git push --dry-run -u origin feat/modularization/m4-compat
+
+
+If (and only if) MGTools.user.js/mgtools.user.js contains pure modularization scaffolding (e.g., updated headers or imports relevant to modules), show an alternate commit line including it; otherwise list it under “UNRELATED CHANGES” and exclude.
+
+Commit messages (print only)
+
+Show the exact commit messages (one line + short bullets) you would use for each module.
+
+Do not include any author trailers like “Co-authored-by”.
+
+Safety checks
+
+Confirm there are no commands that write, commit, or push in this dry run.
+
+If the working tree has unrelated changes, show how you’d either:
+
+keep them local (unstaged), or
+
+stash them (print git stash push -m "<msg>" you would run, but do not run it), or
+
+add extra .gitignore patterns (print diff only).
+
+Final summary
+
+A collapsed list of the exact commands you’d run for each module when I say “EXECUTE”.
+
+Note again: no “Co-authored-by” lines will be added.
+
+Return the full DRY RUN plan exactly as above. Do not run anything yet.

@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 3.8.8** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 1.1.3** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-3.8.8-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-1.1.3-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -105,6 +105,7 @@ MGTools is a powerful userscript that enhances your Magic Garden experience with
 - Turtle timer milestones
 
 ### ⌨️ Hotkeys
+- **Alt+M** - Toggle toolbar visibility (hide/show dock and sidebar)
 - Customizable keyboard shortcuts for all features
 - Tab navigation (Ctrl+1-7)
 - Quick actions (Alt+B for shop)
@@ -268,6 +269,7 @@ The **Unified Dock** appears at the bottom (horizontal) or left side (vertical) 
 - `Ctrl+7` - Shop tab
 
 ### Quick Actions
+- `Alt+M` - Toggle toolbar visibility (hide/show all UI)
 - `Alt+B` - Toggle shop sidebars
 - `Escape` - Close shop/modals
 - `Ctrl+H` - Clear crop highlights
@@ -432,11 +434,8 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v3.8.8)
-- **v3.8.8**: 🛒 **SHOP UI IMPROVEMENTS!** - Better inventory management, accurate stock display, pet preset import/export now working!
-- **v3.8.1**: 🌐 **DISCORD ROOMS + OPTIMIZATION!** - All 87 Discord rooms now show player counts! Instant feed reliability improved. 83% less network traffic when tabs closed!
-- **v3.8.0**: 🐾 **INSTANT FEED BUTTONS!** - Click "Feed" next to each pet for quick feeding! Automatically selects compatible crops and respects favorites.
-- **v3.7.8**: ⚡ **STABILITY UPDATE!** - Cycle Pet Presets hotkey, auto game updates, ability log fixes
+### Latest Updates (v1.1.3)
+- **v1.1.3**: Added debounce protection to pet preset "Place" buttons - Prevents rapid double-clicks from triggering duplicate pet swapping operations. All 4 handlers now use 500ms debounce delay for improved reliability.
 
 ---
 

@@ -1,0 +1,63 @@
+You are my release engineer. Use the .ops plan/state approach.
+Goal: create a stacked-branches plan for Modules 1–4 ONLY, whitelist staging, and DRY RUN everything first. Don’t push or write to Git until I confirm.
+
+Repository: C:\Users\MLvP3\ClaudeProjectRepo
+Remote to use later: origin => https://github.com/Myke247/MGTools.git
+Base branch on GitHub: Live-Beta
+Local current branch: main (has all four modules already; do NOT base from this)
+
+Constraints:
+- Plan files must be created under `.ops/` and should be git-ignored:
+  - .ops/stack-plan.yml  (the recipe)
+  - .ops/stack-state.json (progress tracker)
+- Whitelist ONLY these files for commits (everything else stays untracked):
+  - .gitignore
+  - MODULARIZATION_PROGRESS.md
+  - build.js
+  - src/index.js
+  - src/core/storage.js
+  - src/utils/constants.js
+  - src/core/logging.js
+  - src/core/compat.js
+- EXCLUDE from commits: mgtools.user.js, screenshots/images, logs, any *.backup, .claude/, eslint files, troubleshooting notes, etc.
+- Each branch = one module on top of the previous (stacked):
+  1) feat/modularization/m1-storage      from origin/Live-Beta
+  2) feat/modularization/m2-constants    from feat/modularization/m1-storage
+  3) feat/modularization/m3-logging      from feat/modularization/m2-constants
+  4) feat/modularization/m4-compat       from feat/modularization/m3-logging
+- Commit messages (no trailers, NO “Co-authored-by”):
+  - M1: "Phase 2: Module 1 — storage layer; no behavior changes"
+  - M2: "Phase 2: Module 2 — constants/config; no behavior changes"
+  - M3: "Phase 2: Module 3 — logging; unified logger; no behavior changes"
+  - M4: "Phase 2: Module 4 — compatibility layer (CSP/Discord/context); no behavior changes"
+- For each module, also include a short bullet list in the commit body describing exactly what changed (like in your dry run summary).
+
+Actions (DRY RUN ONLY):
+1) Create `.ops/stack-plan.yml` with:
+   - mode: DRY
+   - remote: origin
+   - base: origin/Live-Beta
+   - branches: the 4 branches above, with explicit file lists per branch (only the whitelist items relevant to that module)
+   - commit messages as specified (no co-author trailers)
+2) Create `.ops/stack-state.json` initialized with:
+   - remote_ok: false
+   - base_verified: false
+   - branches: { m1-storage: "pending", m2-constants: "pending", m3-logging: "pending", m4-compat: "pending" }
+3) Print (do not execute) the exact git commands you would run to:
+   - add remote (but DO NOT run it yet),
+   - create each branch from the correct base,
+   - stage ONLY the whitelisted files for that module,
+   - commit with the specified message,
+   - push with `-u` and create PRs chained (show the commands, don’t run).
+   Use `git add -n` and `git commit --dry-run` in the printed command blocks to prove what would stage/commit.
+4) Show a DIFF PREVIEW section for each branch listing files included/excluded.
+5) Confirm you will NOT add “Co-authored-by” or any trailers.
+
+Output format:
+- "PLAN SUMMARY" (human-readable)
+- Render the full `.ops/stack-plan.yml`
+- Render the full `.ops/stack-state.json`
+- "COMMANDS (DRY RUN)" with all commands
+- "SAFETY CHECKS" list explaining why nothing was changed yet
+
+Stop after the DRY RUN output and wait for my approval.

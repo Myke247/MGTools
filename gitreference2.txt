@@ -1,0 +1,130 @@
+DRY RUN ONLY — Stacked branches with whitelist commits (no writing, no pushing)
+
+Repo: C:\Users\MLvP3\ClaudeProjectRepo
+Base branch: origin/Live-Beta
+
+Rules (must follow):
+
+DRY RUN ONLY — Do not write, commit, or push. Print commands and expected outputs only. Use -n/--dry-run where possible.
+
+Whitelist staging only — Stage/commit only these files:
+
+.gitignore
+
+MODULARIZATION_PROGRESS.md
+
+build.js
+
+src/index.js
+
+src/core/storage.js (Module 1)
+
+src/utils/constants.js (Module 2)
+
+src/core/logging.js (Module 3)
+
+src/core/compat.js (Module 4)
+
+(Optional: include MGTools.user.js / mgtools.user.js only if the diff is pure modularization scaffolding—otherwise exclude it.)
+
+Exclude everything else (screenshots, logs, backups, dist, node_modules, temp files). Do not stage them.
+
+No author trailers — Do not add “Co-authored-by” or any other trailers to commit messages.
+
+Stacked branches — Each new branch starts from the previous feature branch (first one starts from origin/Live-Beta):
+
+feat/modularization/m1-storage
+
+feat/modularization/m2-constants (from m1)
+
+feat/modularization/m3-logging (from m2)
+
+feat/modularization/m4-compat (from m3)
+
+If local working tree has unrelated changes, list them under UNRELATED CHANGES (excluded) and keep them unstaged in this dry run.
+
+.gitignore (show diff you’d ensure exists; do not write it):
+
+node_modules/
+dist/
+*.log
+*.tmp
+*.backup
+consolelogs*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+mgdebug*
+debug*
+
+
+What to print (no execution):
+
+Repo state summary: (print the commands you’d run & the outputs you’d expect)
+
+git remote -v
+
+git fetch --all --prune
+
+git branch -vv
+
+git status --porcelain=v1
+
+Confirm origin/Live-Beta exists and will be used as base.
+
+.gitignore check (DRY): Show the diff you’d apply if any of the above patterns are missing.
+
+Whitelist inventory:
+
+For each whitelist file, show whether it exists and the short diffstat you’d expect (git diff --name-only / --stat previews).
+
+List UNRELATED CHANGES (excluded) separately.
+
+Stacked-branch plan (print exact commands; do not run):
+
+m1 (storage)
+
+git switch -c feat/modularization/m1-storage origin/Live-Beta
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/core/storage.js
+git commit --dry-run -m "Phase 2: Module 1 — storage layer; no behavior changes"
+git push --dry-run -u origin feat/modularization/m1-storage
+
+
+m2 (constants) (from m1)
+
+git switch -c feat/modularization/m2-constants feat/modularization/m1-storage
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/utils/constants.js
+git commit --dry-run -m "Phase 2: Module 2 — constants/config; no behavior changes"
+git push --dry-run -u origin feat/modularization/m2-constants
+
+
+m3 (logging) (from m2)
+
+git switch -c feat/modularization/m3-logging feat/modularization/m2-constants
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/core/logging.js
+git commit --dry-run -m "Phase 2: Module 3 — logging; unified logger; no behavior changes"
+git push --dry-run -u origin feat/modularization/m3-logging
+
+
+m4 (compat) (from m3)
+
+git switch -c feat/modularization/m4-compat feat/modularization/m3-logging
+git add -n .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/core/compat.js
+git commit --dry-run -m "Phase 2: Module 4 — compatibility layer (CSP/Discord/context); no behavior changes"
+git push --dry-run -u origin feat/modularization/m4-compat
+
+
+If (and only if) MGTools.user.js is pure scaffolding, show an alternate git add -n including it for the appropriate step; otherwise keep it in UNRELATED CHANGES (excluded).
+
+Commit messages (print only) — One-line subject + 3–4 bullets per module; no trailers.
+
+Safety checks — Explicitly confirm no command will write/commit/push in this dry run. If unrelated changes exist, show the commands you would run to stash them (but don’t run them), e.g.:
+
+git stash push -m "temp: exclude troubleshooting artifacts"
+
+
+Final summary — Collapsed list of the exact commands you will run when I say EXECUTE.
+
+Stop after printing. Do not run anything until I confirm.

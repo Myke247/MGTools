@@ -11742,64 +11742,51 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           const preset = UnifiedState.data.petPresets[presetName];
+          const currentPets = UnifiedState.atoms.activePets || [];
           const maxSlots = 3;
 
           // Native swap approach - works even with full inventory!
           let delay = 0;
 
           for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+            const currentPet = currentPets[slotIndex];
             const desiredPet = preset[slotIndex];
 
-            // BUGFIX: Capture delay value in closure to prevent race conditions
-            ((currentDelay, slot) => {
+            if (currentPet && desiredPet) {
+              // Both exist: Use native SwapPet (no inventory space needed!)
               setTimeout(() => {
-                // BUGFIX: Read FRESH state inside timeout (not stale reference)
-                const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-                const currentPet = currentPets[slot];
-
-                if (currentPet && desiredPet) {
-                  // Both exist: Use native SwapPet (no inventory space needed!)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'SwapPet',
-                    petSlotId: currentPet.id,
-                    petInventoryId: desiredPet.id
-                  });
-                } else if (!currentPet && desiredPet) {
-                  // Empty slot: Place new pet
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'PlacePet',
-                    itemId: desiredPet.id,
-                    position: { x: 17 + slot * 2, y: 13 },
-                    localTileIndex: 64,
-                    tileType: 'Boardwalk'
-                  });
-                } else if (currentPet && !desiredPet) {
-                  // Remove excess pet (preset has fewer pets)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'StorePet',
-                    itemId: currentPet.id
-                  });
-                }
-              }, currentDelay);
-            })(delay, slotIndex);
-
-            // Increase delay: 100ms → 200ms for better network latency tolerance
-            delay += 200;
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'SwapPet',
+                  petSlotId: currentPet.id,
+                  petInventoryId: desiredPet.id
+                });
+              }, delay);
+              delay += 100;
+            } else if (!currentPet && desiredPet) {
+              // Empty slot: Place new pet
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'PlacePet',
+                  itemId: desiredPet.id,
+                  position: { x: 17 + slotIndex * 2, y: 13 },
+                  localTileIndex: 64,
+                  tileType: 'Boardwalk'
+                });
+              }, delay);
+              delay += 100;
+            } else if (currentPet && !desiredPet) {
+              // Remove excess pet (preset has fewer pets)
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'StorePet',
+                  itemId: currentPet.id
+                });
+              }, delay);
+              delay += 100;
+            }
           }
 
           // Update displays after all pets are placed (single refresh with retry)
@@ -18147,64 +18134,51 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
+      const currentPets = UnifiedState.atoms.activePets || [];
       const maxSlots = 3;
 
       // Native swap approach - works even with full inventory!
       let delay = 0;
 
       for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+        const currentPet = currentPets[slotIndex];
         const desiredPet = preset[slotIndex];
 
-        // BUGFIX: Capture delay value in closure to prevent race conditions
-        ((currentDelay, slot) => {
+        if (currentPet && desiredPet) {
+          // Both exist: Use native SwapPet (no inventory space needed!)
           setTimeout(() => {
-            // BUGFIX: Read FRESH state inside timeout (not stale reference)
-            const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-            const currentPet = currentPets[slot];
-
-            if (currentPet && desiredPet) {
-              // Both exist: Use native SwapPet (no inventory space needed!)
-              if (UnifiedState.data.settings?.debugMode) {
-                productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
-              }
-
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'SwapPet',
-                petSlotId: currentPet.id,
-                petInventoryId: desiredPet.id
-              });
-            } else if (!currentPet && desiredPet) {
-              // Empty slot: Place new pet
-              if (UnifiedState.data.settings?.debugMode) {
-                productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
-              }
-
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'PlacePet',
-                itemId: desiredPet.id,
-                position: { x: 17 + slot * 2, y: 13 },
-                localTileIndex: 64,
-                tileType: 'Boardwalk'
-              });
-            } else if (currentPet && !desiredPet) {
-              // Remove excess pet (preset has fewer pets)
-              if (UnifiedState.data.settings?.debugMode) {
-                productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
-              }
-
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'StorePet',
-                itemId: currentPet.id
-              });
-            }
-          }, currentDelay);
-        })(delay, slotIndex);
-
-        // Increase delay: 100ms → 200ms for better network latency tolerance
-        delay += 200;
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'SwapPet',
+              petSlotId: currentPet.id,
+              petInventoryId: desiredPet.id
+            });
+          }, delay);
+          delay += 100;
+        } else if (!currentPet && desiredPet) {
+          // Empty slot: Place new pet
+          setTimeout(() => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'PlacePet',
+              itemId: desiredPet.id,
+              position: { x: 17 + slotIndex * 2, y: 13 },
+              localTileIndex: 64,
+              tileType: 'Boardwalk'
+            });
+          }, delay);
+          delay += 100;
+        } else if (currentPet && !desiredPet) {
+          // Remove excess pet (preset has fewer pets)
+          setTimeout(() => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'StorePet',
+              itemId: currentPet.id
+            });
+          }, delay);
+          delay += 100;
+        }
       }
 
       // Update all displays after pets are placed (with backup refresh)
@@ -18897,64 +18871,51 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             return;
           }
 
+          const currentPets = UnifiedState.atoms.activePets || [];
           const maxSlots = 3;
 
           // Native swap approach - works even with full inventory!
           let delay = 0;
 
           for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+            const currentPet = currentPets[slotIndex];
             const desiredPet = preset[slotIndex];
 
-            // BUGFIX: Capture delay value in closure to prevent race conditions
-            ((currentDelay, slot) => {
+            if (currentPet && desiredPet) {
+              // Both exist: Use native SwapPet (no inventory space needed!)
               setTimeout(() => {
-                // BUGFIX: Read FRESH state inside timeout (not stale reference)
-                const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-                const currentPet = currentPets[slot];
-
-                if (currentPet && desiredPet) {
-                  // Both exist: Use native SwapPet (no inventory space needed!)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'SwapPet',
-                    petSlotId: currentPet.id,
-                    petInventoryId: desiredPet.id
-                  });
-                } else if (!currentPet && desiredPet) {
-                  // Empty slot: Place new pet
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'PlacePet',
-                    itemId: desiredPet.id,
-                    position: { x: 17 + slot * 2, y: 13 },
-                    localTileIndex: 64,
-                    tileType: 'Boardwalk'
-                  });
-                } else if (currentPet && !desiredPet) {
-                  // Remove excess pet (preset has fewer pets)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'StorePet',
-                    itemId: currentPet.id
-                  });
-                }
-              }, currentDelay);
-            })(delay, slotIndex);
-
-            // Increase delay: 100ms → 200ms for better network latency tolerance
-            delay += 200;
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'SwapPet',
+                  petSlotId: currentPet.id,
+                  petInventoryId: desiredPet.id
+                });
+              }, delay);
+              delay += 100;
+            } else if (!currentPet && desiredPet) {
+              // Empty slot: Place new pet
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'PlacePet',
+                  itemId: desiredPet.id,
+                  position: { x: 17 + slotIndex * 2, y: 13 },
+                  localTileIndex: 64,
+                  tileType: 'Boardwalk'
+                });
+              }, delay);
+              delay += 100;
+            } else if (currentPet && !desiredPet) {
+              // Remove excess pet (preset has fewer pets)
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'StorePet',
+                  itemId: currentPet.id
+                });
+              }, delay);
+              delay += 100;
+            }
           }
 
           // Refresh after swaps complete
@@ -25573,29 +25534,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       });
 
-      // PERFORMANCE OPTIMIZATION: Debounce ability log updates to prevent spam
-      // Max 1 update per 500ms even if multiple abilities trigger rapidly
-      if (hasNewAbility && document.visibilityState === 'visible') {
-        if (!pendingAbilityUpdates) {
-          pendingAbilityUpdates = true;
+      // OPTIMIZED: Only update DOM if there's actually a new ability and page is visible
+      if (hasNewAbility && document.visibilityState === 'visible' && !pendingAbilityUpdates) {
+        pendingAbilityUpdates = true;
+        // Batch all DOM updates in next animation frame
+        requestAnimationFrame(() => {
+          updateAllAbilityLogDisplays();
 
-          // Debounce: Wait 500ms before updating to batch rapid ability triggers
-          setTimeout(() => {
-            requestAnimationFrame(() => {
-              updateAllAbilityLogDisplays();
+          if (UnifiedState.activeTab === 'abilities') {
+            updateTabContent();
+          }
 
-              if (UnifiedState.activeTab === 'abilities') {
-                updateTabContent();
-              }
+          // BUGFIX: Removed duplicate overlay update loop
+          // updateAllAbilityLogDisplays() already handles all overlays at line 13548
+          // Duplicate updates were causing race conditions when both tab and pop-up were open
 
-              // BUGFIX: Removed duplicate overlay update loop
-              // updateAllAbilityLogDisplays() already handles all overlays at line 13548
-              // Duplicate updates were causing race conditions when both tab and pop-up were open
-
-              pendingAbilityUpdates = false;
-            });
-          }, 500); // OPTIMIZED: 500ms debounce window
-        }
+          pendingAbilityUpdates = false;
+        });
       }
     }
 
@@ -26457,50 +26412,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       };
     }
 
-    // PERFORMANCE OPTIMIZATION: Cache timer elements to avoid repeated DOM queries
-    let cachedTimerElements = {
-      'timer-seed': [],
-      'timer-egg': [],
-      'timer-tool': [],
-      'timer-lunar': []
-    };
-    let lastTimerElementCacheTime = 0;
-    const TIMER_ELEMENT_CACHE_DURATION = 5000; // Refresh cache every 5 seconds
-
-    function refreshTimerElementCache() {
-      const timerIds = ['timer-seed', 'timer-egg', 'timer-tool', 'timer-lunar'];
-
-      timerIds.forEach(id => {
-        const elements = [];
-
-        // Main window element
-        const mainEl = document.getElementById(id);
-        if (mainEl) elements.push(mainEl);
-
-        // Overlay elements
-        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-          if (overlay && document.contains(overlay)) {
-            const overlayEl = overlay.querySelector(`#${id}`);
-            if (overlayEl) elements.push(overlayEl);
-          }
-        });
-
-        // Target document elements (for popouts)
-        try {
-          const targetEls = targetDocument.querySelectorAll(`#${id}`);
-          targetEls.forEach(el => {
-            if (!elements.includes(el)) elements.push(el);
-          });
-        } catch (e) {
-          // Ignore errors from closed windows
-        }
-
-        cachedTimerElements[id] = elements;
-      });
-
-      lastTimerElementCacheTime = Date.now();
-    }
-
     function updateTimerDisplay() {
       const formatTime = seconds => {
         if (seconds == null) return '--:--';
@@ -26523,34 +26434,38 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       };
 
-      // BUGFIX: Initialize cache on first run or refresh if expired
-      const now = Date.now();
-      if (lastTimerElementCacheTime === 0 || now - lastTimerElementCacheTime > TIMER_ELEMENT_CACHE_DURATION) {
-        refreshTimerElementCache();
-      }
-
-      // PERFORMANCE: Update cached elements only (no DOM queries in hot path)
+      // Helper function to update timer elements across all contexts
       const updateTimerElement = (id, value) => {
+        // Choose formatter based on timer type
         const formatter = id === 'timer-lunar' ? formatTimeHoursMinutes : formatTime;
         const formattedValue = formatter(value);
 
-        const elements = cachedTimerElements[id] || [];
-
-        // FALLBACK: If cache is empty, query directly (first run before cache populated)
-        if (elements.length === 0) {
-          const el = document.getElementById(id);
-          if (el) {
-            el.textContent = formattedValue;
-          }
-          return;
+        // Update main window
+        const mainElement = document.getElementById(id);
+        if (mainElement) {
+          mainElement.textContent = formattedValue;
         }
 
-        elements.forEach(el => {
-          // Verify element still in DOM before updating
-          if (document.contains(el)) {
-            el.textContent = formattedValue;
+        // Update in-game overlays
+        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+          if (overlay && document.contains(overlay)) {
+            const overlayElement = overlay.querySelector(`#${id}`);
+            if (overlayElement) {
+              overlayElement.textContent = formattedValue;
+            }
           }
         });
+
+        // Update all timer elements with this ID across all open windows
+        // This catches pop-out windows that may contain timer elements
+        try {
+          const allElements = targetDocument.querySelectorAll(`#${id}`);
+          allElements.forEach(el => {
+            el.textContent = formattedValue;
+          });
+        } catch (e) {
+          // Ignore errors from closed windows
+        }
       };
 
       // Update all timer types
@@ -26913,33 +26828,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     (function initAutoFavorite() {
       let lastInventoryCount = 0;
 
-      // PERFORMANCE OPTIMIZATION: Increased interval from 500ms to 2000ms
-      // Still responsive for new items, but 4x less CPU usage
+      // Monitor inventory changes for auto-favorite (myData is set by existing myDataAtom hook)
       setInterval(() => {
-        // Early exit if auto-favorite is disabled or no watched items
-        if (!UnifiedState.data.settings.autoFavorite.enabled) {
-          return;
-        }
-
-        const watchedSpecies = UnifiedState.data.settings.autoFavorite.species || [];
-        const watchedMutations = UnifiedState.data.settings.autoFavorite.mutations || [];
-
-        // Skip processing if nothing is being watched
-        if (watchedSpecies.length === 0 && watchedMutations.length === 0) {
-          return;
-        }
-
-        if (!targetWindow.myData?.inventory?.items) {
+        if (!targetWindow.myData?.inventory?.items || !UnifiedState.data.settings.autoFavorite.enabled) {
           return;
         }
 
         const currentCount = targetWindow.myData.inventory.items.length;
-        // Only process if inventory count increased (new items added)
         if (currentCount > lastInventoryCount) {
           checkAndFavoriteNewItems(targetWindow.myData.inventory);
         }
         lastInventoryCount = currentCount;
-      }, 2000); // OPTIMIZED: Every 2 seconds (was 500ms)
+      }, 500);
 
       function checkAndFavoriteNewItems(inventory) {
         if (!inventory?.items) return;
@@ -27289,51 +27189,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       return getAbilityExpectations(activePets, 'PlantGrowthBoostII', 5, 0.27);
     }
 
-    // BUGFIX: Validate tooltip element position to prevent top-left corner misplacement
-    // PERFORMANCE: Silent validation - no console spam unless debug mode enabled
-    function isValidTooltipElement(element) {
-      if (!element) return false;
-
-      try {
-        const rect = element.getBoundingClientRect();
-
-        // Reject if element is in top-left corner (likely UI element, not tooltip)
-        // Tooltips should be centered or follow cursor, never stuck at 0,0
-        if (rect.top < 50 && rect.left < 50) {
-          return false; // Silent rejection
-        }
-
-        // Reject if element is too small (likely not a tooltip container)
-        if (rect.width < 50 || rect.height < 30) {
-          return false; // Silent rejection
-        }
-
-        // Reject if element is off-screen
-        const doc = targetDocument || document;
-        const viewportWidth = window.innerWidth || doc.documentElement.clientWidth;
-        const viewportHeight = window.innerHeight || doc.documentElement.clientHeight;
-
-        if (rect.right < 0 || rect.bottom < 0 || rect.left > viewportWidth || rect.top > viewportHeight) {
-          return false; // Silent rejection
-        }
-
-        // Additional check: Element should contain text (tooltips always have content)
-        const hasText = element.textContent && element.textContent.trim().length > 0;
-        if (!hasText) {
-          return false; // Silent rejection
-        }
-
-        // Passed all validation checks
-        return true;
-      } catch (e) {
-        // Only log errors, not validation failures
-        if (UnifiedState?.data?.settings?.debugMode) {
-          console.error('[CROP-VALUE] ❌ Error validating tooltip element:', e);
-        }
-        return false;
-      }
-    }
-
     function insertTurtleEstimate() {
       const doc = targetDocument || document;
 
@@ -27348,8 +27203,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       )?.parentElement;
 
       if (!currentPlantTooltipFlexbox) {
-        // PERFORMANCE FIX: Validate tooltip position before using fallback selectors
-        // This prevents slot value from appearing in top-left corner UI elements
+        // Try alternative selectors
         const altSelectors = [
           'div.QuinoaUI .McFlex .McGrid',
           '[class*="tooltip"] [class*="flex"]',
@@ -27357,24 +27211,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           '.McFlex .McGrid .McFlex',
           'div.QuinoaUI div.McFlex div.McGrid'
         ];
-
         for (const sel of altSelectors) {
           const el = doc.querySelector(sel);
-          if (el && isValidTooltipElement(el)) {
+          if (el) {
             currentPlantTooltipFlexbox = el;
             break;
           }
         }
-
         if (!currentPlantTooltipFlexbox) {
           return;
         }
-      }
-
-      // Final validation: Ensure element is in valid screen position
-      if (!isValidTooltipElement(currentPlantTooltipFlexbox)) {
-        console.warn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
-        return;
       }
 
       // Try multiple ways to get current crop/egg
@@ -28950,28 +28796,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       productionLog('🚨 [CRITICAL] Optimized notification timer started with performance monitoring');
 
-      // HUNGER TIMER: Update hunger countdown timers
-      // PERFORMANCE OPTIMIZATION: Reduced from 1000ms to 2000ms, cache timer elements
+      // HUNGER TIMER: Update hunger countdown timers every second
       productionLog('🍖 [HUNGER-TIMER] Setting up hunger timer updates...');
-
-      // Cache for timer elements (refreshed when pets tab is opened/updated)
-      let cachedTimerElements = [];
-      let lastTimerCacheTime = 0;
-      const TIMER_CACHE_DURATION = 5000; // Refresh cache every 5 seconds
-
       window.hungerTimerInterval = setInterval(() => {
         try {
+          // Update all hunger timer elements
+          const timerElements = document.querySelectorAll('.mga-hunger-timer');
           const activePets = window.activePets || UnifiedState.atoms.activePets || [];
 
-          // Refresh timer element cache if needed
-          const now = Date.now();
-          if (cachedTimerElements.length === 0 || now - lastTimerCacheTime > TIMER_CACHE_DURATION) {
-            cachedTimerElements = Array.from(document.querySelectorAll('.mga-hunger-timer'));
-            lastTimerCacheTime = now;
-          }
-
           if (UnifiedState.data.settings?.debugMode) {
-            console.log('🍖 [TIMER-UPDATE] Cached timer elements:', cachedTimerElements.length);
+            console.log('🍖 [TIMER-UPDATE] Timer elements found:', timerElements.length);
             console.log('🍖 [TIMER-UPDATE] Active pets:', activePets.length);
             if (activePets.length > 0) {
               activePets.forEach((p, i) => {
@@ -28986,14 +28820,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
           }
 
-          if (cachedTimerElements.length > 0) {
-            cachedTimerElements.forEach(element => {
-              // Skip if element was removed from DOM
-              if (!document.contains(element)) {
-                cachedTimerElements = []; // Force cache refresh
-                return;
-              }
-
+          if (timerElements.length > 0) {
+            timerElements.forEach(element => {
               const petIndex = parseInt(element.dataset.petIndex);
               if (petIndex >= 0 && petIndex < activePets.length) {
                 const pet = activePets[petIndex];
@@ -29017,7 +28845,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } catch (error) {
           console.error('❌ Error updating hunger timers:', error);
         }
-      }, 2000); // OPTIMIZED: Update every 2 seconds (was 1s)
+      }, 1000); // Update every second
 
       MGA_addInterval(window.hungerTimerInterval);
       productionLog('🍖 [HUNGER-TIMER] Hunger timer updates started (1s interval)');
@@ -29200,35 +29028,26 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
+      const currentPets = UnifiedState.atoms.activePets || [];
+
       // Always use SwapPet for atomic swapping (works regardless of inventory space)
       productionLog('[PETS] Using SwapPet for atomic swapping');
 
       preset.forEach((presetPet, i) => {
-        // BUGFIX: Read current state INSIDE timeout to get fresh data after previous swaps
-        // This fixes race condition where slow networks don't update activePets fast enough
-        setTimeout(() => {
-          // Get FRESH state each time (not stale reference from before loop)
-          const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-          const currentPet = currentPets[i];
-
-          if (currentPet) {
-            // Swap: active pet <-> inventory pet
-            if (UnifiedState.data.settings?.debugMode) {
-              productionLog(`[PET-SWAP] Slot ${i + 1}: Swapping ${currentPet.id} → ${presetPet.id}`);
-            }
-
+        const currentPet = currentPets[i];
+        if (currentPet) {
+          // Swap: active pet <-> inventory pet
+          setTimeout(() => {
             safeSendMessage({
               scopePath: ['Room', 'Quinoa'],
               type: 'SwapPet',
               petSlotId: currentPet.id,
               petInventoryId: presetPet.id
             });
-          } else {
-            // No pet in this slot, just place
-            if (UnifiedState.data.settings?.debugMode) {
-              productionLog(`[PET-SWAP] Slot ${i + 1}: Placing ${presetPet.id} (empty slot)`);
-            }
-
+          }, i * 100);
+        } else {
+          // No pet in this slot, just place
+          setTimeout(() => {
             safeSendMessage({
               scopePath: ['Room', 'Quinoa'],
               type: 'PlacePet',
@@ -29237,11 +29056,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               localTileIndex: 64,
               tileType: 'Boardwalk'
             });
-          }
-        }, i * 200); // Increased delay from 100ms → 200ms for network latency tolerance
+          }, i * 100);
+        }
       });
 
-      productionLog(`✅ [PETS] Loaded pet preset (${preset.length} pets)`);
+      productionLog(`✅ [PETS] Loaded pet preset`);
     }
 
     function loadPresetByNumber(number) {
@@ -33206,21 +33025,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         );
       }
 
-      // PERFORMANCE OPTIMIZATION: Batch room requests to avoid network spam
-      // Process 10 rooms at a time with 200ms delay between batches
       try {
-        const BATCH_SIZE = 10;
-        const BATCH_DELAY = 200; // ms between batches
-
-        for (let i = 0; i < names.length; i += BATCH_SIZE) {
-          const batch = names.slice(i, i + BATCH_SIZE);
-          await Promise.all(batch.map(fetchOne));
-
-          // Add delay between batches (except for last batch)
-          if (i + BATCH_SIZE < names.length) {
-            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-          }
-        }
+        await Promise.all(names.map(fetchOne));
 
         // Show sample of Discord room counts if debug mode enabled
         if (roomDebugMode) {
@@ -33282,8 +33088,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       }
     }
-    // PERFORMANCE OPTIMIZATION: Watch specific container instead of entire document
-    // This reduces mutation callback frequency by 90%+
+    // Watch the search input to include searched room
     const obs = new MutationObserver(() => {
       const inp = document.getElementById('room-search-input');
       if (inp && !inp.__mgtpBound) {
@@ -33301,31 +33106,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         });
       }
     });
-
-    // Watch only the sidebar container instead of entire document
-    // Falls back to document if sidebar not found yet
-    const observeRoomSearch = () => {
-      const sidebar = document.getElementById('mgh-sidebar') || document.querySelector('.mga-sidebar');
-      const targetElement = sidebar || document.documentElement;
-
-      obs.observe(targetElement, {
-        subtree: true,
-        childList: true,
-        // OPTIMIZATION: Only watch childList changes, ignore attributes/characterData
-        attributes: false,
-        characterData: false
-      });
-
-      if (!sidebar) {
-        // If sidebar not ready yet, retry in 1 second
-        setTimeout(() => {
-          obs.disconnect();
-          observeRoomSearch();
-        }, 1000);
-      }
-    };
-
-    observeRoomSearch();
+    obs.observe(document.documentElement, { subtree: true, childList: true });
 
     // Wait for UnifiedState and RoomRegistry to be ready before starting polling
     function startPollingWhenReady() {
@@ -33333,10 +33114,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const hasRoomRegistry = typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord;
 
       if (hasUnifiedState && hasRoomRegistry) {
-        // PERFORMANCE OPTIMIZATION: Increased interval from 5s to 10s
-        // Room counts don't change that rapidly, 10s is still responsive
+        // Start room polling with Discord rooms included
         setTimeout(tick, 1000); // First tick after 1 second
-        setInterval(tick, 10000); // Then every 10 seconds (was 5s)
+        setInterval(tick, 5000); // Then every 5 seconds
       } else {
         setTimeout(startPollingWhenReady, 500);
       }
