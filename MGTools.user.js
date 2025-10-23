@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
+// @version      1.1.4
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '1.1.0',
+      CURRENT: '1.1.4',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -11758,6 +11758,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 const currentPet = currentPets[slot];
 
                 if (currentPet && desiredPet) {
+                  // Check if desired pet is already equipped
+                  if (currentPet.id === desiredPet.id) {
+                    if (UnifiedState.data.settings?.debugMode) {
+                      productionLog(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
+                    }
+                    return; // Skip swap, pet already in place
+                  }
+
                   // Both exist: Use native SwapPet (no inventory space needed!)
                   if (UnifiedState.data.settings?.debugMode) {
                     productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
@@ -18163,6 +18171,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             const currentPet = currentPets[slot];
 
             if (currentPet && desiredPet) {
+              // Check if desired pet is already equipped
+              if (currentPet.id === desiredPet.id) {
+                if (UnifiedState.data.settings?.debugMode) {
+                  productionLog(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
+                }
+                return; // Skip swap, pet already in place
+              }
+
               // Both exist: Use native SwapPet (no inventory space needed!)
               if (UnifiedState.data.settings?.debugMode) {
                 productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
@@ -18913,6 +18929,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 const currentPet = currentPets[slot];
 
                 if (currentPet && desiredPet) {
+                  // Check if desired pet is already equipped
+                  if (currentPet.id === desiredPet.id) {
+                    if (UnifiedState.data.settings?.debugMode) {
+                      productionLog(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
+                    }
+                    return; // Skip swap, pet already in place
+                  }
+
                   // Both exist: Use native SwapPet (no inventory space needed!)
                   if (UnifiedState.data.settings?.debugMode) {
                     productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
@@ -29212,6 +29236,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const currentPet = currentPets[i];
 
           if (currentPet) {
+            // Check if desired pet is already equipped
+            if (currentPet.id === presetPet.id) {
+              if (UnifiedState.data.settings?.debugMode) {
+                productionLog(`[PET-SWAP] Slot ${i + 1}: Already equipped (${currentPet.id}), skipping`);
+              }
+              return; // Skip swap, pet already in place
+            }
+
             // Swap: active pet <-> inventory pet
             if (UnifiedState.data.settings?.debugMode) {
               productionLog(`[PET-SWAP] Slot ${i + 1}: Swapping ${currentPet.id} → ${presetPet.id}`);
