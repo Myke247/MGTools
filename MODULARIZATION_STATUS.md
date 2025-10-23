@@ -30,7 +30,7 @@ The following 14 modules are **fully extracted and functional**:
 | `src/controller/app-core.js` | 270 | ✅ Complete | Main application orchestrator |
 
 **Total Infrastructure Code:** ~5,400 lines
-**Status:** Production-ready, can be used immediately
+**Status:** ✅ Updated to v1.1.4, production-ready
 
 ---
 
@@ -102,15 +102,16 @@ const modules = [
 **What's Ready:**
 - ✅ Build system works (`npm run build`)
 - ✅ dist/mgtools.user.js contains v1.1.4
-- ✅ 14 infrastructure modules complete
+- ✅ 14 infrastructure modules complete **and updated to v1.1.4**
 - ✅ All features working in monolith
 - ✅ Can deploy to users immediately
+- ✅ Infrastructure modules ready for compilation
 
 **What's Next:**
-- ⏳ Extract pet management to `src/features/pets.js`
-- ⏳ Extract abilities tracking to `src/features/abilities.js`
+- ⏳ Extract pet management to `src/features/pets.js` (~5,000 lines)
+- ⏳ Extract abilities tracking to `src/features/abilities.js` (~3,000 lines)
 - ⏳ Extract other features incrementally
-- ⏳ Update build.js to compile from modules
+- ⏳ Update build.js to compile from modules (when features extracted)
 
 ---
 
