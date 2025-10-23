@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.4
+// @version      1.1.5
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.3 - Pet swapping with debounce protection');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.5 - Added Alt+X hotkey for dock position reset');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '1.1.4',
+      CURRENT: '1.1.5',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -8800,7 +8800,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Apply saved size on load
       setTimeout(() => applyDockSize(currentSize, false), 150);
 
-      // Hotkey handler
+      // Hotkey handler for dock size and position
       const sizeHandler = e => {
         // Alt+= to increase size
         if (e.altKey && (e.key === '=' || e.key === '+')) {
@@ -8818,6 +8818,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const prevIndex = (currentIndex - 1 + SIZES.length) % SIZES.length;
           applyDockSize(SIZES[prevIndex], true);
           console.log(`[MGTools] Alt+-: Dock size → ${SIZE_LABELS[SIZES[prevIndex]]}`);
+        } else if (e.altKey && (e.key === 'x' || e.key === 'X')) {
+          // Alt+X to reset dock position
+          e.preventDefault();
+          e.stopPropagation();
+          resetDockPosition();
+          console.log(`[MGTools] Alt+X: Dock position reset to default`);
         }
       };
 
@@ -8838,6 +8844,44 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         console.log(`[DOCK-SAVE] left=${position.left}, top=${position.top}, typeof=string (len=${serialized.length})`);
       } catch (e) {
         console.warn('[DOCK-SAVE] Exception during save:', e);
+      }
+    }
+
+    function resetDockPosition() {
+      try {
+        const dock = targetDocument.getElementById('mgh-dock');
+        if (!dock) {
+          console.warn('[DOCK-RESET] Dock element not found');
+          return;
+        }
+
+        // Clear saved position
+        localStorage.removeItem('mgh_dock_position');
+        console.log('[DOCK-RESET] Cleared saved position');
+
+        // Calculate default position (right side of screen)
+        const dockWidth = dock.offsetWidth || 380;
+        const defaultLeft = window.innerWidth - dockWidth - 20;
+        const defaultTop = 100;
+
+        // Apply default position
+        dock.style.left = `${defaultLeft}px`;
+        dock.style.top = `${defaultTop}px`;
+        dock.style.transform = 'none';
+        dock.style.bottom = 'auto';
+        dock.style.right = 'auto';
+
+        console.log(`[DOCK-RESET] Reset to default position: left=${defaultLeft}, top=${defaultTop}`);
+
+        // Show toast notification
+        try {
+          showToast('🏠 Dock Reset', 'Position reset to default', 2000);
+        } catch (e) {
+          // Toast not ready, silent fail
+          console.log('[DOCK-RESET] Toast notification unavailable');
+        }
+      } catch (e) {
+        console.warn('[DOCK-RESET] Exception during reset:', e);
       }
     }
 

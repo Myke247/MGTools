@@ -1,7 +1,7 @@
 # MGTools Modularization Status
 
-**Updated:** 2025-10-22
-**Current Version:** v1.1.4
+**Updated:** 2025-10-23
+**Current Version:** v1.1.5
 **Branch:** Live-Beta
 
 ---
@@ -30,7 +30,7 @@ The following 14 modules are **fully extracted and functional**:
 | `src/controller/app-core.js` | 270 | ✅ Complete | Main application orchestrator |
 
 **Total Infrastructure Code:** ~5,400 lines
-**Status:** ✅ Updated to v1.1.4, production-ready
+**Status:** ✅ Updated to v1.1.5, production-ready
 
 ---
 
@@ -54,7 +54,7 @@ The following feature code is still in `MGTools.user.js` and needs to be extract
 | Notifications | ~1,000 | 🟢 Low | Pet hunger, shop restock |
 
 **Total Feature Code:** ~22,000 lines
-**Status:** Working perfectly in monolith v1.1.4
+**Status:** Working perfectly in monolith v1.1.5
 
 ---
 
@@ -67,15 +67,15 @@ npm run build
 ```
 
 **What it does:**
-1. Reads `MGTools.user.js` (v1.1.4 monolith with all features)
+1. Reads `MGTools.user.js` (v1.1.5 monolith with all features)
 2. Copies to `dist/mgtools.user.js`
-3. ✅ Output includes all v1.1.4 changes (pet swap optimization + equipped check)
+3. ✅ Output includes all v1.1.5 changes (dock position reset hotkey)
 
 **Why this works:**
 - Infrastructure modules exist but aren't compiled yet
 - All feature code is in monolith
 - Mirror build produces identical, working output
-- Users get fully functional v1.1.4
+- Users get fully functional v1.1.5
 
 ### **Future Build Strategy: Module Compilation**
 
@@ -101,8 +101,8 @@ const modules = [
 
 **What's Ready:**
 - ✅ Build system works (`npm run build`)
-- ✅ dist/mgtools.user.js contains v1.1.4
-- ✅ 14 infrastructure modules complete **and updated to v1.1.4**
+- ✅ dist/mgtools.user.js contains v1.1.5
+- ✅ 14 infrastructure modules complete **and updated to v1.1.5**
 - ✅ All features working in monolith
 - ✅ Can deploy to users immediately
 - ✅ Infrastructure modules ready for compilation
@@ -117,7 +117,7 @@ const modules = [
 
 ## 🚀 Deployment Status
 
-**Current Deployment:** ✅ v1.1.4 Live on GitHub
+**Current Deployment:** ✅ v1.1.5 Live on GitHub
 
 - Branch: `Live-Beta`
 - URL: https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -125,10 +125,10 @@ const modules = [
 
 **Build Output:** ✅ dist/mgtools.user.js
 
-- Version: 1.1.4
+- Version: 1.1.5
 - Size: 1,436 KB
-- Contains: All features + pet swap optimization
-- Verified: 4/4 equipped checks present
+- Contains: All features + dock position reset hotkey
+- Verified: Alt+X hotkey added
 
 ---
 
@@ -143,7 +143,7 @@ const modules = [
 
 ### **For Users:**
 
-1. **v1.1.4 is deployed** - Latest fixes available now
+1. **v1.1.5 is deployed** - Latest fixes available now
 2. **No waiting for modularization** - Users get updates immediately
 3. **No risk** - Monolith is tested and stable
 
@@ -220,5 +220,5 @@ const modules = [
 ---
 
 **Status:** Build system verified ✅
-**Deployment:** v1.1.4 live ✅
+**Deployment:** v1.1.5 live ✅
 **Next:** Extract features incrementally 📋

@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 1.1.4** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 1.1.5** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-1.1.4-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-1.1.5-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -434,8 +434,8 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v1.1.4)
-- **v1.1.4**: Pet swapping now skips already-equipped pets to prevent unnecessary network calls - All 4 pet swap handlers check if pets are already equipped before swapping, reducing server load and improving performance.
+### Latest Updates (v1.1.5)
+- **v1.1.5**: Added Alt+X hotkey for dock position reset - Press Alt+X to instantly reset the dock to its default position on the right side of the screen.
 
 ---
 
