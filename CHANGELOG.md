@@ -1,5 +1,24 @@
 # Changelog - MGTools
 
+## Version 1.1.3 (2025-10-22)
+
+**Bug Fixes:**
+- Added debounce protection to pet preset "Place" buttons
+- Prevents rapid double-clicks from triggering duplicate pet swapping operations
+- All 4 "place" button handlers now use 500ms debounce delay
+
+**Technical Details:**
+- Created debounced wrapper for `placePetPreset` function
+- Replaced inline pet swapping code with centralized debounced function
+- Reduces server load and prevents race conditions during rapid clicking
+
+**Why This Matters:**
+- Previous versions allowed rapid double-clicks to send duplicate swap commands
+- Debouncing ensures only one swap operation runs at a time
+- Improves reliability and reduces potential for unexpected behavior
+
+---
+
 ## Version 1.1.1 (2025-10-22)
 
 **Critical Bug Fix:**
