@@ -22,7 +22,7 @@
 export const CONFIG = {
   // Version Information
   VERSION: {
-    CURRENT: '3.8.8',
+    CURRENT: '1.1.4',
     CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
     CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
     DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -41,7 +41,8 @@ export const CONFIG = {
       BUTTON_INTERACTIONS: false,
       POP_OUT_DESIGN: false,
       ERROR_TRACKING: true,
-      PERFORMANCE: false
+      PERFORMANCE: false,
+      FIX_VALIDATION: false // Enable to see fix debug logs during testing (now controlled by debugMode setting)
     }
   },
 
