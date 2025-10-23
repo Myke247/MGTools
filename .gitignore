@@ -31,6 +31,7 @@ Check.txt
 # Temporary text files and notes
 *.txt
 !VERSION_UPDATE_CHECKLIST.txt
+!DEPLOYMENT.txt
 !README.txt
 
 # AI prompts and references
@@ -41,6 +42,23 @@ gitreference*.txt
 githubrules.txt
 handoff.md
 message*.txt
+
+# Handoff/Session documents (AI collaboration - keep local only)
+*HANDOFF*.md
+*SESSION*.md
+*CRITICAL*.md
+*STRATEGIC*.md
+*PHASE*.md
+*PERFORMANCE*.md
+*FIXES*.md
+*ESLINT*.md
+*NOTIFICATION*.md
+*DATA_LOSS*.md
+*TESTING*.md
+*QUICK_REFERENCE*.md
+*VERSION-DIFFERENCES*.md
+*Issue*.md
+*MODULARIZATION_PROGRESS*.md
 
 # Test versions
 test-versions/
