@@ -10,8 +10,10 @@ consolelogs.txt
 consolelogs2.txt
 *.backup
 consolelogs*.txt
+backup_*.patch
+MGTools.user.js.backup-*
 
-# Media files
+# Media files (screenshots)
 *.png
 *.jpg
 *.jpeg
@@ -21,6 +23,33 @@ consolelogs*.txt
 # Debug files
 mgdebug*
 debug*
+weird.txt
+petswap.txt
+hmm.txt
+Check.txt
+
+# Temporary text files and notes
+*.txt
+!VERSION_UPDATE_CHECKLIST.txt
+!README.txt
+
+# AI prompts and references
+OpusPrompt.txt
+MagicMonkey.txt
+moduprompt.txt
+gitreference*.txt
+githubrules.txt
+handoff.md
+message*.txt
+
+# Test versions
+test-versions/
+
+# Python scripts
+*.py
+
+# JSON dumps
+complete-*.json
 
 # Internal directories
 .ops/
