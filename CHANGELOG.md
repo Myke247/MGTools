@@ -1,5 +1,26 @@
 # Changelog - MGTools
 
+## Version 1.1.5 (2025-10-23)
+
+**New Features:**
+- Added Alt+X hotkey for dock position reset
+- Press Alt+X to instantly reset the dock to its default position on the right side of the screen
+- Clears saved position from localStorage and recalculates default placement
+
+**Technical Details:**
+- New `resetDockPosition()` function handles position reset logic
+- Clears `mgh_dock_position` from localStorage
+- Calculates default position: right side - 20px offset, top 100px
+- Shows toast notification: "Dock Reset - Position reset to default"
+- Keyboard handler uses `capture: true` for reliable event handling
+
+**Why This Matters:**
+- Users who accidentally drag the dock off-screen can now recover instantly
+- No need to manually clear localStorage or reinstall the script
+- Quick recovery from positioning issues without losing other settings
+
+---
+
 ## Version 1.1.4 (2025-10-22)
 
 **Optimization:**
