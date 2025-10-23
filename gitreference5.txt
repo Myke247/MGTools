@@ -1,0 +1,107 @@
+You are in DRY RUN mode. Do not execute any git commands. Generate plan files and command previews only.
+
+Repo & base:
+- Working dir: C:\Users\MLvP3\ClaudeProjectRepo
+- Remote URL: https://github.com/Myke247/MGTools.git
+- Base branch for the stack: origin/Live-Beta
+- Important: local `main` has my latest Modules 1–4; use it as the source of truth when restoring files.
+
+Use the .ops plan:
+- Create (but do NOT commit) `.ops/stack-plan.yml` and `.ops/stack-state.json`
+- Add `.ops/` to .gitignore (M1 only) as part of the plan, but still DRY RUN
+- Output: PLAN SUMMARY, full stack-plan.yml, full stack-state.json, COMMANDS (DRY RUN), SAFETY CHECKS — then pause
+
+Whitelisted files ONLY (nothing else gets committed):
+- .gitignore
+- MODULARIZATION_PROGRESS.md
+- build.js
+- src/index.js
+- src/core/storage.js
+- src/utils/constants.js
+- src/core/logging.js
+- src/core/compat.js
+
+Explicitly EXCLUDE from commits (but you can mention them in “excluded_files”): 
+- mgtools.user.js
+- package*.json
+- any .claude/, screenshots, logs, ESLint setup files, temporary notes, etc.
+
+Stacked branches (each depends on the previous):
+1) feat/modularization/m1-storage        (from origin/Live-Beta)
+2) feat/modularization/m2-constants      (from feat/modularization/m1-storage)
+3) feat/modularization/m3-logging        (from feat/modularization/m2-constants)
+4) feat/modularization/m4-compat         (from feat/modularization/m3-logging)
+
+TWO REQUIRED CORRECTIONS to your previous plan:
+
+(1) After creating each branch, RESTORE the whitelisted files from *local main* before staging.
+Use exactly these per-branch restore commands:
+
+- M1 (storage):
+  git restore --source=main -- .gitignore MODULARIZATION_PROGRESS.md build.js src/index.js src/core/storage.js
+
+- M2 (constants):
+  git restore --source=main -- MODULARIZATION_PROGRESS.md src/index.js src/utils/constants.js
+
+- M3 (logging):
+  git restore --source=main -- MODULARIZATION_PROGRESS.md src/index.js src/core/logging.js
+
+- M4 (compat):
+  git restore --source=main -- MODULARIZATION_PROGRESS.md src/index.js src/core/compat.js
+
+(2) Use proper multi-line commit syntax with two -m flags (subject + body). Use these exact messages:
+
+- M1:
+  git commit --dry-run -m "Phase 2: Module 1 — storage layer; no behavior changes" -m "- Extract Storage module with GM/localStorage/sessionStorage fallback
+- Add build.js with mirror strategy for incremental extraction
+- Create src/index.js scaffold with placeholder imports
+- Add MODULARIZATION_PROGRESS.md tracking document
+- Update .gitignore with additional exclusion patterns"
+
+- M2:
+  git commit --dry-run -m "Phase 2: Module 2 — constants/config; no behavior changes" -m "- Extract CONFIG object with version/debug/UI/timers/API settings
+- Add version constants (CURRENT_VERSION, VERSION_CHECK_URL_*, etc.)
+- Add IS_LIVE_BETA branch detection
+- Add compareVersions() utility function
+- Update src/index.js scaffold and MODULARIZATION_PROGRESS.md"
+
+- M3:
+  git commit --dry-run -m "Phase 2: Module 3 — logging; unified logger; no behavior changes" -m "- Extract Logger IIFE with log levels (ERROR/WARN/INFO/DEBUG)
+- Add legacy compatibility methods (productionLog, debugLog, etc.)
+- Import CONFIG from constants module for debug flags
+- Add category-based logging with timestamp support
+- Update src/index.js scaffold and MODULARIZATION_PROGRESS.md"
+
+- M4:
+  git commit --dry-run -m "Phase 2: Module 4 — compatibility layer (CSP/Discord/context); no behavior changes" -m "- Extract CSP Guard IIFE (blocks Google Fonts in Discord)
+- Extract CompatibilityMode object for Discord/CSP detection
+- Extract context isolation (isUserscript, targetWindow, targetDocument)
+- Uses console.* directly (runs before logging module)
+- Update src/index.js scaffold and MODULARIZATION_PROGRESS.md"
+
+Additional DRY RUN rules:
+- Use `git add -n` for all staging previews
+- Use `git commit --dry-run` for all commits
+- Use `git push --dry-run -u origin <branch>` for all pushes
+- Do NOT append any “Co-authored-by” trailers
+- Append the following patterns to .gitignore in M1 only (DRY display, not execution): 
+  *.backup
+  consolelogs*.txt
+  *.png
+  *.jpg
+  *.jpeg
+  *.gif
+  *.webp
+  mgdebug*
+  debug*
+  .ops/
+- Keep mgtools.user.js excluded from these module commits
+
+Final output I want right now (no execution):
+1) PLAN SUMMARY
+2) Full .ops/stack-plan.yml
+3) Full .ops/stack-state.json
+4) COMMANDS (DRY RUN) including the new `git restore --source=main …` steps and corrected commit syntax
+5) SAFETY CHECKS (confirm nothing will be written, and list excluded files)
+
+PAUSE after printing the plan. I will reply with “APPROVE EXECUTE M1–M4” when I want you to run it for real.

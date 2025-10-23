@@ -1,0 +1,704 @@
+ Magic Circle: 👁️🟣👁️Version: cc421b4Environment: ProductionSurface: webVite mode: productionisRunningInsideDiscord: falseDiscordClientId: 1227719606223765687isHeadlessBrowser: false
+ [createLowLevelRive] Creating low-level Rive instance
+ 🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨
+(anonymous) @ userscript.html?name…c7-167fbd7b2e64:175
+Pt @ unknown
+(anonymous) @ userscript.html?name…b2c7-167fbd7b2e64:1
+window.__f__mh2w4uqu.mfs @ userscript.html?name…b2c7-167fbd7b2e64:1
+Pt @ unknown
+r.setMessageListener.r @ unknown
+(anonymous) @ unknown
+_ @ unknown
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+w @ content.js:63
+(anonymous) @ content.js:64
+(anonymous) @ content.js:2
+Fn @ content.js:15
+n @ content.js:1
+c @ content.js:64
+fs @ content.js:64
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+e @ content.js:1
+i @ content.js:1
+(anonymous) @ content.js:1
+n @ content.js:1
+Ct @ content.js:9
+(anonymous) @ content.js:1
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+ms @ content.js:58
+Ds @ content.js:77
+(anonymous) @ content.js:77
+(anonymous) @ content.js:15
+Ct @ content.js:9
+t @ content.js:10
+(anonymous) @ content.js:15
+(anonymous) @ content.js:72
+ [MGTOOLS-DEBUG] 1. Script file loaded
+ [MGTOOLS-DEBUG] ⚡ VERSION: 1.1.3 - Pet swapping with debounce protection
+ [MGTOOLS-DEBUG] 🕐 Load Time: 2025-10-23T00:59:02.049Z
+ [MGTOOLS-DEBUG] 2. Location: https://magicgarden.gg/r/MCCWPP
+ [MGTOOLS-DEBUG] 3. Navigator: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+ [MGTOOLS-DEBUG] 4. Window type: TOP
+ ✅ [STORAGE] Using GM storage (persistent across domains)
+ ✅ [API-BASE] getGameApiBaseUrl() defined and accessible
+ 🔗 [API-BASE] Current API base: https://magicgarden.gg
+ 🔍🔍🔍 [EXECUTION] Reached line 951 - About to define initialization
+ 🔍 typeof document: object
+ 🔍 typeof window: object
+ 🔍 document.readyState: complete
+ 🔍🔍🔍 [EXECUTION] Reached line 982 - INITIALIZATION BLOCK START
+ 🔍 About to call productionLog for readyState...
+ 🔍 [EXECUTION] About to check document.readyState...
+ 🔍 [EXECUTION] readyState is complete
+ 🔍 [EXECUTION] isDiscordEnv = false, initDelay = 3000ms
+ 🔍 [EXECUTION] About to schedule setTimeout for 3000ms
+ ✅ [EXECUTION] Initialization block completed without throwing
+ WebSocket is not open. Message will be sent later when connection is re-established. Object
+(anonymous) @ main-CJZIgfzT.js:17
+sendMessage @ index-C41Vil92.js:117
+rc.sendMessage @ userscript.html?name…2c7-167fbd7b2e64:52
+(anonymous) @ index-C41Vil92.js:117
+(anonymous) @ main-CJZIgfzT.js:1970
+mc @ index-C41Vil92.js:43
+Pu @ index-C41Vil92.js:43
+Lp @ index-C41Vil92.js:43
+Xs @ index-C41Vil92.js:41
+Im @ index-C41Vil92.js:43
+Nl @ index-C41Vil92.js:43
+Cf @ index-C41Vil92.js:43
+Ye @ index-C41Vil92.js:28
+ve @ index-C41Vil92.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+ WebSocket is not open. Message will be sent later when connection is re-established. Object
+(anonymous) @ main-CJZIgfzT.js:17
+sendMessage @ index-C41Vil92.js:117
+rc.sendMessage @ userscript.html?name…2c7-167fbd7b2e64:52
+(anonymous) @ index-C41Vil92.js:117
+(anonymous) @ main-CJZIgfzT.js:1970
+mc @ index-C41Vil92.js:43
+Pu @ index-C41Vil92.js:43
+Lp @ index-C41Vil92.js:43
+Xs @ index-C41Vil92.js:41
+Im @ index-C41Vil92.js:43
+Nl @ index-C41Vil92.js:43
+Cf @ index-C41Vil92.js:43
+Ye @ index-C41Vil92.js:28
+ve @ index-C41Vil92.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+ WebSocket is not open. Message will be sent later when connection is re-established. Object
+(anonymous) @ main-CJZIgfzT.js:17
+sendMessage @ index-C41Vil92.js:117
+rc.sendMessage @ userscript.html?name…2c7-167fbd7b2e64:52
+(anonymous) @ index-C41Vil92.js:117
+(anonymous) @ main-CJZIgfzT.js:1970
+mc @ index-C41Vil92.js:43
+Pu @ index-C41Vil92.js:43
+Lp @ index-C41Vil92.js:43
+Xs @ index-C41Vil92.js:41
+Im @ index-C41Vil92.js:43
+Nl @ index-C41Vil92.js:43
+Cf @ index-C41Vil92.js:43
+Ye @ index-C41Vil92.js:28
+ve @ index-C41Vil92.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+ [RoomConnection] connect() called
+ [RoomConnection] connecting to wss://magicgarden.gg/version/cc421b4/api/rooms/MCCWPP/connect?surface=%22web%22&platform=%22desktop%22&playerId=%22p_ak7VKKsn4GqaEmus%22&version=%22cc421b4%22&source=%22manualUrl%22
+ 🔍🔍🔍 [EXECUTION] setTimeout FIRED! About to call init function...
+ 🔍 [EXECUTION] Calling initializeWhenReady()
+ 🔍🔍🔍 [EXECUTION] initializeWhenReady() called!
+ 🔍 [EXECUTION] initializationStarted = false
+ 🔍 [EXECUTION] Set initializationStarted = true
+ 🔍 [EXECUTION] About to call startMGAInitialization()
+ 🔍🔍🔍🔍🔍 [EXECUTION] ENTERED startMGAInitialization() function!
+ 🔍 [EXECUTION] document.readyState: complete
+ 🔍 [EXECUTION] productionLog completed, continuing...
+ 📦 [LOCAL-TRACK] Loaded purchase tracker: Object
+ 🔍🔍🔍 [EXECUTION] Reached end of startMGAInitialization, about to call initializeBasedOnEnvironment()
+ 🔍 [EXECUTION] Calling initializeBasedOnEnvironment()...
+ 🔍🔍🔍 [EXECUTION] ENTERED initializeBasedOnEnvironment()
+ 🔍 [EXECUTION] About to call detectEnvironment()
+ 🔍 [EXECUTION] detectEnvironment() returned: Object
+ 🔍 [EXECUTION] initializeBasedOnEnvironment() returned!
+ 🔍 [EXECUTION] Completed startMGAInitialization try-catch block
+ 🔍 [EXECUTION] startMGAInitialization() returned
+ [LEGACY] ⚠️ [HEALTH-CHECK] Storage issues detected:
+log @ userscript.html?name…c7-167fbd7b2e64:799
+warn @ userscript.html?name…c7-167fbd7b2e64:838
+productionWarn @ userscript.html?name…c7-167fbd7b2e64:857
+loadSavedData @ userscript.html?name…-167fbd7b2e64:27972
+continueInitialization @ userscript.html?name…-167fbd7b2e64:30183
+attemptInit @ userscript.html?name…-167fbd7b2e64:30119
+Pt @ unknown
+t.<computed> @ unknown
+Pt @ unknown
+r @ unknown
+(anonymous) @ unknown
+(anonymous) @ unknown
+_ @ unknown
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+ [LEGACY]    - localStorage read/write mismatch
+log @ userscript.html?name…c7-167fbd7b2e64:799
+warn @ userscript.html?name…c7-167fbd7b2e64:838
+productionWarn @ userscript.html?name…c7-167fbd7b2e64:857
+(anonymous) @ userscript.html?name…-167fbd7b2e64:27973
+loadSavedData @ userscript.html?name…-167fbd7b2e64:27973
+continueInitialization @ userscript.html?name…-167fbd7b2e64:30183
+attemptInit @ userscript.html?name…-167fbd7b2e64:30119
+Pt @ unknown
+t.<computed> @ unknown
+Pt @ unknown
+r @ unknown
+(anonymous) @ unknown
+(anonymous) @ unknown
+_ @ unknown
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+ [DOCK-CLEANUP] Found valid object position, keeping it
+ [DOCK-LOAD] parsed {left: 166, top: 779} source=object
+ [MGTools Feed] 🔍 Waiting for Jotai atom cache before initializing feed buttons...
+ [MGTools Feed] ✅ Jotai atom cache ready after 0ms
+ [MGTools Feed] ℹ️ Store not captured, will use direct atom cache reading
+ [MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...
+ [MGTools Feed] ⏳ Jotai store not ready yet - will use fallback data
+ [MGTools Feed] ✅ Polling active (500ms) - buttons will auto-reappear when containers become visible
+   - targetWindow.jotaiAtomCache: object Object
+   - isUserscript: true (using unsafeWindow: YES
+   - Keys with "jotai" on targetWindow: Array(1)
+   - targetWindow.jotaiAtomCache: object Object
+   - isUserscript: true (using unsafeWindow: YES
+   - Keys with "jotai" on targetWindow: Array(1)
+   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7084   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7084   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7084   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7084   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7084   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7084   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27621 🐢🐢🐢 [TURTLE-TIMER-START] initializeTurtleTimer() called!
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7494 ✅ [SLOT-ATOM] Key and arrow watchers installed
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7084   - targetWindow.jotaiAtomCache: object Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7089   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:7091   - Keys with "jotai" on targetWindow: Array(1)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27924 💡 TIP: Run window.debugCropDetection() in console to debug crop detection
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27925 💡 Available in: window, targetWindow
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27942 💡 TIP: Storage recovery functions available:
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27943    - emergencyStorageScan("MGA_petPresets") - Scan for lost data
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27944    - exportPetPresets() - Backup your presets to JSON
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27945    - importPetPresets() - Restore presets from backup
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27946    - performStorageHealthCheck() - Check storage system health
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:799 [LEGACY] ⚠️ [SHOP-WATCHER] globalShop not found, will retry...
+log @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:799
+warn @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:838
+productionWarn @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:857
+watchShopData @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:16291
+initializeShopWatcher @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:16394
+startIntervals @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:28824
+continueInitialization @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:31499
+attemptInit @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:30119
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+r @ VM21563:32
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:22
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:31635 🎮 MGTools v1.1.3 Loaded
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:31639 💡 UI not showing? Run in console: MGA_SHOW_UI()
+main-CJZIgfzT.js:17 [RoomConnection] WebSocket opened
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 [AvatarRiveFileCache] Created RiveFile for p_ak7VKKsn4GqaEmus
+main-CJZIgfzT.js:17 [AvatarRiveFileCache] Created RiveFile for p_fCZJcFjcy48F9hKT
+main-CJZIgfzT.js:17 [AvatarRiveFileCache] Created RiveFile for 924511769475559435
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:799 [LEGACY] ⚠️ [STORE] Could not capture Jotai store, will retry on demand
+log @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:799
+warn @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:838
+productionWarn @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:857
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:26848
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+r @ VM21563:32
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:22
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:30558 [MGTOOLS-FIX-D] 🚀 Initializing Sort Inventory button...
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:30574 [MGTOOLS-FIX-D] ✅ Sort Inventory button initialized with mutation observer
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:26719
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:21671 ✅ Sell block threshold set to 1.5x
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+main-CJZIgfzT.js:17 [QuinoaCanvas] initialized Rive and renderers
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:21699 ✅ MagicCircle_RoomConnection found - initializing protection hooks
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:22003 ✅ Harvest and sell protection hooks installed
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:6894 [NATIVE-FEED] Possible native feed button clicked: <div class=​"McGrid css-i1bgk4">​…​</div>​grid
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:6894 [NATIVE-FEED] Possible native feed button clicked: <div class=​"McGrid css-i1bgk4">​…​</div>​grid
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:30552 [MGTOOLS-FIX-D] ✅ Sort button added after CLEAR FILTERS
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:6894 [NATIVE-FEED] Possible native feed button clicked: <p class=​"chakra-text css-1wrm4hx">​Feed​</p>​
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:21978 [FEED-DEBUG] 🔍 FeedPet message being sent: Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 [PixiWeatherRenderer] Growing sprite pool from 0 to 357 (+357 sprites)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:6894 [NATIVE-FEED] Possible native feed button clicked: <div class=​"McGrid css-i1bgk4">​…​</div>​grid
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+main-CJZIgfzT.js:17 sending ClientToServer message Object
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:8839 [DOCK-SAVE] left=477, top=734, typeof=string (len=22)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:8839 [DOCK-SAVE] left=383, top=833, typeof=string (len=22)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:8839 [DOCK-SAVE] left=397, top=847, typeof=string (len=22)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:6894 [NATIVE-FEED] Possible native feed button clicked: <body style=​"background-color:​ #201d1d;​ padding:​ 0;​ margin:​ 0" class=​"chakra-ui-dark">​…​</body>​flex
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:6894 [NATIVE-FEED] Possible native feed button clicked: <div class=​"McGrid css-i1bgk4">​…​</div>​grid
+main-CJZIgfzT.js:17 [PixiWeatherRenderer] Growing sprite pool from 357 to 425 (+68 sprites)
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16
+userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338 [CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display
+insertTurtleEstimate @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27338
+(anonymous) @ userscript.html?name=MGTools.user.js&id=d803751b-509b-4a31-b2c7-167fbd7b2e64:27820
+Pt @ VM21563:10
+t.<computed> @ VM21563:81
+Pt @ VM21563:10
+(anonymous) @ VM21563:32
+(anonymous) @ VM21563:27
+Pt @ VM21563:10
+t @ VM21563:10
+message @ VM21563:27
+message @ VM21563:28
+(anonymous) @ VM21563:91
+_ @ VM21563:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+g @ content.js:16
+m @ content.js:16

@@ -1,0 +1,48 @@
+DRY RUN ONLY — use local plan/state; do not write to git
+
+Repo: C:\Users\MLvP3\ClaudeProjectRepo
+
+Hard rules:
+
+Read .ops/stack-plan.yml and .ops/stack-state.json first. If plan missing, recreate it from this message; if state missing, initialize it. Do not stage or commit .ops/*.
+
+mode must be DRY. Do not write/commit/push. Show commands and expected outputs only; prefer -n/--dry-run.
+
+Only stage files from the plan’s whitelist per-branch’s include. Everything else stays unstaged and listed as UNRELATED (excluded).
+
+Never add “Co-authored-by” or any trailers.
+
+Treat MGTools.user.js/mgtools.user.js as excluded unless the diff is pure modularization scaffolding (then show an alternate -n command path).
+
+What to print (no execution):
+
+Repo state (git remote -v, git branch -vv, git status --porcelain=v1, confirm origin/Live-Beta exists—if missing, print the two commands you’d run:
+git remote add origin https://github.com/Myke247/MGTools.git then git fetch origin).
+
+.gitignore check: compare to gitignore_append in plan; show the lines you’d append (don’t write them).
+
+Whitelist inventory: for each file in plan’s whitelist, show existence + short diffstat preview. Then list UNRELATED (excluded).
+
+Stacked branches: for each branch in plan, print the exact commands you would run (git switch -c …, git add -n …, git commit --dry-run -m …, git push --dry-run …). Respect each branch’s from value; first branch bases on base.
+
+Commit message previews (one subject + 3–4 bullets) with no trailers.
+
+Safety confirmations: explicitly state that no commands will write; show optional stash command you’d use if needed (print only).
+
+Update .ops/stack-state.json in memory only for the printed report (don’t write): mark remote_ok, base_verified, and which branches are “ready to execute”. At the end, print the JSON you would write.
+
+Stop after printing. Do not change files, do not stage, do not commit, do not push.
+
+How you’ll “EXECUTE” later (when ready)
+
+Flip mode in .ops/stack-plan.yml to EXECUTE and reply: “EXECUTE M1–M4”.
+
+Claude should then:
+
+Verify remote = origin and base exists.
+
+Append missing .gitignore lines and commit them in the M1 step only.
+
+Run the exact commands it printed in the dry run, one branch at a time.
+
+Update .ops/stack-state.json on disk after each branch (still ignored from git)

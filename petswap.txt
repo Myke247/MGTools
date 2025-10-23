@@ -1,0 +1,966 @@
+petswap.txt
+
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:175  🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:175
+Pt @ VM8133:10
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+window.__f__mh1glndp.f4 @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+Pt @ VM8133:10
+r.setMessageListener.r @ VM8133:90
+(anonymous) @ VM8133:93
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+w @ content.js:63
+(anonymous) @ content.js:64
+(anonymous) @ content.js:2
+Fn @ content.js:15
+n @ content.js:1
+c @ content.js:64
+fs @ content.js:64
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+e @ content.js:1
+i @ content.js:1
+(anonymous) @ content.js:1
+n @ content.js:1
+Ct @ content.js:9
+(anonymous) @ content.js:1
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+ms @ content.js:58
+Ds @ content.js:77
+(anonymous) @ content.js:77
+(anonymous) @ content.js:15
+Ct @ content.js:9
+t @ content.js:10
+(anonymous) @ content.js:15
+(anonymous) @ content.js:72
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:176 [MGTOOLS-DEBUG] 1. Script file loaded
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:177 [MGTOOLS-DEBUG] ⚡ VERSION: 3.8.9 - UI reliability fixes and Alt+M toolbar toggle
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:178 [MGTOOLS-DEBUG] 🕐 Load Time: 2025-10-21T23:11:15.284Z
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:179 [MGTOOLS-DEBUG] 2. Location: https://magiccircle.gg/r/mg69
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:180 [MGTOOLS-DEBUG] 3. Navigator: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:181 [MGTOOLS-DEBUG] 4. Window type: TOP
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:373 ✅ [STORAGE] Using GM storage (persistent across domains)
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1657 ✅ [API-BASE] getGameApiBaseUrl() defined and accessible
+[NEW] Explain Console errors by using Copilot in Edge: click
+         
+         to explain an error. 
+        Learn more
+        Don't show again
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1659 🔗 [API-BASE] Current API base: https://magiccircle.gg
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2027 🔍🔍🔍 [EXECUTION] Reached line 951 - About to define initialization
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2028 🔍 typeof document: object
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2029 🔍 typeof window: object
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2030 🔍 document.readyState: interactive
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2065 🔍🔍🔍 [EXECUTION] Reached line 982 - INITIALIZATION BLOCK START
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2066 🔍 About to call productionLog for readyState...
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2118 🔍 [EXECUTION] About to check document.readyState...
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2138 🔍 [EXECUTION] readyState is interactive
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2181 ✅ [EXECUTION] Initialization block completed without throwing
+userscript.html?name=Magic-Garden-Controller.user.js&id=9c4849fb-4e00-40cf-a314-edafc6516afd:83 [MagicGardenController] Starting v40 - DEBUG VERSION...
+userscript.html?name=Magic-Garden-Controller.user.js&id=9c4849fb-4e00-40cf-a314-edafc6516afd:1445 [MagicGardenController] Functions exported: {debug: 'function', debugMovement: 'function', debugShopScan: 'function', controller: true}
+userscript.html?name=Magic-Garden-Controller.user.js&id=9c4849fb-4e00-40cf-a314-edafc6516afd:1407 [MagicGardenController] Started (v40).
+index-BeEMK0Qj.js:44 Magic Circle: 👁️🟣👁️Version: de7567eEnvironment: ProductionSurface: webVite mode: productionisRunningInsideDiscord: falseDiscordClientId: 1227719606223765687isHeadlessBrowser: false
+index-BeEMK0Qj.js:162 [createLowLevelRive] Creating low-level Rive instance
+main-Dd_7zI4-.js:17  WebSocket is not open. Message will be sent later when connection is re-established. {scopePath: Array(1), type: 'VoteForGame', gameName: 'Quinoa'}
+(anonymous) @ main-Dd_7zI4-.js:17
+sendMessage @ index-BeEMK0Qj.js:117
+rc.sendMessage @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:52
+(anonymous) @ index-BeEMK0Qj.js:117
+(anonymous) @ main-Dd_7zI4-.js:1970
+mc @ index-BeEMK0Qj.js:43
+Pu @ index-BeEMK0Qj.js:43
+Lp @ index-BeEMK0Qj.js:43
+Xs @ index-BeEMK0Qj.js:41
+Im @ index-BeEMK0Qj.js:43
+Nl @ index-BeEMK0Qj.js:43
+Cf @ index-BeEMK0Qj.js:43
+Ye @ index-BeEMK0Qj.js:28
+ve @ index-BeEMK0Qj.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+main-Dd_7zI4-.js:17  WebSocket is not open. Message will be sent later when connection is re-established. {scopePath: Array(1), type: 'SetSelectedGame', gameName: 'Quinoa'}
+(anonymous) @ main-Dd_7zI4-.js:17
+sendMessage @ index-BeEMK0Qj.js:117
+rc.sendMessage @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:52
+(anonymous) @ index-BeEMK0Qj.js:117
+(anonymous) @ main-Dd_7zI4-.js:1970
+mc @ index-BeEMK0Qj.js:43
+Pu @ index-BeEMK0Qj.js:43
+Lp @ index-BeEMK0Qj.js:43
+Xs @ index-BeEMK0Qj.js:41
+Im @ index-BeEMK0Qj.js:43
+Nl @ index-BeEMK0Qj.js:43
+Cf @ index-BeEMK0Qj.js:43
+Ye @ index-BeEMK0Qj.js:28
+ve @ index-BeEMK0Qj.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+main-Dd_7zI4-.js:17  WebSocket is not open. Message will be sent later when connection is re-established. {scopePath: Array(1), type: 'AudioSettings', audioSettings: {…}}
+(anonymous) @ main-Dd_7zI4-.js:17
+sendMessage @ index-BeEMK0Qj.js:117
+rc.sendMessage @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:52
+(anonymous) @ index-BeEMK0Qj.js:117
+(anonymous) @ main-Dd_7zI4-.js:1970
+mc @ index-BeEMK0Qj.js:43
+Pu @ index-BeEMK0Qj.js:43
+Lp @ index-BeEMK0Qj.js:43
+Xs @ index-BeEMK0Qj.js:41
+Im @ index-BeEMK0Qj.js:43
+Nl @ index-BeEMK0Qj.js:43
+Cf @ index-BeEMK0Qj.js:43
+Ye @ index-BeEMK0Qj.js:28
+ve @ index-BeEMK0Qj.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+mg69:1  Access to fetch at 'https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1761088275868&ver=1.266.0&compression=base64' from origin 'https://magiccircle.gg' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+main-Dd_7zI4-.js:392   POST https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1761088275868&ver=1.266.0&compression=base64 net::ERR_FAILED 503 (Service Unavailable)
+method @ main-Dd_7zI4-.js:392
+(anonymous) @ main-Dd_7zI4-.js:392
+Re @ main-Dd_7zI4-.js:392
+Ie @ main-Dd_7zI4-.js:392
+flags @ main-Dd_7zI4-.js:392
+Ds @ main-Dd_7zI4-.js:392
+_init @ main-Dd_7zI4-.js:392
+init @ main-Dd_7zI4-.js:392
+(anonymous) @ main-Dd_7zI4-.js:1972
+main-Dd_7zI4-.js:17 Selected seeds: []
+main-Dd_7zI4-.js:17 hookAtom: Successfully hooked globalShop
+main-Dd_7zI4-.js:17 hookAtom: Successfully hooked inventory
+main-Dd_7zI4-.js:17 hookAtom: Successfully hooked activePets
+main-Dd_7zI4-.js:17 hookAtom: Successfully hooked currentCrop
+main-Dd_7zI4-.js:17 hookAtom: Successfully hooked friendBonus
+main-Dd_7zI4-.js:17 hookAtom: Successfully hooked myGarden
+main-Dd_7zI4-.js:17 hookAtom: Successfully hooked petAbility
+main-Dd_7zI4-.js:17 ✅ [AutoFeed] Restored saved config: {field1: 'Pepper', field2: 'Pepper', field3: 'Pepper', hunger: 50000}
+main-Dd_7zI4-.js:17 Waiting for petAbility and activePets atoms to be hooked...
+main-Dd_7zI4-.js:17 Creating statistics feature... FeatureManager {features: Map(0), checkboxGroups: Map(0), globalEventHandlers: Map(1)}
+main-Dd_7zI4-.js:17 Statistics feature created: {id: 'game_statistics', name: 'Game Statistics', row: div, checkbox: input#feature_game_statistics, cog: button, …}
+main-Dd_7zI4-.js:17 Statistics feature row added to HUD content
+main-Dd_7zI4-.js:17 elementFromPoint at box coords: <div id=​"restockBox" style=​"background:​ rgba(0, 128, 0, 0.12)​;​ border:​ 1px solid rgba(0, 128, 0, 0.35)​;​ padding:​ 8px 12px;​ border-radius:​ 8px;​ font-size:​ 13px;​ box-shadow:​ rgba(0, 0, 0, 0.45)​ 0px 6px 18px;​ min-width:​ 220px;​ max-width:​ 90%;​ user-select:​ text;​ z-index:​ 2147483647 !important;​ left:​ 526px;​ top:​ 50px;​ transform:​ none;​ pointer-events:​ auto !important;​ cursor:​ grab;​ touch-action:​ none;​">​…​</div>​
+main-Dd_7zI4-.js:17 [RoomConnection] connect() called
+main-Dd_7zI4-.js:17 [RoomConnection] connecting to wss://magiccircle.gg/version/de7567e/api/rooms/MG69/connect?surface=%22web%22&platform=%22desktop%22&playerId=%22p_LSQj8QqykoPb3Rzy%22&version=%22de7567e%22&source=%22manualUrl%22
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2037 🔍🔍🔍 [EXECUTION] initializeWhenReady() called!
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2038 🔍 [EXECUTION] initializationStarted = false
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2044 🔍 [EXECUTION] Set initializationStarted = true
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2057 🔍 [EXECUTION] About to call startMGAInitialization()
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2184 🔍🔍🔍🔍🔍 [EXECUTION] ENTERED startMGAInitialization() function!
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2185 🔍 [EXECUTION] document.readyState: complete
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2187 🔍 [EXECUTION] productionLog completed, continuing...
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:13434 📦 [LOCAL-TRACK] Loaded purchase tracker: {seeds: 2, eggs: 0, tools: 0, toolData: {…}}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31392 🔍🔍🔍 [EXECUTION] Reached end of startMGAInitialization, about to call initializeBasedOnEnvironment()
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31396 🔍 [EXECUTION] Calling initializeBasedOnEnvironment()...
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31272 🔍🔍🔍 [EXECUTION] ENTERED initializeBasedOnEnvironment()
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31274 🔍 [EXECUTION] About to call detectEnvironment()
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31276 🔍 [EXECUTION] detectEnvironment() returned: {isGameEnvironment: true, isStandalone: false, isDiscordEmbed: false, gameReady: true, url: 'https://magiccircle.gg/r/mg69', …}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31398 🔍 [EXECUTION] initializeBasedOnEnvironment() returned!
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31410 🔍 [EXECUTION] Completed startMGAInitialization try-catch block
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2059 🔍 [EXECUTION] startMGAInitialization() returned
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799  [LEGACY] ⚠️ [HEALTH-CHECK] Storage issues detected:
+log @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799
+warn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:838
+productionWarn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:857
+loadSavedData @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27614
+continueInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29797
+attemptInit @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29733
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+initializeScript @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29752
+initializeBasedOnEnvironment @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31290
+startMGAInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31397
+initializeWhenReady @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2058
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2145
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2141
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:32265
+Pt @ VM8133:10
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+window.__f__mh1glndp.f4 @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+Pt @ VM8133:10
+r.setMessageListener.r @ VM8133:90
+(anonymous) @ VM8133:93
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+w @ content.js:63
+(anonymous) @ content.js:64
+(anonymous) @ content.js:2
+Fn @ content.js:15
+n @ content.js:1
+c @ content.js:64
+fs @ content.js:64
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+e @ content.js:1
+i @ content.js:1
+(anonymous) @ content.js:1
+n @ content.js:1
+Ct @ content.js:9
+(anonymous) @ content.js:1
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+ms @ content.js:58
+Ds @ content.js:77
+(anonymous) @ content.js:77
+(anonymous) @ content.js:15
+Ct @ content.js:9
+t @ content.js:10
+(anonymous) @ content.js:15
+(anonymous) @ content.js:72
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799  [LEGACY]    - localStorage read/write mismatch
+log @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799
+warn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:838
+productionWarn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:857
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27615
+loadSavedData @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27615
+continueInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29797
+attemptInit @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29733
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+initializeScript @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29752
+initializeBasedOnEnvironment @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31290
+startMGAInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31397
+initializeWhenReady @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2058
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2145
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2141
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:32265
+Pt @ VM8133:10
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+window.__f__mh1glndp.f4 @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+Pt @ VM8133:10
+r.setMessageListener.r @ VM8133:90
+(anonymous) @ VM8133:93
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+w @ content.js:63
+(anonymous) @ content.js:64
+(anonymous) @ content.js:2
+Fn @ content.js:15
+n @ content.js:1
+c @ content.js:64
+fs @ content.js:64
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+e @ content.js:1
+i @ content.js:1
+(anonymous) @ content.js:1
+n @ content.js:1
+Ct @ content.js:9
+(anonymous) @ content.js:1
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+ms @ content.js:58
+Ds @ content.js:77
+(anonymous) @ content.js:77
+(anonymous) @ content.js:15
+Ct @ content.js:9
+t @ content.js:10
+(anonymous) @ content.js:15
+(anonymous) @ content.js:72
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:8622 [DOCK-CLEANUP] Found valid object position, keeping it
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:8661 [DOCK-LOAD] parsed {left: 456.984375, top: 403.953125} source=object
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31002 [MGTools Feed] 🔍 Waiting for Jotai atom cache before initializing feed buttons...
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31013 [MGTools Feed] ✅ Jotai atom cache ready after 0ms
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31023 [MGTools Feed] ℹ️ Store not captured, will use direct atom cache reading
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:30804 [MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:30812 [MGTools Feed] ⏳ Jotai store not ready yet - will use fallback data
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:30953 [MGTools Feed] ✅ Polling active (500ms) - buttons will auto-reappear when containers become visible
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27263 🐢🐢🐢 [TURTLE-TIMER-START] initializeTurtleTimer() called!
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:7390 ✅ [SLOT-ATOM] Key and arrow watchers installed
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6980   - targetWindow.jotaiAtomCache: object {cache: Map(201), get: ƒ}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6985   - isUserscript: true (using unsafeWindow: YES
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6987   - Keys with "jotai" on targetWindow: ['jotaiAtomCache']
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27566 💡 TIP: Run window.debugCropDetection() in console to debug crop detection
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27567 💡 Available in: window, targetWindow
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27584 💡 TIP: Storage recovery functions available:
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27585    - emergencyStorageScan("MGA_petPresets") - Scan for lost data
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27586    - exportPetPresets() - Backup your presets to JSON
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27587    - importPetPresets() - Restore presets from backup
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:27588    - performStorageHealthCheck() - Check storage system health
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799  [LEGACY] ⚠️ [SHOP-WATCHER] globalShop not found, will retry...
+log @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799
+warn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:838
+productionWarn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:857
+watchShopData @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:16022
+initializeShopWatcher @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:16125
+startIntervals @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:28466
+continueInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31112
+attemptInit @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29733
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+initializeScript @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29752
+initializeBasedOnEnvironment @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31290
+startMGAInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31397
+initializeWhenReady @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2058
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2145
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2141
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:32265
+Pt @ VM8133:10
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+window.__f__mh1glndp.f4 @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+Pt @ VM8133:10
+r.setMessageListener.r @ VM8133:90
+(anonymous) @ VM8133:93
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+w @ content.js:63
+(anonymous) @ content.js:64
+(anonymous) @ content.js:2
+Fn @ content.js:15
+n @ content.js:1
+c @ content.js:64
+fs @ content.js:64
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+e @ content.js:1
+i @ content.js:1
+(anonymous) @ content.js:1
+n @ content.js:1
+Ct @ content.js:9
+(anonymous) @ content.js:1
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+ms @ content.js:58
+Ds @ content.js:77
+(anonymous) @ content.js:77
+(anonymous) @ content.js:15
+Ct @ content.js:9
+t @ content.js:10
+(anonymous) @ content.js:15
+(anonymous) @ content.js:72
+main-Dd_7zI4-.js:17 [RoomConnection] WebSocket opened
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(1), type: 'VoteForGame', gameName: 'Quinoa'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(1), type: 'SetSelectedGame', gameName: 'Quinoa'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(1), type: 'AudioSettings', audioSettings: {…}}
+main-Dd_7zI4-.js:17 [AvatarRiveFileCache] Created RiveFile for p_327MnkgAvdbnTkvz
+main-Dd_7zI4-.js:17 [AvatarRiveFileCache] Created RiveFile for p_LSQj8QqykoPb3Rzy
+index-BeEMK0Qj.js:107  The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page.
+_autoResume @ index-BeEMK0Qj.js:107
+play @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+T6.Howl.stereo @ index-BeEMK0Qj.js:117
+action @ index-BeEMK0Qj.js:117
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+stop @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+mute @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+T6.Howl.stereo @ index-BeEMK0Qj.js:117
+action @ index-BeEMK0Qj.js:117
+_loadQueue @ index-BeEMK0Qj.js:107
+I @ index-BeEMK0Qj.js:107
+j @ index-BeEMK0Qj.js:107
+Promise.then
+R @ index-BeEMK0Qj.js:107
+A.G.onload @ index-BeEMK0Qj.js:107
+s @ index-BeEMK0Qj.js:44
+XMLHttpRequest.send
+(anonymous) @ main-Dd_7zI4-.js:17
+apply @ main-Dd_7zI4-.js:17
+T @ index-BeEMK0Qj.js:107
+A @ index-BeEMK0Qj.js:107
+load @ index-BeEMK0Qj.js:107
+init @ index-BeEMK0Qj.js:107
+(anonymous) @ index-BeEMK0Qj.js:117
+s @ index-BeEMK0Qj.js:107
+rA @ index-BeEMK0Qj.js:117
+R6 @ index-BeEMK0Qj.js:117
+M7 @ index-BeEMK0Qj.js:117
+b0 @ main-Dd_7zI4-.js:699
+Mmt @ main-Dd_7zI4-.js:699
+compute @ main-Dd_7zI4-.js:1940
+b @ main-Dd_7zI4-.js:1940
+s @ index-BeEMK0Qj.js:44
+requestAnimationFrame
+(anonymous) @ main-Dd_7zI4-.js:17
+(anonymous) @ main-Dd_7zI4-.js:1940
+mc @ index-BeEMK0Qj.js:43
+Pu @ index-BeEMK0Qj.js:43
+Lp @ index-BeEMK0Qj.js:43
+Xs @ index-BeEMK0Qj.js:41
+Im @ index-BeEMK0Qj.js:43
+Nl @ index-BeEMK0Qj.js:43
+Cf @ index-BeEMK0Qj.js:43
+Ye @ index-BeEMK0Qj.js:28
+ve @ index-BeEMK0Qj.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+index-BeEMK0Qj.js:107  The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page.
+_autoResume @ index-BeEMK0Qj.js:107
+play @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+mute @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+volume @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+mute @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+I @ index-BeEMK0Qj.js:107
+j @ index-BeEMK0Qj.js:107
+Promise.then
+R @ index-BeEMK0Qj.js:107
+A.G.onload @ index-BeEMK0Qj.js:107
+s @ index-BeEMK0Qj.js:44
+XMLHttpRequest.send
+(anonymous) @ main-Dd_7zI4-.js:17
+apply @ main-Dd_7zI4-.js:17
+T @ index-BeEMK0Qj.js:107
+A @ index-BeEMK0Qj.js:107
+load @ index-BeEMK0Qj.js:107
+init @ index-BeEMK0Qj.js:107
+(anonymous) @ index-BeEMK0Qj.js:117
+s @ index-BeEMK0Qj.js:107
+rA @ index-BeEMK0Qj.js:117
+R6 @ index-BeEMK0Qj.js:117
+M7 @ index-BeEMK0Qj.js:117
+(anonymous) @ main-Dd_7zI4-.js:399
+mc @ index-BeEMK0Qj.js:43
+Pu @ index-BeEMK0Qj.js:43
+Lp @ index-BeEMK0Qj.js:43
+Xs @ index-BeEMK0Qj.js:41
+Im @ index-BeEMK0Qj.js:43
+Nl @ index-BeEMK0Qj.js:43
+Cf @ index-BeEMK0Qj.js:43
+Ye @ index-BeEMK0Qj.js:28
+ve @ index-BeEMK0Qj.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799  [LEGACY] ⚠️ [STORE] Could not capture Jotai store, will retry on demand
+log @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:799
+warn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:838
+productionWarn @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:857
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:26559
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+initializeAtoms @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:26554
+continueInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31104
+attemptInit @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29733
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+initializeScript @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:29752
+initializeBasedOnEnvironment @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31290
+startMGAInitialization @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:31397
+initializeWhenReady @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2058
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2145
+Pt @ VM8133:10
+t.<computed> @ VM8133:81
+Pt @ VM8133:10
+r @ VM8133:32
+(anonymous) @ VM8133:32
+(anonymous) @ VM8133:22
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+t @ content.js:66
+setTimeout
+setTimeout @ content.js:54
+processMessage @ content.js:57
+(anonymous) @ content.js:87
+v @ content.js:66
+Pt @ VM8133:10
+m @ VM8133:21
+c @ VM8133:24
+(anonymous) @ VM8133:24
+ao @ VM8133:18
+send @ VM8133:24
+Jo @ VM8133:32
+tr @ VM8133:33
+Pt @ VM8133:10
+a @ VM8133:81
+value @ VM8133:86
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:2141
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:32265
+Pt @ VM8133:10
+(anonymous) @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+window.__f__mh1glndp.f4 @ userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:1
+Pt @ VM8133:10
+r.setMessageListener.r @ VM8133:90
+(anonymous) @ VM8133:93
+_ @ VM8133:22
+Ct @ content.js:9
+h @ content.js:65
+d @ content.js:68
+(anonymous) @ content.js:68
+Fn @ content.js:15
+send @ content.js:68
+w @ content.js:63
+(anonymous) @ content.js:64
+(anonymous) @ content.js:2
+Fn @ content.js:15
+n @ content.js:1
+c @ content.js:64
+fs @ content.js:64
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+e @ content.js:1
+i @ content.js:1
+(anonymous) @ content.js:1
+n @ content.js:1
+Ct @ content.js:9
+(anonymous) @ content.js:1
+(anonymous) @ content.js:63
+Ct @ content.js:9
+t @ content.js:10
+ms @ content.js:58
+Ds @ content.js:77
+(anonymous) @ content.js:77
+(anonymous) @ content.js:15
+Ct @ content.js:9
+t @ content.js:10
+(anonymous) @ content.js:15
+(anonymous) @ content.js:72
+main-Dd_7zI4-.js:17 [PixiWeatherRenderer] Growing sprite pool from 0 to 2997 (+2997 sprites)
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:30172 [MGTOOLS-FIX-D] 🚀 Initializing Sort Inventory button...
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:30188 [MGTOOLS-FIX-D] ✅ Sort Inventory button initialized with mutation observer
+index-BeEMK0Qj.js:107  The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page.
+_autoResume @ index-BeEMK0Qj.js:107
+play @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+mute @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+I @ index-BeEMK0Qj.js:107
+j @ index-BeEMK0Qj.js:107
+Promise.then
+R @ index-BeEMK0Qj.js:107
+A.G.onload @ index-BeEMK0Qj.js:107
+s @ index-BeEMK0Qj.js:44
+XMLHttpRequest.send
+(anonymous) @ main-Dd_7zI4-.js:17
+apply @ main-Dd_7zI4-.js:17
+T @ index-BeEMK0Qj.js:107
+A @ index-BeEMK0Qj.js:107
+load @ index-BeEMK0Qj.js:107
+init @ index-BeEMK0Qj.js:107
+(anonymous) @ index-BeEMK0Qj.js:117
+s @ index-BeEMK0Qj.js:107
+rA @ index-BeEMK0Qj.js:117
+R6 @ index-BeEMK0Qj.js:117
+M7 @ index-BeEMK0Qj.js:117
+Tmt @ main-Dd_7zI4-.js:699
+(anonymous) @ main-Dd_7zI4-.js:1940
+mc @ index-BeEMK0Qj.js:43
+Pu @ index-BeEMK0Qj.js:43
+Lp @ index-BeEMK0Qj.js:43
+Xs @ index-BeEMK0Qj.js:41
+Im @ index-BeEMK0Qj.js:43
+Nl @ index-BeEMK0Qj.js:43
+Cf @ index-BeEMK0Qj.js:43
+Ye @ index-BeEMK0Qj.js:28
+ve @ index-BeEMK0Qj.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+index-BeEMK0Qj.js:107  The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page.
+_autoResume @ index-BeEMK0Qj.js:107
+play @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+_emit @ index-BeEMK0Qj.js:107
+mute @ index-BeEMK0Qj.js:107
+action @ index-BeEMK0Qj.js:107
+_loadQueue @ index-BeEMK0Qj.js:107
+I @ index-BeEMK0Qj.js:107
+j @ index-BeEMK0Qj.js:107
+Promise.then
+R @ index-BeEMK0Qj.js:107
+A.G.onload @ index-BeEMK0Qj.js:107
+s @ index-BeEMK0Qj.js:44
+XMLHttpRequest.send
+(anonymous) @ main-Dd_7zI4-.js:17
+apply @ main-Dd_7zI4-.js:17
+T @ index-BeEMK0Qj.js:107
+A @ index-BeEMK0Qj.js:107
+load @ index-BeEMK0Qj.js:107
+init @ index-BeEMK0Qj.js:107
+(anonymous) @ index-BeEMK0Qj.js:117
+s @ index-BeEMK0Qj.js:107
+rA @ index-BeEMK0Qj.js:117
+Dz @ index-BeEMK0Qj.js:117
+xN @ main-Dd_7zI4-.js:699
+wmt @ main-Dd_7zI4-.js:699
+(anonymous) @ main-Dd_7zI4-.js:1940
+mc @ index-BeEMK0Qj.js:43
+Pu @ index-BeEMK0Qj.js:43
+Lp @ index-BeEMK0Qj.js:43
+Xs @ index-BeEMK0Qj.js:41
+Im @ index-BeEMK0Qj.js:43
+Nl @ index-BeEMK0Qj.js:43
+Cf @ index-BeEMK0Qj.js:43
+Ye @ index-BeEMK0Qj.js:28
+ve @ index-BeEMK0Qj.js:28
+O.<computed> @ polyfills-xQ8PKRaE.js:3
+I @ polyfills-xQ8PKRaE.js:3
+P @ polyfills-xQ8PKRaE.js:3
+main-Dd_7zI4-.js:17 Pet ability atoms now available, starting monitoring!
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:21428 ✅ Sell block threshold set to 1x
+main-Dd_7zI4-.js:17 [QuinoaCanvas] initialized Rive and renderers
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:21456 ✅ MagicCircle_RoomConnection found - initializing protection hooks
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:21760 ✅ Harvest and sell protection hooks installed
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '42d382dd-f78b-4c02-b656-074ffbcea232'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'f3cc1cba-0376-48b6-9fbe-0aedb09371bf'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'fdc12221-0b2c-4d65-98c2-4d4e7cbb8c88'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 168}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 167}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 147}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 148}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 149}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 129}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 128}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 127}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 109}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 108}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 107}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 106}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 105}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 105}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'HatchEgg', slot: 104}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'f9297175-6582-4466-bc9c-beda83223121', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '43003496-d7da-402a-9f62-2d23d114a287', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '22b7c5f2-ba1d-4e0f-9527-a656d29f35e2', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'f9297175-6582-4466-bc9c-beda83223121', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '43003496-d7da-402a-9f62-2d23d114a287', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '22b7c5f2-ba1d-4e0f-9527-a656d29f35e2', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'f9297175-6582-4466-bc9c-beda83223121', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '43003496-d7da-402a-9f62-2d23d114a287', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '22b7c5f2-ba1d-4e0f-9527-a656d29f35e2', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'f9297175-6582-4466-bc9c-beda83223121', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '43003496-d7da-402a-9f62-2d23d114a287', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '22b7c5f2-ba1d-4e0f-9527-a656d29f35e2', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'StorePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1692fd19-3480-4c03-9e34-651e4ed452e4', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: 'c11bf6e9-a878-4ff8-a22e-227a85e9743b', position: {…}, localTileIndex: 64, …}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'PlacePet', itemId: '1088cb6c-19a9-4449-9f84-d119d1652f3a', position: {…}, localTileIndex: 64, …}
+userscript.html?name=MGTools.user.js&id=04c89264-8a87-433c-be42-e789391204ea:6790 [NATIVE-FEED] Possible native feed button clicked: <div class=​"McGrid css-i1bgk4">​…​</div>​grid
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'SwapPet', petSlotId: '1692fd19-3480-4c03-9e34-651e4ed452e4', petInventoryId: '720e64cf-0bb8-410c-9549-f718e9bc3b80'}
+main-Dd_7zI4-.js:17 sending ClientToServer message {scopePath: Array(2), type: 'SwapPet', petSlotId: '720e64cf-0bb8-410c-9549-f718e9bc3b80', petInventoryId: '1692fd19-3480-4c03-9e34-651e4ed452e4'}

@@ -1,16 +1,27 @@
+# Build output and dependencies
 node_modules/
 dist/
 *.log
 *.tmp
-mgtools.user.js.backup
-consolelogs.txt consolelogs2.txt
+
+# Backups
+mg tools.user.js.backup
+consolelogs.txt
+consolelogs2.txt
 *.backup
 consolelogs*.txt
+
+# Media files
 *.png
 *.jpg
 *.jpeg
 *.gif
 *.webp
+
+# Debug files
 mgdebug*
 debug*
+
+# Internal directories
 .ops/
+.claude/

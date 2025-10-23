@@ -1,0 +1,39 @@
+{
+  "name": "mgtools",
+  "version": "1.0.0",
+  "description": "MGTools - All-in-one assistant for Magic Garden with beautiful unified UI",
+  "main": "MGTools.user.js",
+  "scripts": {
+    "lint": "eslint MGTools.user.js",
+    "lint:fix": "eslint MGTools.user.js --fix",
+    "format": "prettier --write MGTools.user.js",
+    "format:check": "prettier --check MGTools.user.js",
+    "syntax": "node -c MGTools.user.js",
+    "style": "npm run lint:fix && npm run format",
+    "build": "node build.js",
+    "build:check": "node build.js && echo 'Build complete'"
+  },
+  "keywords": [
+    "magic-garden",
+    "magiccircle",
+    "userscript",
+    "tampermonkey",
+    "greasemonkey",
+    "game-enhancement"
+  ],
+  "author": "Myke247",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Myke247/MGTools.git"
+  },
+  "devDependencies": {
+    "@eslint/js": "^8.57.1",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "prettier": "^3.6.2"
+  }
+}

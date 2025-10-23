@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         MGTools
+// @name         MGTools (No Auto-Refresh)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
-// @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
+// @version      1.1.0-noauto
+// @description  All-in-one assistant for Magic Garden - NO AUTO-CLICK on game updates (manual refresh required)
 // @author       Unified Script
-// @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
-// @downloadURL  https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
+// @updateURL    none
+// @downloadURL  none
 // @match        https://magiccircle.gg/r/*
 // @match        https://magicgarden.gg/r/*
 // @match        https://starweaver.org/r/*
@@ -20,6 +20,30 @@
 // @connect      *
 // @run-at       document-end
 // ==/UserScript==
+
+/* ============================================================================
+ * MGTOOLS - NO AUTO-REFRESH VERSION
+ * ============================================================================
+ *
+ * This version has AUTO-CLICK, AUTO-REFRESH, and WEBSOCKET PATCHING REMOVED.
+ *
+ * Changes from standard MGTools:
+ * 1. WebSocket handling completely removed:
+ *    - No WebSocket constructor patching
+ *    - No auto-reconnect on connection loss
+ *    - Game's native WebSocket operates unmodified
+ *    - Users must manually refresh if connection issues occur
+ *
+ * 2. When game update popup appears:
+ *    - Detects the "Game Update Available" popup
+ *    - Shows alert notification
+ *    - DOES NOT auto-click the CONTINUE button
+ *    - User must manually click CONTINUE themselves
+ *
+ * Use this version if you prefer full manual control over page refreshes.
+ *
+ * ============================================================================
+ */
 
 // --- EARLY RoomConnection trap (captures true scopePath ASAP) ---
 (function installEarlyRoomConnectionTrap() {
@@ -147,7 +171,7 @@ async function rcSend(payload, opts = {}) {
  * 3. COMPATIBILITY MODULE      - Browser detection, CSP handling, polyfills
  * 4. STORAGE MODULE           - Unified storage abstraction layer
  * 5. LOGGING MODULE           - Production and debug logging system
- * 6. NETWORK MODULE           - API calls, fetch wrappers, WebSocket
+ * 6. NETWORK MODULE           - API calls and fetch wrappers (WebSocket removed)
  * 7. STATE MODULE             - UnifiedState and data management
  * 8. UI FRAMEWORK MODULE      - Base styles, components, and utilities
  * 9. FEATURE MODULES          - Individual feature implementations
@@ -173,7 +197,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.3 - Pet swapping with debounce protection');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.0.0 - Pet swapping works everywhere + live inventory counter');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -972,77 +996,35 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // 2. CSP violation listener (500ms window) with duplicate prevention
-      // CRITICAL FIX: Opera/Tampermonkey makes console.error read-only, causing fatal crash
+      const originalError = console.error.bind(console);
       const self = this;
       const seenCSPMessages = new Set();
 
-      try {
-        // Check if console.error is writable before attempting override
-        const descriptor = Object.getOwnPropertyDescriptor(console, 'error');
-        const canOverride = !descriptor || descriptor.writable || descriptor.configurable;
+      console.error = function (...args) {
+        const msg = args.join(' ');
 
-        if (canOverride) {
-          // Safe to override console.error
-          const originalError = console.error.bind(console);
+        // Check for CSP-related errors
+        if (
+          (msg.includes('Content Security Policy') ||
+            msg.includes('Refused to load') ||
+            msg.includes('violates the following')) &&
+          !msg.includes('mgtools')
+        ) {
+          // Ignore our own CSP issues
 
-          console.error = function (...args) {
-            const msg = args.join(' ');
+          // Skip duplicate CSP violations to reduce console spam
+          if (seenCSPMessages.has(msg)) {
+            return; // Silently skip duplicate
+          }
+          seenCSPMessages.add(msg);
 
-            // Check for CSP-related errors
-            if (
-              (msg.includes('Content Security Policy') ||
-                msg.includes('Refused to load') ||
-                msg.includes('violates the following')) &&
-              !msg.includes('mgtools')
-            ) {
-              // Ignore our own CSP issues
-
-              // Skip duplicate CSP violations to reduce console spam
-              if (seenCSPMessages.has(msg)) {
-                return; // Silently skip duplicate
-              }
-              seenCSPMessages.add(msg);
-
-              self.cspViolations.push(msg);
-              if (self.cspViolations.length >= 2 && !self.flags.enabled) {
-                self.enableCompat('csp-violations');
-              }
-            }
-            return originalError.apply(console, args);
-          };
-
-          logInfo('COMPAT', '✅ Console.error override successful for CSP detection');
-        } else {
-          // Console.error is read-only (Opera/Tampermonkey) - use alternative detection
-          logWarn('COMPAT', '⚠️ Console.error is read-only, using alternative CSP detection');
-
-          // Alternative: listen for window error events
-          window.addEventListener(
-            'error',
-            event => {
-              const msg = event.message || '';
-              if (
-                (msg.includes('Content Security Policy') ||
-                  msg.includes('Refused to load') ||
-                  msg.includes('violates the following')) &&
-                !msg.includes('mgtools') &&
-                !seenCSPMessages.has(msg)
-              ) {
-                seenCSPMessages.add(msg);
-                self.cspViolations.push(msg);
-                if (self.cspViolations.length >= 2 && !self.flags.enabled) {
-                  self.enableCompat('csp-violations');
-                }
-              }
-            },
-            true
-          );
+          self.cspViolations.push(msg);
+          if (self.cspViolations.length >= 2 && !self.flags.enabled) {
+            self.enableCompat('csp-violations');
+          }
         }
-      } catch (e) {
-        // Complete failure - continue without CSP detection
-        logWarn('COMPAT', '❌ Cannot setup CSP detection:', e.message);
-        logInfo('COMPAT', 'Continuing without CSP violation detection');
-      }
+        return originalError.apply(console, args);
+      };
 
       // 3. Test storage availability
       setTimeout(() => {
@@ -2281,7 +2263,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         typeof window.petAbilityLogs !== 'undefined' ||
         document.hidden === false;
       if (hasMainScript) {
-        productionLog('📝 [COMPAT] Detected external scripts - compatibility mode enabled');
+        productionLog('📝 [COMPAT] Detected mainscript.txt is also running - compatibility mode enabled');
       } else {
         productionLog('📝 [COMPAT] No other Magic Garden scripts detected - running standalone');
       }
@@ -2483,64 +2465,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           #mgh-dock.vertical .mgh-dock-item {
               font-size: 20px;
-          }
-
-          /* ==================== DOCK SIZE VARIANTS ==================== */
-          /* Tiny size (0.73x scale) */
-          #mgh-dock.dock-size-tiny.horizontal .mgh-dock-item {
-              width: 32px;
-              height: 32px;
-              font-size: 14px;
-          }
-
-          #mgh-dock.dock-size-tiny.vertical .mgh-dock-item {
-              width: 30px;
-              height: 30px;
-              font-size: 15px;
-          }
-
-          #mgh-dock.dock-size-tiny .mgh-dock-item img {
-              width: 18px;
-              height: 18px;
-          }
-
-          /* Small size (0.86x scale) */
-          #mgh-dock.dock-size-small.horizontal .mgh-dock-item {
-              width: 38px;
-              height: 38px;
-              font-size: 16px;
-          }
-
-          #mgh-dock.dock-size-small.vertical .mgh-dock-item {
-              width: 36px;
-              height: 36px;
-              font-size: 17px;
-          }
-
-          #mgh-dock.dock-size-small .mgh-dock-item img {
-              width: 21px;
-              height: 21px;
-          }
-
-          /* Medium size (1.0x scale - default, already defined above) */
-          /* No additional CSS needed - uses base .mgh-dock-item styles */
-
-          /* Large size (1.18x scale) */
-          #mgh-dock.dock-size-large.horizontal .mgh-dock-item {
-              width: 52px;
-              height: 52px;
-              font-size: 22px;
-          }
-
-          #mgh-dock.dock-size-large.vertical .mgh-dock-item {
-              width: 48px;
-              height: 48px;
-              font-size: 24px;
-          }
-
-          #mgh-dock.dock-size-large .mgh-dock-item img {
-              width: 28px;
-              height: 28px;
           }
 
           .mgh-tooltip {
@@ -4964,10 +4888,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       } catch {}
 
-      // CRITICAL: Ensure we never use external script keys
+      // CRITICAL: Ensure we never use MainScript keys
       if (keyLocal && !keyLocal.startsWith('MGA_')) {
         console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
-        console.error(`❌ [MGA-ISOLATION] This would conflict with external scripts! Adding MGA_ prefix.`);
+        console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
         console.trace();
         keyLocal = 'MGA_' + keyLocal;
       }
@@ -5662,7 +5586,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       }
 
-      // 5. Window compatibility array
+      // 5. Window compatibility array (old mainscript.txt)
       if (typeof window.petAbilityLogs !== 'undefined') {
         report.sources.compatibilityArray = {
           count: Array.isArray(window.petAbilityLogs) ? window.petAbilityLogs.length : 'not-an-array',
@@ -6041,7 +5965,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               : 'GM API not available'
         },
 
-        // External Feed Protection
+        // AutoFeed Protection
         autoFeedStatus: {
           autoFeedEnabled: targetWindow.autoFeedEnabled,
           autoFeedState: targetWindow.autoFeedState,
@@ -6443,30 +6367,30 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     window.MGA_DOMCache = { getCachedElement, getCachedElements, invalidateCache };
 
     // ==================== NAMESPACE ISOLATION ====================
-    // Keep MGA functions completely isolated to prevent conflicts with external scripts
+    // Keep MGA functions completely isolated to prevent conflicts with MainScript.txt
 
     // Export MGA functions to global scope for direct access (MGA_ prefix prevents conflicts)
     window.MGA_loadJSON = MGA_loadJSON;
     window.MGA_saveJSON = MGA_saveJSON;
 
-    // External Script Conflict Detection and Protection
+    // MainScript Conflict Detection and Protection
     window.MGA_ConflictDetection = {
       mainScriptDetected: false,
       protectedGlobals: ['autoFeedEnabled', 'autoFeedState', 'autoFeedSkipFavorited', 'petAbilityLogs'],
 
-      // Ensure MGA never accesses external script globals
+      // Ensure MGA never accesses MainScript globals
       preventAccess: function () {
         if (!this.mainScriptDetected) return;
 
-        // Create safe accessors that prevent MGA from accidentally touching external script variables
+        // Create safe accessors that prevent MGA from accidentally touching MainScript variables
         this.protectedGlobals.forEach(globalVar => {
           if (window[globalVar] !== undefined) {
-            productionLog(`🔒 [MGA-ISOLATION] Ensuring MGA cannot access external script global: ${globalVar}`);
+            productionLog(`🔒 [MGA-ISOLATION] Ensuring MGA cannot access MainScript global: ${globalVar}`);
 
             // Define a read-only accessor for debugging
             Object.defineProperty(window, `MGA_SAFE_${globalVar}`, {
               get: function () {
-                productionWarn(`⚠️ [MGA-ISOLATION] MGA attempted to access external script global: ${globalVar}`);
+                productionWarn(`⚠️ [MGA-ISOLATION] MGA attempted to access MainScript global: ${globalVar}`);
                 productionWarn(`⚠️ [MGA-ISOLATION] This access was blocked to prevent interference`);
                 console.trace();
                 return undefined; // Always return undefined to MGA
@@ -6477,9 +6401,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
         });
 
-        // Specifically protect external feed variables
-        productionLog(`🔒 [MGA-ISOLATION] External script feed protection active`);
-        productionLog(`🔒 [MGA-ISOLATION] MGA will not interfere with external feed functionality`);
+        // Specifically protect autofeed variables
+        productionLog(`🔒 [MGA-ISOLATION] MainScript autofeed protection active`);
+        productionLog(`🔒 [MGA-ISOLATION] MGA will not interfere with autofeed functionality`);
       },
 
       detectMainScript: function () {
@@ -6492,11 +6416,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         this.mainScriptDetected = hasMainScriptFunctions || hasMainScriptVars || hasVisibilityOverride;
 
         if (this.mainScriptDetected) {
-          // productionLog('🔍 [MGA-ISOLATION] External scripts detected - enabling full isolation mode');
-          productionLog('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or external script variables');
+          // productionLog('🔍 [MGA-ISOLATION] MainScript.txt detected - enabling full isolation mode');
+          productionLog('🔒 [MGA-ISOLATION] MGA will NOT modify global functions or MainScript variables');
           productionLog('📝 [MGA-ISOLATION] Protected variables:', this.protectedGlobals);
         } else {
-          productionLog('📝 [MGA-ISOLATION] No external scripts detected - running in standalone mode');
+          productionLog('📝 [MGA-ISOLATION] No MainScript detected - running in standalone mode');
         }
 
         return this.mainScriptDetected;
@@ -6510,21 +6434,17 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Check if we accidentally modified protected globals
         this.protectedGlobals.forEach(globalVar => {
           if (window[globalVar] !== undefined) {
-            // External script global exists - make sure we don't interfere
-            // productionLog(`🔍 [MGA-ISOLATION] External script global '${globalVar}' is active - ensuring no interference`);
+            // MainScript global exists - make sure we don't interfere
+            // productionLog(`🔍 [MGA-ISOLATION] MainScript global '${globalVar}' is active - ensuring no interference`);
           }
         });
 
-        // Check if global loadJSON/saveJSON are external script's versions
+        // Check if global loadJSON/saveJSON are MainScript's versions
         if (window.loadJSON && window.loadJSON !== MGA_loadJSON) {
-          productionLog(
-            '🔒 [MGA-ISOLATION] Global loadJSON belongs to external script - MGA using isolated MGA_loadJSON'
-          );
+          productionLog('🔒 [MGA-ISOLATION] Global loadJSON belongs to MainScript - MGA using isolated MGA_loadJSON');
         }
         if (window.saveJSON && window.saveJSON !== MGA_saveJSON) {
-          productionLog(
-            '🔒 [MGA-ISOLATION] Global saveJSON belongs to external script - MGA using isolated MGA_saveJSON'
-          );
+          productionLog('🔒 [MGA-ISOLATION] Global saveJSON belongs to MainScript - MGA using isolated MGA_saveJSON');
         }
 
         return violations.length === 0;
@@ -6545,7 +6465,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 writable: true,
                 configurable: true
               });
-              productionLog(`🛡️ [MGA-ISOLATION] Stored original value for external script global: ${globalVar}`);
+              productionLog(`🛡️ [MGA-ISOLATION] Stored original value for MainScript global: ${globalVar}`);
             } catch (protectionError) {
               productionWarn(
                 `⚠️ [MGA-ISOLATION] Could not store original value for ${globalVar}:`,
@@ -6557,11 +6477,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Simple function protection - just save references without modifying
         if (window.loadJSON && window.loadJSON !== window.MGA_loadJSON) {
-          productionLog(`🔒 [MGA-ISOLATION] External script loadJSON detected - storing reference`);
+          productionLog(`🔒 [MGA-ISOLATION] MainScript loadJSON detected - storing reference`);
           window._MGA_MAINSCRIPT_loadJSON = window.loadJSON;
         }
         if (window.saveJSON && window.saveJSON !== window.MGA_saveJSON) {
-          productionLog(`🔒 [MGA-ISOLATION] External script saveJSON detected - storing reference`);
+          productionLog(`🔒 [MGA-ISOLATION] MainScript saveJSON detected - storing reference`);
           window._MGA_MAINSCRIPT_saveJSON = window.saveJSON;
         }
       },
@@ -6619,10 +6539,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       let keyLocal = key;
       const { showUserAlert = true, criticalData = false, description = keyLocal, silent = false } = options;
 
-      // CRITICAL: Ensure we never use external script keys
+      // CRITICAL: Ensure we never use MainScript keys
       if (keyLocal && !keyLocal.startsWith('MGA_')) {
         console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
-        console.error(`❌ [MGA-ISOLATION] This would conflict with external scripts! Adding MGA_ prefix.`);
+        console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
         console.trace();
         keyLocal = 'MGA_' + keyLocal;
       }
@@ -6823,114 +6743,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       targetWindow?.MagicCircle_RoomConnection ||
       null;
 
-    // Install bulletproof WebSocket tap (doesn't rely on RC._socket)
-    (function installWsTap() {
-      const WS = targetWindow.WebSocket || window.WebSocket;
-      if (!WS || WS.prototype.__mgaTapInstalled) return;
-      const origAdd = WS.prototype.addEventListener;
-      const subs = new Set();
-
-      function fanout(evt) {
-        try {
-          let d = evt.data;
-          try {
-            d = JSON.parse(d);
-          } catch {}
-          const arr = Array.isArray(d) ? d : [d];
-          for (const msg of arr)
-            for (const fn of subs) {
-              try {
-                fn(msg);
-              } catch {}
-            }
-        } catch {}
-      }
-
-      WS.prototype.addEventListener = function (type, listener, opts) {
-        if (type === 'message') {
-          const wrapped = evt => {
-            fanout(evt);
-            return listener.call(this, evt);
-          };
-          return origAdd.call(this, type, wrapped, opts);
-        }
-        return origAdd.call(this, type, listener, opts);
-      };
-
-      // Also hook onmessage setter so we still see messages when code uses ws.onmessage =
-      Object.defineProperty(WS.prototype, 'onmessage', {
-        set(fn) {
-          this.__mgaOnMsg = fn;
-          this.addEventListener('message', evt => fn.call(this, evt));
-        },
-        get() {
-          return this.__mgaOnMsg || null;
-        }
-      });
-
-      targetWindow.__mgaSubscribeServer = fn => {
-        subs.add(fn);
-        return () => subs.delete(fn);
-      };
-      window.__mgaSubscribeServer = fn => {
-        subs.add(fn);
-        return () => subs.delete(fn);
-      };
-      WS.prototype.__mgaTapInstalled = true;
-    })();
-
-    // Detect native feed button clicks to debug message format
-    (function detectNativeFeed() {
-      const targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-
-      // Hook into React event system to catch native feed clicks
-      document.addEventListener(
-        'click',
-        function (e) {
-          // Check if clicked element looks like a feed button
-          const elem = e.target;
-          if (elem && (elem.textContent?.includes('Feed') || elem.className?.includes('feed'))) {
-            console.log('[NATIVE-FEED] Possible native feed button clicked:', elem);
-
-            // Set flag to capture next FeedPet message
-            targetWin.__captureNextFeedPet = true;
-            setTimeout(() => {
-              targetWin.__captureNextFeedPet = false;
-            }, 2000);
-          }
-        },
-        true
-      );
-    })();
-
-    // Wait for one matching server message using the bulletproof tap
-    async function waitForServer(predicate, timeoutMs = 3500) {
-      return new Promise((resolve, reject) => {
-        const unsub = (window.__mgaSubscribeServer || targetWindow.__mgaSubscribeServer)(msg => {
-          try {
-            if (predicate(msg)) {
-              unsub();
-              resolve(msg);
-            }
-          } catch {}
-        });
-        const to = setTimeout(() => {
-          unsub();
-          reject(new Error('timeout'));
-        }, timeoutMs);
-      });
-    }
-
-    // Add debug helper to peek at incoming messages
-    async function peekNextMessages(count = 10, windowMs = 1500) {
-      const seen = [];
-      const unsub = (window.__mgaSubscribeServer || targetWindow.__mgaSubscribeServer)(m => {
-        if (seen.length < count) seen.push(m?.type || typeof m);
-      });
-      await new Promise(res => setTimeout(res, windowMs));
-      unsub();
-      console.log('[WS-TAP] next msgs after send:', seen);
-    }
+    // WebSocket tap system removed in NoAutoRefresh version
+    // The game's native WebSocket connection operates without MGTools interference
 
     // Resolve a concrete inventory item id for the given species name
     function resolveInventoryItemIdForSpecies(species, inventoryObj) {
@@ -6963,63 +6777,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       return rcSend(payload);
     }
 
-    // Send with server ack verification
-    async function sendWithAck(type, payload, makePredicate, debugPeek = false) {
-      console.log('[Feed-Debug] 🚀 Sending', { type, ...payload });
-      await sendFeedPet(payload.petItemId, payload.cropItemId);
-
-      // Debug: peek at next messages to confirm tap is working (remove after verification)
-      if (debugPeek) {
-        peekNextMessages(10, 1500);
-      }
-
-      const ack = await waitForServer(makePredicate({ type, payload })).catch(() => null);
-      return !!ack;
-    }
-
-    // Feed pet with server event verification (no atom polling)
+    // Feed pet without server verification (WebSocket tap removed in NoAutoRefresh)
     async function feedPetEnsureSync(petItemId, cropItemId, petIndex, enableDebugPeek = false) {
-      // Predicate matching server events that confirm feed success
-      const makePredicate =
-        ({ payload }) =>
-        msg => {
-          if (!msg || typeof msg !== 'object') return false;
+      // Send the feed command
+      await sendFeedPet(petItemId, cropItemId);
 
-          // Option A: Explicit ack with matching petItemId
-          if (msg.type === 'FeedPetAck' && msg.ok && msg.petItemId === payload.petItemId) {
-            return true;
-          }
-
-          // Option B: Domain event (PetFed)
-          if (msg.type === 'PetFed' && msg.petItemId === payload.petItemId) {
-            return true;
-          }
-
-          // Option C: InventoryDelta removing the crop
-          if (msg.type === 'InventoryDelta' && msg.removed) {
-            if (Array.isArray(msg.removed)) {
-              return msg.removed.some(r => r.id === payload.cropItemId || r === payload.cropItemId);
-            }
-          }
-
-          // Fallback: Check if message JSON contains our IDs (less precise)
-          const msgStr = JSON.stringify(msg);
-          if (msgStr.includes(payload.petItemId) && msgStr.includes(payload.cropItemId)) {
-            console.log('[Feed-Verify] 🔍 Fallback match on IDs in:', msg.type || 'unknown');
-            return true;
-          }
-
-          return false;
-        };
-
-      const ok = await sendWithAck('FeedPet', { petItemId, cropItemId }, makePredicate, enableDebugPeek);
-
-      if (ok) {
-        console.log('[Feed-Verify] ✅ verified by server event');
-        return { verified: true };
-      }
-
-      console.warn('[Feed-Verify] ❌ no ack/delta in 3.5s');
+      // Note: Server ack verification disabled in NoAutoRefresh version
+      // The game's native state management will handle the update
+      console.log('[Feed] Pet feed command sent (no server verification in NoAutoRefresh)');
       return { verified: false };
     }
 
@@ -8147,12 +7912,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           `STATUS: ${statusMsg}`,
           '',
           `GitHub Versions:`,
-          IS_LIVE_BETA
-            ? `  Your Branch (Beta): v${betaVersion || 'Loading...'}`
-            : `  Your Branch (Stable): v${stableVersion || 'Loading...'}`,
-          IS_LIVE_BETA
-            ? `  Other Branch (Stable): v${stableVersion || 'Loading...'}`
-            : `  Other Branch (Beta): v${betaVersion || 'Loading...'}`,
+          `  Stable: v${stableVersion || 'Loading...'}`,
+          `  Beta: v${betaVersion || 'Loading...'}`,
           '',
           'Click: Recheck',
           'Shift+Click: Install Stable',
@@ -8231,13 +7992,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Guard against duplicate UI creation
       if (targetDocument.getElementById('mgh-dock') || targetDocument.getElementById('mgh-sidebar')) {
         productionLog('🎨 UI already exists, skipping creation');
-        return;
-      }
-
-      // Critical: Ensure body exists before creating UI
-      if (!targetDocument.body) {
-        console.error('[MGTools] ⚠️ Body not ready, retrying UI creation in 100ms...');
-        setTimeout(() => createUnifiedUI(), 100);
         return;
       }
 
@@ -8602,23 +8356,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const dock = targetDocument.getElementById('mgh-dock');
         const sidebar = targetDocument.getElementById('mgh-sidebar');
 
-        // Check both existence AND visibility (critical fix for hidden UI bug)
-        const dockHidden = dock && (dock.style.display === 'none' || window.getComputedStyle(dock).display === 'none');
-        const sidebarHidden =
-          sidebar && (sidebar.style.display === 'none' || window.getComputedStyle(sidebar).display === 'none');
-
-        if (!dock || !sidebar || dockHidden || sidebarHidden) {
-          // Log the specific issue
-          if (!dock) console.warn('[MGTools] Dock element missing');
-          if (!sidebar) console.warn('[MGTools] Sidebar element missing');
-          if (dockHidden) console.warn('[MGTools] Dock is hidden (display:none)');
-          if (sidebarHidden) console.warn('[MGTools] Sidebar is hidden (display:none)');
-
-          // Clear potentially corrupted localStorage state
-          if (dockHidden || sidebarHidden) {
-            console.warn('[MGTools] Clearing corrupted visibility state...');
-            localStorage.removeItem('mgh_toolbar_visible');
-          }
+        if (!dock || !sidebar) {
           retryCount++;
           if (retryCount < maxRetries) {
             const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000); // 1s, 2s, 4s, 5s, 5s
@@ -8683,21 +8421,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
       window.__toolbarToggleInstalled = true;
 
-      // Version-based state reset to fix UI disappearance after updates
+      // Load saved visibility state
       const STORAGE_KEY = 'mgh_toolbar_visible';
-      const VERSION_KEY = 'mgh_ui_version';
-      const CURRENT_VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '1.1.1';
-
-      const savedVersion = localStorage.getItem(VERSION_KEY);
-      if (savedVersion !== CURRENT_VERSION) {
-        // New version detected - reset UI visibility to prevent hidden state from carrying over
-        productionLog(`📦 [UI-VERSION] Version change detected: ${savedVersion} → ${CURRENT_VERSION}`);
-        productionLog('📦 [UI-VERSION] Resetting UI visibility state to default (visible)');
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
-      }
-
-      // Load saved visibility state (defaults to true if not set)
       let toolbarVisible = localStorage.getItem(STORAGE_KEY) !== 'false'; // default true
 
       // Apply initial state
@@ -8728,104 +8453,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Apply saved state on load
       setTimeout(() => applyVisibility(toolbarVisible, false), 100);
 
-      // Enhanced Alt+M listener with better reliability
-      // Listen on BOTH document and targetDocument to catch all scenarios
-      const toggleHandler = e => {
+      // Listen for Alt+M
+      document.addEventListener('keydown', e => {
         // Check for Alt+M (case insensitive)
         if (e.altKey && (e.key === 'm' || e.key === 'M')) {
           e.preventDefault();
-          e.stopPropagation();
           toolbarVisible = !toolbarVisible;
           applyVisibility(toolbarVisible, true);
-          console.log(`[MGTools] Alt+M: Toolbar ${toolbarVisible ? 'shown' : 'hidden'}`);
         }
-      };
-
-      // Add listener to both document contexts for maximum reliability
-      document.addEventListener('keydown', toggleHandler, { passive: false, capture: true });
-      if (targetDocument !== document) {
-        targetDocument.addEventListener('keydown', toggleHandler, { passive: false, capture: true });
-      }
-    }
-
-    /**
-     * Dock Size Control
-     * Press Alt+= to increase dock size, Alt+- to decrease
-     * Cycles through: Tiny → Small → Medium → Large
-     */
-    function setupDockSizeControl() {
-      // Prevent multiple installations
-      if (window.__dockSizeControlInstalled) {
-        return;
-      }
-      window.__dockSizeControlInstalled = true;
-
-      const STORAGE_KEY = 'mgh_dock_size';
-      const SIZES = ['tiny', 'small', 'medium', 'large'];
-      const SIZE_LABELS = { tiny: 'Tiny', small: 'Small', medium: 'Medium', large: 'Large' };
-
-      // Load saved size (defaults to medium)
-      let currentSize = localStorage.getItem(STORAGE_KEY) || 'medium';
-      if (!SIZES.includes(currentSize)) {
-        currentSize = 'medium';
-      }
-
-      // Apply size to dock
-      function applyDockSize(size, showNotification = false) {
-        const dock = targetDocument.getElementById('mgh-dock');
-        if (!dock) return;
-
-        // Remove all size classes
-        SIZES.forEach(s => dock.classList.remove(`dock-size-${s}`));
-
-        // Add new size class (except for medium which is default)
-        if (size !== 'medium') {
-          dock.classList.add(`dock-size-${size}`);
-        }
-
-        // Save state
-        localStorage.setItem(STORAGE_KEY, size);
-        currentSize = size;
-
-        if (showNotification) {
-          try {
-            // eslint-disable-next-line no-undef
-            showToast(`📏 Dock Size: ${SIZE_LABELS[size]}`, 'Alt+= / Alt+- to adjust', 2000);
-          } catch (e) {
-            // Toast not ready, silent fail
-          }
-        }
-      }
-
-      // Apply saved size on load
-      setTimeout(() => applyDockSize(currentSize, false), 150);
-
-      // Hotkey handler
-      const sizeHandler = e => {
-        // Alt+= to increase size
-        if (e.altKey && (e.key === '=' || e.key === '+')) {
-          e.preventDefault();
-          e.stopPropagation();
-          const currentIndex = SIZES.indexOf(currentSize);
-          const nextIndex = (currentIndex + 1) % SIZES.length;
-          applyDockSize(SIZES[nextIndex], true);
-          console.log(`[MGTools] Alt+=: Dock size → ${SIZE_LABELS[SIZES[nextIndex]]}`);
-        } else if (e.altKey && (e.key === '-' || e.key === '_')) {
-          // Alt+- to decrease size
-          e.preventDefault();
-          e.stopPropagation();
-          const currentIndex = SIZES.indexOf(currentSize);
-          const prevIndex = (currentIndex - 1 + SIZES.length) % SIZES.length;
-          applyDockSize(SIZES[prevIndex], true);
-          console.log(`[MGTools] Alt+-: Dock size → ${SIZE_LABELS[SIZES[prevIndex]]}`);
-        }
-      };
-
-      // Add listener to both document contexts
-      document.addEventListener('keydown', sizeHandler, { passive: false, capture: true });
-      if (targetDocument !== document) {
-        targetDocument.addEventListener('keydown', sizeHandler, { passive: false, capture: true });
-      }
+      });
     }
 
     function saveDockPosition(position) {
@@ -11593,9 +11229,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // ==================== TAB CONTENTS ====================
     // Simplified pets content for popouts - JUST preset selection
     function getPetsPopoutContent() {
+      productionLog('🔍 [PETS DEBUG] getPetsPopoutContent() called');
       // Use multiple sources for pet data (same as updateActivePetsDisplay)
       const activePets = UnifiedState.atoms.activePets || window.activePets || [];
       const petPresets = UnifiedState.data.petPresets;
+      productionLog('🔍 [PETS DEBUG] Data check:', {
+        activePetsCount: activePets.length,
+        presetsCount: Object.keys(petPresets).length,
+        unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
+        windowActivePets: window.activePets?.length || 0
+      });
 
       if (Object.keys(petPresets).length === 0) {
         return `
@@ -11718,6 +11361,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       });
 
       html += `</div>`;
+      productionLog('🔍 [PETS DEBUG] Returning HTML:', {
+        htmlLength: html.length,
+        htmlPreview: html.substring(0, 200)
+      });
       return html;
     }
 
@@ -11725,6 +11372,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     function setupPetPopoutHandlers(context = document) {
       // Find all preset cards
       const cards = context.querySelectorAll('.mga-preset-clickable[data-preset]');
+
+      productionLog(`🔧 [PETS-HANDLERS] Setting up handlers for ${cards.length} preset cards`);
 
       // Set up preset card handlers - use cloneNode to ensure clean slate
       cards.forEach((presetCard, index) => {
@@ -11734,6 +11383,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Attach fresh handler to the cloned card
         newCard.addEventListener('click', e => {
+          productionLog(`🎯 [PETS-CLICK] Clicked preset #${index}: ${e.currentTarget.dataset.preset}`);
           const presetName = e.currentTarget.dataset.preset;
 
           if (!presetName || !UnifiedState.data.petPresets[presetName]) {
@@ -11742,68 +11392,33 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           const preset = UnifiedState.data.petPresets[presetName];
-          const maxSlots = 3;
 
-          // Native swap approach - works even with full inventory!
-          let delay = 0;
+          // Store current pets first
+          (UnifiedState.atoms.activePets || []).forEach(p => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'StorePet',
+              itemId: p.id
+            });
+          });
 
-          for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-            const desiredPet = preset[slotIndex];
-
-            // BUGFIX: Capture delay value in closure to prevent race conditions
-            ((currentDelay, slot) => {
-              setTimeout(() => {
-                // BUGFIX: Read FRESH state inside timeout (not stale reference)
-                const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-                const currentPet = currentPets[slot];
-
-                if (currentPet && desiredPet) {
-                  // Both exist: Use native SwapPet (no inventory space needed!)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'SwapPet',
-                    petSlotId: currentPet.id,
-                    petInventoryId: desiredPet.id
-                  });
-                } else if (!currentPet && desiredPet) {
-                  // Empty slot: Place new pet
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'PlacePet',
-                    itemId: desiredPet.id,
-                    position: { x: 17 + slot * 2, y: 13 },
-                    localTileIndex: 64,
-                    tileType: 'Boardwalk'
-                  });
-                } else if (currentPet && !desiredPet) {
-                  // Remove excess pet (preset has fewer pets)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'StorePet',
-                    itemId: currentPet.id
-                  });
-                }
-              }, currentDelay);
-            })(delay, slotIndex);
-
-            // Increase delay: 100ms → 200ms for better network latency tolerance
-            delay += 200;
-          }
+          // Place preset pets with delay to prevent accidental clicks
+          preset.forEach((p, i) => {
+            setTimeout(() => {
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'PlacePet',
+                itemId: p.id,
+                position: { x: 17 + i * 2, y: 13 },
+                localTileIndex: 64,
+                tileType: 'Boardwalk'
+              });
+            }, i * 50); // 50ms delay between each pet placement
+          });
 
           // Update displays after all pets are placed (single refresh with retry)
           const refreshPetDisplays = () => {
+            productionLog('🔄 [PETS-REFRESH] Starting refresh...');
             // Force update from room state
             updateActivePetsFromRoomState();
 
@@ -11837,18 +11452,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
           };
 
-          // Refresh after swaps complete + 500ms
-          setTimeout(() => {
-            refreshPetDisplays();
+          // Single refresh after 2 seconds (gives game time to update)
+          setTimeout(
+            () => {
+              refreshPetDisplays();
+              productionLog('✅ [PETS-REFRESH] First refresh complete');
 
-            // Retry handler reattachment after a short delay to ensure reliability
-            setTimeout(() => {
-              const overlay = UnifiedState.data.popouts.overlays.get('pets');
-              if (overlay && document.contains(overlay)) {
-                setupPetPopoutHandlers(overlay);
-              }
-            }, 500);
-          }, delay + 500);
+              // Retry handler reattachment after a short delay to ensure reliability
+              setTimeout(() => {
+                const overlay = UnifiedState.data.popouts.overlays.get('pets');
+                if (overlay && document.contains(overlay)) {
+                  productionLog('🔄 [PETS-HANDLERS] Reattaching handlers to ensure reliability');
+                  setupPetPopoutHandlers(overlay);
+                }
+              }, 500);
+            },
+            preset.length * 50 + 2000
+          );
 
           // Visual feedback - gentle highlight, no transform (prevents stutter)
           // Temporarily disable pointer events to prevent hover conflicts
@@ -11859,6 +11479,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             e.currentTarget.style.background = originalBackground;
             e.currentTarget.style.pointerEvents = '';
           }, 200);
+
+          productionLog(`✅ [PETS-SWAP] Loaded preset: ${presetName}`);
         });
       });
 
@@ -11891,7 +11513,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             refreshPresetsList(context);
             refreshSeparateWindowPopouts('pets');
           } else if (action === 'place') {
-            window.debouncedPlacePetPreset(presetName);
+            placePetPreset(presetName);
           } else if (action === 'remove') {
             delete UnifiedState.data.petPresets[presetName];
             const saveSuccess = MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
@@ -12200,7 +11822,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const seedGroups = [
         { name: 'Common', color: '#fff', seeds: ['Carrot', 'Strawberry', 'Aloe'] },
         { name: 'Uncommon', color: '#0f0', seeds: ['Apple', 'Tulip', 'Tomato', 'Blueberry'] },
-        { name: 'Rare', color: '#0af', seeds: ['Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Delphinium', 'Squash'] },
+        { name: 'Rare', color: '#0af', seeds: ['Daffodil', 'Corn', 'Watermelon', 'Pumpkin'] },
         { name: 'Legendary', color: '#ff0', seeds: ['Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail'] },
         { name: 'Mythical', color: '#a0f', seeds: ['Mushroom', 'Cactus', 'Bamboo', 'Grape'] },
         {
@@ -12253,8 +11875,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         Corn: 'Corn',
         Watermelon: 'Watermelon',
         Pumpkin: 'Pumpkin',
-        Delphinium: 'Delphinium',
-        Squash: 'Squash',
         Echeveria: 'Echeveria',
         Coconut: 'Coconut',
         Banana: 'Banana',
@@ -12394,7 +12014,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     const SHOP_COLOR_GROUPS = {
       white: ['CommonEgg', 'Carrot', 'Strawberry', 'Aloe'],
       green: ['UncommonEgg', 'Apple', 'OrangeTulip', 'Tomato', 'Blueberry'],
-      blue: ['RareEgg', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Delphinium', 'Squash'],
+      blue: ['RareEgg', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin'],
       yellow: ['LegendaryEgg', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail'],
       purple: ['MythicalEgg', 'Mushroom', 'Cactus', 'Bamboo', 'Grape'],
       orange: ['Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower']
@@ -12417,8 +12037,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Seeds - Rare tier
       Daffodil: 1000,
       Corn: 1300,
-      Delphinium: 1800,
-      Squash: 2200,
       Watermelon: 2500,
       Pumpkin: 3000,
       // Seeds - Legendary tier
@@ -16921,12 +16539,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               <div class="mga-section">
                   <div class="mga-section-title">⌨️ Keyboard Shortcuts</div>
                   <div class="mga-help-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin-bottom: 16px;">
-                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+=</code>
-                      <span>Increase dock size (Tiny → Small → Medium → Large)</span>
-                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+-</code>
-                      <span>Decrease dock size (Large → Medium → Small → Tiny)</span>
-                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+M</code>
-                      <span>Toggle toolbar visibility (show/hide entire dock and sidebar)</span>
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+B</code>
                       <span>Toggle Shop (opens/closes both seed and egg sidebars)</span>
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Escape</code>
@@ -18045,7 +17657,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                           <strong>What it does:</strong><br>
                           • Bypasses CSP restrictions for Discord/managed devices<br>
                           • Uses system fonts instead of Google Fonts<br>
-                          • Forces WebSocket reconnection even when tab is hidden<br>
                           • Uses GM_xmlhttpRequest for external network requests<br>
                           <br>
                           <strong>When to use:</strong><br>
@@ -18139,7 +17750,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // Place a pet preset - used by both main tab and popout Place buttons
-    // Uses native SwapPet to work even when inventory is full
     function placePetPreset(presetName) {
       const preset = UnifiedState.data.petPresets[presetName];
       if (!preset) {
@@ -18147,65 +17757,28 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      const maxSlots = 3;
+      // Store current pets
+      (UnifiedState.atoms.activePets || []).forEach(p => {
+        safeSendMessage({
+          scopePath: ['Room', 'Quinoa'],
+          type: 'StorePet',
+          itemId: p.id
+        });
+      });
 
-      // Native swap approach - works even with full inventory!
-      let delay = 0;
-
-      for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-        const desiredPet = preset[slotIndex];
-
-        // BUGFIX: Capture delay value in closure to prevent race conditions
-        ((currentDelay, slot) => {
-          setTimeout(() => {
-            // BUGFIX: Read FRESH state inside timeout (not stale reference)
-            const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-            const currentPet = currentPets[slot];
-
-            if (currentPet && desiredPet) {
-              // Both exist: Use native SwapPet (no inventory space needed!)
-              if (UnifiedState.data.settings?.debugMode) {
-                productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
-              }
-
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'SwapPet',
-                petSlotId: currentPet.id,
-                petInventoryId: desiredPet.id
-              });
-            } else if (!currentPet && desiredPet) {
-              // Empty slot: Place new pet
-              if (UnifiedState.data.settings?.debugMode) {
-                productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
-              }
-
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'PlacePet',
-                itemId: desiredPet.id,
-                position: { x: 17 + slot * 2, y: 13 },
-                localTileIndex: 64,
-                tileType: 'Boardwalk'
-              });
-            } else if (currentPet && !desiredPet) {
-              // Remove excess pet (preset has fewer pets)
-              if (UnifiedState.data.settings?.debugMode) {
-                productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
-              }
-
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'StorePet',
-                itemId: currentPet.id
-              });
-            }
-          }, currentDelay);
-        })(delay, slotIndex);
-
-        // Increase delay: 100ms → 200ms for better network latency tolerance
-        delay += 200;
-      }
+      // Place preset pets with delays
+      preset.forEach((p, i) => {
+        setTimeout(() => {
+          safeSendMessage({
+            scopePath: ['Room', 'Quinoa'],
+            type: 'PlacePet',
+            itemId: p.id,
+            position: { x: 17 + i * 2, y: 13 },
+            localTileIndex: 64,
+            tileType: 'Boardwalk'
+          });
+        }, i * 50);
+      });
 
       // Update all displays after pets are placed (with backup refresh)
       const refreshAllPetDisplays = () => {
@@ -18230,26 +17803,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         refreshSeparateWindowPopouts('pets');
       };
 
-      // First refresh after swaps complete + 500ms
-      setTimeout(() => {
-        refreshAllPetDisplays();
-      }, delay + 500);
+      // First refresh after 1.5 seconds
+      setTimeout(
+        () => {
+          refreshAllPetDisplays();
+          productionLog(`✅ [PETS] Placed preset "${presetName}" and updated displays (first refresh)`);
+        },
+        preset.length * 50 + 1500
+      );
 
-      // Backup refresh after swaps + 1.5s to catch slow updates
-      setTimeout(() => {
-        refreshAllPetDisplays();
-      }, delay + 1500);
+      // Backup refresh after 2.5 seconds to catch slow updates
+      setTimeout(
+        () => {
+          refreshAllPetDisplays();
+          productionLog(`✅ [PETS] Backup refresh for preset "${presetName}"`);
+        },
+        preset.length * 50 + 2500
+      );
     }
-
-    // Global debounced wrapper for placePetPreset (accessible from all handlers)
-    let _placePetPresetDebounceTimer = null;
-    window.debouncedPlacePetPreset = function (presetName) {
-      if (_placePetPresetDebounceTimer) return; // Ignore if already pending
-      _placePetPresetDebounceTimer = setTimeout(() => {
-        _placePetPresetDebounceTimer = null;
-      }, 500);
-      placePetPreset(presetName);
-    };
 
     // Helper function to check if preset contains Worm with Crop Eater ability
     // Uses same detection pattern as turtle timer (checks abilities array)
@@ -18631,7 +18202,59 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             e.stopPropagation();
             e.preventDefault();
 
-            window.debouncedPlacePetPreset(presetName);
+            const preset = UnifiedState.data.petPresets[presetName];
+            if (!preset) return;
+
+            // Store current pets then place preset pets
+            (UnifiedState.atoms.activePets || []).forEach(p => {
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'StorePet',
+                itemId: p.id
+              });
+            });
+
+            // CRITICAL FIX: Add delay between pet placements to prevent accidental clicks
+            preset.forEach((p, i) => {
+              setTimeout(() => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'PlacePet',
+                  itemId: p.id,
+                  position: { x: 17 + i * 2, y: 13 },
+                  localTileIndex: 64,
+                  tileType: 'Boardwalk'
+                });
+              }, i * 50); // 50ms delay between each pet placement
+            });
+
+            // Update pets display after all pets placed
+            setTimeout(
+              () => {
+                // Force update pets from room state first
+                updateActivePetsFromRoomState();
+
+                // Then refresh the tab if it's active
+                if (UnifiedState.activeTab === 'pets') {
+                  updateTabContent();
+                }
+
+                // Update all pet overlays after placing
+                UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                  if (overlay && document.contains(overlay) && tabName === 'pets') {
+                    if (overlay.className.includes('mga-overlay-content-only')) {
+                      updatePureOverlayContent(overlay, tabName);
+                      debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
+                    }
+                  }
+                });
+
+                // Update separate window popouts
+                refreshSeparateWindowPopouts('pets');
+              },
+              preset.length * 50 + 1000
+            ); // Wait for all pets + extra time for game to update
+
             debugLog('BUTTON_INTERACTIONS', `Placed preset: ${presetName} (from added element)`);
           } else if (action === 'remove') {
             delete UnifiedState.data.petPresets[presetName];
@@ -18738,7 +18361,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             refreshPresetsList(context);
           } else if (action === 'place') {
             productionLog(`🚨 [CRITICAL] Placing preset ${presetName}`);
-            window.debouncedPlacePetPreset(presetName);
+            placePetPreset(presetName);
           } else if (action === 'remove') {
             productionLog(`[CRITICAL] Removing preset ${presetName}`);
             delete UnifiedState.data.petPresets[presetName];
@@ -18897,76 +18520,46 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             return;
           }
 
-          const maxSlots = 3;
+          // Store current pets FIRST
+          const currentPets = UnifiedState.atoms.activePets || [];
+          currentPets.forEach(p => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'StorePet',
+              itemId: p.id
+            });
+          });
 
-          // Native swap approach - works even with full inventory!
-          let delay = 0;
+          // Wait for store operations to complete, then place preset pets
+          const baseDelay = currentPets.length > 0 ? 300 : 100;
+          preset.forEach((p, i) => {
+            setTimeout(
+              () => {
+                safeSendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'PlacePet',
+                  itemId: p.id,
+                  position: { x: 17 + i * 2, y: 13 },
+                  localTileIndex: 64,
+                  tileType: 'Boardwalk'
+                });
+              },
+              baseDelay + i * 100
+            );
+          });
 
-          for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-            const desiredPet = preset[slotIndex];
-
-            // BUGFIX: Capture delay value in closure to prevent race conditions
-            ((currentDelay, slot) => {
-              setTimeout(() => {
-                // BUGFIX: Read FRESH state inside timeout (not stale reference)
-                const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-                const currentPet = currentPets[slot];
-
-                if (currentPet && desiredPet) {
-                  // Both exist: Use native SwapPet (no inventory space needed!)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'SwapPet',
-                    petSlotId: currentPet.id,
-                    petInventoryId: desiredPet.id
-                  });
-                } else if (!currentPet && desiredPet) {
-                  // Empty slot: Place new pet
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'PlacePet',
-                    itemId: desiredPet.id,
-                    position: { x: 17 + slot * 2, y: 13 },
-                    localTileIndex: 64,
-                    tileType: 'Boardwalk'
-                  });
-                } else if (currentPet && !desiredPet) {
-                  // Remove excess pet (preset has fewer pets)
-                  if (UnifiedState.data.settings?.debugMode) {
-                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
-                  }
-
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'StorePet',
-                    itemId: currentPet.id
-                  });
-                }
-              }, currentDelay);
-            })(delay, slotIndex);
-
-            // Increase delay: 100ms → 200ms for better network latency tolerance
-            delay += 200;
-          }
-
-          // Refresh after swaps complete
-          setTimeout(() => {
-            updateActivePetsFromRoomState();
-            updateActivePetsDisplay(context);
-          }, delay + 200);
+          // Multiple refresh waves to catch all pet placements
+          const totalDelay = baseDelay + preset.length * 100;
 
           setTimeout(() => {
             updateActivePetsFromRoomState();
             updateActivePetsDisplay(context);
-          }, delay + 600);
+          }, totalDelay + 200);
+
+          setTimeout(() => {
+            updateActivePetsFromRoomState();
+            updateActivePetsDisplay(context);
+          }, totalDelay + 600);
 
           setTimeout(() => {
             updateActivePetsFromRoomState();
@@ -18979,7 +18572,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 }
               }
             });
-          }, delay + 1000);
+          }, totalDelay + 1000);
         });
       }
 
@@ -19065,7 +18658,53 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             debugLog('BUTTON_INTERACTIONS', `Saved preset: ${presetName} without full DOM refresh`);
           } else if (action === 'place') {
-            window.debouncedPlacePetPreset(presetName);
+            const preset = UnifiedState.data.petPresets[presetName];
+            if (!preset) return;
+
+            // Store current pets
+            (UnifiedState.atoms.activePets || []).forEach(p => {
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'StorePet',
+                itemId: p.id
+              });
+            });
+
+            // Place preset pets
+            preset.forEach((p, i) => {
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'PlacePet',
+                itemId: p.id,
+                position: { x: 17 + i * 2, y: 13 },
+                localTileIndex: 64,
+                tileType: 'Boardwalk'
+              });
+            });
+
+            // Update pets display after placement (with delay for game to update)
+            setTimeout(() => {
+              // Force update pets from room state first
+              updateActivePetsFromRoomState();
+
+              // Update main tab if pets tab is active
+              if (UnifiedState.activeTab === 'pets') {
+                updateTabContent();
+              }
+
+              // Update all pet overlays after placing
+              UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+                if (overlay && document.contains(overlay) && tabName === 'pets') {
+                  if (overlay.className.includes('mga-overlay-content-only')) {
+                    updatePureOverlayContent(overlay, tabName);
+                    debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
+                  }
+                }
+              });
+
+              // Update separate window popouts
+              refreshSeparateWindowPopouts('pets');
+            }, 1000); // Increased from 100ms to 1000ms to give game time to update
           } else if (action === 'remove') {
             delete UnifiedState.data.petPresets[presetName];
 
@@ -19123,54 +18762,39 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           debugLog('BUTTON_INTERACTIONS', `Loading preset from popout: ${presetName}`, { preset });
 
-          const currentPets = UnifiedState.atoms.activePets || [];
-
-          // Clear existing pets WITH DELAYS (50ms between each) - CRITICAL FIX for slow connections
-          currentPets.forEach((p, i) => {
-            setTimeout(() => {
-              safeSendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'RemovePet',
-                itemId: p.id
-              });
-            }, i * 50);
+          // Clear existing pets
+          (UnifiedState.atoms.activePets || []).forEach(p => {
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'RemovePet',
+              itemId: p.id
+            });
           });
 
-          // Calculate delay before placing new pets (wait for all RemovePet to complete)
-          const removalDelay = currentPets.length * 50 + 200; // Extra 200ms buffer
-
-          // Place preset pets with delays AFTER removal completes
+          // Place preset pets
           preset.forEach((p, i) => {
-            setTimeout(
-              () => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'PlacePet',
-                  itemId: p.id,
-                  position: { x: 17 + i * 2, y: 13 },
-                  localTileIndex: 64,
-                  tileType: 'Boardwalk'
-                });
-              },
-              removalDelay + i * 50
-            );
+            safeSendMessage({
+              scopePath: ['Room', 'Quinoa'],
+              type: 'PlacePet',
+              itemId: p.id,
+              position: { x: 17 + i * 2, y: 13 },
+              localTileIndex: 64,
+              tileType: 'Boardwalk'
+            });
           });
 
-          // Update popouts after removal + placement completes
-          setTimeout(
-            () => {
-              updateActivePetsFromRoomState();
-              refreshSeparateWindowPopouts('pets');
-              UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-                if (overlay && document.contains(overlay) && tabName === 'pets') {
-                  if (overlay.className.includes('mga-overlay-content-only')) {
-                    updatePureOverlayContent(overlay, tabName);
-                  }
+          // Update popouts after loading (changed from 100ms to 1000ms for game to update)
+          setTimeout(() => {
+            updateActivePetsFromRoomState();
+            refreshSeparateWindowPopouts('pets');
+            UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+              if (overlay && document.contains(overlay) && tabName === 'pets') {
+                if (overlay.className.includes('mga-overlay-content-only')) {
+                  updatePureOverlayContent(overlay, tabName);
                 }
-              });
-            },
-            removalDelay + preset.length * 50 + 1000
-          );
+              }
+            });
+          }, 1000);
         });
       });
 
@@ -19459,7 +19083,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             logWarn('ABILITY-LOGS', '  ⚠️ Could not clear targetWindow.localStorage:', e.message);
           }
 
-          // 5. Clear compatibility array
+          // 5. Clear compatibility array (old mainscript.txt)
           try {
             if (typeof window.petAbilityLogs !== 'undefined') {
               window.petAbilityLogs = [];
@@ -20351,8 +19975,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         Corn: 'Corn',
         Watermelon: 'Watermelon',
         Pumpkin: 'Pumpkin',
-        Delphinium: 'Delphinium',
-        Squash: 'Squash',
         Echeveria: 'Echeveria',
         Coconut: 'Coconut',
         Banana: 'Banana',
@@ -20542,8 +20164,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             'Corn',
             'Watermelon',
             'Pumpkin',
-            'Delphinium',
-            'Squash',
             'Echeveria',
             'Coconut',
             'Banana',
@@ -21091,10 +20711,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // CRITICAL: Stop event from reaching game's hotkey handler
         // DO NOT use preventDefault() - that blocks typing in the input!
         // stopImmediatePropagation() prevents OTHER handlers from seeing this event
-        // EXCEPTION: Allow Enter key to reach game's chat handler for message submission
-        if (e.key !== 'Enter') {
-          e.stopImmediatePropagation();
-        }
+        e.stopImmediatePropagation();
 
         // Log when hotkey is blocked (helps diagnose chat detection issues)
         if (UnifiedState.data.settings?.debugMode) {
@@ -25573,29 +25190,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       });
 
-      // PERFORMANCE OPTIMIZATION: Debounce ability log updates to prevent spam
-      // Max 1 update per 500ms even if multiple abilities trigger rapidly
-      if (hasNewAbility && document.visibilityState === 'visible') {
-        if (!pendingAbilityUpdates) {
-          pendingAbilityUpdates = true;
+      // OPTIMIZED: Only update DOM if there's actually a new ability and page is visible
+      if (hasNewAbility && document.visibilityState === 'visible' && !pendingAbilityUpdates) {
+        pendingAbilityUpdates = true;
+        // Batch all DOM updates in next animation frame
+        requestAnimationFrame(() => {
+          updateAllAbilityLogDisplays();
 
-          // Debounce: Wait 500ms before updating to batch rapid ability triggers
-          setTimeout(() => {
-            requestAnimationFrame(() => {
-              updateAllAbilityLogDisplays();
+          if (UnifiedState.activeTab === 'abilities') {
+            updateTabContent();
+          }
 
-              if (UnifiedState.activeTab === 'abilities') {
-                updateTabContent();
-              }
+          // BUGFIX: Removed duplicate overlay update loop
+          // updateAllAbilityLogDisplays() already handles all overlays at line 13548
+          // Duplicate updates were causing race conditions when both tab and pop-up were open
 
-              // BUGFIX: Removed duplicate overlay update loop
-              // updateAllAbilityLogDisplays() already handles all overlays at line 13548
-              // Duplicate updates were causing race conditions when both tab and pop-up were open
-
-              pendingAbilityUpdates = false;
-            });
-          }, 500); // OPTIMIZED: 500ms debounce window
-        }
+          pendingAbilityUpdates = false;
+        });
       }
     }
 
@@ -26457,50 +26068,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       };
     }
 
-    // PERFORMANCE OPTIMIZATION: Cache timer elements to avoid repeated DOM queries
-    let cachedTimerElements = {
-      'timer-seed': [],
-      'timer-egg': [],
-      'timer-tool': [],
-      'timer-lunar': []
-    };
-    let lastTimerElementCacheTime = 0;
-    const TIMER_ELEMENT_CACHE_DURATION = 5000; // Refresh cache every 5 seconds
-
-    function refreshTimerElementCache() {
-      const timerIds = ['timer-seed', 'timer-egg', 'timer-tool', 'timer-lunar'];
-
-      timerIds.forEach(id => {
-        const elements = [];
-
-        // Main window element
-        const mainEl = document.getElementById(id);
-        if (mainEl) elements.push(mainEl);
-
-        // Overlay elements
-        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-          if (overlay && document.contains(overlay)) {
-            const overlayEl = overlay.querySelector(`#${id}`);
-            if (overlayEl) elements.push(overlayEl);
-          }
-        });
-
-        // Target document elements (for popouts)
-        try {
-          const targetEls = targetDocument.querySelectorAll(`#${id}`);
-          targetEls.forEach(el => {
-            if (!elements.includes(el)) elements.push(el);
-          });
-        } catch (e) {
-          // Ignore errors from closed windows
-        }
-
-        cachedTimerElements[id] = elements;
-      });
-
-      lastTimerElementCacheTime = Date.now();
-    }
-
     function updateTimerDisplay() {
       const formatTime = seconds => {
         if (seconds == null) return '--:--';
@@ -26523,34 +26090,38 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       };
 
-      // BUGFIX: Initialize cache on first run or refresh if expired
-      const now = Date.now();
-      if (lastTimerElementCacheTime === 0 || now - lastTimerElementCacheTime > TIMER_ELEMENT_CACHE_DURATION) {
-        refreshTimerElementCache();
-      }
-
-      // PERFORMANCE: Update cached elements only (no DOM queries in hot path)
+      // Helper function to update timer elements across all contexts
       const updateTimerElement = (id, value) => {
+        // Choose formatter based on timer type
         const formatter = id === 'timer-lunar' ? formatTimeHoursMinutes : formatTime;
         const formattedValue = formatter(value);
 
-        const elements = cachedTimerElements[id] || [];
-
-        // FALLBACK: If cache is empty, query directly (first run before cache populated)
-        if (elements.length === 0) {
-          const el = document.getElementById(id);
-          if (el) {
-            el.textContent = formattedValue;
-          }
-          return;
+        // Update main window
+        const mainElement = document.getElementById(id);
+        if (mainElement) {
+          mainElement.textContent = formattedValue;
         }
 
-        elements.forEach(el => {
-          // Verify element still in DOM before updating
-          if (document.contains(el)) {
-            el.textContent = formattedValue;
+        // Update in-game overlays
+        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+          if (overlay && document.contains(overlay)) {
+            const overlayElement = overlay.querySelector(`#${id}`);
+            if (overlayElement) {
+              overlayElement.textContent = formattedValue;
+            }
           }
         });
+
+        // Update all timer elements with this ID across all open windows
+        // This catches pop-out windows that may contain timer elements
+        try {
+          const allElements = targetDocument.querySelectorAll(`#${id}`);
+          allElements.forEach(el => {
+            el.textContent = formattedValue;
+          });
+        } catch (e) {
+          // Ignore errors from closed windows
+        }
       };
 
       // Update all timer types
@@ -26835,7 +26406,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         value => {
           // Store quinoa data for timers
           UnifiedState.atoms.quinoaData = value;
-          // Also make globalShop available for notifications
+          // Also make globalShop available for notifications (same as MainScript)
           targetWindow.globalShop = value;
           // Update timers
           updateTimers();
@@ -26913,33 +26484,18 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     (function initAutoFavorite() {
       let lastInventoryCount = 0;
 
-      // PERFORMANCE OPTIMIZATION: Increased interval from 500ms to 2000ms
-      // Still responsive for new items, but 4x less CPU usage
+      // Monitor inventory changes for auto-favorite (myData is set by existing myDataAtom hook)
       setInterval(() => {
-        // Early exit if auto-favorite is disabled or no watched items
-        if (!UnifiedState.data.settings.autoFavorite.enabled) {
-          return;
-        }
-
-        const watchedSpecies = UnifiedState.data.settings.autoFavorite.species || [];
-        const watchedMutations = UnifiedState.data.settings.autoFavorite.mutations || [];
-
-        // Skip processing if nothing is being watched
-        if (watchedSpecies.length === 0 && watchedMutations.length === 0) {
-          return;
-        }
-
-        if (!targetWindow.myData?.inventory?.items) {
+        if (!targetWindow.myData?.inventory?.items || !UnifiedState.data.settings.autoFavorite.enabled) {
           return;
         }
 
         const currentCount = targetWindow.myData.inventory.items.length;
-        // Only process if inventory count increased (new items added)
         if (currentCount > lastInventoryCount) {
           checkAndFavoriteNewItems(targetWindow.myData.inventory);
         }
         lastInventoryCount = currentCount;
-      }, 2000); // OPTIMIZED: Every 2 seconds (was 500ms)
+      }, 500);
 
       function checkAndFavoriteNewItems(inventory) {
         if (!inventory?.items) return;
@@ -27289,51 +26845,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       return getAbilityExpectations(activePets, 'PlantGrowthBoostII', 5, 0.27);
     }
 
-    // BUGFIX: Validate tooltip element position to prevent top-left corner misplacement
-    // PERFORMANCE: Silent validation - no console spam unless debug mode enabled
-    function isValidTooltipElement(element) {
-      if (!element) return false;
-
-      try {
-        const rect = element.getBoundingClientRect();
-
-        // Reject if element is in top-left corner (likely UI element, not tooltip)
-        // Tooltips should be centered or follow cursor, never stuck at 0,0
-        if (rect.top < 50 && rect.left < 50) {
-          return false; // Silent rejection
-        }
-
-        // Reject if element is too small (likely not a tooltip container)
-        if (rect.width < 50 || rect.height < 30) {
-          return false; // Silent rejection
-        }
-
-        // Reject if element is off-screen
-        const doc = targetDocument || document;
-        const viewportWidth = window.innerWidth || doc.documentElement.clientWidth;
-        const viewportHeight = window.innerHeight || doc.documentElement.clientHeight;
-
-        if (rect.right < 0 || rect.bottom < 0 || rect.left > viewportWidth || rect.top > viewportHeight) {
-          return false; // Silent rejection
-        }
-
-        // Additional check: Element should contain text (tooltips always have content)
-        const hasText = element.textContent && element.textContent.trim().length > 0;
-        if (!hasText) {
-          return false; // Silent rejection
-        }
-
-        // Passed all validation checks
-        return true;
-      } catch (e) {
-        // Only log errors, not validation failures
-        if (UnifiedState?.data?.settings?.debugMode) {
-          console.error('[CROP-VALUE] ❌ Error validating tooltip element:', e);
-        }
-        return false;
-      }
-    }
-
     function insertTurtleEstimate() {
       const doc = targetDocument || document;
 
@@ -27348,8 +26859,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       )?.parentElement;
 
       if (!currentPlantTooltipFlexbox) {
-        // PERFORMANCE FIX: Validate tooltip position before using fallback selectors
-        // This prevents slot value from appearing in top-left corner UI elements
+        // Try alternative selectors
         const altSelectors = [
           'div.QuinoaUI .McFlex .McGrid',
           '[class*="tooltip"] [class*="flex"]',
@@ -27357,24 +26867,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           '.McFlex .McGrid .McFlex',
           'div.QuinoaUI div.McFlex div.McGrid'
         ];
-
         for (const sel of altSelectors) {
           const el = doc.querySelector(sel);
-          if (el && isValidTooltipElement(el)) {
+          if (el) {
             currentPlantTooltipFlexbox = el;
             break;
           }
         }
-
         if (!currentPlantTooltipFlexbox) {
           return;
         }
-      }
-
-      // Final validation: Ensure element is in valid screen position
-      if (!isValidTooltipElement(currentPlantTooltipFlexbox)) {
-        console.warn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
-        return;
       }
 
       // Try multiple ways to get current crop/egg
@@ -28346,10 +27848,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         'entries'
       );
 
-      // Check if external pet ability logging is active
+      // Check if mainscript.txt pet ability logging is active
       if (window.petAbilityLogs && Array.isArray(window.petAbilityLogs)) {
         productionLog(
-          '📝 [COMPAT] Detected external pet ability logging system with',
+          '📝 [COMPAT] Detected mainscript.txt pet ability logging system with',
           window.petAbilityLogs.length,
           'entries'
         );
@@ -28950,28 +28452,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       productionLog('🚨 [CRITICAL] Optimized notification timer started with performance monitoring');
 
-      // HUNGER TIMER: Update hunger countdown timers
-      // PERFORMANCE OPTIMIZATION: Reduced from 1000ms to 2000ms, cache timer elements
+      // HUNGER TIMER: Update hunger countdown timers every second
       productionLog('🍖 [HUNGER-TIMER] Setting up hunger timer updates...');
-
-      // Cache for timer elements (refreshed when pets tab is opened/updated)
-      let cachedTimerElements = [];
-      let lastTimerCacheTime = 0;
-      const TIMER_CACHE_DURATION = 5000; // Refresh cache every 5 seconds
-
       window.hungerTimerInterval = setInterval(() => {
         try {
+          // Update all hunger timer elements
+          const timerElements = document.querySelectorAll('.mga-hunger-timer');
           const activePets = window.activePets || UnifiedState.atoms.activePets || [];
 
-          // Refresh timer element cache if needed
-          const now = Date.now();
-          if (cachedTimerElements.length === 0 || now - lastTimerCacheTime > TIMER_CACHE_DURATION) {
-            cachedTimerElements = Array.from(document.querySelectorAll('.mga-hunger-timer'));
-            lastTimerCacheTime = now;
-          }
-
           if (UnifiedState.data.settings?.debugMode) {
-            console.log('🍖 [TIMER-UPDATE] Cached timer elements:', cachedTimerElements.length);
+            console.log('🍖 [TIMER-UPDATE] Timer elements found:', timerElements.length);
             console.log('🍖 [TIMER-UPDATE] Active pets:', activePets.length);
             if (activePets.length > 0) {
               activePets.forEach((p, i) => {
@@ -28986,14 +28476,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
           }
 
-          if (cachedTimerElements.length > 0) {
-            cachedTimerElements.forEach(element => {
-              // Skip if element was removed from DOM
-              if (!document.contains(element)) {
-                cachedTimerElements = []; // Force cache refresh
-                return;
-              }
-
+          if (timerElements.length > 0) {
+            timerElements.forEach(element => {
               const petIndex = parseInt(element.dataset.petIndex);
               if (petIndex >= 0 && petIndex < activePets.length) {
                 const pet = activePets[petIndex];
@@ -29017,7 +28501,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } catch (error) {
           console.error('❌ Error updating hunger timers:', error);
         }
-      }, 2000); // OPTIMIZED: Update every 2 seconds (was 1s)
+      }, 1000); // Update every second
 
       MGA_addInterval(window.hungerTimerInterval);
       productionLog('🍖 [HUNGER-TIMER] Hunger timer updates started (1s interval)');
@@ -29200,35 +28684,26 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
+      const currentPets = UnifiedState.atoms.activePets || [];
+
       // Always use SwapPet for atomic swapping (works regardless of inventory space)
       productionLog('[PETS] Using SwapPet for atomic swapping');
 
       preset.forEach((presetPet, i) => {
-        // BUGFIX: Read current state INSIDE timeout to get fresh data after previous swaps
-        // This fixes race condition where slow networks don't update activePets fast enough
-        setTimeout(() => {
-          // Get FRESH state each time (not stale reference from before loop)
-          const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
-          const currentPet = currentPets[i];
-
-          if (currentPet) {
-            // Swap: active pet <-> inventory pet
-            if (UnifiedState.data.settings?.debugMode) {
-              productionLog(`[PET-SWAP] Slot ${i + 1}: Swapping ${currentPet.id} → ${presetPet.id}`);
-            }
-
+        const currentPet = currentPets[i];
+        if (currentPet) {
+          // Swap: active pet <-> inventory pet
+          setTimeout(() => {
             safeSendMessage({
               scopePath: ['Room', 'Quinoa'],
               type: 'SwapPet',
               petSlotId: currentPet.id,
               petInventoryId: presetPet.id
             });
-          } else {
-            // No pet in this slot, just place
-            if (UnifiedState.data.settings?.debugMode) {
-              productionLog(`[PET-SWAP] Slot ${i + 1}: Placing ${presetPet.id} (empty slot)`);
-            }
-
+          }, i * 100);
+        } else {
+          // No pet in this slot, just place
+          setTimeout(() => {
             safeSendMessage({
               scopePath: ['Room', 'Quinoa'],
               type: 'PlacePet',
@@ -29237,11 +28712,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               localTileIndex: 64,
               tileType: 'Boardwalk'
             });
-          }
-        }, i * 200); // Increased delay from 100ms → 200ms for network latency tolerance
+          }, i * 100);
+        }
       });
 
-      productionLog(`✅ [PETS] Loaded pet preset (${preset.length} pets)`);
+      productionLog(`✅ [PETS] Loaded pet preset`);
     }
 
     function loadPresetByNumber(number) {
@@ -30003,7 +29478,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // TEST VERSION: Add UI health check and Alt+M toggle
         ensureUIHealthy();
         setupToolbarToggle();
-        setupDockSizeControl();
 
         addDemoBanner();
 
@@ -31416,7 +30890,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             // TEST VERSION: Add UI health check and Alt+M toggle
             ensureUIHealthy();
             setupToolbarToggle();
-            setupDockSizeControl();
 
             if (window.MGA_DEBUG) {
               window.MGA_DEBUG.logStage('CREATE_UI_COMPLETED', {
@@ -31630,14 +31103,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           window._MGA_TIMESTAMP = Date.now(); // Update timestamp on completion
 
           // NOW run conflict detection after game has loaded successfully
-          // productionLog('🔍 [MGA-ISOLATION] Running post-initialization external script conflict detection...');
+          // productionLog('🔍 [MGA-ISOLATION] Running post-initialization MainScript conflict detection...');
           if (window.MGA_ConflictDetection) {
-            // Detect external script presence
+            // Detect MainScript presence
             const mainScriptDetected = window.MGA_ConflictDetection.detectMainScript();
 
-            // Only create barriers if external scripts detected
+            // Only create barriers if MainScript is detected
             if (mainScriptDetected) {
-              productionLog('🔒 [MGA-ISOLATION] External scripts detected - creating protective barriers');
+              productionLog('🔒 [MGA-ISOLATION] MainScript detected - creating protective barriers');
               window.MGA_ConflictDetection.createIsolationBarrier();
               window.MGA_ConflictDetection.preventAccess();
             }
@@ -31649,7 +31122,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             if (integrityOk && isolationOk) {
               productionLog('✅ [MGA-ISOLATION] Final integrity check passed - no conflicts detected');
               if (mainScriptDetected) {
-                productionLog('✅ [MGA-ISOLATION] Complete isolation validated - external script protection active');
+                productionLog('✅ [MGA-ISOLATION] Complete isolation validated - MainScript protection active');
               }
             } else {
               productionWarn('⚠️ [MGA-ISOLATION] Final integrity check found potential conflicts');
@@ -31661,29 +31134,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           productionLog('✅ Magic Garden Unified Assistant initialized successfully!');
-
-          // Add global recovery function for users whose UI disappears
-          targetWindow.MGA_SHOW_UI = function () {
-            console.log('%c🔧 MGTools Recovery', 'color: #4CAF50; font-weight: bold; font-size: 14px');
-            console.log('Clearing corrupted UI state...');
-            try {
-              localStorage.removeItem('mgh_toolbar_visible');
-              localStorage.removeItem('mgh_dock_position');
-              localStorage.removeItem('mgh_dock_orientation');
-              console.log('✅ State cleared. Reloading page...');
-              setTimeout(() => location.reload(), 500);
-            } catch (e) {
-              console.error('❌ Recovery failed:', e);
-              console.log('Try manually: localStorage.clear() then refresh');
-            }
-          };
-
-          // Startup banner with recovery instructions
-          console.log(
-            '%c🎮 MGTools v' + (typeof GM_info !== 'undefined' ? GM_info.script.version : '1.1.1') + ' Loaded',
-            'color: #4CAF50; font-weight: bold; font-size: 14px'
-          );
-          console.log('%c💡 UI not showing? Run in console: MGA_SHOW_UI()', 'color: #FFC107; font-size: 12px');
 
           // Remove test UI after successful initialization
           const testUI =
@@ -33206,21 +32656,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         );
       }
 
-      // PERFORMANCE OPTIMIZATION: Batch room requests to avoid network spam
-      // Process 10 rooms at a time with 200ms delay between batches
       try {
-        const BATCH_SIZE = 10;
-        const BATCH_DELAY = 200; // ms between batches
-
-        for (let i = 0; i < names.length; i += BATCH_SIZE) {
-          const batch = names.slice(i, i + BATCH_SIZE);
-          await Promise.all(batch.map(fetchOne));
-
-          // Add delay between batches (except for last batch)
-          if (i + BATCH_SIZE < names.length) {
-            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-          }
-        }
+        await Promise.all(names.map(fetchOne));
 
         // Show sample of Discord room counts if debug mode enabled
         if (roomDebugMode) {
@@ -33282,8 +32719,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       }
     }
-    // PERFORMANCE OPTIMIZATION: Watch specific container instead of entire document
-    // This reduces mutation callback frequency by 90%+
+    // Watch the search input to include searched room
     const obs = new MutationObserver(() => {
       const inp = document.getElementById('room-search-input');
       if (inp && !inp.__mgtpBound) {
@@ -33301,31 +32737,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         });
       }
     });
-
-    // Watch only the sidebar container instead of entire document
-    // Falls back to document if sidebar not found yet
-    const observeRoomSearch = () => {
-      const sidebar = document.getElementById('mgh-sidebar') || document.querySelector('.mga-sidebar');
-      const targetElement = sidebar || document.documentElement;
-
-      obs.observe(targetElement, {
-        subtree: true,
-        childList: true,
-        // OPTIMIZATION: Only watch childList changes, ignore attributes/characterData
-        attributes: false,
-        characterData: false
-      });
-
-      if (!sidebar) {
-        // If sidebar not ready yet, retry in 1 second
-        setTimeout(() => {
-          obs.disconnect();
-          observeRoomSearch();
-        }, 1000);
-      }
-    };
-
-    observeRoomSearch();
+    obs.observe(document.documentElement, { subtree: true, childList: true });
 
     // Wait for UnifiedState and RoomRegistry to be ready before starting polling
     function startPollingWhenReady() {
@@ -33333,10 +32745,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const hasRoomRegistry = typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord;
 
       if (hasUnifiedState && hasRoomRegistry) {
-        // PERFORMANCE OPTIMIZATION: Increased interval from 5s to 10s
-        // Room counts don't change that rapidly, 10s is still responsive
+        // Start room polling with Discord rooms included
         setTimeout(tick, 1000); // First tick after 1 second
-        setInterval(tick, 10000); // Then every 10 seconds (was 5s)
+        setInterval(tick, 5000); // Then every 5 seconds
       } else {
         setTimeout(startPollingWhenReady, 500);
       }
@@ -33374,357 +32785,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     };
   })();
 
-  // ==================== ENHANCED WEBSOCKET AUTO-RECONNECT SYSTEM ====================
-  (function enhancedSocketReconnect() {
-    const Native = window.WebSocket;
-    if (!Native || Native.__mgtoolsPatched) return; // Prevent double-patching
+  // ==================== WEBSOCKET AUTO-RECONNECT REMOVED ====================
+  // NoAutoRefresh version: WebSocket handling completely removed
+  // The game's native WebSocket connection operates without MGTools interference
+  // Users must manually refresh if connection issues occur
 
-    let attempts = 0;
-    const MAX_ATTEMPTS = 6;
-    let reconnectTimer = null;
-    let userNotified = false;
-
-    // Platform detection for context-aware reconnection
-    const isDiscord =
-      /discord|overlay|electron/i.test(navigator.userAgent) || !!(window.DiscordNative || window.__discordApp);
-    const isIframe = window !== window.top;
-    const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    // ==================== DOCUMENT.HIDDEN OVERRIDE FOR COMPAT MODE ====================
-    // The game checks document.hidden and refuses to reconnect when hidden
-    // In compat mode (Discord/managed devices), we override this to always return false
-    if (typeof CompatibilityMode !== 'undefined' && CompatibilityMode.flags.wsReconnectWhenHidden) {
-      try {
-        const originalDescriptor =
-          Object.getOwnPropertyDescriptor(Document.prototype, 'hidden') ||
-          Object.getOwnPropertyDescriptor(document, 'hidden');
-
-        if (originalDescriptor && originalDescriptor.get) {
-          Object.defineProperty(document, 'hidden', {
-            get: function () {
-              // Always return false in compat mode to allow reconnection
-              return false;
-            },
-            configurable: true
-          });
-
-          logInfo('COMPAT-WS', 'Overrode document.hidden to enable reconnection in hidden state');
-        }
-
-        // Also patch visibilityState
-        const originalVisibilityDescriptor =
-          Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState') ||
-          Object.getOwnPropertyDescriptor(document, 'visibilityState');
-
-        if (originalVisibilityDescriptor && originalVisibilityDescriptor.get) {
-          Object.defineProperty(document, 'visibilityState', {
-            get: function () {
-              // Always return 'visible' in compat mode
-              return 'visible';
-            },
-            configurable: true
-          });
-        }
-      } catch (e) {
-        logWarn('COMPAT-WS', 'Failed to override document.hidden', e);
-      }
-    }
-
-    // Add CSS animations
-    const style = document.createElement('style');
-    style.textContent = `
-            @keyframes slideInRight {
-                from { transform: translateX(400px); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOutRight {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(400px); opacity: 0; }
-            }
-        `;
-    document.head.appendChild(style);
-
-    // User feedback: Visual toast notification
-    function showReconnectToast(attemptNum, maxAttempts, nextWait) {
-      let toast = document.getElementById('mga-reconnect-toast');
-
-      const toastHTML = `
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="font-size: 24px;">🔄</div>
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Connection Lost</div>
-                        <div style="font-size: 12px; opacity: 0.9;">
-                            Reconnecting... (${attemptNum}/${maxAttempts})
-                            <br>Next attempt in ${Math.round(nextWait / 1000)}s
-                        </div>
-                    </div>
-                </div>
-            `;
-
-      if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'mga-reconnect-toast';
-        toast.style.cssText = `
-                    position: fixed; top: 20px; right: 20px; z-index: 2147483647;
-                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
-                    color: white; padding: 16px 24px; border-radius: 12px;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                    font-size: 14px; font-weight: 500; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                    animation: slideInRight 0.3s ease-out; max-width: 320px; pointer-events: auto;
-                `;
-        document.body.appendChild(toast);
-      }
-
-      toast.innerHTML = toastHTML;
-      userNotified = true;
-
-      setTimeout(() => {
-        if (toast && toast.parentNode) {
-          toast.style.animation = 'slideOutRight 0.3s ease-out';
-          setTimeout(() => toast.remove(), 300);
-        }
-      }, 5000);
-    }
-
-    // Show max attempts failure with manual reload button
-    function showFailureToast() {
-      const failToast = document.createElement('div');
-      failToast.id = 'mga-reconnect-fail-toast';
-      failToast.style.cssText = `
-                position: fixed; top: 20px; right: 20px; z-index: 2147483647;
-                background: linear-gradient(135deg, rgba(220, 38, 38, 0.95), rgba(185, 28, 28, 0.95));
-                color: white; padding: 16px 24px; border-radius: 12px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                font-size: 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); max-width: 320px;
-            `;
-
-      failToast.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: 8px;">⚠️ Connection Failed</div>
-                <div style="font-size: 12px; opacity: 0.9; margin-bottom: 12px;">
-                    Unable to reconnect after ${MAX_ATTEMPTS} attempts
-                </div>
-                <button onclick="location.reload()" style="
-                    background: white; color: #dc2626; border: none; padding: 8px 16px;
-                    border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; font-size: 13px;
-                ">Reload Page</button>
-            `;
-
-      document.body.appendChild(failToast);
-    }
-
-    // Schedule reconnect with exponential backoff
-    function scheduleReload(code, wasClean, reason) {
-      // Handle version expired (4710) immediately - auto-refresh with notification
-      if (code === 4710 || /version.?expired/i.test(reason || '')) {
-        if (typeof productionLog === 'function') {
-          productionLog('[WebSocket] Version expired detected (code 4710) - auto-refreshing in 5 seconds');
-        }
-
-        // Show friendly update notification with countdown
-        let countdown = 5;
-        const updateToast = document.createElement('div');
-        updateToast.id = 'mga-update-toast';
-        updateToast.style.cssText = `
-                    position: fixed; top: 20px; right: 20px; z-index: 2147483647;
-                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));
-                    color: white; padding: 16px 24px; border-radius: 12px;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                    font-size: 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                    animation: slideInRight 0.3s ease-out; max-width: 320px;
-                `;
-
-        updateToast.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="font-size: 24px;">🎮</div>
-                        <div>
-                            <div style="font-weight: 600; margin-bottom: 4px;">Game Update Available</div>
-                            <div style="font-size: 12px; opacity: 0.9;">
-                                Refreshing in <span id="mga-countdown">${countdown}</span>s...
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-        document.body.appendChild(updateToast);
-
-        // Update countdown every second
-        const countdownInterval = setInterval(() => {
-          countdown--;
-          const countdownEl = document.getElementById('mga-countdown');
-          if (countdownEl) {
-            countdownEl.textContent = countdown;
-          }
-          if (countdown <= 0) {
-            clearInterval(countdownInterval);
-          }
-        }, 1000);
-
-        // Auto-refresh after 5 seconds
-        setTimeout(() => {
-          if (typeof productionLog === 'function') {
-            productionLog('[WebSocket] Auto-refreshing for game update...');
-          }
-          window.location.reload();
-        }, 5000);
-
-        return;
-      }
-
-      // Only reconnect for 1006 (abnormal) or if reason mentions update
-      if (wasClean && code !== 1006 && !/update/i.test(reason || '')) {
-        if (typeof productionLog === 'function') {
-          productionLog('[WebSocket] Clean close detected - no reconnect needed');
-        }
-        return;
-      }
-
-      // Clear any existing timer
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-
-      // Check if max attempts exceeded
-      if (attempts >= MAX_ATTEMPTS) {
-        if (typeof productionWarn === 'function') {
-          productionWarn(`[WebSocket] Max reconnect attempts (${MAX_ATTEMPTS}) reached - manual refresh required`);
-        }
-        showFailureToast();
-        return;
-      }
-
-      // Exponential backoff: 1s, 2s, 4s, 8s, 15s, 15s
-      const wait = Math.min(1000 * Math.pow(2, attempts), 15000);
-      attempts++;
-
-      if (typeof productionLog === 'function') {
-        productionLog(
-          `[WebSocket] Reconnect attempt ${attempts}/${MAX_ATTEMPTS} in ${wait}ms (code: ${code}, reason: "${reason || 'none'}")`
-        );
-      }
-
-      // Show user feedback
-      showReconnectToast(attempts, MAX_ATTEMPTS, wait);
-
-      reconnectTimer = setTimeout(() => {
-        try {
-          // Add timestamp to force reload and bypass cache
-          const u = new URL(location.href);
-          u.searchParams.set('_mgtp', Date.now().toString());
-
-          // Platform-specific reload strategy
-          if (isDiscord && isIframe) {
-            // Discord iframe: try parent reload first
-            try {
-              window.parent.location.reload();
-            } catch (e) {
-              // Fallback to self reload if parent is inaccessible
-              location.replace(u.toString());
-            }
-          } else if (isMobile) {
-            // Mobile: hard reload to clear any cached state
-            location.href = u.toString();
-          } else {
-            // Desktop: use replace to avoid back button issues
-            location.replace(u.toString());
-          }
-        } catch (e) {
-          if (typeof productionError === 'function') {
-            productionError('[WebSocket] Reload failed:', e);
-          }
-          // Last resort: simple reload
-          location.href = location.href + '?_t=' + Date.now();
-        }
-      }, wait);
-    }
-
-    // Patch WebSocket constructor
-    window.WebSocket = function (url, protocols) {
-      const ws = new Native(url, protocols);
-
-      // Reset attempts on successful connection
-      ws.addEventListener('open', () => {
-        if (typeof productionLog === 'function') {
-          productionLog('[WebSocket] Connection established successfully');
-        }
-        attempts = 0;
-        userNotified = false;
-
-        // Remove any reconnect toasts
-        const toast = document.getElementById('mga-reconnect-toast');
-        if (toast) toast.remove();
-      });
-
-      // Handle close events
-      ws.addEventListener('close', e => {
-        if (typeof productionLog === 'function') {
-          productionLog(`[WebSocket] Closed - Code: ${e.code}, Clean: ${e.wasClean}, Reason: "${e.reason || 'none'}"`);
-        }
-        scheduleReload(e.code, e.wasClean, e.reason);
-      });
-
-      // Handle errors
-      ws.addEventListener('error', e => {
-        if (typeof productionError === 'function') {
-          productionError('[WebSocket] Error detected:', e);
-        }
-      });
-
-      return ws;
-    };
-
-    // Preserve prototype and static properties
-    Object.setPrototypeOf(window.WebSocket, Native);
-    window.WebSocket.prototype = Native.prototype;
-    window.WebSocket.__mgtoolsPatched = true;
-
-    // Network state listeners for smarter reconnection
-    window.addEventListener('online', () => {
-      if (typeof productionLog === 'function') {
-        productionLog('[Network] Back online - reducing reconnect attempt counter');
-      }
-      attempts = Math.max(0, attempts - 2); // Give extra chances when network returns
-
-      // If we have a toast, update it
-      const toast = document.getElementById('mga-reconnect-toast');
-      if (toast) toast.remove();
-    });
-
-    window.addEventListener('offline', () => {
-      if (typeof productionWarn === 'function') {
-        productionWarn('[Network] Offline detected - pausing reconnection attempts');
-      }
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-
-      // Update toast if visible
-      const toast = document.getElementById('mga-reconnect-toast');
-      if (toast) {
-        toast.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="font-size: 24px;">📡</div>
-                        <div>
-                            <div style="font-weight: 600; margin-bottom: 4px;">Network Offline</div>
-                            <div style="font-size: 12px; opacity: 0.9;">
-                                Reconnection paused<br>Waiting for network...
-                            </div>
-                        </div>
-                    </div>
-                `;
-      }
-    });
-
-    if (typeof productionLog === 'function') {
-      productionLog('✅ [WebSocket] Enhanced auto-reconnect system initialized (max attempts: ' + MAX_ATTEMPTS + ')');
-    }
-  })();
-
-  // ==================== DOM UPDATE DETECTION (BACKUP METHOD) ====================
-  // BUGFIX v3.7.8: Re-enabled with smarter detection to avoid false positives
+  // ==================== DOM UPDATE DETECTION (NO AUTO-CLICK VERSION) ====================
+  // This version detects game update popups but DOES NOT auto-click CONTINUE
+  // User must manually click the CONTINUE button themselves
   (function () {
-    let updateDetected = false; // Shared flag to prevent duplicate refreshes
+    let updateDetected = false; // Shared flag to prevent duplicate notifications
 
     function checkForGameUpdatePopup() {
       if (updateDetected) return false;
@@ -33743,37 +32813,44 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       if (header && /game update available/i.test(header.textContent)) {
         updateDetected = true;
         if (typeof productionLog === 'function') {
-          productionLog('[DOM] Game update popup detected - attempting auto-click CONTINUE button');
+          productionLog('[DOM] Game update popup detected - NO AUTO-CLICK (manual refresh version)');
         }
 
-        // Find and click the CONTINUE button before reloading
-        const continueBtn = popup.querySelector('button');
-        if (continueBtn && /continue/i.test(continueBtn.textContent)) {
-          if (typeof productionLog === 'function') {
-            productionLog('[DOM] Clicking CONTINUE button...');
-          }
-          continueBtn.click();
+        // NO AUTO-CLICK - Just show a notification to alert the user
+        const alertToast = document.createElement('div');
+        alertToast.id = 'mga-manual-update-alert';
+        alertToast.style.cssText = `
+                    position: fixed; bottom: 20px; right: 20px; z-index: 2147483647;
+                    background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
+                    color: white; padding: 16px 24px; border-radius: 12px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    font-size: 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+                    animation: slideInRight 0.3s ease-out; max-width: 320px;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                `;
 
-          // Small delay to let the click process, then trigger reload
-          setTimeout(() => {
-            if (typeof productionLog === 'function') {
-              productionLog('[DOM] CONTINUE clicked - triggering refresh');
-            }
-            // Trigger the same refresh logic as WebSocket code 4710
-            if (typeof scheduleReload === 'function') {
-              scheduleReload(4710, true, 'DOM detection after button click');
-            }
-          }, 500);
-        } else {
-          // Fallback: if button not found, proceed with immediate reload
-          if (typeof productionLog === 'function') {
-            productionLog('[DOM] CONTINUE button not found - proceeding with immediate refresh');
+        alertToast.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">⚠️</div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">Update Detected</div>
+                            <div style="font-size: 12px; opacity: 0.9;">
+                                Please click CONTINUE in the popup above
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+        document.body.appendChild(alertToast);
+
+        // Auto-remove alert after 10 seconds
+        setTimeout(() => {
+          if (alertToast && alertToast.parentNode) {
+            alertToast.remove();
           }
-          // Trigger the same refresh logic as WebSocket code 4710
-          if (typeof scheduleReload === 'function') {
-            scheduleReload(4710, true, 'DOM detection');
-          }
-        }
+        }, 10000);
+
+        // NO AUTO-CLICK - user must manually click the CONTINUE button
         return true;
       }
 
@@ -33793,7 +32870,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     setInterval(checkForGameUpdatePopup, 10000);
 
     if (typeof productionLog === 'function') {
-      productionLog('✅ [DOM] Game update popup monitor initialized');
+      productionLog('✅ [DOM] Game update popup monitor initialized (NO AUTO-CLICK version)');
     }
   })();
 })();
@@ -33896,5 +32973,3 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   // The sanitizer ran for 16 seconds and cleared logs even after new abilities were added
   // Proper flag management already exists in the proxy (line 26681-26685)
 })();
-
-/* WebSocket reconnect handled by enhanced implementation above (lines 22603+) */
