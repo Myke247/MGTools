@@ -1,5 +1,25 @@
 # Changelog - MGTools
 
+## Version 1.1.4 (2025-10-22)
+
+**Optimization:**
+- Pet swapping now skips already-equipped pets to prevent unnecessary network calls
+- All 4 pet swap handlers check if `currentPet.id === desiredPet.id` before swapping
+- Reduces server load and eliminates redundant SwapPet messages
+
+**Technical Details:**
+- Added equipped check to `loadPetPreset()` function
+- Added equipped check to `placePetPreset()` function
+- Added equipped check to Quick Load button handler
+- Added equipped check to pet popout preset click handler
+
+**Why This Matters:**
+- Previous versions sent SwapPet messages even when pet was already equipped
+- This caused unnecessary network traffic and confused some users
+- Now only swaps when actually needed, improving performance and clarity
+
+---
+
 ## Version 1.1.3 (2025-10-22)
 
 **Bug Fixes:**
