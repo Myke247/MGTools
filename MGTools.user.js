@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.1.3
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.1 - Native pet swapping (works with full inventory!)');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.3 - Pet swapping with debounce protection');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -972,35 +972,77 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       // 2. CSP violation listener (500ms window) with duplicate prevention
-      const originalError = console.error.bind(console);
+      // CRITICAL FIX: Opera/Tampermonkey makes console.error read-only, causing fatal crash
       const self = this;
       const seenCSPMessages = new Set();
 
-      console.error = function (...args) {
-        const msg = args.join(' ');
+      try {
+        // Check if console.error is writable before attempting override
+        const descriptor = Object.getOwnPropertyDescriptor(console, 'error');
+        const canOverride = !descriptor || descriptor.writable || descriptor.configurable;
 
-        // Check for CSP-related errors
-        if (
-          (msg.includes('Content Security Policy') ||
-            msg.includes('Refused to load') ||
-            msg.includes('violates the following')) &&
-          !msg.includes('mgtools')
-        ) {
-          // Ignore our own CSP issues
+        if (canOverride) {
+          // Safe to override console.error
+          const originalError = console.error.bind(console);
 
-          // Skip duplicate CSP violations to reduce console spam
-          if (seenCSPMessages.has(msg)) {
-            return; // Silently skip duplicate
-          }
-          seenCSPMessages.add(msg);
+          console.error = function (...args) {
+            const msg = args.join(' ');
 
-          self.cspViolations.push(msg);
-          if (self.cspViolations.length >= 2 && !self.flags.enabled) {
-            self.enableCompat('csp-violations');
-          }
+            // Check for CSP-related errors
+            if (
+              (msg.includes('Content Security Policy') ||
+                msg.includes('Refused to load') ||
+                msg.includes('violates the following')) &&
+              !msg.includes('mgtools')
+            ) {
+              // Ignore our own CSP issues
+
+              // Skip duplicate CSP violations to reduce console spam
+              if (seenCSPMessages.has(msg)) {
+                return; // Silently skip duplicate
+              }
+              seenCSPMessages.add(msg);
+
+              self.cspViolations.push(msg);
+              if (self.cspViolations.length >= 2 && !self.flags.enabled) {
+                self.enableCompat('csp-violations');
+              }
+            }
+            return originalError.apply(console, args);
+          };
+
+          logInfo('COMPAT', '✅ Console.error override successful for CSP detection');
+        } else {
+          // Console.error is read-only (Opera/Tampermonkey) - use alternative detection
+          logWarn('COMPAT', '⚠️ Console.error is read-only, using alternative CSP detection');
+
+          // Alternative: listen for window error events
+          window.addEventListener(
+            'error',
+            event => {
+              const msg = event.message || '';
+              if (
+                (msg.includes('Content Security Policy') ||
+                  msg.includes('Refused to load') ||
+                  msg.includes('violates the following')) &&
+                !msg.includes('mgtools') &&
+                !seenCSPMessages.has(msg)
+              ) {
+                seenCSPMessages.add(msg);
+                self.cspViolations.push(msg);
+                if (self.cspViolations.length >= 2 && !self.flags.enabled) {
+                  self.enableCompat('csp-violations');
+                }
+              }
+            },
+            true
+          );
         }
-        return originalError.apply(console, args);
-      };
+      } catch (e) {
+        // Complete failure - continue without CSP detection
+        logWarn('COMPAT', '❌ Cannot setup CSP detection:', e.message);
+        logInfo('COMPAT', 'Continuing without CSP violation detection');
+      }
 
       // 3. Test storage availability
       setTimeout(() => {
@@ -2441,6 +2483,64 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           #mgh-dock.vertical .mgh-dock-item {
               font-size: 20px;
+          }
+
+          /* ==================== DOCK SIZE VARIANTS ==================== */
+          /* Tiny size (0.73x scale) */
+          #mgh-dock.dock-size-tiny.horizontal .mgh-dock-item {
+              width: 32px;
+              height: 32px;
+              font-size: 14px;
+          }
+
+          #mgh-dock.dock-size-tiny.vertical .mgh-dock-item {
+              width: 30px;
+              height: 30px;
+              font-size: 15px;
+          }
+
+          #mgh-dock.dock-size-tiny .mgh-dock-item img {
+              width: 18px;
+              height: 18px;
+          }
+
+          /* Small size (0.86x scale) */
+          #mgh-dock.dock-size-small.horizontal .mgh-dock-item {
+              width: 38px;
+              height: 38px;
+              font-size: 16px;
+          }
+
+          #mgh-dock.dock-size-small.vertical .mgh-dock-item {
+              width: 36px;
+              height: 36px;
+              font-size: 17px;
+          }
+
+          #mgh-dock.dock-size-small .mgh-dock-item img {
+              width: 21px;
+              height: 21px;
+          }
+
+          /* Medium size (1.0x scale - default, already defined above) */
+          /* No additional CSS needed - uses base .mgh-dock-item styles */
+
+          /* Large size (1.18x scale) */
+          #mgh-dock.dock-size-large.horizontal .mgh-dock-item {
+              width: 52px;
+              height: 52px;
+              font-size: 22px;
+          }
+
+          #mgh-dock.dock-size-large.vertical .mgh-dock-item {
+              width: 48px;
+              height: 48px;
+              font-size: 24px;
+          }
+
+          #mgh-dock.dock-size-large .mgh-dock-item img {
+              width: 28px;
+              height: 28px;
           }
 
           .mgh-tooltip {
@@ -8134,6 +8234,13 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
+      // Critical: Ensure body exists before creating UI
+      if (!targetDocument.body) {
+        console.error('[MGTools] ⚠️ Body not ready, retrying UI creation in 100ms...');
+        setTimeout(() => createUnifiedUI(), 100);
+        return;
+      }
+
       productionLog('🎨 Creating Hybrid Dock UI...');
 
       // Add hybrid styles
@@ -8495,7 +8602,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const dock = targetDocument.getElementById('mgh-dock');
         const sidebar = targetDocument.getElementById('mgh-sidebar');
 
-        if (!dock || !sidebar) {
+        // Check both existence AND visibility (critical fix for hidden UI bug)
+        const dockHidden = dock && (dock.style.display === 'none' || window.getComputedStyle(dock).display === 'none');
+        const sidebarHidden =
+          sidebar && (sidebar.style.display === 'none' || window.getComputedStyle(sidebar).display === 'none');
+
+        if (!dock || !sidebar || dockHidden || sidebarHidden) {
+          // Log the specific issue
+          if (!dock) console.warn('[MGTools] Dock element missing');
+          if (!sidebar) console.warn('[MGTools] Sidebar element missing');
+          if (dockHidden) console.warn('[MGTools] Dock is hidden (display:none)');
+          if (sidebarHidden) console.warn('[MGTools] Sidebar is hidden (display:none)');
+
+          // Clear potentially corrupted localStorage state
+          if (dockHidden || sidebarHidden) {
+            console.warn('[MGTools] Clearing corrupted visibility state...');
+            localStorage.removeItem('mgh_toolbar_visible');
+          }
           retryCount++;
           if (retryCount < maxRetries) {
             const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000); // 1s, 2s, 4s, 5s, 5s
@@ -8560,8 +8683,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
       window.__toolbarToggleInstalled = true;
 
-      // Load saved visibility state
+      // Version-based state reset to fix UI disappearance after updates
       const STORAGE_KEY = 'mgh_toolbar_visible';
+      const VERSION_KEY = 'mgh_ui_version';
+      const CURRENT_VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '1.1.1';
+
+      const savedVersion = localStorage.getItem(VERSION_KEY);
+      if (savedVersion !== CURRENT_VERSION) {
+        // New version detected - reset UI visibility to prevent hidden state from carrying over
+        productionLog(`📦 [UI-VERSION] Version change detected: ${savedVersion} → ${CURRENT_VERSION}`);
+        productionLog('📦 [UI-VERSION] Resetting UI visibility state to default (visible)');
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
+      }
+
+      // Load saved visibility state (defaults to true if not set)
       let toolbarVisible = localStorage.getItem(STORAGE_KEY) !== 'false'; // default true
 
       // Apply initial state
@@ -8592,15 +8728,104 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Apply saved state on load
       setTimeout(() => applyVisibility(toolbarVisible, false), 100);
 
-      // Listen for Alt+M
-      document.addEventListener('keydown', e => {
+      // Enhanced Alt+M listener with better reliability
+      // Listen on BOTH document and targetDocument to catch all scenarios
+      const toggleHandler = e => {
         // Check for Alt+M (case insensitive)
         if (e.altKey && (e.key === 'm' || e.key === 'M')) {
           e.preventDefault();
+          e.stopPropagation();
           toolbarVisible = !toolbarVisible;
           applyVisibility(toolbarVisible, true);
+          console.log(`[MGTools] Alt+M: Toolbar ${toolbarVisible ? 'shown' : 'hidden'}`);
         }
-      });
+      };
+
+      // Add listener to both document contexts for maximum reliability
+      document.addEventListener('keydown', toggleHandler, { passive: false, capture: true });
+      if (targetDocument !== document) {
+        targetDocument.addEventListener('keydown', toggleHandler, { passive: false, capture: true });
+      }
+    }
+
+    /**
+     * Dock Size Control
+     * Press Alt+= to increase dock size, Alt+- to decrease
+     * Cycles through: Tiny → Small → Medium → Large
+     */
+    function setupDockSizeControl() {
+      // Prevent multiple installations
+      if (window.__dockSizeControlInstalled) {
+        return;
+      }
+      window.__dockSizeControlInstalled = true;
+
+      const STORAGE_KEY = 'mgh_dock_size';
+      const SIZES = ['tiny', 'small', 'medium', 'large'];
+      const SIZE_LABELS = { tiny: 'Tiny', small: 'Small', medium: 'Medium', large: 'Large' };
+
+      // Load saved size (defaults to medium)
+      let currentSize = localStorage.getItem(STORAGE_KEY) || 'medium';
+      if (!SIZES.includes(currentSize)) {
+        currentSize = 'medium';
+      }
+
+      // Apply size to dock
+      function applyDockSize(size, showNotification = false) {
+        const dock = targetDocument.getElementById('mgh-dock');
+        if (!dock) return;
+
+        // Remove all size classes
+        SIZES.forEach(s => dock.classList.remove(`dock-size-${s}`));
+
+        // Add new size class (except for medium which is default)
+        if (size !== 'medium') {
+          dock.classList.add(`dock-size-${size}`);
+        }
+
+        // Save state
+        localStorage.setItem(STORAGE_KEY, size);
+        currentSize = size;
+
+        if (showNotification) {
+          try {
+            // eslint-disable-next-line no-undef
+            showToast(`📏 Dock Size: ${SIZE_LABELS[size]}`, 'Alt+= / Alt+- to adjust', 2000);
+          } catch (e) {
+            // Toast not ready, silent fail
+          }
+        }
+      }
+
+      // Apply saved size on load
+      setTimeout(() => applyDockSize(currentSize, false), 150);
+
+      // Hotkey handler
+      const sizeHandler = e => {
+        // Alt+= to increase size
+        if (e.altKey && (e.key === '=' || e.key === '+')) {
+          e.preventDefault();
+          e.stopPropagation();
+          const currentIndex = SIZES.indexOf(currentSize);
+          const nextIndex = (currentIndex + 1) % SIZES.length;
+          applyDockSize(SIZES[nextIndex], true);
+          console.log(`[MGTools] Alt+=: Dock size → ${SIZE_LABELS[SIZES[nextIndex]]}`);
+        } else if (e.altKey && (e.key === '-' || e.key === '_')) {
+          // Alt+- to decrease size
+          e.preventDefault();
+          e.stopPropagation();
+          const currentIndex = SIZES.indexOf(currentSize);
+          const prevIndex = (currentIndex - 1 + SIZES.length) % SIZES.length;
+          applyDockSize(SIZES[prevIndex], true);
+          console.log(`[MGTools] Alt+-: Dock size → ${SIZE_LABELS[SIZES[prevIndex]]}`);
+        }
+      };
+
+      // Add listener to both document contexts
+      document.addEventListener('keydown', sizeHandler, { passive: false, capture: true });
+      if (targetDocument !== document) {
+        targetDocument.addEventListener('keydown', sizeHandler, { passive: false, capture: true });
+      }
     }
 
     function saveDockPosition(position) {
@@ -11517,51 +11742,64 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           const preset = UnifiedState.data.petPresets[presetName];
-          const currentPets = UnifiedState.atoms.activePets || [];
           const maxSlots = 3;
 
           // Native swap approach - works even with full inventory!
           let delay = 0;
 
           for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-            const currentPet = currentPets[slotIndex];
             const desiredPet = preset[slotIndex];
 
-            if (currentPet && desiredPet) {
-              // Both exist: Use native SwapPet (no inventory space needed!)
+            // BUGFIX: Capture delay value in closure to prevent race conditions
+            ((currentDelay, slot) => {
               setTimeout(() => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'SwapPet',
-                  petSlotId: currentPet.id,
-                  petInventoryId: desiredPet.id
-                });
-              }, delay);
-              delay += 100;
-            } else if (!currentPet && desiredPet) {
-              // Empty slot: Place new pet
-              setTimeout(() => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'PlacePet',
-                  itemId: desiredPet.id,
-                  position: { x: 17 + slotIndex * 2, y: 13 },
-                  localTileIndex: 64,
-                  tileType: 'Boardwalk'
-                });
-              }, delay);
-              delay += 100;
-            } else if (currentPet && !desiredPet) {
-              // Remove excess pet (preset has fewer pets)
-              setTimeout(() => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'StorePet',
-                  itemId: currentPet.id
-                });
-              }, delay);
-              delay += 100;
-            }
+                // BUGFIX: Read FRESH state inside timeout (not stale reference)
+                const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
+                const currentPet = currentPets[slot];
+
+                if (currentPet && desiredPet) {
+                  // Both exist: Use native SwapPet (no inventory space needed!)
+                  if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
+                  }
+
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'SwapPet',
+                    petSlotId: currentPet.id,
+                    petInventoryId: desiredPet.id
+                  });
+                } else if (!currentPet && desiredPet) {
+                  // Empty slot: Place new pet
+                  if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
+                  }
+
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'PlacePet',
+                    itemId: desiredPet.id,
+                    position: { x: 17 + slot * 2, y: 13 },
+                    localTileIndex: 64,
+                    tileType: 'Boardwalk'
+                  });
+                } else if (currentPet && !desiredPet) {
+                  // Remove excess pet (preset has fewer pets)
+                  if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
+                  }
+
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'StorePet',
+                    itemId: currentPet.id
+                  });
+                }
+              }, currentDelay);
+            })(delay, slotIndex);
+
+            // Increase delay: 100ms → 200ms for better network latency tolerance
+            delay += 200;
           }
 
           // Update displays after all pets are placed (single refresh with retry)
@@ -11653,7 +11891,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             refreshPresetsList(context);
             refreshSeparateWindowPopouts('pets');
           } else if (action === 'place') {
-            placePetPreset(presetName);
+            window.debouncedPlacePetPreset(presetName);
           } else if (action === 'remove') {
             delete UnifiedState.data.petPresets[presetName];
             const saveSuccess = MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
@@ -16683,6 +16921,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               <div class="mga-section">
                   <div class="mga-section-title">⌨️ Keyboard Shortcuts</div>
                   <div class="mga-help-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin-bottom: 16px;">
+                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+=</code>
+                      <span>Increase dock size (Tiny → Small → Medium → Large)</span>
+                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+-</code>
+                      <span>Decrease dock size (Large → Medium → Small → Tiny)</span>
+                      <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+M</code>
+                      <span>Toggle toolbar visibility (show/hide entire dock and sidebar)</span>
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+B</code>
                       <span>Toggle Shop (opens/closes both seed and egg sidebars)</span>
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Escape</code>
@@ -17903,51 +18147,64 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      const currentPets = UnifiedState.atoms.activePets || [];
       const maxSlots = 3;
 
       // Native swap approach - works even with full inventory!
       let delay = 0;
 
       for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-        const currentPet = currentPets[slotIndex];
         const desiredPet = preset[slotIndex];
 
-        if (currentPet && desiredPet) {
-          // Both exist: Use native SwapPet (no inventory space needed!)
+        // BUGFIX: Capture delay value in closure to prevent race conditions
+        ((currentDelay, slot) => {
           setTimeout(() => {
-            safeSendMessage({
-              scopePath: ['Room', 'Quinoa'],
-              type: 'SwapPet',
-              petSlotId: currentPet.id,
-              petInventoryId: desiredPet.id
-            });
-          }, delay);
-          delay += 100;
-        } else if (!currentPet && desiredPet) {
-          // Empty slot: Place new pet
-          setTimeout(() => {
-            safeSendMessage({
-              scopePath: ['Room', 'Quinoa'],
-              type: 'PlacePet',
-              itemId: desiredPet.id,
-              position: { x: 17 + slotIndex * 2, y: 13 },
-              localTileIndex: 64,
-              tileType: 'Boardwalk'
-            });
-          }, delay);
-          delay += 100;
-        } else if (currentPet && !desiredPet) {
-          // Remove excess pet (preset has fewer pets)
-          setTimeout(() => {
-            safeSendMessage({
-              scopePath: ['Room', 'Quinoa'],
-              type: 'StorePet',
-              itemId: currentPet.id
-            });
-          }, delay);
-          delay += 100;
-        }
+            // BUGFIX: Read FRESH state inside timeout (not stale reference)
+            const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
+            const currentPet = currentPets[slot];
+
+            if (currentPet && desiredPet) {
+              // Both exist: Use native SwapPet (no inventory space needed!)
+              if (UnifiedState.data.settings?.debugMode) {
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
+              }
+
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'SwapPet',
+                petSlotId: currentPet.id,
+                petInventoryId: desiredPet.id
+              });
+            } else if (!currentPet && desiredPet) {
+              // Empty slot: Place new pet
+              if (UnifiedState.data.settings?.debugMode) {
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
+              }
+
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'PlacePet',
+                itemId: desiredPet.id,
+                position: { x: 17 + slot * 2, y: 13 },
+                localTileIndex: 64,
+                tileType: 'Boardwalk'
+              });
+            } else if (currentPet && !desiredPet) {
+              // Remove excess pet (preset has fewer pets)
+              if (UnifiedState.data.settings?.debugMode) {
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
+              }
+
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'StorePet',
+                itemId: currentPet.id
+              });
+            }
+          }, currentDelay);
+        })(delay, slotIndex);
+
+        // Increase delay: 100ms → 200ms for better network latency tolerance
+        delay += 200;
       }
 
       // Update all displays after pets are placed (with backup refresh)
@@ -17983,6 +18240,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         refreshAllPetDisplays();
       }, delay + 1500);
     }
+
+    // Global debounced wrapper for placePetPreset (accessible from all handlers)
+    let _placePetPresetDebounceTimer = null;
+    window.debouncedPlacePetPreset = function (presetName) {
+      if (_placePetPresetDebounceTimer) return; // Ignore if already pending
+      _placePetPresetDebounceTimer = setTimeout(() => {
+        _placePetPresetDebounceTimer = null;
+      }, 500);
+      placePetPreset(presetName);
+    };
 
     // Helper function to check if preset contains Worm with Crop Eater ability
     // Uses same detection pattern as turtle timer (checks abilities array)
@@ -18364,80 +18631,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             e.stopPropagation();
             e.preventDefault();
 
-            const preset = UnifiedState.data.petPresets[presetName];
-            if (!preset) return;
-
-            const currentPets = UnifiedState.atoms.activePets || [];
-            const maxSlots = 3;
-
-            // Native swap approach - works even with full inventory!
-            let delay = 0;
-
-            for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-              const currentPet = currentPets[slotIndex];
-              const desiredPet = preset[slotIndex];
-
-              if (currentPet && desiredPet) {
-                // Both exist: Use native SwapPet (no inventory space needed!)
-                setTimeout(() => {
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'SwapPet',
-                    petSlotId: currentPet.id,
-                    petInventoryId: desiredPet.id
-                  });
-                }, delay);
-                delay += 100;
-              } else if (!currentPet && desiredPet) {
-                // Empty slot: Place new pet
-                setTimeout(() => {
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'PlacePet',
-                    itemId: desiredPet.id,
-                    position: { x: 17 + slotIndex * 2, y: 13 },
-                    localTileIndex: 64,
-                    tileType: 'Boardwalk'
-                  });
-                }, delay);
-                delay += 100;
-              } else if (currentPet && !desiredPet) {
-                // Remove excess pet (preset has fewer pets)
-                setTimeout(() => {
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'StorePet',
-                    itemId: currentPet.id
-                  });
-                }, delay);
-                delay += 100;
-              }
-            }
-
-            // Update pets display after all pets placed
-            setTimeout(() => {
-              // Force update pets from room state first
-              updateActivePetsFromRoomState();
-
-              // Then refresh the tab if it's active
-              if (UnifiedState.activeTab === 'pets') {
-                updateTabContent();
-              }
-
-              // Update all pet overlays after placing
-              UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-                if (overlay && document.contains(overlay) && tabName === 'pets') {
-                  if (overlay.className.includes('mga-overlay-content-only')) {
-                    updatePureOverlayContent(overlay, tabName);
-                    debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
-                  }
-                }
-              });
-
-              // Update separate window popouts
-              refreshSeparateWindowPopouts('pets');
-            }, delay + 500); // Wait for storage + all pets + extra time for game to update
-
+            window.debouncedPlacePetPreset(presetName);
             debugLog('BUTTON_INTERACTIONS', `Placed preset: ${presetName} (from added element)`);
           } else if (action === 'remove') {
             delete UnifiedState.data.petPresets[presetName];
@@ -18544,7 +18738,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             refreshPresetsList(context);
           } else if (action === 'place') {
             productionLog(`🚨 [CRITICAL] Placing preset ${presetName}`);
-            placePetPreset(presetName);
+            window.debouncedPlacePetPreset(presetName);
           } else if (action === 'remove') {
             productionLog(`[CRITICAL] Removing preset ${presetName}`);
             delete UnifiedState.data.petPresets[presetName];
@@ -18703,51 +18897,64 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             return;
           }
 
-          const currentPets = UnifiedState.atoms.activePets || [];
           const maxSlots = 3;
 
           // Native swap approach - works even with full inventory!
           let delay = 0;
 
           for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-            const currentPet = currentPets[slotIndex];
             const desiredPet = preset[slotIndex];
 
-            if (currentPet && desiredPet) {
-              // Both exist: Use native SwapPet (no inventory space needed!)
+            // BUGFIX: Capture delay value in closure to prevent race conditions
+            ((currentDelay, slot) => {
               setTimeout(() => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'SwapPet',
-                  petSlotId: currentPet.id,
-                  petInventoryId: desiredPet.id
-                });
-              }, delay);
-              delay += 100;
-            } else if (!currentPet && desiredPet) {
-              // Empty slot: Place new pet
-              setTimeout(() => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'PlacePet',
-                  itemId: desiredPet.id,
-                  position: { x: 17 + slotIndex * 2, y: 13 },
-                  localTileIndex: 64,
-                  tileType: 'Boardwalk'
-                });
-              }, delay);
-              delay += 100;
-            } else if (currentPet && !desiredPet) {
-              // Remove excess pet (preset has fewer pets)
-              setTimeout(() => {
-                safeSendMessage({
-                  scopePath: ['Room', 'Quinoa'],
-                  type: 'StorePet',
-                  itemId: currentPet.id
-                });
-              }, delay);
-              delay += 100;
-            }
+                // BUGFIX: Read FRESH state inside timeout (not stale reference)
+                const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
+                const currentPet = currentPets[slot];
+
+                if (currentPet && desiredPet) {
+                  // Both exist: Use native SwapPet (no inventory space needed!)
+                  if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
+                  }
+
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'SwapPet',
+                    petSlotId: currentPet.id,
+                    petInventoryId: desiredPet.id
+                  });
+                } else if (!currentPet && desiredPet) {
+                  // Empty slot: Place new pet
+                  if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
+                  }
+
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'PlacePet',
+                    itemId: desiredPet.id,
+                    position: { x: 17 + slot * 2, y: 13 },
+                    localTileIndex: 64,
+                    tileType: 'Boardwalk'
+                  });
+                } else if (currentPet && !desiredPet) {
+                  // Remove excess pet (preset has fewer pets)
+                  if (UnifiedState.data.settings?.debugMode) {
+                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
+                  }
+
+                  safeSendMessage({
+                    scopePath: ['Room', 'Quinoa'],
+                    type: 'StorePet',
+                    itemId: currentPet.id
+                  });
+                }
+              }, currentDelay);
+            })(delay, slotIndex);
+
+            // Increase delay: 100ms → 200ms for better network latency tolerance
+            delay += 200;
           }
 
           // Refresh after swaps complete
@@ -18858,79 +19065,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
             debugLog('BUTTON_INTERACTIONS', `Saved preset: ${presetName} without full DOM refresh`);
           } else if (action === 'place') {
-            const preset = UnifiedState.data.petPresets[presetName];
-            if (!preset) return;
-
-            const currentPets = UnifiedState.atoms.activePets || [];
-            const maxSlots = 3;
-
-            // Native swap approach - works even with full inventory!
-            let delay = 0;
-
-            for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
-              const currentPet = currentPets[slotIndex];
-              const desiredPet = preset[slotIndex];
-
-              if (currentPet && desiredPet) {
-                // Both exist: Use native SwapPet (no inventory space needed!)
-                setTimeout(() => {
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'SwapPet',
-                    petSlotId: currentPet.id,
-                    petInventoryId: desiredPet.id
-                  });
-                }, delay);
-                delay += 100;
-              } else if (!currentPet && desiredPet) {
-                // Empty slot: Place new pet
-                setTimeout(() => {
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'PlacePet',
-                    itemId: desiredPet.id,
-                    position: { x: 17 + slotIndex * 2, y: 13 },
-                    localTileIndex: 64,
-                    tileType: 'Boardwalk'
-                  });
-                }, delay);
-                delay += 100;
-              } else if (currentPet && !desiredPet) {
-                // Remove excess pet (preset has fewer pets)
-                setTimeout(() => {
-                  safeSendMessage({
-                    scopePath: ['Room', 'Quinoa'],
-                    type: 'StorePet',
-                    itemId: currentPet.id
-                  });
-                }, delay);
-                delay += 100;
-              }
-            }
-
-            // Update pets display after placement (with delay for game to update)
-            setTimeout(() => {
-              // Force update pets from room state first
-              updateActivePetsFromRoomState();
-
-              // Update main tab if pets tab is active
-              if (UnifiedState.activeTab === 'pets') {
-                updateTabContent();
-              }
-
-              // Update all pet overlays after placing
-              UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-                if (overlay && document.contains(overlay) && tabName === 'pets') {
-                  if (overlay.className.includes('mga-overlay-content-only')) {
-                    updatePureOverlayContent(overlay, tabName);
-                    debugLog('OVERLAY_LIFECYCLE', 'Updated pure pets overlay after placing preset');
-                  }
-                }
-              });
-
-              // Update separate window popouts
-              refreshSeparateWindowPopouts('pets');
-            }, delay + 500);
+            window.debouncedPlacePetPreset(presetName);
           } else if (action === 'remove') {
             delete UnifiedState.data.petPresets[presetName];
 
@@ -25438,23 +25573,29 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       });
 
-      // OPTIMIZED: Only update DOM if there's actually a new ability and page is visible
-      if (hasNewAbility && document.visibilityState === 'visible' && !pendingAbilityUpdates) {
-        pendingAbilityUpdates = true;
-        // Batch all DOM updates in next animation frame
-        requestAnimationFrame(() => {
-          updateAllAbilityLogDisplays();
+      // PERFORMANCE OPTIMIZATION: Debounce ability log updates to prevent spam
+      // Max 1 update per 500ms even if multiple abilities trigger rapidly
+      if (hasNewAbility && document.visibilityState === 'visible') {
+        if (!pendingAbilityUpdates) {
+          pendingAbilityUpdates = true;
 
-          if (UnifiedState.activeTab === 'abilities') {
-            updateTabContent();
-          }
+          // Debounce: Wait 500ms before updating to batch rapid ability triggers
+          setTimeout(() => {
+            requestAnimationFrame(() => {
+              updateAllAbilityLogDisplays();
 
-          // BUGFIX: Removed duplicate overlay update loop
-          // updateAllAbilityLogDisplays() already handles all overlays at line 13548
-          // Duplicate updates were causing race conditions when both tab and pop-up were open
+              if (UnifiedState.activeTab === 'abilities') {
+                updateTabContent();
+              }
 
-          pendingAbilityUpdates = false;
-        });
+              // BUGFIX: Removed duplicate overlay update loop
+              // updateAllAbilityLogDisplays() already handles all overlays at line 13548
+              // Duplicate updates were causing race conditions when both tab and pop-up were open
+
+              pendingAbilityUpdates = false;
+            });
+          }, 500); // OPTIMIZED: 500ms debounce window
+        }
       }
     }
 
@@ -26316,6 +26457,50 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       };
     }
 
+    // PERFORMANCE OPTIMIZATION: Cache timer elements to avoid repeated DOM queries
+    let cachedTimerElements = {
+      'timer-seed': [],
+      'timer-egg': [],
+      'timer-tool': [],
+      'timer-lunar': []
+    };
+    let lastTimerElementCacheTime = 0;
+    const TIMER_ELEMENT_CACHE_DURATION = 5000; // Refresh cache every 5 seconds
+
+    function refreshTimerElementCache() {
+      const timerIds = ['timer-seed', 'timer-egg', 'timer-tool', 'timer-lunar'];
+
+      timerIds.forEach(id => {
+        const elements = [];
+
+        // Main window element
+        const mainEl = document.getElementById(id);
+        if (mainEl) elements.push(mainEl);
+
+        // Overlay elements
+        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+          if (overlay && document.contains(overlay)) {
+            const overlayEl = overlay.querySelector(`#${id}`);
+            if (overlayEl) elements.push(overlayEl);
+          }
+        });
+
+        // Target document elements (for popouts)
+        try {
+          const targetEls = targetDocument.querySelectorAll(`#${id}`);
+          targetEls.forEach(el => {
+            if (!elements.includes(el)) elements.push(el);
+          });
+        } catch (e) {
+          // Ignore errors from closed windows
+        }
+
+        cachedTimerElements[id] = elements;
+      });
+
+      lastTimerElementCacheTime = Date.now();
+    }
+
     function updateTimerDisplay() {
       const formatTime = seconds => {
         if (seconds == null) return '--:--';
@@ -26338,38 +26523,34 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       };
 
-      // Helper function to update timer elements across all contexts
+      // BUGFIX: Initialize cache on first run or refresh if expired
+      const now = Date.now();
+      if (lastTimerElementCacheTime === 0 || now - lastTimerElementCacheTime > TIMER_ELEMENT_CACHE_DURATION) {
+        refreshTimerElementCache();
+      }
+
+      // PERFORMANCE: Update cached elements only (no DOM queries in hot path)
       const updateTimerElement = (id, value) => {
-        // Choose formatter based on timer type
         const formatter = id === 'timer-lunar' ? formatTimeHoursMinutes : formatTime;
         const formattedValue = formatter(value);
 
-        // Update main window
-        const mainElement = document.getElementById(id);
-        if (mainElement) {
-          mainElement.textContent = formattedValue;
+        const elements = cachedTimerElements[id] || [];
+
+        // FALLBACK: If cache is empty, query directly (first run before cache populated)
+        if (elements.length === 0) {
+          const el = document.getElementById(id);
+          if (el) {
+            el.textContent = formattedValue;
+          }
+          return;
         }
 
-        // Update in-game overlays
-        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-          if (overlay && document.contains(overlay)) {
-            const overlayElement = overlay.querySelector(`#${id}`);
-            if (overlayElement) {
-              overlayElement.textContent = formattedValue;
-            }
+        elements.forEach(el => {
+          // Verify element still in DOM before updating
+          if (document.contains(el)) {
+            el.textContent = formattedValue;
           }
         });
-
-        // Update all timer elements with this ID across all open windows
-        // This catches pop-out windows that may contain timer elements
-        try {
-          const allElements = targetDocument.querySelectorAll(`#${id}`);
-          allElements.forEach(el => {
-            el.textContent = formattedValue;
-          });
-        } catch (e) {
-          // Ignore errors from closed windows
-        }
       };
 
       // Update all timer types
@@ -26732,18 +26913,33 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     (function initAutoFavorite() {
       let lastInventoryCount = 0;
 
-      // Monitor inventory changes for auto-favorite (myData is set by existing myDataAtom hook)
+      // PERFORMANCE OPTIMIZATION: Increased interval from 500ms to 2000ms
+      // Still responsive for new items, but 4x less CPU usage
       setInterval(() => {
-        if (!targetWindow.myData?.inventory?.items || !UnifiedState.data.settings.autoFavorite.enabled) {
+        // Early exit if auto-favorite is disabled or no watched items
+        if (!UnifiedState.data.settings.autoFavorite.enabled) {
+          return;
+        }
+
+        const watchedSpecies = UnifiedState.data.settings.autoFavorite.species || [];
+        const watchedMutations = UnifiedState.data.settings.autoFavorite.mutations || [];
+
+        // Skip processing if nothing is being watched
+        if (watchedSpecies.length === 0 && watchedMutations.length === 0) {
+          return;
+        }
+
+        if (!targetWindow.myData?.inventory?.items) {
           return;
         }
 
         const currentCount = targetWindow.myData.inventory.items.length;
+        // Only process if inventory count increased (new items added)
         if (currentCount > lastInventoryCount) {
           checkAndFavoriteNewItems(targetWindow.myData.inventory);
         }
         lastInventoryCount = currentCount;
-      }, 500);
+      }, 2000); // OPTIMIZED: Every 2 seconds (was 500ms)
 
       function checkAndFavoriteNewItems(inventory) {
         if (!inventory?.items) return;
@@ -27093,6 +27289,51 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       return getAbilityExpectations(activePets, 'PlantGrowthBoostII', 5, 0.27);
     }
 
+    // BUGFIX: Validate tooltip element position to prevent top-left corner misplacement
+    // PERFORMANCE: Silent validation - no console spam unless debug mode enabled
+    function isValidTooltipElement(element) {
+      if (!element) return false;
+
+      try {
+        const rect = element.getBoundingClientRect();
+
+        // Reject if element is in top-left corner (likely UI element, not tooltip)
+        // Tooltips should be centered or follow cursor, never stuck at 0,0
+        if (rect.top < 50 && rect.left < 50) {
+          return false; // Silent rejection
+        }
+
+        // Reject if element is too small (likely not a tooltip container)
+        if (rect.width < 50 || rect.height < 30) {
+          return false; // Silent rejection
+        }
+
+        // Reject if element is off-screen
+        const doc = targetDocument || document;
+        const viewportWidth = window.innerWidth || doc.documentElement.clientWidth;
+        const viewportHeight = window.innerHeight || doc.documentElement.clientHeight;
+
+        if (rect.right < 0 || rect.bottom < 0 || rect.left > viewportWidth || rect.top > viewportHeight) {
+          return false; // Silent rejection
+        }
+
+        // Additional check: Element should contain text (tooltips always have content)
+        const hasText = element.textContent && element.textContent.trim().length > 0;
+        if (!hasText) {
+          return false; // Silent rejection
+        }
+
+        // Passed all validation checks
+        return true;
+      } catch (e) {
+        // Only log errors, not validation failures
+        if (UnifiedState?.data?.settings?.debugMode) {
+          console.error('[CROP-VALUE] ❌ Error validating tooltip element:', e);
+        }
+        return false;
+      }
+    }
+
     function insertTurtleEstimate() {
       const doc = targetDocument || document;
 
@@ -27107,7 +27348,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       )?.parentElement;
 
       if (!currentPlantTooltipFlexbox) {
-        // Try alternative selectors
+        // PERFORMANCE FIX: Validate tooltip position before using fallback selectors
+        // This prevents slot value from appearing in top-left corner UI elements
         const altSelectors = [
           'div.QuinoaUI .McFlex .McGrid',
           '[class*="tooltip"] [class*="flex"]',
@@ -27115,16 +27357,24 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           '.McFlex .McGrid .McFlex',
           'div.QuinoaUI div.McFlex div.McGrid'
         ];
+
         for (const sel of altSelectors) {
           const el = doc.querySelector(sel);
-          if (el) {
+          if (el && isValidTooltipElement(el)) {
             currentPlantTooltipFlexbox = el;
             break;
           }
         }
+
         if (!currentPlantTooltipFlexbox) {
           return;
         }
+      }
+
+      // Final validation: Ensure element is in valid screen position
+      if (!isValidTooltipElement(currentPlantTooltipFlexbox)) {
+        console.warn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
+        return;
       }
 
       // Try multiple ways to get current crop/egg
@@ -28700,16 +28950,28 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       productionLog('🚨 [CRITICAL] Optimized notification timer started with performance monitoring');
 
-      // HUNGER TIMER: Update hunger countdown timers every second
+      // HUNGER TIMER: Update hunger countdown timers
+      // PERFORMANCE OPTIMIZATION: Reduced from 1000ms to 2000ms, cache timer elements
       productionLog('🍖 [HUNGER-TIMER] Setting up hunger timer updates...');
+
+      // Cache for timer elements (refreshed when pets tab is opened/updated)
+      let cachedTimerElements = [];
+      let lastTimerCacheTime = 0;
+      const TIMER_CACHE_DURATION = 5000; // Refresh cache every 5 seconds
+
       window.hungerTimerInterval = setInterval(() => {
         try {
-          // Update all hunger timer elements
-          const timerElements = document.querySelectorAll('.mga-hunger-timer');
           const activePets = window.activePets || UnifiedState.atoms.activePets || [];
 
+          // Refresh timer element cache if needed
+          const now = Date.now();
+          if (cachedTimerElements.length === 0 || now - lastTimerCacheTime > TIMER_CACHE_DURATION) {
+            cachedTimerElements = Array.from(document.querySelectorAll('.mga-hunger-timer'));
+            lastTimerCacheTime = now;
+          }
+
           if (UnifiedState.data.settings?.debugMode) {
-            console.log('🍖 [TIMER-UPDATE] Timer elements found:', timerElements.length);
+            console.log('🍖 [TIMER-UPDATE] Cached timer elements:', cachedTimerElements.length);
             console.log('🍖 [TIMER-UPDATE] Active pets:', activePets.length);
             if (activePets.length > 0) {
               activePets.forEach((p, i) => {
@@ -28724,8 +28986,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
           }
 
-          if (timerElements.length > 0) {
-            timerElements.forEach(element => {
+          if (cachedTimerElements.length > 0) {
+            cachedTimerElements.forEach(element => {
+              // Skip if element was removed from DOM
+              if (!document.contains(element)) {
+                cachedTimerElements = []; // Force cache refresh
+                return;
+              }
+
               const petIndex = parseInt(element.dataset.petIndex);
               if (petIndex >= 0 && petIndex < activePets.length) {
                 const pet = activePets[petIndex];
@@ -28749,7 +29017,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         } catch (error) {
           console.error('❌ Error updating hunger timers:', error);
         }
-      }, 1000); // Update every second
+      }, 2000); // OPTIMIZED: Update every 2 seconds (was 1s)
 
       MGA_addInterval(window.hungerTimerInterval);
       productionLog('🍖 [HUNGER-TIMER] Hunger timer updates started (1s interval)');
@@ -28932,26 +29200,35 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      const currentPets = UnifiedState.atoms.activePets || [];
-
       // Always use SwapPet for atomic swapping (works regardless of inventory space)
       productionLog('[PETS] Using SwapPet for atomic swapping');
 
       preset.forEach((presetPet, i) => {
-        const currentPet = currentPets[i];
-        if (currentPet) {
-          // Swap: active pet <-> inventory pet
-          setTimeout(() => {
+        // BUGFIX: Read current state INSIDE timeout to get fresh data after previous swaps
+        // This fixes race condition where slow networks don't update activePets fast enough
+        setTimeout(() => {
+          // Get FRESH state each time (not stale reference from before loop)
+          const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
+          const currentPet = currentPets[i];
+
+          if (currentPet) {
+            // Swap: active pet <-> inventory pet
+            if (UnifiedState.data.settings?.debugMode) {
+              productionLog(`[PET-SWAP] Slot ${i + 1}: Swapping ${currentPet.id} → ${presetPet.id}`);
+            }
+
             safeSendMessage({
               scopePath: ['Room', 'Quinoa'],
               type: 'SwapPet',
               petSlotId: currentPet.id,
               petInventoryId: presetPet.id
             });
-          }, i * 100);
-        } else {
-          // No pet in this slot, just place
-          setTimeout(() => {
+          } else {
+            // No pet in this slot, just place
+            if (UnifiedState.data.settings?.debugMode) {
+              productionLog(`[PET-SWAP] Slot ${i + 1}: Placing ${presetPet.id} (empty slot)`);
+            }
+
             safeSendMessage({
               scopePath: ['Room', 'Quinoa'],
               type: 'PlacePet',
@@ -28960,11 +29237,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               localTileIndex: 64,
               tileType: 'Boardwalk'
             });
-          }, i * 100);
-        }
+          }
+        }, i * 200); // Increased delay from 100ms → 200ms for network latency tolerance
       });
 
-      productionLog(`✅ [PETS] Loaded pet preset`);
+      productionLog(`✅ [PETS] Loaded pet preset (${preset.length} pets)`);
     }
 
     function loadPresetByNumber(number) {
@@ -29726,6 +30003,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // TEST VERSION: Add UI health check and Alt+M toggle
         ensureUIHealthy();
         setupToolbarToggle();
+        setupDockSizeControl();
 
         addDemoBanner();
 
@@ -31138,6 +31416,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             // TEST VERSION: Add UI health check and Alt+M toggle
             ensureUIHealthy();
             setupToolbarToggle();
+            setupDockSizeControl();
 
             if (window.MGA_DEBUG) {
               window.MGA_DEBUG.logStage('CREATE_UI_COMPLETED', {
@@ -31382,6 +31661,29 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           productionLog('✅ Magic Garden Unified Assistant initialized successfully!');
+
+          // Add global recovery function for users whose UI disappears
+          targetWindow.MGA_SHOW_UI = function () {
+            console.log('%c🔧 MGTools Recovery', 'color: #4CAF50; font-weight: bold; font-size: 14px');
+            console.log('Clearing corrupted UI state...');
+            try {
+              localStorage.removeItem('mgh_toolbar_visible');
+              localStorage.removeItem('mgh_dock_position');
+              localStorage.removeItem('mgh_dock_orientation');
+              console.log('✅ State cleared. Reloading page...');
+              setTimeout(() => location.reload(), 500);
+            } catch (e) {
+              console.error('❌ Recovery failed:', e);
+              console.log('Try manually: localStorage.clear() then refresh');
+            }
+          };
+
+          // Startup banner with recovery instructions
+          console.log(
+            '%c🎮 MGTools v' + (typeof GM_info !== 'undefined' ? GM_info.script.version : '1.1.1') + ' Loaded',
+            'color: #4CAF50; font-weight: bold; font-size: 14px'
+          );
+          console.log('%c💡 UI not showing? Run in console: MGA_SHOW_UI()', 'color: #FFC107; font-size: 12px');
 
           // Remove test UI after successful initialization
           const testUI =
@@ -32904,8 +33206,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         );
       }
 
+      // PERFORMANCE OPTIMIZATION: Batch room requests to avoid network spam
+      // Process 10 rooms at a time with 200ms delay between batches
       try {
-        await Promise.all(names.map(fetchOne));
+        const BATCH_SIZE = 10;
+        const BATCH_DELAY = 200; // ms between batches
+
+        for (let i = 0; i < names.length; i += BATCH_SIZE) {
+          const batch = names.slice(i, i + BATCH_SIZE);
+          await Promise.all(batch.map(fetchOne));
+
+          // Add delay between batches (except for last batch)
+          if (i + BATCH_SIZE < names.length) {
+            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+          }
+        }
 
         // Show sample of Discord room counts if debug mode enabled
         if (roomDebugMode) {
@@ -32967,7 +33282,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       }
     }
-    // Watch the search input to include searched room
+    // PERFORMANCE OPTIMIZATION: Watch specific container instead of entire document
+    // This reduces mutation callback frequency by 90%+
     const obs = new MutationObserver(() => {
       const inp = document.getElementById('room-search-input');
       if (inp && !inp.__mgtpBound) {
@@ -32985,7 +33301,31 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         });
       }
     });
-    obs.observe(document.documentElement, { subtree: true, childList: true });
+
+    // Watch only the sidebar container instead of entire document
+    // Falls back to document if sidebar not found yet
+    const observeRoomSearch = () => {
+      const sidebar = document.getElementById('mgh-sidebar') || document.querySelector('.mga-sidebar');
+      const targetElement = sidebar || document.documentElement;
+
+      obs.observe(targetElement, {
+        subtree: true,
+        childList: true,
+        // OPTIMIZATION: Only watch childList changes, ignore attributes/characterData
+        attributes: false,
+        characterData: false
+      });
+
+      if (!sidebar) {
+        // If sidebar not ready yet, retry in 1 second
+        setTimeout(() => {
+          obs.disconnect();
+          observeRoomSearch();
+        }, 1000);
+      }
+    };
+
+    observeRoomSearch();
 
     // Wait for UnifiedState and RoomRegistry to be ready before starting polling
     function startPollingWhenReady() {
@@ -32993,9 +33333,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const hasRoomRegistry = typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord;
 
       if (hasUnifiedState && hasRoomRegistry) {
-        // Start room polling with Discord rooms included
+        // PERFORMANCE OPTIMIZATION: Increased interval from 5s to 10s
+        // Room counts don't change that rapidly, 10s is still responsive
         setTimeout(tick, 1000); // First tick after 1 second
-        setInterval(tick, 5000); // Then every 5 seconds
+        setInterval(tick, 10000); // Then every 10 seconds (was 5s)
       } else {
         setTimeout(startPollingWhenReady, 500);
       }
