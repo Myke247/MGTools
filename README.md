@@ -435,7 +435,7 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Updates (v1.1.9)
-- **v1.1.9**: Shop loading fix + pet auto-favorite - Fixed shop showing empty data on first load with smart loading state. Added auto-favorite for pets with protected Rainbow/Gold Granter abilities.
+- **v1.1.9**: Shop loading fix + pet auto-favorite + FPS optimization - Fixed shop showing empty data on first load with smart loading state. Added auto-favorite in VALUES tab for pets with Rainbow/Gold Granter abilities (based on mutations). Removed unnecessary console.logs for improved performance.
 - **v1.1.8**: New black accent themes + opacity fix - Added 15 new black accent color themes (Pure Void, Violet, Amber, Jade, Coral, Steel, Lavender, Mint, Ruby, Cobalt, Bronze, Teal, Magenta, Lime, Indigo). Fixed opacity slider to work correctly from 0% (fully transparent) to 100% (fully opaque).
 - **v1.1.7**: Shop/Notification/Timers fixed
 - **v1.1.5**: Added Alt+X hotkey for dock position reset - Press Alt+X to instantly reset the dock to its default position on the right side of the screen.

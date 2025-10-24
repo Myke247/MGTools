@@ -3,10 +3,12 @@
 ## Version 1.1.9 (2025-10-24)
 
 **New Features:**
-- Added auto-favorite for pets with protected abilities
-  - Pets with Rainbow Granter or Gold Granter abilities are automatically favorited when those abilities are protected
-  - Works seamlessly with existing pet protection system
+- Added auto-favorite for pets with Rainbow Granter or Gold Granter abilities
+  - New UI section in VALUES tab → Auto-Favorite settings
+  - Checkboxes for "Rainbow Granter" and "Gold Granter" abilities
+  - Automatically favorites pets with Gold or Rainbow mutations (which grant these abilities)
   - Prevents accidental selling of valuable pets
+  - Works seamlessly with existing crop auto-favorite system
 
 **Bug Fixes:**
 - Fixed shop showing inaccurate/empty data on first load
@@ -15,9 +17,18 @@
   - Shows helpful error message if data fails to load after 5 seconds
   - Eliminates confusing "0 stock" displays when opening shop right after joining game
 
+**Performance Improvements:**
+- Removed unnecessary console.log calls for improved FPS
+  - Cleaned up auto-favorite checkbox handlers
+  - Removed verbose debugging from favoriteSpecies/favoriteMutation functions
+  - Removed 5-second diagnostic interval
+  - Kept only critical error/success messages
+
 **Technical Improvements:**
 - Added smart loading state for shop UI with 100ms polling
-- Added `checkAndFavoritePetsWithProtectedAbilities()` function
+- Extended autoFavorite settings with `petAbilities` array
+- Modified `checkAndFavoriteNewItems()` to check pet mutations
+- Added `favoritePetAbility()` and `unfavoritePetAbility()` helper functions
 - Improved first-time user experience when accessing shop features
 
 ---

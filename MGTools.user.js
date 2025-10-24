@@ -3245,7 +3245,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           autoFavorite: {
             enabled: false,
             species: [], // List of species names to auto-favorite
-            mutations: [] // List of mutations to auto-favorite (Rainbow, Gold, Frozen, Dawnlit, Amberlit, Dawnbound, Amberbound, etc)
+            mutations: [], // List of mutations to auto-favorite (Rainbow, Gold, Frozen, Dawnlit, Amberlit, Dawnbound, Amberbound, etc)
+            petAbilities: [] // List of pet abilities to auto-favorite (Rainbow Granter, Gold Granter)
           },
           // FIX ISSUE B: Setting to hide/show instant feed buttons
           hideFeedButtons: false // Default: show feed buttons (current behavior)
@@ -8875,7 +8876,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         // Show toast notification
         try {
-          showToast('🏠 Dock Reset', 'Position reset to default', 2000);
+          showNotificationToast('🏠 Dock Reset - Position reset to default', 'success');
         } catch (e) {
           // Toast not ready, silent fail
           console.log('[DOCK-RESET] Toast notification unavailable');
@@ -13241,7 +13242,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Smart initial render with loading state
       function isShopDataReady() {
-        return !!(targetWindow?.globalShop?.shops);
+        return !!targetWindow?.globalShop?.shops;
       }
 
       function showLoadingState() {
@@ -14429,6 +14430,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                             )
                             .join('')}
                       </div>
+                      <div style="font-size: 11px; color: #aaa; margin-bottom: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57); padding-top: 12px;">
+                          Automatically favorite pets with these abilities:
+                      </div>
+                      <div id="auto-favorite-pet-abilities" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                          ${['Rainbow Granter', 'Gold Granter']
+                            .map(
+                              ability => `
+                                  <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none;">
+                                      <input type="checkbox" value="${ability}"
+                                          ${(UnifiedState.data.settings.autoFavorite.petAbilities || []).includes(ability) ? 'checked' : ''}
+                                          style="cursor: pointer;">
+                                      <span style="color: #e5e7eb;">${ability}</span>
+                                  </label>
+                              `
+                            )
+                            .join('')}
+                      </div>
                   </div>
               </div>
           `;
@@ -14471,10 +14489,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
             // Immediately favorite all existing items of this species
             if (targetWindow.favoriteSpecies) {
-              productionLog(`🌟 [AUTO-FAVORITE] User checked ${species} - calling favoriteSpecies`);
               targetWindow.favoriteSpecies(species);
-            } else {
-              productionLog('❌ [AUTO-FAVORITE] favoriteSpecies function not available!');
             }
           } else {
             UnifiedState.data.settings.autoFavorite.species = UnifiedState.data.settings.autoFavorite.species.filter(
@@ -14482,10 +14497,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             );
             // Immediately unfavorite all existing items of this species
             if (targetWindow.unfavoriteSpecies) {
-              productionLog(`🌟 [AUTO-FAVORITE] User unchecked ${species} - calling unfavoriteSpecies`);
               targetWindow.unfavoriteSpecies(species);
-            } else {
-              productionLog('❌ [AUTO-FAVORITE] unfavoriteSpecies function not available!');
             }
           }
           saveAutoFavoriteSettings();
@@ -14503,20 +14515,39 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             }
             // Immediately favorite all existing items with this mutation
             if (targetWindow.favoriteMutation) {
-              productionLog(`🌟 [AUTO-FAVORITE] User checked ${mutation} - calling favoriteMutation`);
               targetWindow.favoriteMutation(mutation);
-            } else {
-              productionLog('❌ [AUTO-FAVORITE] favoriteMutation function not available!');
             }
           } else {
             UnifiedState.data.settings.autoFavorite.mutations =
               UnifiedState.data.settings.autoFavorite.mutations.filter(m => m !== mutation);
             // Immediately unfavorite all existing items with this mutation
             if (targetWindow.unfavoriteMutation) {
-              productionLog(`🌟 [AUTO-FAVORITE] User unchecked ${mutation} - calling unfavoriteMutation`);
               targetWindow.unfavoriteMutation(mutation);
-            } else {
-              productionLog('❌ [AUTO-FAVORITE] unfavoriteMutation function not available!');
+            }
+          }
+          saveAutoFavoriteSettings();
+        });
+      });
+
+      // Pet ability checkboxes
+      const petAbilityCheckboxes = context.querySelectorAll('#auto-favorite-pet-abilities input[type="checkbox"]');
+      petAbilityCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', e => {
+          const ability = e.target.value;
+          if (e.target.checked) {
+            if (!UnifiedState.data.settings.autoFavorite.petAbilities.includes(ability)) {
+              UnifiedState.data.settings.autoFavorite.petAbilities.push(ability);
+            }
+            // Immediately favorite all existing pets with this ability
+            if (targetWindow.favoritePetAbility) {
+              targetWindow.favoritePetAbility(ability);
+            }
+          } else {
+            UnifiedState.data.settings.autoFavorite.petAbilities =
+              UnifiedState.data.settings.autoFavorite.petAbilities.filter(a => a !== ability);
+            // Immediately unfavorite all existing pets with this ability
+            if (targetWindow.unfavoritePetAbility) {
+              targetWindow.unfavoritePetAbility(ability);
             }
           }
           saveAutoFavoriteSettings();
@@ -27215,7 +27246,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Only process if inventory count increased (new items added)
         if (currentCount > lastInventoryCount) {
           checkAndFavoriteNewItems(targetWindow.myData.inventory);
-          checkAndFavoritePetsWithProtectedAbilities(targetWindow.myData.inventory);
         }
         lastInventoryCount = currentCount;
       }, 2000); // OPTIMIZED: Every 2 seconds (was 500ms)
@@ -27224,22 +27254,51 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         if (!inventory?.items) return;
         if (
           !UnifiedState.data.settings.autoFavorite.species.length &&
-          !UnifiedState.data.settings.autoFavorite.mutations.length
+          !UnifiedState.data.settings.autoFavorite.mutations.length &&
+          !UnifiedState.data.settings.autoFavorite.petAbilities.length
         )
           return;
 
         const favoritedIds = new Set(inventory.favoritedItemIds || []);
         const targetSpecies = new Set(UnifiedState.data.settings.autoFavorite.species);
         const targetMutations = new Set(UnifiedState.data.settings.autoFavorite.mutations);
-        let count = 0;
+        const targetPetAbilities = new Set(UnifiedState.data.settings.autoFavorite.petAbilities);
+        let cropCount = 0;
+        let petCount = 0;
 
         for (const item of inventory.items) {
           if (favoritedIds.has(item.id)) continue; // Already favorited
-          if (item.itemType !== 'Produce') continue; // Only auto-favorite crops
 
-          // CRITICAL: Explicitly exclude pets, eggs, and tools - CROPS ONLY
-          if (item.itemType === 'Pet' || item.itemType === 'Egg' || item.itemType === 'Tool') continue;
-          if (item.category === 'Pet' || item.category === 'Egg' || item.category === 'Tool') continue;
+          // Check if it's a pet
+          if (item.itemType === 'Pet') {
+            // Check pet abilities
+            const petMutations = item.mutations || [];
+            const hasGoldMutation = petMutations.includes('Gold');
+            const hasRainbowMutation = petMutations.includes('Rainbow');
+
+            const shouldFavorite =
+              (hasGoldMutation && targetPetAbilities.has('Gold Granter')) ||
+              (hasRainbowMutation && targetPetAbilities.has('Rainbow Granter'));
+
+            if (shouldFavorite) {
+              if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+                targetWindow.MagicCircle_RoomConnection.sendMessage({
+                  scopePath: ['Room', 'Quinoa'],
+                  type: 'ToggleFavoriteItem',
+                  itemId: item.id
+                });
+                petCount++;
+              }
+            }
+            continue; // Skip to next item
+          }
+
+          // Only auto-favorite crops beyond this point
+          if (item.itemType !== 'Produce') continue;
+
+          // CRITICAL: Explicitly exclude eggs and tools - CROPS ONLY
+          if (item.itemType === 'Egg' || item.itemType === 'Tool') continue;
+          if (item.category === 'Egg' || item.category === 'Tool') continue;
           if (item.species && (item.species.includes('Pet') || item.species.includes('Egg'))) continue;
 
           // Check if item matches species
@@ -27257,65 +27316,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 type: 'ToggleFavoriteItem',
                 itemId: item.id
               });
-              count++;
+              cropCount++;
             }
           }
         }
 
-        if (count > 0) {
-          productionLog(`🌟 [AUTO-FAVORITE] Auto-favorited ${count} new crops`);
+        if (cropCount > 0) {
+          productionLog(`🌟 [AUTO-FAVORITE] Auto-favorited ${cropCount} new crops`);
         }
-      }
-
-      // Auto-favorite pets with protected abilities (Rainbow Granter, Gold Granter)
-      function checkAndFavoritePetsWithProtectedAbilities(inventory) {
-        if (!inventory?.items) return;
-
-        // Get locked pet abilities from settings
-        const lockedAbilities = UnifiedState.data.lockedPetAbilities || [];
-        if (lockedAbilities.length === 0) return; // No abilities locked, nothing to auto-favorite
-
-        const favoritedIds = new Set(inventory.favoritedItemIds || []);
-        let count = 0;
-
-        for (const item of inventory.items) {
-          // Only process pets
-          if (item.itemType !== 'Pet') continue;
-          if (favoritedIds.has(item.id)) continue; // Already favorited
-
-          // Check pet mutations for Gold or Rainbow
-          const petMutations = item.mutations || [];
-          const hasGoldMutation = petMutations.includes('Gold');
-          const hasRainbowMutation = petMutations.includes('Rainbow');
-
-          // Check if these abilities are locked (protected)
-          const isGoldGranterLocked = lockedAbilities.includes('Gold Granter');
-          const isRainbowGranterLocked = lockedAbilities.includes('Rainbow Granter');
-
-          // Auto-favorite if pet has protected ability
-          const shouldFavorite =
-            (hasGoldMutation && isGoldGranterLocked) || (hasRainbowMutation && isRainbowGranterLocked);
-
-          if (shouldFavorite) {
-            const abilityType = hasGoldMutation ? 'Gold Granter' : 'Rainbow Granter';
-
-            // Send favorite command
-            if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
-              targetWindow.MagicCircle_RoomConnection.sendMessage({
-                scopePath: ['Room', 'Quinoa'],
-                type: 'ToggleFavoriteItem',
-                itemId: item.id
-              });
-              count++;
-              productionLog(
-                `🌟 [AUTO-FAVORITE-PET] Favoriting pet with protected ${abilityType} ability (id: ${item.id})`
-              );
-            }
-          }
-        }
-
-        if (count > 0) {
-          productionLog(`🌟 [AUTO-FAVORITE-PET] Auto-favorited ${count} pets with protected abilities`);
+        if (petCount > 0) {
+          productionLog(`🌟 [AUTO-FAVORITE] Auto-favorited ${petCount} new pets`);
         }
       }
 
@@ -27329,8 +27339,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const items = targetWindow.myData.inventory.items;
         const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
         let count = 0;
-
-        productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all ${speciesName} crops...`);
 
         for (const item of items) {
           // CRITICAL: Multiple checks to ensure ONLY crops are favorited
@@ -27347,9 +27355,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 itemId: item.id
               });
               count++;
-              productionLog(`🌟 [AUTO-FAVORITE] Favoriting ${item.species} (id: ${item.id})`);
-            } else {
-              productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
             }
           }
         }
@@ -27383,8 +27388,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
         let count = 0;
 
-        productionLog(`🌟 [AUTO-FAVORITE] Attempting to favorite all crops with ${mutationName} mutation...`);
-
         for (const item of items) {
           // CRITICAL: Multiple checks to ensure ONLY crops are favorited
           if (item.itemType !== 'Produce') continue;
@@ -27401,11 +27404,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                 itemId: item.id
               });
               count++;
-              productionLog(
-                `🌟 [AUTO-FAVORITE] Favoriting ${item.species} with ${mutationName} mutation (id: ${item.id})`
-              );
-            } else {
-              productionLog('❌ [AUTO-FAVORITE] MagicCircle_RoomConnection not available!');
             }
           }
         }
@@ -27428,40 +27426,56 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // This protects user's manually-favorited items (pets, eggs, crops, etc.)
       };
 
-      productionLog('🌟 [AUTO-FAVORITE] System initialized - monitoring inventory changes');
-
-      // Diagnostic check every 5 seconds
-      setInterval(() => {
-        const hasMyData = !!targetWindow.myData;
-        const hasConnection = !!targetWindow.MagicCircle_RoomConnection;
-        const hasInventory = !!targetWindow.myData?.inventory?.items;
-        const inventoryCount = targetWindow.myData?.inventory?.items?.length || 0;
-
-        if (!hasMyData || !hasConnection) {
-          productionLog(
-            `🔍 [AUTO-FAVORITE-DEBUG] myData: ${hasMyData}, Connection: ${hasConnection}, Inventory: ${hasInventory}, Items: ${inventoryCount}`
-          );
+      // Favorite ALL pets with a specific ability (called when checkbox is checked)
+      targetWindow.favoritePetAbility = function (abilityName) {
+        if (!targetWindow.myData?.inventory?.items) {
+          productionLog('🌟 [AUTO-FAVORITE-PET] No myData available yet - waiting for game to load');
+          return;
         }
-      }, 5000);
 
-      // Expose test function for manual testing
-      targetWindow.testAutoFavorite = function () {
-        productionLog('🧪 [AUTO-FAVORITE-TEST] Starting diagnostic test...');
-        productionLog('🧪 myData exists:', !!targetWindow.myData);
-        productionLog('🧪 MagicCircle_RoomConnection exists:', !!targetWindow.MagicCircle_RoomConnection);
-        productionLog('🧪 Inventory items:', targetWindow.myData?.inventory?.items?.length || 0);
-        productionLog('🧪 Auto-favorite enabled:', UnifiedState.data.settings.autoFavorite.enabled);
-        productionLog('🧪 Watched species:', UnifiedState.data.settings.autoFavorite.species);
-        if (targetWindow.myData?.inventory?.items) {
-          const itemCounts = {};
-          targetWindow.myData.inventory.items.forEach(item => {
-            itemCounts[item.species] = (itemCounts[item.species] || 0) + 1;
-          });
-          productionLog('🧪 Inventory breakdown:', itemCounts);
+        const items = targetWindow.myData.inventory.items;
+        const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
+        let count = 0;
+
+        for (const item of items) {
+          if (item.itemType !== 'Pet') continue; // Only process pets
+          if (favoritedIds.has(item.id)) continue; // Already favorited
+
+          // Check pet mutations for Gold or Rainbow
+          const petMutations = item.mutations || [];
+          const hasGoldMutation = petMutations.includes('Gold');
+          const hasRainbowMutation = petMutations.includes('Rainbow');
+
+          const shouldFavorite =
+            (abilityName === 'Gold Granter' && hasGoldMutation) ||
+            (abilityName === 'Rainbow Granter' && hasRainbowMutation);
+
+          if (shouldFavorite) {
+            if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+              targetWindow.MagicCircle_RoomConnection.sendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'ToggleFavoriteItem',
+                itemId: item.id
+              });
+              count++;
+            }
+          }
+        }
+
+        if (count > 0) {
+          productionLog(`✅ [AUTO-FAVORITE-PET] Favorited ${count} pets with ${abilityName} ability`);
         }
       };
 
-      productionLog('💡 [AUTO-FAVORITE] Run testAutoFavorite() in console to debug auto-favorite issues');
+      // DISABLED: Script never unfavorites - only adds favorites
+      targetWindow.unfavoritePetAbility = function (abilityName) {
+        productionLog(
+          `🔒 [AUTO-FAVORITE-PET] Checkbox unchecked for ${abilityName} - Auto-favorite disabled, but existing favorites are preserved (script never removes favorites)`
+        );
+        // Do nothing - script only adds favorites, never removes them
+      };
+
+      productionLog('🌟 [AUTO-FAVORITE] System initialized - monitoring inventory changes');
     })();
 
     // ==================== TURTLE TIMER (CROP GROWTH BOOST II) ====================
