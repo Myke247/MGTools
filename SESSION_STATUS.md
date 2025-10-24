@@ -10,11 +10,27 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 44.1% complete (2,204 of ~5,000 lines extracted)
+**Progress:** 50.2% complete (2,508 of ~5,000 lines extracted)
 
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-24 (Day 2 - Auto-Favorite Extraction)
+
+**Latest Work:**
+- ✅ Extracted Auto-Favorite Integration (~304 lines)
+  - `initAutoFavorite()` - Main monitoring system
+  - `checkAndFavoriteNewItems()` - Auto-favorite logic
+  - `favoriteSpecies()` - Favorite all crops of species
+  - `favoriteMutation()` - Favorite all crops with mutation
+  - `favoritePetAbility()` - Favorite pets with abilities (Gold/Rainbow Granter)
+  - Stub functions for unfavorite (preserve user favorites)
+- ✅ All code passes ESLint + Prettier + Airbnb style
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build now 197.6 KB (grew from ~186KB)
+
+**Progress:** From 44.1% → 50.2% (+6.1%)
 
 ### Session: 2025-10-24 (Day 2 - Repository Cleanup)
 
@@ -58,7 +74,7 @@
 
 ## 📊 Pet Feature Extraction Progress
 
-### Extracted (2,204 lines)
+### Extracted (2,508 lines)
 
 **Phase 1: Foundation** ✅
 - Pet Presets (import/export) - ~99 lines
@@ -81,16 +97,17 @@
   - getAbilityExpectations()
   - getEggExpectations()
   - getGrowthExpectations()
+- Auto-Favorite Integration - ~304 lines ✅
+  - initAutoFavorite() - Monitoring system
+  - favoriteSpecies() - Species-based auto-favorite
+  - favoriteMutation() - Mutation-based auto-favorite
+  - favoritePetAbility() - Pet ability auto-favorite (Rainbow/Gold Granter)
+  - Unfavorite stubs (preserve user favorites)
 
-### Remaining (2,796 lines)
+### Remaining (2,492 lines)
 
-**Phase 4: Integration & Additional Features**
-- ⏳ Auto-Favorite Integration (~500+ lines)
-  - Species-based auto-favorite
-  - Mutation-based auto-favorite
-  - Pet ability auto-favorite (Rainbow/Gold Granter)
-  - Deep integration with ability system
-- ⏳ Additional pet functions (~2,296 lines)
+**Phase 5: Additional Pet Features**
+- ⏳ Additional pet functions (~2,492 lines)
   - Pet species lists
   - Pet ability filters
   - Pet logging
@@ -104,14 +121,16 @@
 
 ### Immediate (Next Session)
 
-1. **Extract Auto-Favorite Integration** (~500 lines)
-   - Location: Lines 27290+ in `MGTools.user.js`
-   - Complexity: HIGH (deeply integrated with ability system)
-   - Strategy: Extract in phases, maintain full dependency injection
-
-2. **Continue Pet Function Extraction**
+1. **Continue Pet Function Extraction** (~2,492 lines remaining)
    - Target: Additional ~500-1,000 lines per session
    - Goal: Reach 60%+ extraction
+   - Focus areas:
+     - Pet species lists
+     - Pet ability filters
+     - Pet logging
+     - Pet swap logic
+     - Pet-related UI generators
+     - Pet hotkey handlers
 
 ### Medium Term
 
@@ -138,7 +157,7 @@
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 185.8 KB (growing as features extract)
+- Size: 197.6 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -202,8 +221,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Line ~27290+ (Auto-Favorite Integration)
-- Progress: 44.1% (2,204/5,000 lines extracted)
+- Next: Scan for remaining pet functions throughout file
+- Progress: 50.2% (2,508/5,000 lines extracted)
 
 **Remember:**
 - Use dependency injection (no globals!)
