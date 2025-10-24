@@ -9,15 +9,17 @@
  * - Pet Presets (import/export) - ~99 lines
  * - Pet Hunger Monitoring - ~320 lines
  *
- * Phase 2 (Pending):
- * - Pet Detection & State
- * - Pet Feeding Logic
- * - Pet UI Components
- * - Pet Tab Content
- * - Auto-Favorite Integration
+ * Phase 2 Extraction (Complete):
+ * - Pet Detection & State - ~114 lines
+ * - Pet Feeding Logic - ~47 lines
  *
- * Total Extracted: ~419 lines (of ~5,000 estimated)
- * Progress: 8.4%
+ * Phase 3 (Pending - Complex UI):
+ * - Pet UI Components (~881 lines - heavily coupled with DOM/globals)
+ * - Pet Tab Content (~736 lines - HTML generators)
+ * - Auto-Favorite Integration (~500+ lines)
+ *
+ * Total Extracted: ~580 lines (of ~5,000 estimated)
+ * Progress: 11.6%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -468,6 +470,207 @@ export function formatHungerTimer(milliseconds) {
 }
 
 /* ====================================================================================
+ * PET DETECTION & STATE
+ * ====================================================================================
+ */
+
+/**
+ * Get active pets from room state
+ * @param {Object} targetWindow - Game window object
+ * @param {Object} UnifiedState - Global state object
+ * @returns {Array} Array of pet objects
+ */
+export function getActivePetsFromRoomState(targetWindow, UnifiedState) {
+  console.log('🔧 [DEBUG] getActivePetsFromRoomState() called - checking for pets...');
+  try {
+    // CORRECT path: Get the actual atom value that console shows
+    const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
+    if (!roomState?.child?.data) {
+      console.log('🐾 [SIMPLE-PETS] No room state data');
+      return [];
+    }
+
+    // Try multiple data sources in priority order
+    let petData = null;
+
+    // Source 1: Check if pet data is directly in child.data (field1, field2, field3 format)
+    if (roomState.child.data.field1 !== undefined) {
+      petData = roomState.child.data;
+      console.log('🐾 [SIMPLE-PETS] Found pet data in child.data directly');
+    }
+
+    if (!petData) {
+      if (UnifiedState.data.settings?.debugMode) {
+        console.log('🐾 [SIMPLE-PETS] No pet data found in room state');
+      }
+
+      // FALLBACK: Use atom data if available
+      if (window.activePets && window.activePets.length > 0) {
+        if (UnifiedState.data.settings?.debugMode) {
+          console.log('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
+        }
+        return window.activePets;
+      }
+
+      if (UnifiedState.data.settings?.debugMode) {
+        console.log('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
+      }
+      return [];
+    }
+
+    // Extract pets from field1, field2, field3 format (the actual console format)
+    const pets = [];
+    const fields = [petData.field1, petData.field2, petData.field3];
+    fields.forEach((species, index) => {
+      if (species && species !== '' && typeof species === 'string') {
+        pets.push({ petSpecies: species, slot: index + 1 });
+      }
+    });
+
+    console.log('🐾 [SIMPLE-PETS] Extracted pets:', pets);
+    return pets;
+  } catch (error) {
+    console.log('🐾 [SIMPLE-PETS] Error:', error.message);
+    return [];
+  }
+}
+
+/**
+ * Update active pets from room state
+ * @param {Object} targetWindow - Game window object
+ * @param {Object} UnifiedState - Global state object
+ * @param {Function} updateActivePetsDisplay - Optional UI update function
+ * @returns {Array} Updated pet array
+ */
+export function updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay = null) {
+  const roomPets = getActivePetsFromRoomState(targetWindow, UnifiedState);
+  const previousCount = UnifiedState.atoms.activePets?.length || 0;
+
+  // CRITICAL BUGFIX: Don't overwrite if we already have better data from atom hook
+  // The atom gives us FULL pet data with hunger, abilities, etc.
+  // Room state only gives us petSpecies and slot - incomplete data!
+  if (
+    window.activePets &&
+    window.activePets.length > 0 &&
+    window.activePets[0] &&
+    window.activePets[0].hunger !== undefined
+  ) {
+    // We have full atom data with hunger - preserve it!
+    console.log('🐾 [SIMPLE-PETS] Preserving existing full pet data from atom (has hunger)');
+
+    // Only update species info if it's missing
+    roomPets.forEach((roomPet, index) => {
+      if (window.activePets[index] && !window.activePets[index].petSpecies && roomPet.petSpecies) {
+        window.activePets[index].petSpecies = roomPet.petSpecies;
+        console.log(`🐾 [SIMPLE-PETS] Added missing species ${roomPet.petSpecies} to slot ${index + 1}`);
+      }
+    });
+
+    UnifiedState.atoms.activePets = window.activePets;
+    return window.activePets; // Return the good data
+  }
+
+  // Only use room state data if we have NO atom data or it's incomplete
+  UnifiedState.atoms.activePets = roomPets;
+  window.activePets = roomPets; // Expose globally for debugging
+
+  const newCount = roomPets.length;
+  if (newCount !== previousCount) {
+    console.log(`🐾 [SIMPLE-PETS] Pet count changed: ${previousCount} → ${newCount}`);
+
+    // Update UI if pets tab is active and function provided
+    if (UnifiedState.activeTab === 'pets' && updateActivePetsDisplay) {
+      const context = document.getElementById('mga-tab-content');
+      if (context) {
+        updateActivePetsDisplay(context);
+      }
+    }
+  }
+
+  return roomPets;
+}
+
+/* ====================================================================================
+ * PET FEEDING
+ * ====================================================================================
+ */
+
+/**
+ * Send feed pet command to server
+ * @param {string} petItemId - Pet item ID
+ * @param {string} cropItemId - Crop/food item ID
+ * @param {Function} rcSend - Room connection send function
+ * @returns {Promise} Send result
+ */
+export async function sendFeedPet(petItemId, cropItemId, rcSend) {
+  const payload = {
+    type: 'FeedPet',
+    petItemId: petItemId,
+    cropItemId: cropItemId
+  };
+  console.log('[MGA] Feed payload:', payload);
+  return rcSend(payload);
+}
+
+/**
+ * Feed pet with server event verification
+ * @param {string} petItemId - Pet item ID
+ * @param {string} cropItemId - Crop/food item ID
+ * @param {number} petIndex - Pet slot index
+ * @param {Function} rcSend - Room connection send function
+ * @param {Function} waitForServer - Server event waiter function
+ * @param {boolean} enableDebugPeek - Enable debug message peeking
+ * @returns {Promise<Object>} Verification result {verified: boolean}
+ */
+export async function feedPetEnsureSync(petItemId, cropItemId, petIndex, rcSend, waitForServer, enableDebugPeek = false) {
+  // Predicate matching server events that confirm feed success
+  const makePredicate =
+    ({ payload }) =>
+    msg => {
+      if (!msg || typeof msg !== 'object') return false;
+
+      // Option A: Explicit ack with matching petItemId
+      if (msg.type === 'FeedPetAck' && msg.ok && msg.petItemId === payload.petItemId) {
+        return true;
+      }
+
+      // Option B: Domain event (PetFed)
+      if (msg.type === 'PetFed' && msg.petItemId === payload.petItemId) {
+        return true;
+      }
+
+      // Option C: InventoryDelta removing the crop
+      if (msg.type === 'InventoryDelta' && msg.removed) {
+        if (Array.isArray(msg.removed)) {
+          return msg.removed.some(r => r.id === payload.cropItemId || r === payload.cropItemId);
+        }
+      }
+
+      // Fallback: Check if message JSON contains our IDs (less precise)
+      const msgStr = JSON.stringify(msg);
+      if (msgStr.includes(payload.petItemId) && msgStr.includes(payload.cropItemId)) {
+        console.log('[Feed-Verify] 🔍 Fallback match on IDs in:', msg.type || 'unknown');
+        return true;
+      }
+
+      return false;
+    };
+
+  console.log('[Feed-Debug] 🚀 Sending feed command');
+  await sendFeedPet(petItemId, cropItemId, rcSend);
+
+  const ack = await waitForServer(makePredicate({ type: 'FeedPet', payload: { petItemId, cropItemId } })).catch(() => null);
+
+  if (ack) {
+    console.log('[Feed-Verify] ✅ verified by server event');
+    return { verified: true };
+  }
+
+  console.warn('[Feed-Verify] ❌ no ack/delta in timeout period');
+  return { verified: false };
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -486,5 +689,13 @@ export default {
   checkPetHunger,
   scanAndAlertHungryPets,
   calculateTimeUntilHungry,
-  formatHungerTimer
+  formatHungerTimer,
+
+  // Pet Detection
+  getActivePetsFromRoomState,
+  updateActivePetsFromRoomState,
+
+  // Pet Feeding
+  sendFeedPet,
+  feedPetEnsureSync
 };
