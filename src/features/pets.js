@@ -13,17 +13,20 @@
  * - Pet Detection & State - ~114 lines
  * - Pet Feeding Logic - ~47 lines
  *
- * Phase 3 Extraction (In Progress):
+ * Phase 3 Extraction (Complete):
  * - Pet UI Helper Functions - ~291 lines ✅
  * - Pet Event Handlers (setupPetsTabHandlers) - ~377 lines ✅
- * - Pet Tab Content (~736 lines) - Pending
+ * - Pet Tab Content HTML Generators - ~736 lines ✅
+ *   • getPetsPopoutContent() - ~127 lines
+ *   • setupPetPopoutHandlers() - ~223 lines
+ *   • getPetsTabContent() - ~150 lines
  *
  * Phase 4 (Pending):
  * - Auto-Favorite Integration (~500+ lines)
  * - Magic Garden Helpers (~76 lines)
  *
- * Total Extracted: ~1,248 lines (of ~5,000 estimated)
- * Progress: 24.96%
+ * Total Extracted: ~2,028 lines (of ~5,000 estimated)
+ * Progress: 40.6%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -1371,6 +1374,580 @@ export function setupPetsTabHandlers(context, deps) {
 }
 
 /* ====================================================================================
+ * PET TAB CONTENT HTML GENERATORS (PHASE 3 - CONTINUED)
+ * ====================================================================================
+ */
+
+/**
+ * Generate HTML content for pets popout window
+ * Creates a simplified interface showing active pets and preset selection
+ *
+ * @param {Object} deps - Dependencies object containing:
+ *   - UnifiedState: Global state object
+ *   - calculateTimeUntilHungry: Function to calculate hunger timer
+ *   - formatHungerTimer: Function to format timer display
+ *   - ensurePresetOrder: Function to ensure preset order array exists
+ * @returns {string} HTML content for popout window
+ */
+export function getPetsPopoutContent(deps) {
+  const { UnifiedState, calculateTimeUntilHungry, formatHungerTimer, ensurePresetOrder } = deps;
+
+  // Use multiple sources for pet data (same as updateActivePetsDisplay)
+  const activePets = UnifiedState.atoms.activePets || window.activePets || [];
+  const petPresets = UnifiedState.data.petPresets;
+
+  if (Object.keys(petPresets).length === 0) {
+    return `
+            <div class="mga-section">
+                <div class="mga-section-title mga-pet-section-title">Active Pets</div>
+                <div class="mga-active-pets-display">
+                    ${
+                      activePets.length > 0
+                        ? `
+                        <div style="color: #93c5fd; font-size: 12px; margin-bottom: 4px;">Currently Equipped:</div>
+                        <div class="mga-active-pets-list">
+                            ${activePets
+                              .map((p, index) => {
+                                const timeUntilHungry = calculateTimeUntilHungry(p, UnifiedState);
+                                const timerText = formatHungerTimer(timeUntilHungry);
+                                const timerColor =
+                                  timeUntilHungry === null
+                                    ? '#999'
+                                    : timeUntilHungry <= 0
+                                      ? '#8B0000'
+                                      : timeUntilHungry < 5 * 60 * 1000
+                                        ? '#ff4444'
+                                        : timeUntilHungry < 15 * 60 * 1000
+                                          ? '#ffa500'
+                                          : '#4caf50';
+                                return `
+                                    <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+                                        <span class="mga-pet-badge">${p.petSpecies}</span>
+                                        <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
+                                    </div>
+                                `;
+                              })
+                              .join('')}
+                        </div>
+                    `
+                        : `
+                        <div class="mga-empty-state">
+                            <div class="mga-empty-state-icon">—</div>
+                            <div class="mga-empty-state-description">No pets currently active</div>
+                        </div>
+                    `
+                    }
+                </div>
+            </div>
+            <div class="mga-section">
+                <div class="mga-empty-state" style="padding: 40px 20px;">
+                    <div class="mga-empty-state-icon">📋</div>
+                    <div class="mga-empty-state-title">No Saved Presets</div>
+                    <div class="mga-empty-state-description">
+                        You haven't saved any pet loadout presets yet.<br>
+                        Open the main HUD Pets tab to create presets from your current active pets.
+                    </div>
+                </div>
+            </div>
+        `;
+  }
+
+  let html = `
+        <div class="mga-section">
+            <div class="mga-section-title mga-pet-section-title">Active Pets</div>
+            <div class="mga-active-pets-display">
+                ${
+                  activePets.length > 0
+                    ? `
+                    <div class="mga-active-pets-header">Currently Equipped:</div>
+                    <div class="mga-active-pets-list">
+                        ${activePets
+                          .map((p, index) => {
+                            const timeUntilHungry = calculateTimeUntilHungry(p, UnifiedState);
+                            const timerText = formatHungerTimer(timeUntilHungry);
+                            const timerColor =
+                              timeUntilHungry === null
+                                ? '#999'
+                                : timeUntilHungry <= 0
+                                  ? '#8B0000'
+                                  : timeUntilHungry < 5 * 60 * 1000
+                                    ? '#ff4444'
+                                    : timeUntilHungry < 15 * 60 * 1000
+                                      ? '#ffa500'
+                                      : '#4caf50';
+                            return `
+                                <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+                                    <span class="mga-pet-badge">${p.petSpecies}</span>
+                                    <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
+                                </div>
+                            `;
+                          })
+                          .join('')}
+                    </div>
+                `
+                    : `
+                    <div class="mga-empty-state">
+                        <div class="mga-empty-state-icon">—</div>
+                        <div class="mga-empty-state-description">No pets currently active</div>
+                    </div>
+                `
+                }
+            </div>
+        </div>
+
+        <div class="mga-section">
+            <div class="mga-section-title">Load Pet Preset</div>
+    `;
+
+  // Create clickable preset cards (consistent with main HUD structure) in order
+  ensurePresetOrder(UnifiedState);
+  UnifiedState.data.petPresetsOrder.forEach(name => {
+    if (petPresets[name]) {
+      const pets = petPresets[name];
+      const petList = pets.map(p => p.petSpecies).join(', ');
+      html += `
+                <div class="mga-preset mga-preset-clickable" data-preset="${name}">
+                    <div class="mga-preset-header">
+                        <span class="mga-preset-name">${name}</span>
+                    </div>
+                    <div class="mga-preset-pets">${petList}</div>
+                </div>
+            `;
+    }
+  });
+
+  html += `</div>`;
+  return html;
+}
+
+/**
+ * Setup event handlers for pet popout window
+ * Handles preset card clicks and preset management buttons
+ *
+ * @param {Element} context - DOM context for event binding
+ * @param {Object} deps - Dependencies object containing:
+ *   - UnifiedState: Global state object
+ *   - safeSendMessage: Function to send messages to server
+ *   - updateActivePetsFromRoomState: Function to update pet state
+ *   - refreshSeparateWindowPopouts: Function to refresh popout windows
+ *   - updatePureOverlayContent: Function to update overlay content
+ *   - updateTabContent: Function to update tab content
+ *   - movePreset: Function to move preset in order
+ *   - refreshPresetsList: Function to refresh presets list
+ *   - MGA_saveJSON: Storage save function
+ *   - exportPetPresets: Export function
+ *   - importPetPresets: Import function
+ *   - productionLog: Production logging function
+ *   - productionWarn: Production warning function
+ */
+export function setupPetPopoutHandlers(context, deps) {
+  const {
+    UnifiedState,
+    safeSendMessage,
+    updateActivePetsFromRoomState,
+    refreshSeparateWindowPopouts,
+    updatePureOverlayContent,
+    updateTabContent,
+    movePreset: movePresetFn,
+    refreshPresetsList,
+    MGA_saveJSON,
+    exportPetPresets: exportPetPresetsFn,
+    importPetPresets: importPetPresetsFn,
+    productionLog,
+    productionWarn
+  } = deps;
+
+  // Find all preset cards
+  const cards = context.querySelectorAll('.mga-preset-clickable[data-preset]');
+
+  // Set up preset card handlers - use cloneNode to ensure clean slate
+  cards.forEach((presetCard, index) => {
+    // Clone the node to remove ALL event listeners
+    const newCard = presetCard.cloneNode(true);
+    presetCard.parentNode.replaceChild(newCard, presetCard);
+
+    // Attach fresh handler to the cloned card
+    newCard.addEventListener('click', e => {
+      const presetName = e.currentTarget.dataset.preset;
+
+      if (!presetName || !UnifiedState.data.petPresets[presetName]) {
+        productionWarn('⚠️ Preset not found!');
+        return;
+      }
+
+      const preset = UnifiedState.data.petPresets[presetName];
+      const maxSlots = 3;
+
+      // Native swap approach - works even with full inventory!
+      let delay = 0;
+
+      for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+        const desiredPet = preset[slotIndex];
+
+        // BUGFIX: Capture delay value in closure to prevent race conditions
+        ((currentDelay, slot) => {
+          setTimeout(() => {
+            // BUGFIX: Read FRESH state inside timeout (not stale reference)
+            const currentPets = UnifiedState.atoms.activePets || window.activePets || [];
+            const currentPet = currentPets[slot];
+
+            if (currentPet && desiredPet) {
+              // Check if desired pet is already equipped
+              if (currentPet.id === desiredPet.id) {
+                if (UnifiedState.data.settings?.debugMode) {
+                  productionLog(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
+                }
+                return; // Skip swap, pet already in place
+              }
+
+              // Both exist: Use native SwapPet (no inventory space needed!)
+              if (UnifiedState.data.settings?.debugMode) {
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
+              }
+
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'SwapPet',
+                petSlotId: currentPet.id,
+                petInventoryId: desiredPet.id
+              });
+            } else if (!currentPet && desiredPet) {
+              // Empty slot: Place new pet
+              if (UnifiedState.data.settings?.debugMode) {
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
+              }
+
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'PlacePet',
+                itemId: desiredPet.id,
+                position: { x: 17 + slot * 2, y: 13 },
+                localTileIndex: 64,
+                tileType: 'Boardwalk'
+              });
+            } else if (currentPet && !desiredPet) {
+              // Remove excess pet (preset has fewer pets)
+              if (UnifiedState.data.settings?.debugMode) {
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
+              }
+
+              safeSendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'StorePet',
+                itemId: currentPet.id
+              });
+            }
+          }, currentDelay);
+        })(delay, slotIndex);
+
+        // Increase delay: 100ms → 200ms for better network latency tolerance
+        delay += 200;
+      }
+
+      // Update displays after all pets are placed (single refresh with retry)
+      const refreshPetDisplays = () => {
+        // Force update from room state
+        updateActivePetsFromRoomState();
+
+        // Get the actual window context, whether we're in main window or popout
+        const contextDoc = context.ownerDocument || context;
+        const contextWindow = contextDoc.defaultView || window;
+
+        // Check if this is a separate window popout
+        const isSeparateWindow = contextWindow !== window && contextWindow.refreshPopoutContent;
+
+        if (isSeparateWindow) {
+          // Refresh separate window popout
+          contextWindow.refreshPopoutContent('pets');
+        } else {
+          // It's an in-game overlay or main window - update all popouts
+          refreshSeparateWindowPopouts('pets');
+
+          // Update all overlays
+          UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+            if (overlay && document.contains(overlay) && tabName === 'pets') {
+              if (overlay.className.includes('mga-overlay-content-only')) {
+                updatePureOverlayContent(overlay, tabName);
+              }
+            }
+          });
+
+          // Update main tab if active
+          if (UnifiedState.activeTab === 'pets') {
+            updateTabContent();
+          }
+        }
+      };
+
+      // Refresh after swaps complete + 500ms
+      setTimeout(() => {
+        refreshPetDisplays();
+
+        // Retry handler reattachment after a short delay to ensure reliability
+        setTimeout(() => {
+          const overlay = UnifiedState.data.popouts.overlays.get('pets');
+          if (overlay && document.contains(overlay)) {
+            setupPetPopoutHandlers(overlay, deps);
+          }
+        }, 500);
+      }, delay + 500);
+
+      // Visual feedback - gentle highlight, no transform (prevents stutter)
+      // Temporarily disable pointer events to prevent hover conflicts
+      e.currentTarget.style.pointerEvents = 'none';
+      const originalBackground = e.currentTarget.style.background;
+      e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)';
+      setTimeout(() => {
+        e.currentTarget.style.background = originalBackground;
+        e.currentTarget.style.pointerEvents = '';
+      }, 200);
+    });
+  });
+
+  // Add event delegation for preset action buttons (move-up, move-down, save, place, remove)
+  const presetsContainer = context.querySelector('#presets-list');
+  if (presetsContainer) {
+    // Remove old listener if it exists
+    if (presetsContainer._mgaClickHandler) {
+      presetsContainer.removeEventListener('click', presetsContainer._mgaClickHandler);
+    }
+
+    // Create new handler
+    presetsContainer._mgaClickHandler = e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const action = btn.dataset.action;
+      const presetName = btn.dataset.preset;
+
+      if (action === 'move-up') {
+        movePresetFn(presetName, 'up', context, UnifiedState, MGA_saveJSON, refreshPresetsList, refreshSeparateWindowPopouts, updateTabContent);
+      } else if (action === 'move-down') {
+        movePresetFn(presetName, 'down', context, UnifiedState, MGA_saveJSON, refreshPresetsList, refreshSeparateWindowPopouts, updateTabContent);
+      } else if (action === 'save') {
+        UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
+        MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+        refreshPresetsList(context, UnifiedState, MGA_saveJSON);
+        refreshSeparateWindowPopouts('pets');
+      } else if (action === 'place') {
+        window.debouncedPlacePetPreset(presetName);
+      } else if (action === 'remove') {
+        delete UnifiedState.data.petPresets[presetName];
+        const saveSuccess = MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
+
+        // FIX BUG #2 (v3.8.6): Also delete hotkey when preset is deleted
+        if (UnifiedState.data.petPresetHotkeys[presetName]) {
+          const deletedHotkey = UnifiedState.data.petPresetHotkeys[presetName];
+          delete UnifiedState.data.petPresetHotkeys[presetName];
+          MGA_saveJSON('MGA_petPresetHotkeys', UnifiedState.data.petPresetHotkeys);
+          console.log(`[MGTOOLS-FIX] ✅ Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
+        }
+
+        if (!saveSuccess) {
+          console.error('❌ Failed to save after removing preset');
+          alert('⚠️ Failed to save changes! The preset removal may not persist.');
+        }
+        refreshPresetsList(context, UnifiedState, MGA_saveJSON);
+        refreshSeparateWindowPopouts('pets');
+      }
+    };
+
+    // Add the handler
+    presetsContainer.addEventListener('click', presetsContainer._mgaClickHandler);
+  }
+
+  // === EXPORT/IMPORT BUTTON HANDLERS (v3.8.7) ===
+  const exportBtn = context.querySelector('#export-presets-btn');
+  if (exportBtn && !exportBtn.hasAttribute('data-handler-setup')) {
+    exportBtn.setAttribute('data-handler-setup', 'true');
+    exportBtn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      exportPetPresetsFn(UnifiedState);
+    });
+  }
+
+  const importBtn = context.querySelector('#import-presets-btn');
+  if (importBtn && !importBtn.hasAttribute('data-handler-setup')) {
+    importBtn.setAttribute('data-handler-setup', 'true');
+    importBtn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      importPetPresetsFn(UnifiedState, MGA_saveJSON);
+    });
+  }
+}
+
+/**
+ * Generate HTML content for main pets tab
+ * Creates full pet management interface with presets, quick load, and management controls
+ *
+ * @param {Object} deps - Dependencies object containing:
+ *   - UnifiedState: Global state object
+ *   - calculateTimeUntilHungry: Function to calculate hunger timer
+ *   - formatHungerTimer: Function to format timer display
+ *   - ensurePresetOrder: Function to ensure preset order array exists
+ *   - productionLog: Production logging function
+ * @returns {string} HTML content for main pets tab
+ */
+export function getPetsTabContent(deps) {
+  const { UnifiedState, calculateTimeUntilHungry, formatHungerTimer, ensurePresetOrder, productionLog } = deps;
+
+  // Use multiple sources for pet data (same as updateActivePetsDisplay)
+  const activePets = UnifiedState.atoms.activePets || window.activePets || [];
+  const petPresets = UnifiedState.data.petPresets;
+
+  productionLog('🐾 [PETS-TAB-CONTENT] Generating HTML with pets:', {
+    unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
+    windowActivePets: window.activePets?.length || 0,
+    finalActivePets: activePets.length,
+    activePetsData: activePets
+  });
+
+  // Get cycle presets hotkey status
+  const cycleHotkey = UnifiedState.data.hotkeys?.mgToolsKeys?.cyclePresets?.custom;
+  const totalPresets = Object.keys(petPresets).length;
+
+  let html = `
+        ${
+          totalPresets > 0
+            ? `
+            <div class="mga-section" style="padding: 8px 12px; background: rgba(139, 92, 246, 0.15); border-left: 3px solid #8b5cf6; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 11px; color: #a78bfa; font-weight: 600; margin-bottom: 2px;">🔄 CYCLE PRESETS</div>
+                        <div style="font-size: 10px; color: rgba(255,255,255,0.7);">
+                            ${cycleHotkey ? `Hotkey: <span style="background: rgba(139, 92, 246, 0.4); padding: 1px 6px; border-radius: 3px; font-weight: 600;">${cycleHotkey.toUpperCase()}</span>` : 'No hotkey set'}
+                        </div>
+                    </div>
+                    <button class="mga-btn" id="set-cycle-hotkey-btn" style="padding: 4px 12px; font-size: 11px; white-space: nowrap; background: rgba(139, 92, 246, 0.4); border: 1px solid #8b5cf6;">
+                        ${cycleHotkey ? 'Change' : 'Set Key'}
+                    </button>
+                </div>
+            </div>
+        `
+            : ''
+        }
+        <div class="mga-section">
+            <div class="mga-section-title mga-pet-section-title">Active Pets</div>
+            <div class="mga-active-pets-display">
+                ${
+                  activePets.length > 0
+                    ? `
+                    <div class="mga-active-pets-header">Currently Equipped:</div>
+                    <div class="mga-active-pets-list">
+                        ${activePets
+                          .map((p, index) => {
+                            const timeUntilHungry = calculateTimeUntilHungry(p, UnifiedState);
+                            const timerText = formatHungerTimer(timeUntilHungry);
+                            const timerColor =
+                              timeUntilHungry === null
+                                ? '#999'
+                                : timeUntilHungry <= 0
+                                  ? '#8B0000'
+                                  : timeUntilHungry < 5 * 60 * 1000
+                                    ? '#ff4444'
+                                    : timeUntilHungry < 15 * 60 * 1000
+                                      ? '#ffa500'
+                                      : '#4caf50';
+                            return `
+                                <div class="mga-pet-slot" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+                                    <span class="mga-pet-badge">${p.petSpecies}</span>
+                                    <span class="mga-hunger-timer" data-pet-index="${index}" style="font-size: 12px; color: ${timerColor}; font-weight: bold;">${timerText}</span>
+                                </div>
+                            `;
+                          })
+                          .join('')}
+                    </div>
+                `
+                    : `
+                    <div class="mga-empty-state">
+                        <div class="mga-empty-state-icon">—</div>
+                        <div class="mga-empty-state-description">No pets currently active</div>
+                    </div>
+                `
+                }
+            </div>
+        </div>
+
+        <div class="mga-section">
+            <div class="mga-section-title mga-pet-section-title">Quick Load Preset</div>
+            <select class="mga-select" id="preset-quick-select" style="margin-bottom: 8px;">
+                <option value="">-- Select Preset --</option>
+                ${Object.keys(petPresets)
+                  .map(
+                    name =>
+                      `<option value="${name}">${name} (${petPresets[name].map(p => p.petSpecies).join(', ')})</option>`
+                  )
+                  .join('')}
+            </select>
+            <button class="mga-btn" id="quick-load-btn" style="width: 100%;">Load</button>
+        </div>
+
+        <div class="mga-section">
+            <div class="mga-section-title mga-pet-section-title">Create New Preset</div>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 8px;">
+                <input type="text" class="mga-input" id="preset-name-input" placeholder="Preset name...">
+                <button class="mga-btn" id="add-preset-btn" style="white-space: nowrap; padding: 6px 24px;">Save Current</button>
+            </div>
+        </div>
+
+        <div class="mga-section">
+            <div class="mga-section-title mga-pet-section-title">Manage Presets</div>
+
+            <!-- Export/Import Buttons (v3.8.7) -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <button id="export-presets-btn" class="mga-btn mga-btn-sm" style="flex: 1; background: #10b981; border-color: #059669; padding: 6px 12px;">
+                    📤 Export Backup
+                </button>
+                <button id="import-presets-btn" class="mga-btn mga-btn-sm" style="flex: 1; background: #3b82f6; border-color: #2563eb; padding: 6px 12px;">
+                    📥 Import Backup
+                </button>
+            </div>
+
+            <div id="presets-list" class="mga-scrollable mga-presets-container">
+    `;
+
+  // Display presets in order
+  ensurePresetOrder(UnifiedState);
+  UnifiedState.data.petPresetsOrder.forEach(name => {
+    if (petPresets[name]) {
+      const pets = petPresets[name];
+      const hotkey = UnifiedState.data.petPresetHotkeys[name];
+      html += `
+                <div class="mga-preset">
+                    <div class="mga-preset-header">
+                        <span class="mga-preset-name">${name}</span>
+                        <button class="mga-hotkey-btn" data-preset="${name}" style="margin-left: auto; padding: 2px 8px; font-size: 11px; background: rgba(100, 200, 255, 0.48); border: 1px solid #4a9eff; border-radius: 4px; color: white; cursor: pointer;">
+                            ${hotkey || 'Set Hotkey'}
+                        </button>
+                    </div>
+                    <div class="mga-preset-pets">${pets.map(p => p.petSpecies).join(', ')}</div>
+                    <div class="mga-preset-actions">
+                        <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+                            <button class="mga-btn mga-btn-sm" data-action="move-up" data-preset="${name}" style="background: #6b7280; padding: 4px 8px;">↑</button>
+                            <button class="mga-btn mga-btn-sm" data-action="move-down" data-preset="${name}" style="background: #6b7280; padding: 4px 8px;">↓</button>
+                            <button class="mga-btn mga-btn-sm" data-action="save" data-preset="${name}">Save Current</button>
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="mga-btn mga-btn-sm" data-action="place" data-preset="${name}">Place</button>
+                            <button class="mga-btn mga-btn-sm" data-action="remove" data-preset="${name}">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+    }
+  });
+
+  html += '</div></div>';
+
+  return html;
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -1407,5 +1984,10 @@ export default {
   getDragAfterElement,
   refreshPresetsList,
   addPresetToList,
-  setupPetsTabHandlers
+  setupPetsTabHandlers,
+
+  // Tab Content Generators (Phase 3 - continued)
+  getPetsPopoutContent,
+  setupPetPopoutHandlers,
+  getPetsTabContent
 };
