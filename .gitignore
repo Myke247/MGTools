@@ -68,10 +68,14 @@ NEXT_SESSION*.txt
 *OVERNIGHT*.md
 *_FINDINGS.md
 *_STATUS.md
+*STATUS.md
+!SESSION_STATUS.md
 FINAL_*.md
 INFRASTRUCTURE_*.md
 MODULE_*.md
 V1.*.md
+REALISTIC*.md
+MODULARIZATION_STATUS.md
 
 # Test versions and temp scripts
 test-versions/

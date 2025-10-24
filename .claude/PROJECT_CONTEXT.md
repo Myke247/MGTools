@@ -100,6 +100,18 @@ export function doSomething(UnifiedState, MGA_saveJSON) {
 
 ## 🚫 Git Workflow Rules (CRITICAL)
 
+### Repository Philosophy: ESSENTIAL FILES ONLY
+
+**The git repository should contain ONLY:**
+- ✅ Source code (`src/`, `MGTools.user.js`)
+- ✅ Build scripts (`scripts/`, `build.js`)
+- ✅ Configuration files (`.prettierrc`, `eslint.config.mjs`, `package.json`, `package-lock.json`)
+- ✅ Git hooks (`.husky/`)
+- ✅ Essential documentation (`README.md`, `DEVELOPMENT_WORKFLOW.md`, etc.)
+- ✅ Project context (`.claude/PROJECT_CONTEXT.md`, `SESSION_STATUS.md`)
+
+**NEVER commit conversation/analysis files. They stay LOCAL.**
+
 ### Never Commit These Files
 
 **Git hooks automatically block these patterns:**
@@ -107,9 +119,11 @@ export function doSomething(UnifiedState, MGA_saveJSON) {
 - `*SUMMARY*.md` - Summary documents
 - `*FINDINGS*.md` - Investigation notes
 - `*OVERNIGHT*.md` - Session summaries
-- `*STATUS*.md` - Status tracking
+- `*STATUS*.md` - Status tracking (EXCEPT `SESSION_STATUS.md`)
 - `*HANDOFF*.md` - Handoff documents
+- `REALISTIC*.md` - Conversation files
 - `NEXT_SESSION*.txt` - Session planning
+- `.claude/settings*.json` - Local preferences
 
 **If you create analysis/temp files, they stay LOCAL ONLY.**
 
