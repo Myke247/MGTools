@@ -1,5 +1,27 @@
 # Changelog - MGTools
 
+## Version 1.1.8 (2025-10-23)
+
+**New Features:**
+- Added 15 new black accent color themes
+  - Pure Void, Violet, Amber, Jade, Coral, Steel, Lavender, Mint, Ruby, Cobalt, Bronze, Teal, Magenta, Lime, Indigo
+  - All themes feature dark backgrounds with vibrant accent borders and glows
+  - Total of 31 black accent themes now available
+
+**Bug Fixes:**
+- Fixed opacity slider to work correctly from 0% (fully transparent) to 100% (fully opaque)
+- Removed opacity overboost that was breaking CSS values
+- Fixed hardcoded opacity values in black theme rendering functions
+- Fixed sidebar gradient transparency bug
+- Disabled backdrop-filter blur at 100% opacity for truly solid appearance
+
+**Technical Improvements:**
+- Updated theme application functions to respect user opacity settings
+- Simplified opacity handling for consistent behavior across all themes
+- Added gradient definitions for all new black themes
+
+---
+
 ## Version 1.1.7 (2025-10-23)
 
 **Bug Fixes:**

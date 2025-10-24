@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 1.1.5** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 1.1.8** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-1.1.5-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-1.1.8-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -434,7 +434,9 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v1.1.5)
+### Latest Updates (v1.1.8)
+- **v1.1.8**: New black accent themes + opacity fix - Added 15 new black accent color themes (Pure Void, Violet, Amber, Jade, Coral, Steel, Lavender, Mint, Ruby, Cobalt, Bronze, Teal, Magenta, Lime, Indigo). Fixed opacity slider to work correctly from 0% (fully transparent) to 100% (fully opaque).
+- **v1.1.7**: Shop/Notification/Timers fixed
 - **v1.1.5**: Added Alt+X hotkey for dock position reset - Press Alt+X to instantly reset the dock to its default position on the right side of the screen.
 
 ---
