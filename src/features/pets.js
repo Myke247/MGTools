@@ -35,8 +35,19 @@
  *   • favoritePetAbility() - Favorite pets with specific abilities
  *   • unfavorite* stubs - Preserve existing favorites
  *
- * Total Extracted: ~2,508 lines (of ~5,000 estimated)
- * Progress: 50.2%
+ * Phase 5 (Complete):
+ * - Additional Pet Functions - ~485 lines ✅
+ *   • playPetNotificationSound() - Sound playback
+ *   • placePetPreset() - Load preset with swap logic
+ *   • loadPetPreset() - Alternative preset loader
+ *   • getAllUniquePets() - Extract unique pet species
+ *   • populatePetSpeciesList() - UI population
+ *   • shouldLogAbility() - Ability filtering logic
+ *   • categorizeAbilityToFilterKey() - Ability categorization
+ *   • monitorPetAbilities() - Main ability monitoring (~201 lines)
+ *
+ * Total Extracted: ~2,993 lines (of ~5,000 estimated)
+ * Progress: 59.9%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -2558,6 +2569,488 @@ export function unfavoritePetAbility(abilityName, { productionLog }) {
 }
 
 /* ====================================================================================
+ * PET NOTIFICATION SOUND
+ * ====================================================================================
+ */
+
+/**
+ * Play pet notification sound (delegates to custom or default sound system)
+ * @param {number} volume - Volume level (0-1)
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Function} dependencies.playCustomOrDefaultSound - Sound playback function
+ * @param {Function} dependencies.playGeneralNotificationSound - Fallback sound function
+ */
+export function playPetNotificationSound(volume, { playCustomOrDefaultSound, playGeneralNotificationSound }) {
+  playCustomOrDefaultSound('pet', playGeneralNotificationSound, volume);
+}
+
+/* ====================================================================================
+ * PET PRESET MANAGEMENT
+ * ====================================================================================
+ */
+
+/**
+ * Place a pet preset (load pets from saved preset)
+ * @param {string} presetName - Name of the preset to load
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function placePetPreset(
+  presetName,
+  {
+    UnifiedState,
+    targetWindow,
+    productionLog,
+    productionWarn,
+    safeSendMessage,
+    updateActivePetsFromRoomState,
+    updateTabContent,
+    updatePureOverlayContent,
+    refreshSeparateWindowPopouts
+  }
+) {
+  const preset = UnifiedState.data.petPresets[presetName];
+  if (!preset) {
+    productionWarn(`[PETS] Preset "${presetName}" not found`);
+    return;
+  }
+
+  const maxSlots = 3;
+  let delay = 0;
+
+  for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+    const desiredPet = preset[slotIndex];
+
+    // BUGFIX: Capture delay value in closure to prevent race conditions
+    ((currentDelay, slot) => {
+      setTimeout(() => {
+        // BUGFIX: Read FRESH state inside timeout (not stale reference)
+        const currentPets = UnifiedState.atoms.activePets || targetWindow.activePets || [];
+        const currentPet = currentPets[slot];
+
+        if (currentPet && desiredPet) {
+          // Check if desired pet is already equipped
+          if (currentPet.id === desiredPet.id) {
+            if (UnifiedState.data.settings?.debugMode) {
+              productionLog(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
+            }
+            return;
+          }
+
+          // Both exist: Use native SwapPet
+          if (UnifiedState.data.settings?.debugMode) {
+            productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
+          }
+
+          safeSendMessage({
+            scopePath: ['Room', 'Quinoa'],
+            type: 'SwapPet',
+            petSlotId: currentPet.id,
+            petInventoryId: desiredPet.id
+          });
+        } else if (!currentPet && desiredPet) {
+          // Empty slot: Place new pet
+          if (UnifiedState.data.settings?.debugMode) {
+            productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
+          }
+
+          safeSendMessage({
+            scopePath: ['Room', 'Quinoa'],
+            type: 'PlacePet',
+            itemId: desiredPet.id,
+            position: { x: 17 + slot * 2, y: 13 },
+            localTileIndex: 64,
+            tileType: 'Boardwalk'
+          });
+        } else if (currentPet && !desiredPet) {
+          // Remove excess pet
+          if (UnifiedState.data.settings?.debugMode) {
+            productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
+          }
+
+          safeSendMessage({
+            scopePath: ['Room', 'Quinoa'],
+            type: 'StorePet',
+            itemId: currentPet.id
+          });
+        }
+      }, currentDelay);
+    })(delay, slotIndex);
+
+    delay += 200;
+  }
+
+  // Update all displays after pets are placed
+  const refreshAllPetDisplays = () => {
+    updateActivePetsFromRoomState();
+
+    if (UnifiedState.activeTab === 'pets') {
+      updateTabContent();
+    }
+
+    UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+      if (overlay && document.contains(overlay) && tabName === 'pets') {
+        if (overlay.className.includes('mga-overlay-content-only')) {
+          updatePureOverlayContent(overlay, tabName);
+        }
+      }
+    });
+
+    refreshSeparateWindowPopouts('pets');
+  };
+
+  setTimeout(() => {
+    refreshAllPetDisplays();
+  }, maxSlots * 200 + 500);
+
+  setTimeout(() => {
+    refreshAllPetDisplays();
+  }, 2000);
+}
+
+/**
+ * Load a pet preset (alternative implementation using atomic swaps)
+ * @param {Array} preset - Array of pet objects to load
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function loadPetPreset(preset, { UnifiedState, targetWindow, productionLog, productionWarn, safeSendMessage }) {
+  if (!preset || !Array.isArray(preset)) {
+    productionWarn('[PETS] Invalid preset data');
+    return;
+  }
+
+  productionLog('[PETS] Using SwapPet for atomic swapping');
+
+  preset.forEach((presetPet, i) => {
+    setTimeout(() => {
+      const currentPets = UnifiedState.atoms.activePets || targetWindow.activePets || [];
+      const currentPet = currentPets[i];
+
+      if (currentPet) {
+        if (currentPet.id === presetPet.id) {
+          if (UnifiedState.data.settings?.debugMode) {
+            productionLog(`[PET-SWAP] Slot ${i + 1}: Already equipped (${currentPet.id}), skipping`);
+          }
+          return;
+        }
+
+        if (UnifiedState.data.settings?.debugMode) {
+          productionLog(`[PET-SWAP] Slot ${i + 1}: Swapping ${currentPet.id} → ${presetPet.id}`);
+        }
+
+        safeSendMessage({
+          scopePath: ['Room', 'Quinoa'],
+          type: 'SwapPet',
+          petSlotId: currentPet.id,
+          petInventoryId: presetPet.id
+        });
+      } else {
+        if (UnifiedState.data.settings?.debugMode) {
+          productionLog(`[PET-SWAP] Slot ${i + 1}: Placing ${presetPet.id} (empty slot)`);
+        }
+
+        safeSendMessage({
+          scopePath: ['Room', 'Quinoa'],
+          type: 'PlacePet',
+          itemId: presetPet.id,
+          position: { x: 17 + i * 2, y: 13 },
+          localTileIndex: 64,
+          tileType: 'Boardwalk'
+        });
+      }
+    }, i * 200);
+  });
+
+  productionLog(`✅ [PETS] Loaded pet preset (${preset.length} pets)`);
+}
+
+/* ====================================================================================
+ * PET SPECIES AND ABILITY FILTERING
+ * ====================================================================================
+ */
+
+/**
+ * Get all unique pet species from ability logs
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {Array<string>} Sorted array of unique pet species names
+ */
+export function getAllUniquePets({ UnifiedState }) {
+  const pets = new Set();
+  UnifiedState.data.petAbilityLogs.forEach(log => {
+    if (log.petName && log.petName !== 'Test Pet') {
+      pets.add(log.petName);
+    }
+  });
+  return Array.from(pets).sort();
+}
+
+/**
+ * Populate pet species list UI with checkboxes
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function populatePetSpeciesList({ UnifiedState, targetDocument, MGA_saveJSON, updateAllLogVisibility }) {
+  const container = targetDocument.getElementById('pet-species-list');
+  if (!container) return;
+
+  const pets = getAllUniquePets({ UnifiedState });
+  container.innerHTML = '';
+
+  if (pets.length === 0) {
+    container.innerHTML = '<div style="color: #888; text-align: center;">No pet species found in logs</div>';
+    return;
+  }
+
+  pets.forEach(pet => {
+    const label = targetDocument.createElement('label');
+    label.className = 'mga-checkbox-group';
+    label.style.display = 'block';
+    label.style.marginBottom = '4px';
+
+    const checkbox = targetDocument.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'mga-checkbox';
+    checkbox.checked = UnifiedState.data.petFilters.selectedPets[pet] || false;
+
+    checkbox.addEventListener('change', e => {
+      UnifiedState.data.petFilters.selectedPets[pet] = e.target.checked;
+      MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
+      updateAllLogVisibility();
+    });
+
+    const span = targetDocument.createElement('span');
+    span.className = 'mga-label';
+    span.textContent = ` ${pet}`;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+}
+
+/**
+ * Check if an ability should be logged based on current filter mode
+ * @param {string} abilityType - Type of ability to check
+ * @param {string|null} petName - Name of the pet (optional)
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {boolean} True if ability should be logged
+ */
+export function shouldLogAbility(abilityType, petName, { UnifiedState, categorizeAbilityToFilterKey }) {
+  if (abilityType && (abilityType.includes('ProduceMutationBoost') || abilityType.includes('PetMutationBoost'))) {
+    return false;
+  }
+
+  const mode = UnifiedState.data.filterMode || 'categories';
+
+  if (mode === 'custom') {
+    return UnifiedState.data.customMode.selectedAbilities[abilityType] || false;
+  }
+
+  if (mode === 'byPet') {
+    if (!petName) return false;
+    return UnifiedState.data.petFilters.selectedPets[petName] || false;
+  }
+
+  const category = categorizeAbilityToFilterKey(abilityType, { UnifiedState });
+  return UnifiedState.data.abilityFilters[category] || false;
+}
+
+/**
+ * Categorize an ability type to a filter key
+ * @param {string} abilityType - Type of ability
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {string} Category key
+ */
+export function categorizeAbilityToFilterKey(abilityType, { MGA_AbilityCache }) {
+  if (MGA_AbilityCache.categories.has(abilityType)) {
+    return MGA_AbilityCache.categories.get(abilityType);
+  }
+
+  const cleanType = (abilityType || '').toLowerCase();
+
+  let category = 'other';
+  if (cleanType.includes('xp') && cleanType.includes('boost')) category = 'xpBoost';
+  else if (cleanType.includes('hatch') && cleanType.includes('xp')) category = 'xpBoost';
+  else if (cleanType.includes('crop') && (cleanType.includes('size') || cleanType.includes('scale')))
+    category = 'cropSizeBoost';
+  else if (cleanType.includes('sell') && cleanType.includes('boost')) category = 'selling';
+  else if (cleanType.includes('refund')) category = 'selling';
+  else if (cleanType.includes('double') && cleanType.includes('harvest')) category = 'harvesting';
+  else if (cleanType.includes('growth') && cleanType.includes('boost')) category = 'growthSpeed';
+  else if (cleanType.includes('rainbow') || cleanType.includes('gold')) category = 'specialMutations';
+
+  MGA_AbilityCache.categories.set(abilityType, category);
+  return category;
+}
+
+/* ====================================================================================
+ * PET ABILITY MONITORING
+ * ====================================================================================
+ */
+
+/**
+ * Monitor pet abilities and log new triggers
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function monitorPetAbilities({
+  UnifiedState,
+  targetWindow,
+  productionLog,
+  MGA_debouncedSave,
+  MGA_manageLogMemory,
+  formatTimestamp,
+  normalizeAbilityName,
+  getGardenCropIfUnique,
+  playAbilityNotificationSound,
+  showNotificationToast,
+  updateAllAbilityLogDisplays,
+  updateTabContent,
+  pendingAbilityUpdates
+}) {
+  if (!UnifiedState.atoms.petAbility || !UnifiedState.atoms.activePets) return;
+
+  let hasNewAbility = false;
+
+  UnifiedState.atoms.activePets.forEach((pet, index) => {
+    if (!pet || !pet.id) return;
+
+    const abilityData = UnifiedState.atoms.petAbility[pet.id];
+    if (!abilityData || !abilityData.lastAbilityTrigger) return;
+
+    const trigger = abilityData.lastAbilityTrigger;
+    const currentTimestamp = trigger.performedAt;
+
+    if (!currentTimestamp || pet.hunger === 0) {
+      productionLog(`🚫 [ABILITY-SKIP] Pet ${pet.petSpecies} unfed (hunger: ${pet.hunger}) - skipping ability log`);
+      return;
+    }
+
+    if (!trigger.abilityId || trigger.abilityId === 'Unknown' || trigger.abilityId === '') {
+      productionLog(`🚫 [ABILITY-SKIP] Invalid ability ID for ${pet.petSpecies} - likely unfed pet notification`);
+      return;
+    }
+
+    if (!UnifiedState.data.lastAbilityTimestamps) {
+      UnifiedState.data.lastAbilityTimestamps = {};
+    }
+
+    const lastKnown = UnifiedState.data.lastAbilityTimestamps[pet.id];
+
+    if (lastKnown === currentTimestamp) {
+      return;
+    }
+
+    if (lastKnown && Math.abs(currentTimestamp - lastKnown) < 3000) {
+      if (UnifiedState.data.settings?.debugMode) {
+        productionLog(
+          `🚫 [ABILITY-SKIP] ${pet.petSpecies} - Timestamp too close to last (${Math.abs(currentTimestamp - lastKnown)}ms)`
+        );
+      }
+      return;
+    }
+
+    const isDuplicate = UnifiedState.data.petAbilityLogs
+      .slice(0, 10)
+      .some(log => log.timestamp === currentTimestamp && log.petName && log.petName.includes(pet.petSpecies));
+
+    if (isDuplicate) {
+      if (UnifiedState.data.settings?.debugMode) {
+        productionLog(`🚫 [ABILITY-SKIP] ${pet.petSpecies} - Already in recent logs (duplicate prevention)`);
+      }
+      return;
+    }
+
+    UnifiedState.data.lastAbilityTimestamps[pet.id] = currentTimestamp;
+    hasNewAbility = true;
+
+    MGA_debouncedSave('MGA_lastAbilityTimestamps', UnifiedState.data.lastAbilityTimestamps);
+
+    const enrichedData = trigger.data ? { ...trigger.data } : {};
+
+    const abilityId = trigger.abilityId || '';
+    if (abilityId.includes('Granter') && !enrichedData.cropName) {
+      const currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
+      if (currentCrop && currentCrop[0]?.species) {
+        enrichedData.cropName = currentCrop[0].species;
+      } else {
+        const uniqueCrop = getGardenCropIfUnique();
+        if (uniqueCrop) {
+          enrichedData.cropName = uniqueCrop;
+        }
+      }
+    }
+
+    let displayName = pet.petSpecies || `Pet ${index + 1}`;
+    if (pet.name && pet.name !== pet.petSpecies) {
+      displayName = `${pet.name} (${pet.petSpecies || 'Pet'})`;
+    }
+
+    const rawAbilityType = trigger.abilityId || 'Unknown Ability';
+    const normalizedAbilityType = normalizeAbilityName(rawAbilityType);
+
+    const abilityLog = {
+      petName: displayName,
+      abilityType: normalizedAbilityType,
+      timestamp: currentTimestamp,
+      timeString: formatTimestamp(currentTimestamp),
+      data: Object.keys(enrichedData).length > 0 ? enrichedData : null
+    };
+
+    UnifiedState.data.petAbilityLogs.unshift(abilityLog);
+    UnifiedState.data.petAbilityLogs = MGA_manageLogMemory(UnifiedState.data.petAbilityLogs);
+
+    const clearSession = localStorage.getItem('MGA_logs_clear_session');
+    if (!clearSession || Date.now() - parseInt(clearSession, 10) > 86400000) {
+      MGA_debouncedSave('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
+    }
+
+    if (UnifiedState.data.settings.notifications.abilityNotificationsEnabled) {
+      const abilityType = trigger.abilityId || '';
+
+      if (abilityType && (abilityType.includes('ProduceMutationBoost') || abilityType.includes('PetMutationBoost'))) {
+        return;
+      }
+
+      const watchedAbilities = UnifiedState.data.settings.notifications.watchedAbilities || [];
+
+      let shouldNotify = false;
+      if (watchedAbilities.length === 0) {
+        shouldNotify = true;
+      } else if (watchedAbilities.includes('__NONE__')) {
+        shouldNotify = false;
+      } else {
+        shouldNotify = watchedAbilities.includes(abilityType);
+      }
+
+      if (shouldNotify) {
+        const displayAbilityName = normalizeAbilityName(abilityType);
+        productionLog(`🎯 [ABILITY-NOTIFY] ${abilityLog.petName} triggered ${displayAbilityName}`);
+
+        const abilityVolume = UnifiedState.data.settings.notifications.abilityNotificationVolume || 0.2;
+        playAbilityNotificationSound(abilityVolume);
+        showNotificationToast(`✨ ${abilityLog.petName}: ${displayAbilityName}`, 'success');
+      }
+    }
+  });
+
+  if (hasNewAbility && document.visibilityState === 'visible') {
+    if (!pendingAbilityUpdates.value) {
+      pendingAbilityUpdates.value = true;
+
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          updateAllAbilityLogDisplays();
+
+          if (UnifiedState.activeTab === 'abilities') {
+            updateTabContent();
+          }
+
+          pendingAbilityUpdates.value = false;
+        });
+      }, 500);
+    }
+  }
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -2615,5 +3108,15 @@ export default {
   favoriteMutation,
   unfavoriteMutation,
   favoritePetAbility,
-  unfavoritePetAbility
+  unfavoritePetAbility,
+
+  // Additional Pet Functions (Phase 5)
+  playPetNotificationSound,
+  placePetPreset,
+  loadPetPreset,
+  getAllUniquePets,
+  populatePetSpeciesList,
+  shouldLogAbility,
+  categorizeAbilityToFilterKey,
+  monitorPetAbilities
 };
