@@ -2,7 +2,7 @@
 
 **Version 1.1.8** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-1.1.8-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-1.1.8-blue) ![Status](https://img.shields.io/badge/status-stable-green)
 
 ---
 

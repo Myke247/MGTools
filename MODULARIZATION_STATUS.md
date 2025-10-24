@@ -2,7 +2,7 @@
 
 **Updated:** 2025-10-23
 **Current Version:** v1.1.8
-**Branch:** Live-Beta
+**Branch:** main
 
 ---
 
@@ -143,7 +143,7 @@ const modules = [
 
 ### **For Users:**
 
-1. **v1.1.5 is deployed** - Latest fixes available now
+1. **v1.1.8 is deployed** - Latest fixes available now
 2. **No waiting for modularization** - Users get updates immediately
 3. **No risk** - Monolith is tested and stable
 
@@ -220,5 +220,5 @@ const modules = [
 ---
 
 **Status:** Build system verified ✅
-**Deployment:** v1.1.5 live ✅
+**Deployment:** v1.1.8 live ✅
 **Next:** Extract features incrementally 📋
