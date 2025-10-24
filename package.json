@@ -4,16 +4,18 @@
   "description": "MGTools - All-in-one assistant for Magic Garden with beautiful unified UI",
   "main": "MGTools.user.js",
   "scripts": {
-    "lint": "eslint MGTools.user.js",
-    "lint:fix": "eslint MGTools.user.js --fix",
-    "format": "prettier --write MGTools.user.js",
-    "format:check": "prettier --check MGTools.user.js",
+    "lint": "eslint MGTools.user.js \"src/**/*.js\" \"scripts/**/*.mjs\"",
+    "lint:fix": "eslint MGTools.user.js \"src/**/*.js\" \"scripts/**/*.mjs\" --fix",
+    "format": "prettier --write \"MGTools.user.js\" \"src/**/*.js\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --check \"MGTools.user.js\" \"src/**/*.js\" \"scripts/**/*.mjs\"",
     "syntax": "node -c MGTools.user.js",
     "style": "npm run lint:fix && npm run format",
+    "precommit": "npm run style && npm run build:esbuild",
     "build": "node build.js",
     "build:check": "node build.js && echo 'Build complete'",
     "build:esbuild": "node scripts/build-esbuild.mjs",
-    "hash": "node scripts/hash-compare.mjs"
+    "hash": "node scripts/hash-compare.mjs",
+    "prepare": "husky"
   },
   "keywords": [
     "magic-garden",
@@ -37,6 +39,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "husky": "^9.1.7",
     "prettier": "^3.6.2"
   }
 }

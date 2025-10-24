@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Read the commit message
+commit_msg=$(cat "$1")
+
+# Check if commit message follows conventional format
+if ! echo "$commit_msg" | grep -qE '^(feat|fix|docs|refactor|test|chore|Phase|Merge|Revert):'; then
+  echo "❌ ERROR: Invalid commit message format!"
+  echo ""
+  echo "Commit messages must start with one of:"
+  echo "  - feat:     New feature"
+  echo "  - fix:      Bug fix"
+  echo "  - docs:     Documentation changes"
+  echo "  - refactor: Code refactoring"
+  echo "  - test:     Test changes"
+  echo "  - chore:    Build/tooling changes"
+  echo "  - Phase:    Modularization phase work"
+  echo ""
+  echo "Your message: $commit_msg"
+  exit 1
+fi
+
+# Success
+exit 0

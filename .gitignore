@@ -44,8 +44,10 @@ handoff.md
 message*.txt
 
 # Handoff/Session documents (AI collaboration - keep local only)
+# EXCEPTION: SESSION_STATUS.md is committed (tracks current state)
 *HANDOFF*.md
-*SESSION*.md
+*_SESSION*.md
+NEXT_SESSION*.txt
 *CRITICAL*.md
 *STRATEGIC*.md
 *PHASE*.md
@@ -60,6 +62,17 @@ message*.txt
 *Issue*.md
 *MODULARIZATION_PROGRESS*.md
 
+# Analysis and temporary files (never commit)
+*AUDIT*.md
+*_SUMMARY.md
+*OVERNIGHT*.md
+*_FINDINGS.md
+*_STATUS.md
+FINAL_*.md
+INFRASTRUCTURE_*.md
+MODULE_*.md
+V1.*.md
+
 # Test versions
 test-versions/
 
@@ -71,4 +84,4 @@ complete-*.json
 
 # Internal directories
 .ops/
-.claude/
+# Note: .claude/ is committed (contains PROJECT_CONTEXT.md)
