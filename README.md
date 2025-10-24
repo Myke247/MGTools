@@ -1,8 +1,8 @@
 # MGTools - Magic Garden Assistant
 
-**Version 1.1.9** | All-in-one assistant for Magic Garden with a beautiful unified UI
+**Version 2.0.0** | All-in-one assistant for Magic Garden with a beautiful unified UI
 
-![MGTools](https://img.shields.io/badge/version-1.1.9-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
+![MGTools](https://img.shields.io/badge/version-2.0.0-blue) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 ---
 
@@ -434,7 +434,8 @@ MGTools works when playing Magic Garden through **Discord's activity embed**, bu
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-### Latest Updates (v1.1.9)
+### Latest Updates (v2.0.0)
+- **v2.0.0**: Pet auto-favorite fixes + Micro/Mini dock sizes - Fixed pet auto-favorite checkboxes not persisting state and pets not being favorited correctly. Added 2 new smaller dock sizes (Micro and Mini) for 6 total size options. Enhanced debug logging for troubleshooting. BREAKING: Dock size order now Micro → Mini → Tiny → Small → Medium → Large.
 - **v1.1.9**: Shop loading fix + pet auto-favorite + FPS optimization - Fixed shop showing empty data on first load with smart loading state. Added auto-favorite in VALUES tab for pets with Rainbow/Gold Granter abilities (based on mutations). Removed unnecessary console.logs for improved performance.
 - **v1.1.8**: New black accent themes + opacity fix - Added 15 new black accent color themes (Pure Void, Violet, Amber, Jade, Coral, Steel, Lavender, Mint, Ruby, Cobalt, Bronze, Teal, Magenta, Lime, Indigo). Fixed opacity slider to work correctly from 0% (fully transparent) to 100% (fully opaque).
 - **v1.1.7**: Shop/Notification/Timers fixed
