@@ -10,7 +10,7 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 65.3% complete (3,266 of ~5,000 lines extracted)
+**Progress:** 67.9% complete (3,395 of ~5,000 lines extracted)
 
 ---
 
@@ -18,7 +18,23 @@
 
 ### Session: 2025-10-24 (Day 2 - Continued Extraction)
 
-**Latest Work (Session 3):**
+**Latest Work (Session 4):**
+- ✅ Extracted Ability Log Management (~129 lines)
+  - `KNOWN_ABILITY_TYPES` - Constant array of all known abilities (~40 lines)
+  - `isKnownAbilityType()` - Ability type validation
+  - `initAbilityCache()` - Cache initialization with cleanup (~15 lines)
+  - `MGA_manageLogMemory()` - Log archiving to storage (~18 lines)
+  - `MGA_getAllLogs()` - Retrieve memory + archived logs (~11 lines)
+  - `categorizeAbility()` - Alternative categorization logic (~16 lines)
+  - `formatLogData()` - Format log data objects for display
+  - `formatRelativeTime()` - Relative time formatting (ago format)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build now 226.6 KB (grew from 221.4 KB)
+
+**Progress:** From 65.3% → 67.9% (+2.6%)
+
+**Earlier Work (Session 3):**
 - ✅ Extracted Ability Log Utilities (~273 lines)
   - `getAllUniqueAbilities()` - Extract unique abilities from logs
   - `populateIndividualAbilities()` - UI population with checkboxes (~40 lines)
@@ -97,7 +113,7 @@
 
 ## 📊 Pet Feature Extraction Progress
 
-### Extracted (3,266 lines)
+### Extracted (3,395 lines)
 
 **Phase 1: Foundation** ✅
 - Pet Presets (import/export) - ~99 lines
@@ -145,8 +161,17 @@
   - normalizeAbilityName() - Name formatting
   - formatTimestamp() - Cached formatting
   - getGardenCropIfUnique() - Single-crop detection
+- Ability Log Management - ~129 lines ✅
+  - KNOWN_ABILITY_TYPES - All known ability types
+  - isKnownAbilityType() - Validation
+  - initAbilityCache() - Cache initialization
+  - MGA_manageLogMemory() - Log archiving
+  - MGA_getAllLogs() - Retrieve all logs
+  - categorizeAbility() - Alternative categorization
+  - formatLogData() - Data formatting
+  - formatRelativeTime() - Relative time
 
-### Remaining (1,734 lines)
+### Remaining (1,605 lines)
 
 **Phase 5: Additional Pet Features**
 - ⏳ Additional pet functions (~2,492 lines)
@@ -199,7 +224,7 @@
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 221.4 KB (growing as features extract)
+- Size: 226.6 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -263,8 +288,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Scan for remaining ~1,734 lines of pet code
-- Progress: 65.3% (3,266/5,000 lines extracted) - Past 65%!
+- Next: Scan for remaining ~1,605 lines of pet code
+- Progress: 67.9% (3,395/5,000 lines extracted) - Nearly 70%!
 
 **Remember:**
 - Use dependency injection (no globals!)
