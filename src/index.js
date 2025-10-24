@@ -65,10 +65,19 @@ import * as RoomPollCtl from './controller/room-poll.js';
 import * as AppCore from './controller/app-core.js';
 import * as Bootstrap from './init/bootstrap.js';
 
+// ===== Feature modules (Phase 4 extraction) =====
+import * as Pets from './features/pets.js';
+
 // Assemble a single object for optional testing in the esbuild artifact
 export const MGTools = {
+  // Infrastructure (Phase 3B)
   Storage, CONFIG, Log, Compat, Network, State, UI, VersionUI, ConnUI,
-  VersionCtl, InputsCtl, RoomPollCtl, AppCore, Bootstrap
+  VersionCtl, InputsCtl, RoomPollCtl, AppCore, Bootstrap,
+
+  // Features (Phase 4 - Initial)
+  Features: {
+    Pets
+  }
 };
 
 // Optional local test hook (ESBUILD ARTIFACT ONLY):
