@@ -20,13 +20,18 @@
  *   • getPetsPopoutContent() - ~127 lines
  *   • setupPetPopoutHandlers() - ~223 lines
  *   • getPetsTabContent() - ~150 lines
+ * - Pet Ability Calculation Helpers - ~176 lines ✅
+ *   • getTurtleExpectations() - Growth boost calculations
+ *   • estimateUntilLatestCrop() - Crop timing with turtle boost
+ *   • getAbilityExpectations() - Generic ability calculator
+ *   • getEggExpectations() - Egg growth boost
+ *   • getGrowthExpectations() - Plant growth boost
  *
  * Phase 4 (Pending):
  * - Auto-Favorite Integration (~500+ lines)
- * - Magic Garden Helpers (~76 lines)
  *
- * Total Extracted: ~2,028 lines (of ~5,000 estimated)
- * Progress: 40.6%
+ * Total Extracted: ~2,204 lines (of ~5,000 estimated)
+ * Progress: 44.1%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -361,7 +366,7 @@ export function scanAndAlertHungryPets(UnifiedState, playPetNotificationSound, s
 
       // Alert for any pet currently below threshold
       if (hungerPercent < thresholdPercent) {
-        hungryCount++;
+        hungryCount += 1;
         console.log(
           `🐾 [PET-HUNGER] Initial scan: ${petName} needs feeding! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`
         );
@@ -629,7 +634,14 @@ export async function sendFeedPet(petItemId, cropItemId, rcSend) {
  * @param {boolean} enableDebugPeek - Enable debug message peeking
  * @returns {Promise<Object>} Verification result {verified: boolean}
  */
-export async function feedPetEnsureSync(petItemId, cropItemId, petIndex, rcSend, waitForServer, enableDebugPeek = false) {
+export async function feedPetEnsureSync(
+  petItemId,
+  cropItemId,
+  petIndex,
+  rcSend,
+  waitForServer,
+  _enableDebugPeek = false
+) {
   // Predicate matching server events that confirm feed success
   const makePredicate =
     ({ payload }) =>
@@ -666,7 +678,9 @@ export async function feedPetEnsureSync(petItemId, cropItemId, petIndex, rcSend,
   console.log('[Feed-Debug] 🚀 Sending feed command');
   await sendFeedPet(petItemId, cropItemId, rcSend);
 
-  const ack = await waitForServer(makePredicate({ type: 'FeedPet', payload: { petItemId, cropItemId } })).catch(() => null);
+  const ack = await waitForServer(makePredicate({ type: 'FeedPet', payload: { petItemId, cropItemId } })).catch(
+    () => null
+  );
 
   if (ack) {
     console.log('[Feed-Verify] ✅ verified by server event');
@@ -725,7 +739,13 @@ export function updatePetPresetDropdown(context, UnifiedState, targetDocument) {
  * @param {Function} formatHungerTimer - Timer formatting function
  * @param {number} retryCount - Retry counter
  */
-export function updateActivePetsDisplay(context, UnifiedState, calculateTimeUntilHungry, formatHungerTimer, retryCount = 0) {
+export function updateActivePetsDisplay(
+  context,
+  UnifiedState,
+  calculateTimeUntilHungry,
+  formatHungerTimer,
+  retryCount = 0
+) {
   // Only log in debug mode to reduce console spam
   if (UnifiedState.data.settings?.debugMode) {
     console.log('🐾 [ACTIVE-PETS] Updating display', {
@@ -744,7 +764,10 @@ export function updateActivePetsDisplay(context, UnifiedState, calculateTimeUnti
     if (UnifiedState.data.settings?.debugMode) {
       console.log(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
     }
-    setTimeout(() => updateActivePetsDisplay(context, UnifiedState, calculateTimeUntilHungry, formatHungerTimer, retryCount + 1), 100 * (retryCount + 1));
+    setTimeout(
+      () => updateActivePetsDisplay(context, UnifiedState, calculateTimeUntilHungry, formatHungerTimer, retryCount + 1),
+      100 * (retryCount + 1)
+    );
     return;
   }
 
@@ -831,7 +854,16 @@ export function ensurePresetOrder(UnifiedState) {
  * @param {Function} refreshSeparateWindowPopouts - Refresh popouts function
  * @param {Function} updateTabContent - Update tab content function
  */
-export function movePreset(presetName, direction, context, UnifiedState, MGA_saveJSON, refreshPresetsList, refreshSeparateWindowPopouts, updateTabContent) {
+export function movePreset(
+  presetName,
+  direction,
+  context,
+  UnifiedState,
+  MGA_saveJSON,
+  refreshPresetsList,
+  refreshSeparateWindowPopouts,
+  updateTabContent
+) {
   console.log(`🚨 [CRITICAL] movePreset called: ${presetName} ${direction}`);
   console.log(`🚨 [CRITICAL] Current order:`, UnifiedState.data.petPresetsOrder);
   ensurePresetOrder(UnifiedState);
@@ -925,9 +957,9 @@ export function refreshPresetsList(context, UnifiedState, MGA_saveJSON) {
  * @param {string} name - Preset name
  * @param {Array} preset - Preset pets array
  * @param {Object} UnifiedState - Global state object
- * @param {Function} MGA_saveJSON - Storage save function
+ * @param {Function} _MGA_saveJSON - Storage save function (unused, reserved for future)
  */
-export function addPresetToList(context, name, preset, UnifiedState, MGA_saveJSON) {
+export function addPresetToList(context, name, preset, UnifiedState, _MGA_saveJSON) {
   const presetsList = context.querySelector('#presets-list');
   if (!presetsList) return;
 
@@ -1009,7 +1041,6 @@ export function setupPetsTabHandlers(context, deps) {
     updateActivePetsDisplay: updateActivePetsDisplayFn,
     updatePureOverlayContent,
     startRecordingHotkeyMGTools,
-    MGA_safeSave,
     debouncedPlacePetPreset,
     calculateTimeUntilHungry,
     formatHungerTimer,
@@ -1044,10 +1075,28 @@ export function setupPetsTabHandlers(context, deps) {
 
       if (action === 'move-up') {
         console.log(`🚨 [CRITICAL] Moving ${presetName} UP`);
-        movePreset(presetName, 'up', context, UnifiedState, MGA_saveJSON, refreshPresetsList, refreshSeparateWindowPopouts, () => {});
+        movePreset(
+          presetName,
+          'up',
+          context,
+          UnifiedState,
+          MGA_saveJSON,
+          refreshPresetsList,
+          refreshSeparateWindowPopouts,
+          () => {}
+        );
       } else if (action === 'move-down') {
         console.log(`🚨 [CRITICAL] Moving ${presetName} DOWN`);
-        movePreset(presetName, 'down', context, UnifiedState, MGA_saveJSON, refreshPresetsList, refreshSeparateWindowPopouts, () => {});
+        movePreset(
+          presetName,
+          'down',
+          context,
+          UnifiedState,
+          MGA_saveJSON,
+          refreshPresetsList,
+          refreshSeparateWindowPopouts,
+          () => {}
+        );
       } else if (action === 'save') {
         console.log(`🚨 [CRITICAL] Saving preset ${presetName}`);
         UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
@@ -1561,7 +1610,7 @@ export function setupPetPopoutHandlers(context, deps) {
   const cards = context.querySelectorAll('.mga-preset-clickable[data-preset]');
 
   // Set up preset card handlers - use cloneNode to ensure clean slate
-  cards.forEach((presetCard, index) => {
+  cards.forEach(presetCard => {
     // Clone the node to remove ALL event listeners
     const newCard = presetCard.cloneNode(true);
     presetCard.parentNode.replaceChild(newCard, presetCard);
@@ -1724,9 +1773,27 @@ export function setupPetPopoutHandlers(context, deps) {
       const presetName = btn.dataset.preset;
 
       if (action === 'move-up') {
-        movePresetFn(presetName, 'up', context, UnifiedState, MGA_saveJSON, refreshPresetsList, refreshSeparateWindowPopouts, updateTabContent);
+        movePresetFn(
+          presetName,
+          'up',
+          context,
+          UnifiedState,
+          MGA_saveJSON,
+          refreshPresetsList,
+          refreshSeparateWindowPopouts,
+          updateTabContent
+        );
       } else if (action === 'move-down') {
-        movePresetFn(presetName, 'down', context, UnifiedState, MGA_saveJSON, refreshPresetsList, refreshSeparateWindowPopouts, updateTabContent);
+        movePresetFn(
+          presetName,
+          'down',
+          context,
+          UnifiedState,
+          MGA_saveJSON,
+          refreshPresetsList,
+          refreshSeparateWindowPopouts,
+          updateTabContent
+        );
       } else if (action === 'save') {
         UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
         MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
@@ -1948,6 +2015,186 @@ export function getPetsTabContent(deps) {
 }
 
 /* ====================================================================================
+ * PET ABILITY CALCULATION HELPERS (GAME-SPECIFIC)
+ * ====================================================================================
+ */
+
+/**
+ * Calculate expected time reduction from Turtle pets with Plant Growth Boost II
+ * @param {Array} activePets - Array of active pet objects
+ * @param {Object} UnifiedState - Global state object (for debug logging)
+ * @param {Function} logDebug - Debug logging function
+ * @returns {Object} Object with expectedMinutesRemoved property
+ */
+export function getTurtleExpectations(activePets, UnifiedState, logDebug) {
+  // Debug: Only log when debug mode is enabled
+  if (UnifiedState?.data?.settings?.debugMode && logDebug) {
+    logDebug('TURTLE', 'Checking active pets:', {
+      petsCount: activePets?.length || 0,
+      pets: (activePets || []).map(p => ({
+        species: p?.petSpecies,
+        hunger: p?.hunger,
+        abilities: p?.abilities
+      }))
+    });
+  }
+
+  const turtles = (activePets || []).filter(
+    p =>
+      p &&
+      p.petSpecies === 'Turtle' &&
+      p.hunger > 0 &&
+      p.abilities?.some(
+        a =>
+          a === 'Plant Growth Boost II' ||
+          a === 'PlantGrowthBoostII' ||
+          a === 'Plant Growth Boost 2' ||
+          (typeof a === 'string' &&
+            a.toLowerCase().includes('plant') &&
+            a.toLowerCase().includes('growth') &&
+            (a.includes('II') || a.includes('2')))
+      )
+  );
+
+  if (UnifiedState?.data?.settings?.debugMode && logDebug) {
+    logDebug('TURTLE', 'Filtered turtles:', {
+      turtleCount: turtles.length,
+      turtles: turtles.map(t => ({
+        species: t.petSpecies,
+        hunger: t.hunger,
+        abilities: t.abilities,
+        xp: t.xp,
+        targetScale: t.targetScale
+      }))
+    });
+  }
+
+  let expectedMinutesRemoved = 0;
+
+  turtles.forEach(p => {
+    const xpComponent = Math.min(Math.floor(((p.xp || 0) / (100 * 3600)) * 30), 30);
+    const scaleComponent = Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) - 30;
+    const base = xpComponent + scaleComponent;
+    const minutesRemoved = (base / 100) * 5 * 60 * (1 - Math.pow(1 - (0.27 * base) / 100, 1 / 60));
+
+    if (UnifiedState?.data?.settings?.debugMode && logDebug) {
+      logDebug('TURTLE', 'Turtle calculation:', {
+        xp: p.xp,
+        targetScale: p.targetScale,
+        xpComponent,
+        scaleComponent,
+        base,
+        minutesRemoved
+      });
+    }
+
+    expectedMinutesRemoved += minutesRemoved;
+  });
+
+  if (UnifiedState?.data?.settings?.debugMode && logDebug) {
+    logDebug('TURTLE', 'Total expected minutes removed:', expectedMinutesRemoved);
+  }
+
+  return {
+    expectedMinutesRemoved
+  };
+}
+
+/**
+ * Estimate real-time until crop matures with turtle growth boost applied
+ * @param {Array} currentCrop - Array of crop objects with endTime
+ * @param {Array} activePets - Array of active pet objects
+ * @param {number|null} slotIndex - Optional slot index to target specific crop
+ * @param {Object} UnifiedState - Global state object (for debug logging)
+ * @param {Function} logError - Error logging function
+ * @returns {string|null} Formatted time string like "5h 30m" or null
+ */
+export function estimateUntilLatestCrop(currentCrop, activePets, slotIndex, UnifiedState, logError) {
+  try {
+    if (!currentCrop || currentCrop.length === 0) return null;
+    if (!activePets || activePets.length === 0) return null;
+
+    const turtleExpectations = getTurtleExpectations(activePets, UnifiedState, null);
+    if (!turtleExpectations || turtleExpectations.expectedMinutesRemoved === 0) {
+      return null;
+    }
+
+    const now = Date.now();
+
+    // If slotIndex provided and valid, use that slot's endTime
+    // Otherwise use the latest crop's endTime
+    let targetEndTime;
+    if (slotIndex !== null && slotIndex >= 0 && slotIndex < currentCrop.length) {
+      targetEndTime = currentCrop[slotIndex]?.endTime || 0;
+    } else {
+      targetEndTime = Math.max(...currentCrop.map(c => c.endTime || 0));
+    }
+
+    if (targetEndTime <= now) return null; // Crop already mature
+
+    const remainingRealMinutes = (targetEndTime - now) / (1000 * 60);
+    const { expectedMinutesRemoved } = turtleExpectations;
+    const effectiveRate = expectedMinutesRemoved + 1;
+    const expectedRealMinutes = remainingRealMinutes / effectiveRate;
+
+    const hours = Math.floor(expectedRealMinutes / 60);
+    const minutes = Math.floor(expectedRealMinutes % 60);
+
+    return `${hours}h ${minutes}m`;
+  } catch (error) {
+    if (logError) {
+      logError('TURTLE', 'ERROR in estimateUntilLatestCrop:', error);
+    }
+    return null;
+  }
+}
+
+/**
+ * Generic ability expectations calculator
+ * @param {Array} activePets - Array of active pet objects
+ * @param {string} abilityName - Name of the ability to check for
+ * @param {number} minutesPerBase - Base minutes per tick (default 5)
+ * @param {number} odds - Ability odds (default 0.27)
+ * @returns {Object} Object with expectedMinutesRemoved property
+ */
+export function getAbilityExpectations(activePets, abilityName, minutesPerBase = 5, odds = 0.27) {
+  const pets = (activePets || []).filter(p => p && p.hunger > 0 && p.abilities?.some(a => a === abilityName));
+
+  let expectedMinutesRemoved = 0;
+
+  pets.forEach(p => {
+    const base =
+      Math.min(Math.floor(((p.xp || 0) / (100 * 3600)) * 30), 30) +
+      Math.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) -
+      30;
+
+    expectedMinutesRemoved += (base / 100) * minutesPerBase * 60 * (1 - Math.pow(1 - (odds * base) / 100, 1 / 60));
+  });
+
+  return {
+    expectedMinutesRemoved
+  };
+}
+
+/**
+ * Calculate expected time reduction from Egg Growth Boost II pets
+ * @param {Array} activePets - Array of active pet objects
+ * @returns {Object} Object with expectedMinutesRemoved property
+ */
+export function getEggExpectations(activePets) {
+  return getAbilityExpectations(activePets, 'EggGrowthBoostII', 10, 0.24);
+}
+
+/**
+ * Calculate expected time reduction from Plant Growth Boost II pets
+ * @param {Array} activePets - Array of active pet objects
+ * @returns {Object} Object with expectedMinutesRemoved property
+ */
+export function getGrowthExpectations(activePets) {
+  return getAbilityExpectations(activePets, 'PlantGrowthBoostII', 5, 0.27);
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -1989,5 +2236,12 @@ export default {
   // Tab Content Generators (Phase 3 - continued)
   getPetsPopoutContent,
   setupPetPopoutHandlers,
-  getPetsTabContent
+  getPetsTabContent,
+
+  // Ability Calculation Helpers (Game-specific)
+  getTurtleExpectations,
+  estimateUntilLatestCrop,
+  getAbilityExpectations,
+  getEggExpectations,
+  getGrowthExpectations
 };
