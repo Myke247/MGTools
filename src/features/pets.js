@@ -58,8 +58,19 @@
  *   • formatTimestamp() - Timestamp formatting with cache (~33 lines)
  *   • getGardenCropIfUnique() - Unique crop detection (~22 lines)
  *
- * Total Extracted: ~3,266 lines (of ~5,000 estimated)
- * Progress: 65.3%
+ * Phase 7 (Complete):
+ * - Ability Log Management & Display Helpers - ~129 lines ✅
+ *   • KNOWN_ABILITY_TYPES - Constant array (~40 lines)
+ *   • isKnownAbilityType() - Ability validation
+ *   • initAbilityCache() - Cache initialization (~15 lines)
+ *   • MGA_manageLogMemory() - Log archiving (~18 lines)
+ *   • MGA_getAllLogs() - Retrieve all logs (~11 lines)
+ *   • categorizeAbility() - Alternative categorization (~16 lines)
+ *   • formatLogData() - Format log data objects
+ *   • formatRelativeTime() - Relative time formatting
+ *
+ * Total Extracted: ~3,395 lines (of ~5,000 estimated)
+ * Progress: 67.9%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -3077,7 +3088,7 @@ export function monitorPetAbilities({
  */
 export function getAllUniqueAbilities({ UnifiedState }) {
   const abilities = new Set();
-  UnifiedState.data.petAbilityLogs.forEach((log) => {
+  UnifiedState.data.petAbilityLogs.forEach(log => {
     if (log.abilityType) {
       abilities.add(log.abilityType);
     }
@@ -3107,7 +3118,7 @@ export function populateIndividualAbilities({
     return;
   }
 
-  abilities.forEach((ability) => {
+  abilities.forEach(ability => {
     const label = targetDocument.createElement('label');
     label.className = 'mga-checkbox-group';
     label.style.display = 'block';
@@ -3118,7 +3129,7 @@ export function populateIndividualAbilities({
     checkbox.className = 'mga-checkbox';
     checkbox.checked = UnifiedState.data.customMode.selectedAbilities[ability] || false;
 
-    checkbox.addEventListener('change', (e) => {
+    checkbox.addEventListener('change', e => {
       UnifiedState.data.customMode.selectedAbilities[ability] = e.target.checked;
       MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
       updateAllLogVisibility();
@@ -3144,7 +3155,7 @@ export function selectAllFilters(
   { UnifiedState, targetDocument, MGA_saveJSON, getAllUniquePets, populatePetSpeciesList, updateAllLogVisibility }
 ) {
   if (mode === 'categories') {
-    Object.keys(UnifiedState.data.abilityFilters).forEach((key) => {
+    Object.keys(UnifiedState.data.abilityFilters).forEach(key => {
       UnifiedState.data.abilityFilters[key] = true;
       const checkbox = targetDocument.querySelector(`[data-filter="${key}"]`);
       if (checkbox) checkbox.checked = true;
@@ -3152,14 +3163,14 @@ export function selectAllFilters(
     MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
   } else if (mode === 'byPet') {
     const pets = getAllUniquePets({ UnifiedState });
-    pets.forEach((pet) => {
+    pets.forEach(pet => {
       UnifiedState.data.petFilters.selectedPets[pet] = true;
     });
     MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
     populatePetSpeciesList({ UnifiedState, targetDocument, MGA_saveJSON, getAllUniquePets, updateAllLogVisibility });
   } else if (mode === 'custom') {
     const abilities = getAllUniqueAbilities({ UnifiedState });
-    abilities.forEach((ability) => {
+    abilities.forEach(ability => {
       UnifiedState.data.customMode.selectedAbilities[ability] = true;
     });
     MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
@@ -3175,10 +3186,17 @@ export function selectAllFilters(
  */
 export function selectNoneFilters(
   mode,
-  { UnifiedState, targetDocument, MGA_saveJSON, populatePetSpeciesList, populateIndividualAbilities, updateAllLogVisibility }
+  {
+    UnifiedState,
+    targetDocument,
+    MGA_saveJSON,
+    populatePetSpeciesList,
+    populateIndividualAbilities,
+    updateAllLogVisibility
+  }
 ) {
   if (mode === 'categories') {
-    Object.keys(UnifiedState.data.abilityFilters).forEach((key) => {
+    Object.keys(UnifiedState.data.abilityFilters).forEach(key => {
       UnifiedState.data.abilityFilters[key] = false;
       const checkbox = targetDocument.querySelector(`[data-filter="${key}"]`);
       if (checkbox) checkbox.checked = false;
@@ -3209,7 +3227,7 @@ export function exportAbilityLogs({ MGA_getAllLogs, productionWarn, normalizeAbi
 
   const headers = 'Date,Time,Pet Name,Ability Type,Details\r\n';
   const csvContent = allLogs
-    .map((log) => {
+    .map(log => {
       const date = new Date(log.timestamp);
       return [
         date.toLocaleDateString(),
@@ -3218,7 +3236,7 @@ export function exportAbilityLogs({ MGA_getAllLogs, productionWarn, normalizeAbi
         normalizeAbilityName(log.abilityType),
         JSON.stringify(log.data || '')
       ]
-        .map((field) => `"${String(field).replace(/"/g, '""')}"`)
+        .map(field => `"${String(field).replace(/"/g, '""')}"`)
         .join(',');
     })
     .join('\r\n');
@@ -3325,7 +3343,7 @@ export function getGardenCropIfUnique(targetWindow) {
   const speciesSet = new Set();
   const tiles = Object.values(tileObjects);
 
-  tiles.forEach((tile) => {
+  tiles.forEach(tile => {
     if (tile?.species && tile.objectType === 'plant') {
       speciesSet.add(tile.species);
     }
@@ -3337,6 +3355,203 @@ export function getGardenCropIfUnique(targetWindow) {
   }
 
   return null;
+}
+
+/* ====================================================================================
+ * ABILITY CONSTANTS AND CACHE
+ * ====================================================================================
+ */
+
+// List of all known ability types for validation
+export const KNOWN_ABILITY_TYPES = [
+  // XP Boosts
+  'XP Boost I',
+  'XP Boost II',
+  'XP Boost III',
+  'Hatch XP Boost I',
+  'Hatch XP Boost II',
+
+  // Crop Size Boosts
+  'Crop Size Boost I',
+  'Crop Size Boost II',
+
+  // Selling
+  'Sell Boost I',
+  'Sell Boost II',
+  'Sell Boost III',
+  'Coin Finder I',
+  'Coin Finder II',
+
+  // Harvesting
+  'Harvesting',
+  'Auto Harvest',
+
+  // Growth Speed
+  'Plant Growth Boost I',
+  'Plant Growth Boost II',
+  'Plant Growth Boost III',
+  'Egg Growth Boost I',
+  'Egg Growth Boost II',
+
+  // Seeds
+  'Seed Finder I',
+  'Seed Finder II',
+  'Special Mutations',
+
+  // Other
+  'Hunger Boost I',
+  'Hunger Boost II',
+  'Max Strength Boost I',
+  'Max Strength Boost II'
+];
+
+/**
+ * Check if an ability type is known/valid
+ * @param {string} abilityType - Ability type to check
+ * @returns {boolean} True if known
+ */
+export function isKnownAbilityType(abilityType) {
+  if (!abilityType) return false;
+  return KNOWN_ABILITY_TYPES.includes(abilityType);
+}
+
+/**
+ * Initialize ability cache
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {Object} Cache object
+ */
+export function initAbilityCache({ targetWindow }) {
+  const cache = {
+    categories: new Map(),
+    timestamps: new Map(),
+    normalizedNames: new Map(),
+    lastTimestampUpdate: 0
+  };
+
+  // Clear timestamp cache every minute
+  setInterval(() => {
+    cache.timestamps.clear();
+    cache.lastTimestampUpdate = Date.now();
+  }, 60000);
+
+  return cache;
+}
+
+/* ====================================================================================
+ * LOG MEMORY MANAGEMENT
+ * ====================================================================================
+ */
+
+/**
+ * Manage log memory - archive old logs to storage
+ * @param {Array} logs - Array of logs
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {Array} Managed logs (recent ones kept in memory)
+ */
+export function MGA_manageLogMemory(logs, { MGA_MemoryConfig, MGA_loadJSON, MGA_debouncedSave, productionLog }) {
+  if (!Array.isArray(logs) || logs.length <= MGA_MemoryConfig.maxLogsInMemory) {
+    return logs;
+  }
+
+  productionLog(`🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`);
+
+  const recentLogs = logs.slice(0, MGA_MemoryConfig.maxLogsInMemory);
+  const archivedLogs = logs.slice(MGA_MemoryConfig.maxLogsInMemory);
+
+  if (archivedLogs.length > 0) {
+    const existingArchive = MGA_loadJSON('MGA_petAbilityLogs_archive', []);
+    const combinedArchive = [...archivedLogs, ...existingArchive].slice(0, MGA_MemoryConfig.maxLogsInStorage);
+    MGA_debouncedSave('MGA_petAbilityLogs_archive', combinedArchive);
+    productionLog(`📦 [MEMORY] Archived ${archivedLogs.length} logs to storage`);
+  }
+
+  return recentLogs;
+}
+
+/**
+ * Get all logs (memory + archived)
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {Array} All logs sorted by timestamp
+ */
+export function MGA_getAllLogs({ UnifiedState, MGA_loadJSON, productionLog }) {
+  const memoryLogs = UnifiedState.data?.petAbilityLogs || [];
+  const archivedLogs = MGA_loadJSON('MGA_petAbilityLogs_archive', []);
+
+  const allLogs = [...memoryLogs, ...archivedLogs];
+  allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  productionLog(
+    `📜 [MEMORY] Retrieved ${memoryLogs.length} memory logs + ${archivedLogs.length} archived logs = ${allLogs.length} total`
+  );
+  return allLogs;
+}
+
+/* ====================================================================================
+ * ABILITY LOG DISPLAY & UPDATES
+ * ====================================================================================
+ */
+
+/**
+ * Categorize ability for display (alternative categorization logic)
+ * @param {string} abilityType - Ability type
+ * @returns {string} Category key
+ */
+export function categorizeAbility(abilityType) {
+  const cleanType = (abilityType || '').toLowerCase();
+
+  if (cleanType.includes('xp') && cleanType.includes('boost')) return 'xp-boost';
+  if (cleanType.includes('hatch') && cleanType.includes('xp')) return 'xp-boost';
+  if (cleanType.includes('crop') && (cleanType.includes('size') || cleanType.includes('scale')))
+    return 'crop-size-boost';
+  if (cleanType.includes('sell') && cleanType.includes('boost')) return 'selling';
+  if (cleanType.includes('refund')) return 'selling';
+  if (cleanType.includes('double') && cleanType.includes('harvest')) return 'harvesting';
+  if (cleanType.includes('growth') && cleanType.includes('boost')) return 'growth-speed';
+  if (cleanType.includes('plant') && cleanType.includes('growth')) return 'growth-speed';
+  if (cleanType.includes('egg') && cleanType.includes('growth')) return 'growth-speed';
+  if (cleanType.includes('rainbow') || cleanType.includes('gold')) return 'special-mutations';
+
+  return 'other';
+}
+
+/**
+ * Format log data object for display
+ * @param {Object} data - Log data object
+ * @returns {string} Formatted string
+ */
+export function formatLogData(data) {
+  if (!data || typeof data !== 'object') return '';
+
+  const formatted = Object.entries(data)
+    .filter(([key, value]) => value !== null && value !== undefined)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(', ');
+
+  return formatted.length > 60 ? formatted.substring(0, 60) + '...' : formatted;
+}
+
+/**
+ * Format relative time for display
+ * @param {number} timestamp - Unix timestamp
+ * @returns {string} Formatted relative time
+ */
+export function formatRelativeTime(timestamp) {
+  const now = Date.now();
+  const diff = now - timestamp;
+
+  if (diff < 60000) {
+    const seconds = Math.floor(diff / 1000);
+    return `${seconds}s ago`;
+  }
+  if (diff < 3600000) {
+    const minutes = Math.floor(diff / 60000);
+    return `${minutes}m ago`;
+  }
+  if (diff < 86400000) {
+    const hours = Math.floor(diff / 3600000);
+    return `${hours}h ago`;
+  }
+  return new Date(timestamp).toLocaleDateString();
 }
 
 /* ====================================================================================
@@ -3420,5 +3635,15 @@ export default {
   // Supporting Utilities (Phase 6)
   normalizeAbilityName,
   formatTimestamp,
-  getGardenCropIfUnique
+  getGardenCropIfUnique,
+
+  // Ability Log Management (Phase 7)
+  KNOWN_ABILITY_TYPES,
+  isKnownAbilityType,
+  initAbilityCache,
+  MGA_manageLogMemory,
+  MGA_getAllLogs,
+  categorizeAbility,
+  formatLogData,
+  formatRelativeTime
 };
