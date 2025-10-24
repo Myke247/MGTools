@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.5
+// @version      1.1.7
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.5 - Added Alt+X hotkey for dock position reset');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.7 - Shop/Notification/Timers fixed');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '1.1.5',
+      CURRENT: '1.1.7',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -26898,7 +26898,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Hook quinoa data for timers and globalShop
       hookAtom(
-        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/_archive/quinoaDataAtom.ts/quinoaDataAtom',
+        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/baseAtoms.ts/quinoaDataAtom',
         'quinoaData',
         value => {
           // Store quinoa data for timers
@@ -26910,15 +26910,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       );
 
-      // Hook REAL-TIME shop atoms for purchase tracking
+      // Hook shopsAtom for real-time shop data (all 4 shops in one atom)
       hookAtom(
-        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/shopAtoms.ts/seedShopAtom',
-        'seedShop',
+        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/baseAtoms.ts/shopsAtom',
+        'shops',
         value => {
-          // Update globalShop.shops.seed with real-time data
+          // value contains all 4 shops: { seed: {...}, egg: {...}, tool: {...}, decor: {...} }
           if (!targetWindow.globalShop) targetWindow.globalShop = {};
-          if (!targetWindow.globalShop.shops) targetWindow.globalShop.shops = {};
-          targetWindow.globalShop.shops.seed = value;
+          targetWindow.globalShop.shops = value;
+
+          // CRITICAL: Also update quinoaData.shops for timers
+          if (!UnifiedState.atoms.quinoaData) UnifiedState.atoms.quinoaData = {};
+          UnifiedState.atoms.quinoaData.shops = value;
+
+          // Update timers when shop data changes
+          updateTimers();
 
           // Trigger shop UI refresh if open
           if (typeof targetWindow.refreshAllShopWindows === 'function') {
@@ -26927,23 +26933,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       );
 
-      hookAtom(
-        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/shopAtoms.ts/eggShopAtom',
-        'eggShop',
-        value => {
-          // Update globalShop.shops.egg with real-time data
-          if (!targetWindow.globalShop) targetWindow.globalShop = {};
-          if (!targetWindow.globalShop.shops) targetWindow.globalShop.shops = {};
-          targetWindow.globalShop.shops.egg = value;
-
-          // Trigger shop UI refresh if open
-          if (typeof targetWindow.refreshAllShopWindows === 'function') {
-            targetWindow.refreshAllShopWindows();
-          }
-        }
-      );
-
-      productionLog('✅ [SIMPLE-ATOMS] Simple atom initialization complete (including shop atoms)');
+      productionLog('✅ [SIMPLE-ATOMS] Simple atom initialization complete (including shopsAtom)');
 
       // Capture Jotai store for fresh data queries
       setTimeout(() => {
