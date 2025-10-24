@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.7
+// @version      1.1.8
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.7 - Shop/Notification/Timers fixed');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.8 - New black accent themes + opacity fix');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '1.1.7',
+      CURRENT: '1.1.8',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -17862,6 +17862,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                       </label>
                       <select class="mga-select" id="gradient-select" style="margin-bottom: 8px;">
                           <optgroup label="⚫ Black Accent Themes">
+                              <option value="black-void" ${settings.gradientStyle === 'black-void' ? 'selected' : ''}>⚫⬛ Pure Void</option>
                               <option value="black-crimson" ${settings.gradientStyle === 'black-crimson' ? 'selected' : ''}>⚫🔴 Midnight Crimson</option>
                               <option value="black-emerald" ${settings.gradientStyle === 'black-emerald' ? 'selected' : ''}>⚫💚 Shadow Emerald</option>
                               <option value="black-royal" ${settings.gradientStyle === 'black-royal' ? 'selected' : ''}>⚫💜 Void Royal</option>
@@ -17878,6 +17879,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                               <option value="black-sapphire" ${settings.gradientStyle === 'black-sapphire' ? 'selected' : ''}>⚫💠 Void Sapphire</option>
                               <option value="black-aqua" ${settings.gradientStyle === 'black-aqua' ? 'selected' : ''}>⚫🌊 Dark Aqua</option>
                               <option value="black-phantom" ${settings.gradientStyle === 'black-phantom' ? 'selected' : ''}>⚫🪙 Phantom Silver</option>
+                              <option value="black-violet" ${settings.gradientStyle === 'black-violet' ? 'selected' : ''}>⚫💜 Deep Violet</option>
+                              <option value="black-amber" ${settings.gradientStyle === 'black-amber' ? 'selected' : ''}>⚫🟠 Shadow Amber</option>
+                              <option value="black-jade" ${settings.gradientStyle === 'black-jade' ? 'selected' : ''}>⚫🟢 Mystic Jade</option>
+                              <option value="black-coral" ${settings.gradientStyle === 'black-coral' ? 'selected' : ''}>⚫🪸 Dark Coral</option>
+                              <option value="black-steel" ${settings.gradientStyle === 'black-steel' ? 'selected' : ''}>⚫🔵 Carbon Steel</option>
+                              <option value="black-lavender" ${settings.gradientStyle === 'black-lavender' ? 'selected' : ''}>⚫💜 Void Lavender</option>
+                              <option value="black-mint" ${settings.gradientStyle === 'black-mint' ? 'selected' : ''}>⚫🌿 Shadow Mint</option>
+                              <option value="black-ruby" ${settings.gradientStyle === 'black-ruby' ? 'selected' : ''}>⚫💎 Obsidian Ruby</option>
+                              <option value="black-cobalt" ${settings.gradientStyle === 'black-cobalt' ? 'selected' : ''}>⚫🔷 Deep Cobalt</option>
+                              <option value="black-bronze" ${settings.gradientStyle === 'black-bronze' ? 'selected' : ''}>⚫🟤 Dark Bronze</option>
+                              <option value="black-teal" ${settings.gradientStyle === 'black-teal' ? 'selected' : ''}>⚫🩵 Shadow Teal</option>
+                              <option value="black-magenta" ${settings.gradientStyle === 'black-magenta' ? 'selected' : ''}>⚫🩷 Void Magenta</option>
+                              <option value="black-lime" ${settings.gradientStyle === 'black-lime' ? 'selected' : ''}>⚫🟢 Electric Lime</option>
+                              <option value="black-indigo" ${settings.gradientStyle === 'black-indigo' ? 'selected' : ''}>⚫💙 Midnight Indigo</option>
                           </optgroup>
                           <optgroup label="🌈 Classic Themes">
                               <option value="blue-purple" ${settings.gradientStyle === 'blue-purple' ? 'selected' : ''}>🌌 Blue-Purple</option>
@@ -24141,11 +24156,8 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       // Use different opacity based on window type
       const opacity = isPopout ? settings.popoutOpacity / 100 : settings.opacity / 100;
 
-      // Apply opacity boost only at 100% to ensure truly solid panels
-      let effectiveOpacity = opacity;
-      if (opacity === 1.0) {
-        effectiveOpacity = 1.8; // Overboost for solid appearance
-      }
+      // Use actual opacity value (0.0 to 1.0)
+      const effectiveOpacity = opacity;
 
       // Define gradient styles - ALL themes now use effectiveOpacity for true 100% support
       const gradients = {
@@ -24274,6 +24286,126 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           'linear-gradient(135deg, rgba(0, 0, 0, ' +
           effectiveOpacity +
           ') 0%, rgba(20, 20, 20, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-void':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(10, 10, 10, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-violet':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(20, 0, 30, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-amber':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(30, 22, 0, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-jade':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 20, 15, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-coral':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(30, 15, 10, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-steel':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(10, 20, 25, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-lavender':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(20, 15, 25, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-mint':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(5, 20, 15, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-ruby':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(30, 0, 10, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-cobalt':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 10, 25, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-bronze':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(25, 15, 8, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-teal':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(0, 18, 18, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-magenta':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(25, 0, 25, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-lime':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(8, 25, 8, ' +
+          effectiveOpacity +
+          ') 50%, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 100%)',
+        'black-indigo':
+          'linear-gradient(135deg, rgba(0, 0, 0, ' +
+          effectiveOpacity +
+          ') 0%, rgba(10, 0, 20, ' +
           effectiveOpacity +
           ') 50%, rgba(0, 0, 0, ' +
           effectiveOpacity +
@@ -24461,6 +24593,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Accent colors for black themes
       const accentColors = {
+        'black-void': { color: '#1a1a1a', glow: 'rgba(26, 26, 26, 0.3)', text: '#2a2a2a' },
         'black-crimson': { color: '#DC143C', glow: 'rgba(220, 20, 60, 0.5)', text: '#FF6B6B' },
         'black-emerald': { color: '#50C878', glow: 'rgba(80, 200, 120, 0.5)', text: '#90EE90' },
         'black-royal': { color: '#9D4EDD', glow: 'rgba(157, 78, 221, 0.5)', text: '#DDA0DD' },
@@ -24476,7 +24609,21 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         'black-storm': { color: '#483D8B', glow: 'rgba(72, 61, 139, 0.6)', text: '#9370DB' },
         'black-sapphire': { color: '#0F52BA', glow: 'rgba(15, 82, 186, 0.7)', text: '#4169E1' },
         'black-aqua': { color: '#008B8B', glow: 'rgba(0, 139, 139, 0.6)', text: '#48D1CC' },
-        'black-phantom': { color: '#C0C0C0', glow: 'rgba(192, 192, 192, 0.4)', text: '#DCDCDC' }
+        'black-phantom': { color: '#C0C0C0', glow: 'rgba(192, 192, 192, 0.4)', text: '#DCDCDC' },
+        'black-violet': { color: '#8A2BE2', glow: 'rgba(138, 43, 226, 0.6)', text: '#9370DB' },
+        'black-amber': { color: '#FFBF00', glow: 'rgba(255, 191, 0, 0.5)', text: '#FFC125' },
+        'black-jade': { color: '#00A86B', glow: 'rgba(0, 168, 107, 0.6)', text: '#5FD3A6' },
+        'black-coral': { color: '#FF7F50', glow: 'rgba(255, 127, 80, 0.5)', text: '#FFA07A' },
+        'black-steel': { color: '#4682B4', glow: 'rgba(70, 130, 180, 0.5)', text: '#87CEEB' },
+        'black-lavender': { color: '#B57EDC', glow: 'rgba(181, 126, 220, 0.5)', text: '#DDA0DD' },
+        'black-mint': { color: '#3EB489', glow: 'rgba(62, 180, 137, 0.6)', text: '#98FB98' },
+        'black-ruby': { color: '#E0115F', glow: 'rgba(224, 17, 95, 0.6)', text: '#FF1493' },
+        'black-cobalt': { color: '#0047AB', glow: 'rgba(0, 71, 171, 0.7)', text: '#4169E1' },
+        'black-bronze': { color: '#CD7F32', glow: 'rgba(205, 127, 50, 0.6)', text: '#D2691E' },
+        'black-teal': { color: '#008080', glow: 'rgba(0, 128, 128, 0.6)', text: '#20B2AA' },
+        'black-magenta': { color: '#FF00FF', glow: 'rgba(255, 0, 255, 0.6)', text: '#FF69B4' },
+        'black-lime': { color: '#32CD32', glow: 'rgba(50, 205, 50, 0.6)', text: '#7FFF00' },
+        'black-indigo': { color: '#4B0082', glow: 'rgba(75, 0, 130, 0.6)', text: '#8B00FF' }
       };
 
       const accent = accentColors[settings.gradientStyle] || null;
@@ -24785,33 +24932,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         return;
       }
 
-      // Handle true 100% opacity - completely opaque
-      if (opacity === 1.0 && themeStyles.effectiveOpacity) {
-        // For 100% opacity, use the background but ensure it's truly opaque
-        element.style.background = themeStyles.background.replace(/rgba\(([^)]+)\)/g, (match, rgbaValues) => {
-          const values = rgbaValues.split(',');
-          if (values.length === 4) {
-            // Replace alpha with 1.0 for true opacity
-            return `rgba(${values[0]}, ${values[1]}, ${values[2]}, 1.0)`;
-          }
-          return match;
-        });
-
-        // Apply accent color border and glow for black themes
-        const isBlackTheme = themeStyles.gradientStyle && themeStyles.gradientStyle.startsWith('black-');
-        if (isBlackTheme && themeStyles.accentColor) {
-          element.style.boxShadow = `0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px ${themeStyles.accentGlow}`;
-          element.style.border = `1px solid ${themeStyles.accentColor}`;
-        } else {
-          element.style.boxShadow = themeStyles.boxShadow;
-          element.style.border = '1px solid rgba(255, 255, 255, 0.73)';
-        }
-        element.style.backdropFilter = 'blur(15px)';
-        productionLog('🎨 Applied true 100% opacity - completely opaque');
-        return;
-      }
-
-      // Handle regular opacity ranges (1-99%)
+      // Handle all opacity levels (1-100%) with same logic
       // Layer texture over gradient if texture is enabled
       if (themeStyles.texturePattern) {
         element.style.background = `${themeStyles.texturePattern}, ${themeStyles.background}`;
@@ -24830,18 +24951,26 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         element.style.backgroundBlendMode = '';
         element.classList.remove('mga-texture-animated');
       }
-      element.style.boxShadow = themeStyles.boxShadow;
 
-      if (opacity > 0.05) {
-        // Lower threshold for backdrop filter
-        // Scale blur intensity with opacity for better visual effect
+      // Apply box shadow and borders
+      const isBlackTheme = themeStyles.gradientStyle && themeStyles.gradientStyle.startsWith('black-');
+      if (isBlackTheme && themeStyles.accentColor) {
+        element.style.boxShadow = `0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px ${themeStyles.accentGlow}`;
+        element.style.border = `1px solid ${themeStyles.accentColor}`;
+      } else {
+        element.style.boxShadow = themeStyles.boxShadow;
+        element.style.border = `1px solid rgba(255, 255, 255, ${Math.max(0.05, opacity * 0.15)})`;
+      }
+
+      // Backdrop filter: disable at 100% for solid appearance, scale with opacity otherwise
+      if (opacity >= 1.0) {
+        element.style.backdropFilter = 'none';
+      } else if (opacity > 0.05) {
         const blurIntensity = Math.max(2, Math.min(12, 12 * opacity));
         element.style.backdropFilter = `blur(${blurIntensity}px)`;
       } else {
         element.style.backdropFilter = 'none';
       }
-
-      element.style.border = `1px solid rgba(255, 255, 255, ${Math.max(0.05, opacity * 0.15)})`;
 
       // Set theme-aware CSS custom properties for dynamic elements
       const effectiveOpacity = themeStyles.effectiveOpacity || opacity;
@@ -25086,8 +25215,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const dock = document.querySelector('#mgh-dock');
       if (!dock) return;
 
-      // Apply solid black background with accent border and glow
-      dock.style.background = 'rgba(0, 0, 0, 0.95)';
+      // Use actual user opacity setting
+      const opacity = themeStyles.opacity / 100;
+
+      // Apply black background with user-controlled opacity
+      dock.style.background = `rgba(0, 0, 0, ${opacity})`;
       dock.style.border = `1px solid ${themeStyles.accentColor}`;
 
       // Combine base shadow with accent glow - enhanced by effect style
@@ -25103,7 +25235,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       }
 
       dock.style.boxShadow = accentShadow;
-      dock.style.backdropFilter = 'blur(20px)';
+
+      // Scale backdrop blur with opacity, but disable at 100% for solid appearance
+      if (opacity >= 1.0) {
+        dock.style.backdropFilter = 'none';
+      } else if (opacity > 0.05) {
+        const blurIntensity = Math.max(2, Math.min(20, 20 * opacity));
+        dock.style.backdropFilter = `blur(${blurIntensity}px)`;
+      } else {
+        dock.style.backdropFilter = 'none';
+      }
 
       // Use CSS variables for hover effects (better performance)
       dock.style.setProperty('--accent-color', themeStyles.accentColor);
@@ -25146,16 +25287,27 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       const sidebar = document.querySelector('#mgh-sidebar');
       if (!sidebar) return;
 
-      // Apply solid black background with subtle accent tint and textures
-      const accentGradient = `linear-gradient(180deg, #000000 0%, ${themeStyles.accentColor}11 50%, #000000 100%)`;
+      // Use actual user opacity setting
+      const opacity = themeStyles.opacity / 100;
+
+      // Apply solid black background with user-controlled opacity (no gradient tricks)
       if (themeStyles.texturePattern) {
-        sidebar.style.background = `${themeStyles.texturePattern}, ${accentGradient}`;
+        sidebar.style.background = `${themeStyles.texturePattern}, rgba(0, 0, 0, ${opacity})`;
         sidebar.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
       } else {
-        sidebar.style.background = accentGradient;
+        sidebar.style.background = `rgba(0, 0, 0, ${opacity})`;
       }
       sidebar.style.borderRight = `2px solid ${themeStyles.accentColor}`;
-      sidebar.style.backdropFilter = 'blur(20px)';
+
+      // Scale backdrop blur with opacity, but disable at 100% for solid appearance
+      if (opacity >= 1.0) {
+        sidebar.style.backdropFilter = 'none';
+      } else if (opacity > 0.05) {
+        const blurIntensity = Math.max(2, Math.min(20, 20 * opacity));
+        sidebar.style.backdropFilter = `blur(${blurIntensity}px)`;
+      } else {
+        sidebar.style.backdropFilter = 'none';
+      }
 
       // Enhanced shadow with effect-specific styling
       let sidebarShadow = `4px 0 24px rgba(0, 0, 0, 0.6), 0 0 20px ${themeStyles.accentGlow}`;
@@ -25169,10 +25321,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       sidebar.style.boxShadow = sidebarShadow;
 
-      // Style sidebar header with accent gradient
+      // Style sidebar header with accent gradient and opacity
       const header = sidebar.querySelector('.mgh-sidebar-header');
       if (header) {
-        header.style.background = `linear-gradient(90deg, #000000 0%, ${themeStyles.accentColor} 100%)`;
+        header.style.background = `linear-gradient(90deg, rgba(0, 0, 0, ${opacity}) 0%, ${themeStyles.accentColor} 100%)`;
         header.style.borderBottom = `2px solid ${themeStyles.accentColor}`;
 
         // Enhanced header glow based on effect
@@ -25241,13 +25393,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       const isBlackTheme = themeStyles.gradientStyle && themeStyles.gradientStyle.startsWith('black-');
 
+      // Use popout opacity setting (note: themeStyles is generated with isPopout flag)
+      const opacity = themeStyles.opacity / 100;
+
       if (isBlackTheme && themeStyles.accentColor) {
-        // Black themes: solid black with vibrant accents and textures
+        // Black themes: black background with user opacity and vibrant accents
         if (themeStyles.texturePattern) {
-          popout.style.background = `${themeStyles.texturePattern}, rgba(0, 0, 0, 0.95)`;
+          popout.style.background = `${themeStyles.texturePattern}, rgba(0, 0, 0, ${opacity})`;
           popout.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
         } else {
-          popout.style.background = 'rgba(0, 0, 0, 0.95)';
+          popout.style.background = `rgba(0, 0, 0, ${opacity})`;
         }
         popout.style.border = `1px solid ${themeStyles.accentColor}`;
 
@@ -25265,10 +25420,10 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         popout.style.boxShadow = shadow;
 
-        // Style header with accent gradient
+        // Style header with accent gradient and opacity
         const header = popout.querySelector('.mgh-popout-header');
         if (header) {
-          header.style.background = `linear-gradient(90deg, #000000 0%, ${themeStyles.accentColor} 100%)`;
+          header.style.background = `linear-gradient(90deg, rgba(0, 0, 0, ${opacity}) 0%, ${themeStyles.accentColor} 100%)`;
           header.style.borderBottom = `1px solid ${themeStyles.accentColor}`;
 
           // Enhanced header glow based on effect
@@ -25279,14 +25434,14 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           header.style.boxShadow = headerGlow;
         }
 
-        // Keep body background solid for content readability, with textures
+        // Body background with opacity for black themes
         const body = popout.querySelector('.mgh-popout-body');
         if (body) {
           if (themeStyles.texturePattern) {
-            body.style.background = `${themeStyles.texturePattern}, #000000`;
+            body.style.background = `${themeStyles.texturePattern}, rgba(0, 0, 0, ${opacity})`;
             body.style.backgroundSize = `${themeStyles.textureBackgroundSize}, cover`;
           } else {
-            body.style.background = '#000000'; // Solid black for black themes
+            body.style.background = `rgba(0, 0, 0, ${opacity})`;
           }
         }
       } else {
