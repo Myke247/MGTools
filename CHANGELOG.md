@@ -1,5 +1,27 @@
 # Changelog - MGTools
 
+## Version 1.1.9 (2025-10-24)
+
+**New Features:**
+- Added auto-favorite for pets with protected abilities
+  - Pets with Rainbow Granter or Gold Granter abilities are automatically favorited when those abilities are protected
+  - Works seamlessly with existing pet protection system
+  - Prevents accidental selling of valuable pets
+
+**Bug Fixes:**
+- Fixed shop showing inaccurate/empty data on first load
+  - Shop now shows "Loading shop data..." message while waiting for game data
+  - Automatically populates shop when data becomes available (typically <500ms)
+  - Shows helpful error message if data fails to load after 5 seconds
+  - Eliminates confusing "0 stock" displays when opening shop right after joining game
+
+**Technical Improvements:**
+- Added smart loading state for shop UI with 100ms polling
+- Added `checkAndFavoritePetsWithProtectedAbilities()` function
+- Improved first-time user experience when accessing shop features
+
+---
+
 ## Version 1.1.8 (2025-10-23)
 
 **New Features:**
