@@ -46,8 +46,20 @@
  *   • categorizeAbilityToFilterKey() - Ability categorization
  *   • monitorPetAbilities() - Main ability monitoring (~201 lines)
  *
- * Total Extracted: ~2,993 lines (of ~5,000 estimated)
- * Progress: 59.9%
+ * Phase 6 (Complete):
+ * - Ability Log Utilities & Supporting Functions - ~273 lines ✅
+ *   • getAllUniqueAbilities() - Extract unique abilities
+ *   • populateIndividualAbilities() - UI population (~40 lines)
+ *   • selectAllFilters() - Select all filters by mode (~26 lines)
+ *   • selectNoneFilters() - Deselect all filters by mode (~20 lines)
+ *   • exportAbilityLogs() - CSV export (~29 lines)
+ *   • loadPresetByNumber() - Load preset by index
+ *   • normalizeAbilityName() - Name normalization (~17 lines)
+ *   • formatTimestamp() - Timestamp formatting with cache (~33 lines)
+ *   • getGardenCropIfUnique() - Unique crop detection (~22 lines)
+ *
+ * Total Extracted: ~3,266 lines (of ~5,000 estimated)
+ * Progress: 65.3%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -2698,9 +2710,12 @@ export function placePetPreset(
     refreshSeparateWindowPopouts('pets');
   };
 
-  setTimeout(() => {
-    refreshAllPetDisplays();
-  }, maxSlots * 200 + 500);
+  setTimeout(
+    () => {
+      refreshAllPetDisplays();
+    },
+    maxSlots * 200 + 500
+  );
 
   setTimeout(() => {
     refreshAllPetDisplays();
@@ -3051,6 +3066,280 @@ export function monitorPetAbilities({
 }
 
 /* ====================================================================================
+ * ABILITY LOG UTILITY FUNCTIONS
+ * ====================================================================================
+ */
+
+/**
+ * Get all unique abilities from logs
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {Array<string>} Sorted array of unique ability types
+ */
+export function getAllUniqueAbilities({ UnifiedState }) {
+  const abilities = new Set();
+  UnifiedState.data.petAbilityLogs.forEach((log) => {
+    if (log.abilityType) {
+      abilities.add(log.abilityType);
+    }
+  });
+  return Array.from(abilities).sort();
+}
+
+/**
+ * Populate individual abilities list UI with checkboxes
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function populateIndividualAbilities({
+  UnifiedState,
+  targetDocument,
+  MGA_saveJSON,
+  normalizeAbilityName,
+  updateAllLogVisibility
+}) {
+  const container = targetDocument.getElementById('individual-abilities-list');
+  if (!container) return;
+
+  const abilities = getAllUniqueAbilities({ UnifiedState });
+  container.innerHTML = '';
+
+  if (abilities.length === 0) {
+    container.innerHTML = '<div style="color: #888; text-align: center;">No individual abilities found in logs</div>';
+    return;
+  }
+
+  abilities.forEach((ability) => {
+    const label = targetDocument.createElement('label');
+    label.className = 'mga-checkbox-group';
+    label.style.display = 'block';
+    label.style.marginBottom = '4px';
+
+    const checkbox = targetDocument.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'mga-checkbox';
+    checkbox.checked = UnifiedState.data.customMode.selectedAbilities[ability] || false;
+
+    checkbox.addEventListener('change', (e) => {
+      UnifiedState.data.customMode.selectedAbilities[ability] = e.target.checked;
+      MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
+      updateAllLogVisibility();
+    });
+
+    const span = targetDocument.createElement('span');
+    span.className = 'mga-label';
+    span.textContent = ` ${normalizeAbilityName(ability)}`;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+}
+
+/**
+ * Select all filters for a given mode
+ * @param {string} mode - Filter mode ('categories', 'byPet', 'custom')
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function selectAllFilters(
+  mode,
+  { UnifiedState, targetDocument, MGA_saveJSON, getAllUniquePets, populatePetSpeciesList, updateAllLogVisibility }
+) {
+  if (mode === 'categories') {
+    Object.keys(UnifiedState.data.abilityFilters).forEach((key) => {
+      UnifiedState.data.abilityFilters[key] = true;
+      const checkbox = targetDocument.querySelector(`[data-filter="${key}"]`);
+      if (checkbox) checkbox.checked = true;
+    });
+    MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
+  } else if (mode === 'byPet') {
+    const pets = getAllUniquePets({ UnifiedState });
+    pets.forEach((pet) => {
+      UnifiedState.data.petFilters.selectedPets[pet] = true;
+    });
+    MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
+    populatePetSpeciesList({ UnifiedState, targetDocument, MGA_saveJSON, getAllUniquePets, updateAllLogVisibility });
+  } else if (mode === 'custom') {
+    const abilities = getAllUniqueAbilities({ UnifiedState });
+    abilities.forEach((ability) => {
+      UnifiedState.data.customMode.selectedAbilities[ability] = true;
+    });
+    MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
+    populateIndividualAbilities({ UnifiedState, targetDocument, MGA_saveJSON, updateAllLogVisibility });
+  }
+  updateAllLogVisibility();
+}
+
+/**
+ * Deselect all filters for a given mode
+ * @param {string} mode - Filter mode ('categories', 'byPet', 'custom')
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function selectNoneFilters(
+  mode,
+  { UnifiedState, targetDocument, MGA_saveJSON, populatePetSpeciesList, populateIndividualAbilities, updateAllLogVisibility }
+) {
+  if (mode === 'categories') {
+    Object.keys(UnifiedState.data.abilityFilters).forEach((key) => {
+      UnifiedState.data.abilityFilters[key] = false;
+      const checkbox = targetDocument.querySelector(`[data-filter="${key}"]`);
+      if (checkbox) checkbox.checked = false;
+    });
+    MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
+  } else if (mode === 'byPet') {
+    UnifiedState.data.petFilters.selectedPets = {};
+    MGA_saveJSON('MGA_petFilters', UnifiedState.data.petFilters);
+    populatePetSpeciesList({ UnifiedState, targetDocument, MGA_saveJSON, updateAllLogVisibility });
+  } else if (mode === 'custom') {
+    UnifiedState.data.customMode.selectedAbilities = {};
+    MGA_saveJSON('MGA_customMode', UnifiedState.data.customMode);
+    populateIndividualAbilities({ UnifiedState, targetDocument, MGA_saveJSON, updateAllLogVisibility });
+  }
+  updateAllLogVisibility();
+}
+
+/**
+ * Export ability logs to CSV file
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function exportAbilityLogs({ MGA_getAllLogs, productionWarn, normalizeAbilityName, targetDocument }) {
+  const allLogs = MGA_getAllLogs();
+  if (!allLogs.length) {
+    productionWarn('⚠️ No logs to export!');
+    return;
+  }
+
+  const headers = 'Date,Time,Pet Name,Ability Type,Details\r\n';
+  const csvContent = allLogs
+    .map((log) => {
+      const date = new Date(log.timestamp);
+      return [
+        date.toLocaleDateString(),
+        date.toLocaleTimeString(),
+        log.petName,
+        normalizeAbilityName(log.abilityType),
+        JSON.stringify(log.data || '')
+      ]
+        .map((field) => `"${String(field).replace(/"/g, '""')}"`)
+        .join(',');
+    })
+    .join('\r\n');
+
+  const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = targetDocument.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `MagicGarden_AbilityLogs_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+}
+
+/**
+ * Load a pet preset by numeric index
+ * @param {number} number - Preset index (1-based)
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function loadPresetByNumber(number, { UnifiedState, loadPetPreset, productionLog }) {
+  const presets = Object.keys(UnifiedState.data.petPresets);
+  if (presets[number - 1]) {
+    const presetName = presets[number - 1];
+    const preset = UnifiedState.data.petPresets[presetName];
+    loadPetPreset(preset, { UnifiedState, productionLog });
+    productionLog(`🐾 Loaded preset ${number}: ${presetName}`);
+  }
+}
+
+/* ====================================================================================
+ * UTILITY FUNCTIONS (SUPPORTING)
+ * ====================================================================================
+ */
+
+/**
+ * Normalize ability name (fix spacing, roman numerals, etc.)
+ * @param {string} name - Raw ability name
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {string} Normalized ability name
+ */
+export function normalizeAbilityName(name, { UnifiedState, logDebug } = {}) {
+  if (!name || typeof name !== 'string') return name;
+
+  // Fix missing spaces before roman numerals
+  const normalized = name
+    .replace(/([a-z])III$/i, '$1 III') // "FinderIII" → "Finder III"
+    .replace(/([a-z])II$/i, '$1 II') // "FinderII" → "Finder II"
+    .replace(/([a-z])I$/i, '$1 I') // "FinderI" → "Finder I"
+    .replace(/produce\s*scale\s*boost/gi, 'Crop Size Boost') // Game renamed this ability
+    .trim();
+
+  // Log normalization if name was changed
+  if (normalized !== name && UnifiedState?.data?.settings?.debugMode && logDebug) {
+    logDebug('ABILITY-LOGS', `📝 Normalized ability name: "${name}" → "${normalized}"`);
+  }
+
+  return normalized;
+}
+
+/**
+ * Format timestamp based on user settings
+ * @param {number} timestamp - Unix timestamp
+ * @param {Object} dependencies - Injected dependencies
+ * @returns {string} Formatted time string
+ */
+export function formatTimestamp(timestamp, { UnifiedState, MGA_AbilityCache }) {
+  // PERFORMANCE: Check cache first
+  const cacheKey = `${timestamp}_${UnifiedState.data.settings.detailedTimestamps}`;
+  if (MGA_AbilityCache.timestamps.has(cacheKey)) {
+    return MGA_AbilityCache.timestamps.get(cacheKey);
+  }
+
+  const date = new Date(timestamp);
+  let formatted;
+  if (UnifiedState.data.settings.detailedTimestamps) {
+    // Return HH:MM:SS format
+    formatted = date.toLocaleTimeString(undefined, {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } else {
+    // Return H:MM AM/PM format
+    formatted = date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+
+  // PERFORMANCE: Cache result
+  MGA_AbilityCache.timestamps.set(cacheKey, formatted);
+
+  return formatted;
+}
+
+/**
+ * Get garden crop if there's only one unique species
+ * @param {Window} targetWindow - Target window object
+ * @returns {string|null} Species name if unique, null otherwise
+ */
+export function getGardenCropIfUnique(targetWindow) {
+  const tileObjects = targetWindow.gardenInfo?.garden?.tileObjects;
+  if (!tileObjects) return null;
+
+  // Count unique species (only plants)
+  const speciesSet = new Set();
+  const tiles = Object.values(tileObjects);
+
+  tiles.forEach((tile) => {
+    if (tile?.species && tile.objectType === 'plant') {
+      speciesSet.add(tile.species);
+    }
+  });
+
+  // Only return if there's exactly ONE unique species
+  if (speciesSet.size === 1) {
+    return Array.from(speciesSet)[0];
+  }
+
+  return null;
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -3118,5 +3407,18 @@ export default {
   populatePetSpeciesList,
   shouldLogAbility,
   categorizeAbilityToFilterKey,
-  monitorPetAbilities
+  monitorPetAbilities,
+
+  // Ability Log Utilities (Phase 6)
+  getAllUniqueAbilities,
+  populateIndividualAbilities,
+  selectAllFilters,
+  selectNoneFilters,
+  exportAbilityLogs,
+  loadPresetByNumber,
+
+  // Supporting Utilities (Phase 6)
+  normalizeAbilityName,
+  formatTimestamp,
+  getGardenCropIfUnique
 };
