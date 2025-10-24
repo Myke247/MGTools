@@ -52,9 +52,8 @@ export const Network = {
 
     // Determine if we need CSP bypass
     const isCrossOrigin = !url.startsWith(location.origin);
-    const needsBypass = CompatibilityMode.flags.bypassCSPNetworking &&
-                        isCrossOrigin &&
-                        typeof GM_xmlhttpRequest === 'function';
+    const needsBypass =
+      CompatibilityMode.flags.bypassCSPNetworking && isCrossOrigin && typeof GM_xmlhttpRequest === 'function';
 
     if (needsBypass) {
       Logger.debug('NETWORK', `Using GM_xmlhttpRequest for: ${url}`);
@@ -74,9 +73,7 @@ export const Network = {
               statusText: response.statusText,
               headers: {
                 get: name => {
-                  const match = response.responseHeaders.match(
-                    new RegExp(`^${name}:\\s*(.*)$`, 'mi')
-                  );
+                  const match = response.responseHeaders.match(new RegExp(`^${name}:\\s*(.*)$`, 'mi'));
                   return match ? match[1] : null;
                 }
               },
@@ -185,13 +182,14 @@ export function parsePlayerCount(data) {
   if (!data) return 0;
 
   // Try multiple field names used by different API versions
-  const count = data?.numPlayers ??
-                data?.players?.online ??
-                data?.players?.count ??
-                data?.online ??
-                data?.count ??
-                data?.playerCount ??
-                0;
+  const count =
+    data?.numPlayers ??
+    data?.players?.online ??
+    data?.players?.count ??
+    data?.online ??
+    data?.count ??
+    data?.playerCount ??
+    0;
 
   return Math.max(0, Number(count) || 0);
 }
@@ -207,9 +205,9 @@ export function parsePlayerCount(data) {
  */
 export async function fetchLatestVersionMeta() {
   // Determine branch from CONFIG
-  const IS_LIVE_BETA = CONFIG.VERSION.CURRENT.includes('beta') ||
-                       (typeof GM_info !== 'undefined' &&
-                        GM_info?.script?.updateURL?.includes('Live-Beta'));
+  const IS_LIVE_BETA =
+    CONFIG.VERSION.CURRENT.includes('beta') ||
+    (typeof GM_info !== 'undefined' && GM_info?.script?.updateURL?.includes('Live-Beta'));
 
   const branch = IS_LIVE_BETA ? 'Live-Beta' : 'main';
   const branchName = IS_LIVE_BETA ? 'Live Beta' : 'Stable';
@@ -230,7 +228,7 @@ export async function fetchLatestVersionMeta() {
       const response = await fetch(url, {
         method: 'GET',
         cache: 'no-cache',
-        headers: isGitHubAPI ? { 'Accept': 'application/vnd.github.v3.raw' } : {}
+        headers: isGitHubAPI ? { Accept: 'application/vnd.github.v3.raw' } : {}
       });
 
       if (!response.ok) {
@@ -280,7 +278,7 @@ export const WebSocketManager = (() => {
   let socket = null;
   let reconnectAttempts = 0;
   let reconnectTimer = null;
-  let eventHandlers = {
+  const eventHandlers = {
     open: [],
     close: [],
     error: [],

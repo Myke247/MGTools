@@ -4,13 +4,17 @@
 echo "🔍 Running pre-commit checks..."
 
 # 1. Check for forbidden files (temp/analysis files that should never be committed)
+# EXCEPTION: SESSION_STATUS.md is allowed (tracks current state)
 FORBIDDEN_PATTERNS="AUDIT_|_SUMMARY\.md|OVERNIGHT_|_FINDINGS\.md|_STATUS\.md|HANDOFF\.md|NEXT_SESSION"
 STAGED_FILES=$(git diff --cached --name-only)
 
-if echo "$STAGED_FILES" | grep -qE "$FORBIDDEN_PATTERNS"; then
+# Filter out SESSION_STATUS.md from the check (it's meant to be committed)
+FORBIDDEN_FILES=$(echo "$STAGED_FILES" | grep -vE "^SESSION_STATUS\.md$" | grep -E "$FORBIDDEN_PATTERNS" || true)
+
+if [ -n "$FORBIDDEN_FILES" ]; then
   echo "❌ ERROR: Attempting to commit analysis/temp files!"
   echo "   The following files should not be committed:"
-  echo "$STAGED_FILES" | grep -E "$FORBIDDEN_PATTERNS" | sed 's/^/   - /'
+  echo "$FORBIDDEN_FILES" | sed 's/^/   - /'
   echo ""
   echo "   Remove them from staging with: git reset HEAD <file>"
   exit 1

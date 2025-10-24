@@ -77,7 +77,7 @@ export const Storage = (() => {
         }
       }
 
-      gmApiAvailable = (retrieved === testValue);
+      gmApiAvailable = retrieved === testValue;
       return gmApiAvailable;
     } catch (e) {
       gmApiAvailable = false;
@@ -518,22 +518,31 @@ export function MGA_loadJSON(key, fallback = null) {
   // Enforce MGA_ namespace
   if (keyLocal && !String(keyLocal).startsWith('MGA_')) {
     console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to load with non-MGA key: ${keyLocal}`);
-    try { console.trace(); } catch (_){}
+    try {
+      console.trace();
+    } catch (_) {}
     keyLocal = 'MGA_' + keyLocal;
   }
   try {
-    const gmAvailable = (typeof GM_getValue === 'function') && (typeof GM_setValue === 'function');
+    const gmAvailable = typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
 
     // Collect ALL accessible localStorage contexts
-    const lsMain = (typeof window !== 'undefined' && window && window.localStorage) ? window.localStorage : null;
-    const lsTarg = (typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage) ? targetWindow.localStorage : null;
+    const lsMain = typeof window !== 'undefined' && window && window.localStorage ? window.localStorage : null;
+    const lsTarg =
+      typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage
+        ? targetWindow.localStorage
+        : null;
 
     const readLS = (ls, k) => {
       if (!ls) return null;
-      try { return ls.getItem(k); } catch (e) { return null; }
+      try {
+        return ls.getItem(k);
+      } catch (e) {
+        return null;
+      }
     };
 
-    const toStr = val => (val == null ? null : (typeof val === 'string' ? val : JSON.stringify(val)));
+    const toStr = val => (val == null ? null : typeof val === 'string' ? val : JSON.stringify(val));
     const tryParseDeep = val => {
       if (val == null) return null;
       if (typeof val === 'string') {
@@ -542,10 +551,16 @@ export function MGA_loadJSON(key, fallback = null) {
         try {
           let first = JSON.parse(s);
           if (typeof first === 'string') {
-            try { first = JSON.parse(first); } catch (e) { /* keep as string */ }
+            try {
+              first = JSON.parse(first);
+            } catch (e) {
+              /* keep as string */
+            }
           }
           return first;
-        } catch (e) { return null; }
+        } catch (e) {
+          return null;
+        }
       }
       if (typeof val === 'object') return val;
       return null;
@@ -565,13 +580,15 @@ export function MGA_loadJSON(key, fallback = null) {
 
     // Read raw values
     let gmRaw = null;
-    try { gmRaw = gmAvailable ? GM_getValue(keyLocal, null) : null; } catch (e) {}
+    try {
+      gmRaw = gmAvailable ? GM_getValue(keyLocal, null) : null;
+    } catch (e) {}
 
     const mainRaw = readLS(lsMain, keyLocal);
     const targRaw = readLS(lsTarg, keyLocal);
 
     // Parse candidates
-    const gmParsed = (typeof gmRaw === 'string' ? tryParseDeep(gmRaw) : tryParseDeep(toStr(gmRaw)));
+    const gmParsed = typeof gmRaw === 'string' ? tryParseDeep(gmRaw) : tryParseDeep(toStr(gmRaw));
     const mainParsed = tryParseDeep(mainRaw) || tryParseDeep(toStr(mainRaw));
     const targParsed = tryParseDeep(targRaw) || tryParseDeep(toStr(targRaw));
 
@@ -608,10 +625,10 @@ export function MGA_loadJSON(key, fallback = null) {
     }
 
     // Nothing usable, honor fallback
-    return (typeof fallback === 'undefined') ? null : fallback;
+    return typeof fallback === 'undefined' ? null : fallback;
   } catch (err) {
     console.error('[MGA_loadJSON] Unexpected failure for key', keyLocal, err);
-    return (typeof fallback === 'undefined') ? null : fallback;
+    return typeof fallback === 'undefined' ? null : fallback;
   }
 }
 
@@ -634,17 +651,19 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
   let valueLocal = value;
   // Dedupe guard for ability logs (same pet, ability, timestamp)
   try {
-    if (keyLocal === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)){
-      const fp = l=>{
-        const t = (l && l.abilityType) || '', p = (l && l.petName) || '', ts = (l && l.timestamp) || 0;
+    if (keyLocal === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)) {
+      const fp = l => {
+        const t = (l && l.abilityType) || '',
+          p = (l && l.petName) || '',
+          ts = (l && l.timestamp) || 0;
         return t + '|' + p + '|' + String(ts);
       };
       const map = new Map();
-      for (const l of valueLocal){
+      for (const l of valueLocal) {
         const id = l.id || fp(l);
         if (!map.has(id)) map.set(id, Object.assign({ id }, l));
       }
-      valueLocal = Array.from(map.values()).sort((a,b)=> (b.timestamp || 0) - (a.timestamp || 0));
+      valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     }
   } catch {}
 
@@ -657,7 +676,11 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
   }
 
   // PERSISTENCE GUARD v3.8.6: BLOCK premature saves during initialization (prevents data loss)
-  if (typeof window !== 'undefined' && window.MGA_PERSISTENCE_GUARD?.initializationSavesBlocked && keyLocal === 'MGA_data') {
+  if (
+    typeof window !== 'undefined' &&
+    window.MGA_PERSISTENCE_GUARD?.initializationSavesBlocked &&
+    keyLocal === 'MGA_data'
+  ) {
     const stack = new Error().stack;
     if (stack && stack.includes('loadSavedData')) {
       if (typeof productionLog === 'function') {
@@ -685,7 +708,9 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
     // Enhanced logging for critical operations
     if (keyLocal === 'MGA_petPresets' || keyLocal === 'MGA_seedsToDelete') {
       if (typeof productionLog === 'function') {
-        productionLog(`[GM-STORAGE] Attempting to save critical data: ${keyLocal} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        productionLog(
+          `[GM-STORAGE] Attempting to save critical data: ${keyLocal} (attempt ${retryCount + 1}/${MAX_RETRIES})`
+        );
         productionLog(`[GM-STORAGE] Data type:`, typeof valueLocal);
         productionLog(`[GM-STORAGE] Data content:`, valueLocal);
       }
@@ -774,7 +799,6 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
     }
 
     return true;
-
   } catch (error) {
     console.error(`❌ [GM-STORAGE] Failed to save ${keyLocal}:`, error);
     console.error(`❌ [GM-STORAGE] Error details:`, {
@@ -834,14 +858,19 @@ export function MGA_saveJSON_localStorage_fallback(key, value) {
   let valueLocal = value;
   // Dedupe for ability logs in fallback path too
   try {
-    if (key === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)){
-      const fp = l=>{
-        const t = (l && l.abilityType) || '', p = (l && l.petName) || '', ts = (l && l.timestamp) || 0;
+    if (key === 'MGA_petAbilityLogs' && Array.isArray(valueLocal)) {
+      const fp = l => {
+        const t = (l && l.abilityType) || '',
+          p = (l && l.petName) || '',
+          ts = (l && l.timestamp) || 0;
         return t + '|' + p + '|' + String(ts);
       };
       const map = new Map();
-      for (const l of valueLocal){ const id = l.id || fp(l); if (!map.has(id)) map.set(id, Object.assign({ id }, l)); }
-      valueLocal = Array.from(map.values()).sort((a,b)=> (b.timestamp || 0) - (a.timestamp || 0));
+      for (const l of valueLocal) {
+        const id = l.id || fp(l);
+        if (!map.has(id)) map.set(id, Object.assign({ id }, l));
+      }
+      valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     }
   } catch {}
 
@@ -862,9 +891,8 @@ export function MGA_saveJSON_localStorage_fallback(key, value) {
     }
   } catch (error) {
     // Check if it's a quota exceeded error
-    const isQuotaError = error.name === 'QuotaExceededError' ||
-                         error.message.includes('quota') ||
-                         error.message.includes('exceeded');
+    const isQuotaError =
+      error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('exceeded');
 
     if (isQuotaError) {
       console.error(`[FALLBACK] localStorage quota exceeded for ${key}!`);
@@ -873,7 +901,9 @@ export function MGA_saveJSON_localStorage_fallback(key, value) {
 
       // Alert user for critical data
       if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete' || key === 'MGA_data') {
-        alert(`⚠️ localStorage quota exceeded!\n\nYour ${key.replace('MGA_', '')} cannot be saved.\n\nFix:\n1. Open DevTools (F12)\n2. Go to Application tab\n3. Click "Clear site data"\n4. Reload the page`);
+        alert(
+          `⚠️ localStorage quota exceeded!\n\nYour ${key.replace('MGA_', '')} cannot be saved.\n\nFix:\n1. Open DevTools (F12)\n2. Go to Application tab\n3. Click "Clear site data"\n4. Reload the page`
+        );
       }
     } else {
       console.error(`[FALLBACK] localStorage save failed for ${key}:`, error);
@@ -910,24 +940,44 @@ export function _MGA_syncStorageBothWays() {
       'MGA_hotkeys'
     ];
 
-    const gmAvailable = (typeof GM_getValue === 'function') && (typeof GM_setValue === 'function');
+    const gmAvailable = typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
 
-    const lsMain = (typeof window !== 'undefined' && window && window.localStorage) ? window.localStorage : null;
-    const lsTarg = (typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage) ? targetWindow.localStorage : null;
+    const lsMain = typeof window !== 'undefined' && window && window.localStorage ? window.localStorage : null;
+    const lsTarg =
+      typeof targetWindow !== 'undefined' && targetWindow && targetWindow.localStorage
+        ? targetWindow.localStorage
+        : null;
 
-    const readLS = (ls, k) => { if (!ls) return null; try { return ls.getItem(k); } catch (e) { return null; } };
-    const writeLS = (ls, k, v) => { try { if (ls) ls.setItem(k, v); } catch (e) {} };
+    const readLS = (ls, k) => {
+      if (!ls) return null;
+      try {
+        return ls.getItem(k);
+      } catch (e) {
+        return null;
+      }
+    };
+    const writeLS = (ls, k, v) => {
+      try {
+        if (ls) ls.setItem(k, v);
+      } catch (e) {}
+    };
 
-    const toStr = val => (val == null ? null : (typeof val === 'string' ? val : JSON.stringify(val)));
+    const toStr = val => (val == null ? null : typeof val === 'string' ? val : JSON.stringify(val));
     const tryParse = s => {
       if (s == null) return null;
       try {
         const first = JSON.parse(s);
         if (typeof first === 'string') {
-          try { return JSON.parse(first); } catch (e) { return first; }
+          try {
+            return JSON.parse(first);
+          } catch (e) {
+            return first;
+          }
         }
         return first;
-      } catch (e) { return null; }
+      } catch (e) {
+        return null;
+      }
     };
     const score = obj => {
       if (!obj) return -1;
@@ -960,7 +1010,9 @@ export function _MGA_syncStorageBothWays() {
 
         if (best && (typeof best === 'object' || Array.isArray(best))) {
           const stable = JSON.stringify(best);
-          try { if (gmAvailable) GM_setValue(key, stable); } catch (e) {}
+          try {
+            if (gmAvailable) GM_setValue(key, stable);
+          } catch (e) {}
           writeLS(lsMain, key, stable);
           writeLS(lsTarg, key, stable);
           if (typeof productionLog === 'function') {

@@ -21,19 +21,20 @@
  * This must run immediately on script load, before any other code executes.
  */
 
-(function(){
+(function () {
   try {
-    const isDiscord = /discord|overlay|electron/i.test(navigator.userAgent) || (window.DiscordNative || window.__discordApp);
+    const isDiscord =
+      /discord|overlay|electron/i.test(navigator.userAgent) || window.DiscordNative || window.__discordApp;
     if (isDiscord) {
       console.log('🛡️ [CSP] External font loads disabled in Discord context.');
     }
     const origCreateElement = Document.prototype.createElement;
-    Document.prototype.createElement = function(tag){
+    Document.prototype.createElement = function (tag) {
       const el = origCreateElement.call(this, tag);
       try {
         if (isDiscord && tag && tag.toLowerCase() === 'link') {
           const origSetAttribute = el.setAttribute;
-          el.setAttribute = function(name, value){
+          el.setAttribute = function (name, value) {
             if (name === 'href' && typeof value === 'string' && /fonts\.googleapis/i.test(value)) {
               console.log('🛡️ [CSP] Prevented external font link injection:', value);
               return;
@@ -100,14 +101,15 @@ export const CompatibilityMode = {
 
     // 1. Discord embed detection (enhanced)
     const host = window.location.host;
-    const isDiscordEmbed = host.includes('discordsays.com') ||
-                                  host.includes('discordactivities.com') ||
-                                  host.includes('discord.gg') ||
-                                  host.includes('discord.com') ||
-                                  // Check for Discord SDK presence
-                                  (typeof window.DiscordSDK !== 'undefined') ||
-                                  (typeof window.__DISCORD__ !== 'undefined') ||
-                                  (typeof window.DiscordNative !== 'undefined');
+    const isDiscordEmbed =
+      host.includes('discordsays.com') ||
+      host.includes('discordactivities.com') ||
+      host.includes('discord.gg') ||
+      host.includes('discord.com') ||
+      // Check for Discord SDK presence
+      typeof window.DiscordSDK !== 'undefined' ||
+      typeof window.__DISCORD__ !== 'undefined' ||
+      typeof window.DiscordNative !== 'undefined';
 
     if (isDiscordEmbed) {
       this.enableCompat('discord-embed');
@@ -120,14 +122,17 @@ export const CompatibilityMode = {
     const self = this;
     const seenCSPMessages = new Set();
 
-    console.error = function(...args) {
+    console.error = function (...args) {
       const msg = args.join(' ');
 
       // Check for CSP-related errors
-      if ((msg.includes('Content Security Policy') ||
-                     msg.includes('Refused to load') ||
-                     msg.includes('violates the following')) &&
-                    !msg.includes('mgtools')) { // Ignore our own CSP issues
+      if (
+        (msg.includes('Content Security Policy') ||
+          msg.includes('Refused to load') ||
+          msg.includes('violates the following')) &&
+        !msg.includes('mgtools')
+      ) {
+        // Ignore our own CSP issues
 
         // Skip duplicate CSP violations to reduce console spam
         if (seenCSPMessages.has(msg)) {

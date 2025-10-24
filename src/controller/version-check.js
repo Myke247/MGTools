@@ -45,11 +45,7 @@ import { Logger } from '../core/logging.js';
  * @returns {Promise<Object>} - Check result with status and metadata
  */
 export async function runVersionCheck(options = {}) {
-  const {
-    badgeRoot = null,
-    isLiveBeta = false,
-    onSwitchBranch = null
-  } = options;
+  const { badgeRoot = null, isLiveBeta = false, onSwitchBranch = null } = options;
 
   if (!badgeRoot || !(badgeRoot instanceof HTMLElement)) {
     Logger.error('VERSION_CHECK', 'Invalid badgeRoot provided to runVersionCheck');
@@ -71,7 +67,10 @@ export async function runVersionCheck(options = {}) {
     const currentVersion = CONFIG.VERSION.CURRENT;
     const currentBranch = isLiveBeta ? 'Live Beta' : 'Stable';
 
-    Logger.info('VERSION_CHECK', `Current: v${currentVersion} (${currentBranch}), Available: v${availableVersion} (${availableBranch})`);
+    Logger.info(
+      'VERSION_CHECK',
+      `Current: v${currentVersion} (${currentBranch}), Available: v${availableVersion} (${availableBranch})`
+    );
 
     // Compare versions using M2 utility
     const comparison = compareVersions(currentVersion, availableVersion);
@@ -88,7 +87,7 @@ export async function runVersionCheck(options = {}) {
     // Wire up branch switch handlers if outdated (M8)
     if (isOutdated && typeof onSwitchBranch === 'function') {
       wireVersionSwitchHandlers(badgeRoot, {
-        onSwitch: (switchData) => {
+        onSwitch: switchData => {
           Logger.info('VERSION_CHECK', `User initiating branch switch: ${switchData.from} → ${switchData.to}`);
           onSwitchBranch(switchData);
         }
@@ -118,7 +117,6 @@ export async function runVersionCheck(options = {}) {
       isOutdated,
       comparison
     };
-
   } catch (error) {
     Logger.error('VERSION_CHECK', 'Version check failed', error);
     return { success: false, error: error.message };
@@ -229,18 +227,14 @@ export function scheduleVersionChecks(options = {}) {
  * @returns {Promise<boolean>} - True if update available, false otherwise
  */
 export async function checkAndPromptUpdate(options = {}) {
-  const {
-    badgeRoot = null,
-    isLiveBeta = false,
-    onUpdateAvailable = null
-  } = options;
+  const { badgeRoot = null, isLiveBeta = false, onUpdateAvailable = null } = options;
 
   Logger.info('VERSION_CHECK', 'Manual version refresh requested');
 
   const result = await runVersionCheck({
     badgeRoot,
     isLiveBeta,
-    onSwitchBranch: (switchData) => {
+    onSwitchBranch: switchData => {
       Logger.info('VERSION_CHECK', `Manual update: ${switchData.from} → ${switchData.to}`);
       if (typeof onUpdateAvailable === 'function') {
         onUpdateAvailable(switchData);

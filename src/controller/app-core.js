@@ -50,25 +50,25 @@ function wireRoomPollEvents() {
   const handlers = [];
 
   // Forward 'open' event to connection UI
-  const onOpen = (data) => {
+  const onOpen = data => {
     Logger.debug('APP_CORE', 'Room poll opened, forwarding to UI');
     emit('conn:open', data);
   };
 
   // Forward 'update' event to connection UI
-  const onUpdate = (data) => {
+  const onUpdate = data => {
     Logger.debug('APP_CORE', `Room poll update: ${data.players} players`);
     emit('conn:update', data);
   };
 
   // Forward 'error' event to connection UI
-  const onError = (data) => {
+  const onError = data => {
     Logger.warn('APP_CORE', `Room poll error: ${data.err.message}`);
     emit('conn:error', data);
   };
 
   // Forward 'close' event to connection UI
-  const onClose = (data) => {
+  const onClose = data => {
     Logger.debug('APP_CORE', 'Room poll closed');
     emit('conn:close', data);
   };
@@ -100,11 +100,11 @@ function wireShortcutEvents() {
   // Listen for shortcut actions emitted by shortcuts controller
   // The shortcuts controller already emits to the UI event bus,
   // so we just need to log them here for debugging
-  const onShortcutHelp = (data) => {
+  const onShortcutHelp = data => {
     Logger.debug('APP_CORE', `Shortcut help requested: ${data.description}`);
   };
 
-  const onShortcutAction = (data) => {
+  const onShortcutAction = data => {
     Logger.debug('APP_CORE', `Shortcut action: ${data.name}`);
   };
 

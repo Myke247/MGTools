@@ -36,14 +36,14 @@ import { Logger } from '../core/logging.js';
 export const UnifiedState = {
   // ==================== METADATA ====================
   initialized: false,
-  jotaiReady: false,      // Track when Jotai store is ready
+  jotaiReady: false, // Track when Jotai store is ready
   atomsSubscribed: false, // Track when atom subscriptions are active
   connectionStatus: false,
 
   // ==================== UI STATE ====================
   panels: {
-    main: null,   // Main panel reference (structure only, no DOM)
-    toggle: null  // Toggle button reference (structure only, no DOM)
+    main: null, // Main panel reference (structure only, no DOM)
+    toggle: null // Toggle button reference (structure only, no DOM)
   },
   activeTab: 'pets',
 
@@ -74,8 +74,8 @@ export const UnifiedState = {
   data: {
     // Pet Management
     petPresets: {},
-    petPresetsOrder: [],        // Array to maintain preset display order
-    currentPresetIndex: -1,     // Track position for cycling through presets
+    petPresetsOrder: [], // Array to maintain preset display order
+    currentPresetIndex: -1, // Track position for cycling through presets
     petAbilityLogs: [],
     lastAbilityTimestamps: {},
 
@@ -90,11 +90,11 @@ export const UnifiedState = {
 
     // Room Status
     roomStatus: {
-      counts: {},       // Store room counts {MG1: 3, MG2: 2, ...}
+      counts: {}, // Store room counts {MG1: 3, MG2: 2, ...}
       currentRoom: null,
       reporterId: null
     },
-    customRooms: [],    // Dynamic list of tracked rooms
+    customRooms: [], // Dynamic list of tracked rooms
 
     // Timers
     timers: {
@@ -128,12 +128,12 @@ export const UnifiedState = {
 
         // Pet hunger notifications
         petHungerEnabled: false,
-        petHungerThreshold: 25,   // Notify when hunger drops below this %
+        petHungerThreshold: 25, // Notify when hunger drops below this %
         petHungerSound: 'double',
 
         // Ability trigger notifications
         abilityNotificationsEnabled: false,
-        watchedAbilities: [],     // Legacy - kept for backward compatibility
+        watchedAbilities: [], // Legacy - kept for backward compatibility
         watchedAbilityCategories: {
           xpBoost: true,
           cropSizeBoost: true,
@@ -155,20 +155,20 @@ export const UnifiedState = {
         lastSeenTimestamps: {}
       },
 
-      detailedTimestamps: true,   // Show HH:MM:SS 24-hour format
-      debugMode: false,           // Enable debug logging
-      roomDebugMode: false,       // Enable detailed room API logging
-      hideWeather: false,         // Hide weather visual effects
+      detailedTimestamps: true, // Show HH:MM:SS 24-hour format
+      debugMode: false, // Enable debug logging
+      roomDebugMode: false, // Enable detailed room API logging
+      hideWeather: false, // Hide weather visual effects
 
       // Auto-favorite
       autoFavorite: {
         enabled: false,
-        species: [],              // List of species names to auto-favorite
-        mutations: []             // List of mutations to auto-favorite
+        species: [], // List of species names to auto-favorite
+        mutations: [] // List of mutations to auto-favorite
       },
 
       // UI Settings
-      hideFeedButtons: false      // Default: show feed buttons
+      hideFeedButtons: false // Default: show feed buttons
     },
 
     // Hotkeys
@@ -209,9 +209,9 @@ export const UnifiedState = {
 
     // Popouts
     popouts: {
-      overlays: new Map(),  // Track in-game overlays (Alt+key)
-      windows: new Map(),   // Track separate windows
-      widgets: new Map()    // Track shift+click popout widgets
+      overlays: new Map(), // Track in-game overlays (Alt+key)
+      windows: new Map(), // Track separate windows
+      widgets: new Map() // Track shift+click popout widgets
     },
 
     // Ability Filters
@@ -236,7 +236,7 @@ export const UnifiedState = {
   // ==================== GAME STATE ATOMS ====================
   // References to game state atoms (managed by init module)
   atoms: {
-    activePets: [],       // Initialize as empty array to prevent null errors
+    activePets: [], // Initialize as empty array to prevent null errors
     petAbility: null,
     inventory: null,
     currentCrop: null,

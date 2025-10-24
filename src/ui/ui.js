@@ -160,7 +160,7 @@ export function ensureStyles() {
  */
 
 let toastContainer = null;
-let toastQueue = [];
+const toastQueue = [];
 let toastIdCounter = 0;
 
 /**
@@ -195,12 +195,7 @@ function ensureToastContainer() {
  * @returns {number} - Toast ID for manual dismissal
  */
 function createToast(message, options = {}) {
-  const {
-    type = 'info',
-    duration = 5000,
-    dismissible = true,
-    icon = null
-  } = options;
+  const { type = 'info', duration = 5000, dismissible = true, icon = null } = options;
 
   const toastId = ++toastIdCounter;
   const container = ensureToastContainer();

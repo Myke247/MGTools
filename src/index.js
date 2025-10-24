@@ -71,8 +71,20 @@ import * as Pets from './features/pets.js';
 // Assemble a single object for optional testing in the esbuild artifact
 export const MGTools = {
   // Infrastructure (Phase 3B)
-  Storage, CONFIG, Log, Compat, Network, State, UI, VersionUI, ConnUI,
-  VersionCtl, InputsCtl, RoomPollCtl, AppCore, Bootstrap,
+  Storage,
+  CONFIG,
+  Log,
+  Compat,
+  Network,
+  State,
+  UI,
+  VersionUI,
+  ConnUI,
+  VersionCtl,
+  InputsCtl,
+  RoomPollCtl,
+  AppCore,
+  Bootstrap,
 
   // Features (Phase 4 - Initial)
   Features: {
@@ -84,8 +96,7 @@ export const MGTools = {
 // Opt in by setting localStorage.MGTOOLS_ESBUILD_ENABLE = "1" in the browser console.
 // This keeps the shipping mirror build unchanged.
 try {
-  if (typeof window !== 'undefined' &&
-      window.localStorage?.getItem('MGTOOLS_ESBUILD_ENABLE') === '1') {
+  if (typeof window !== 'undefined' && window.localStorage?.getItem('MGTOOLS_ESBUILD_ENABLE') === '1') {
     // No-op "init" that mirrors current bootstrap sequencing but only when opt-in is set.
     // Avoids side effects until you explicitly enable.
     MGTools.Log.Logger.info('PHASE3B', '[Phase3B] Opt-in enabled — esbuild artifact active');

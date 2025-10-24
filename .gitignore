@@ -73,8 +73,13 @@ INFRASTRUCTURE_*.md
 MODULE_*.md
 V1.*.md
 
-# Test versions
+# Test versions and temp scripts
 test-versions/
+*-TEST.user.js
+*NoAutoRefresh*.user.js
+build-modular.js
+find-*.js
+test-*.js
 
 # Python scripts
 *.py
@@ -84,4 +89,7 @@ complete-*.json
 
 # Internal directories
 .ops/
-# Note: .claude/ is committed (contains PROJECT_CONTEXT.md)
+
+# Claude Code settings (local preferences only)
+.claude/settings*.json
+# Note: .claude/PROJECT_CONTEXT.md IS committed (project documentation)

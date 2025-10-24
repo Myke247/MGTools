@@ -15,20 +15,22 @@ mkdirSync('dist', { recursive: true });
 
 // DRY RUN note: src/index.js is a scaffold; we only prove the toolchain.
 // We DO NOT replace the shipping build. We output a parallel artifact.
-await esbuild.build({
-  entryPoints: ['src/index.js'],
-  bundle: true,
-  format: 'iife',
-  target: 'es2020',
-  outfile: 'dist/mgtools.esbuild.user.js',
-  banner: { js: banner },
-  legalComments: 'none',
-  sourcemap: false,
-  minify: false,
-  logLevel: 'info',
-}).catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+await esbuild
+  .build({
+    entryPoints: ['src/index.js'],
+    bundle: true,
+    format: 'iife',
+    target: 'es2020',
+    outfile: 'dist/mgtools.esbuild.user.js',
+    banner: { js: banner },
+    legalComments: 'none',
+    sourcemap: false,
+    minify: false,
+    logLevel: 'info'
+  })
+  .catch(e => {
+    console.error(e);
+    process.exit(1);
+  });
 
 console.log('esbuild DRY RUN complete → dist/mgtools.esbuild.user.js (parallel artifact)');
