@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.8
+// @version      1.1.9
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.8 - New black accent themes + opacity fix');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.9 - Shop loading fix + pet auto-favorite');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '1.1.8',
+      CURRENT: '1.1.9',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -13239,7 +13239,72 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         });
       }
 
-      renderItems(savedSortByValue, savedShowAvailable);
+      // Smart initial render with loading state
+      function isShopDataReady() {
+        return !!(targetWindow?.globalShop?.shops);
+      }
+
+      function showLoadingState() {
+        itemsList.innerHTML = `
+          <div style="color: #4a9eff; text-align: center; padding: 40px 20px; font-size: 13px;">
+            <div style="margin-bottom: 12px; font-size: 24px;">⏳</div>
+            <div style="font-weight: 600; margin-bottom: 8px;">Loading shop data...</div>
+            <div style="font-size: 11px; color: rgba(255, 255, 255, 0.5);">Waiting for game data</div>
+          </div>
+        `;
+      }
+
+      function showTimeoutError() {
+        itemsList.innerHTML = `
+          <div style="color: #ff6b6b; text-align: center; padding: 40px 20px; font-size: 13px;">
+            <div style="margin-bottom: 12px; font-size: 24px;">⚠️</div>
+            <div style="font-weight: 600; margin-bottom: 8px;">Shop data unavailable</div>
+            <div style="font-size: 11px; color: rgba(255, 255, 255, 0.5); margin-bottom: 16px;">
+              Game data not loaded yet
+            </div>
+            <div style="font-size: 11px; color: rgba(255, 255, 255, 0.7);">
+              Try using the refresh button (🔄) or closing and reopening the shop
+            </div>
+          </div>
+        `;
+      }
+
+      function waitForShopData(callback, timeout = 5000) {
+        const startTime = Date.now();
+        const pollInterval = 100; // Check every 100ms
+
+        const poller = setInterval(() => {
+          if (isShopDataReady()) {
+            clearInterval(poller);
+            productionLog(`✅ [SHOP] Shop data ready after ${Date.now() - startTime}ms`);
+            callback(true);
+          } else if (Date.now() - startTime >= timeout) {
+            clearInterval(poller);
+            productionWarn(`⚠️ [SHOP] Shop data timeout after ${timeout}ms`);
+            callback(false);
+          }
+        }, pollInterval);
+      }
+
+      // Check if shop data is ready on initial render
+      if (isShopDataReady()) {
+        // Data ready immediately - render normally
+        renderItems(savedSortByValue, savedShowAvailable);
+      } else {
+        // Data not ready - show loading state and wait
+        productionLog(`⏳ [SHOP] Shop data not ready yet, showing loading state for ${type} shop`);
+        showLoadingState();
+
+        waitForShopData(success => {
+          if (success) {
+            // Data became available - render shop
+            renderItems(savedSortByValue, savedShowAvailable);
+          } else {
+            // Timeout - show error
+            showTimeoutError();
+          }
+        });
+      }
 
       // Store render function for global refresh
       shopRenderFunctions[type] = () => renderItems(sortCheckbox.checked, showAvailableCheckbox.checked);
@@ -27150,6 +27215,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         // Only process if inventory count increased (new items added)
         if (currentCount > lastInventoryCount) {
           checkAndFavoriteNewItems(targetWindow.myData.inventory);
+          checkAndFavoritePetsWithProtectedAbilities(targetWindow.myData.inventory);
         }
         lastInventoryCount = currentCount;
       }, 2000); // OPTIMIZED: Every 2 seconds (was 500ms)
@@ -27198,6 +27264,58 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
         if (count > 0) {
           productionLog(`🌟 [AUTO-FAVORITE] Auto-favorited ${count} new crops`);
+        }
+      }
+
+      // Auto-favorite pets with protected abilities (Rainbow Granter, Gold Granter)
+      function checkAndFavoritePetsWithProtectedAbilities(inventory) {
+        if (!inventory?.items) return;
+
+        // Get locked pet abilities from settings
+        const lockedAbilities = UnifiedState.data.lockedPetAbilities || [];
+        if (lockedAbilities.length === 0) return; // No abilities locked, nothing to auto-favorite
+
+        const favoritedIds = new Set(inventory.favoritedItemIds || []);
+        let count = 0;
+
+        for (const item of inventory.items) {
+          // Only process pets
+          if (item.itemType !== 'Pet') continue;
+          if (favoritedIds.has(item.id)) continue; // Already favorited
+
+          // Check pet mutations for Gold or Rainbow
+          const petMutations = item.mutations || [];
+          const hasGoldMutation = petMutations.includes('Gold');
+          const hasRainbowMutation = petMutations.includes('Rainbow');
+
+          // Check if these abilities are locked (protected)
+          const isGoldGranterLocked = lockedAbilities.includes('Gold Granter');
+          const isRainbowGranterLocked = lockedAbilities.includes('Rainbow Granter');
+
+          // Auto-favorite if pet has protected ability
+          const shouldFavorite =
+            (hasGoldMutation && isGoldGranterLocked) || (hasRainbowMutation && isRainbowGranterLocked);
+
+          if (shouldFavorite) {
+            const abilityType = hasGoldMutation ? 'Gold Granter' : 'Rainbow Granter';
+
+            // Send favorite command
+            if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
+              targetWindow.MagicCircle_RoomConnection.sendMessage({
+                scopePath: ['Room', 'Quinoa'],
+                type: 'ToggleFavoriteItem',
+                itemId: item.id
+              });
+              count++;
+              productionLog(
+                `🌟 [AUTO-FAVORITE-PET] Favoriting pet with protected ${abilityType} ability (id: ${item.id})`
+              );
+            }
+          }
+        }
+
+        if (count > 0) {
+          productionLog(`🌟 [AUTO-FAVORITE-PET] Auto-favorited ${count} pets with protected abilities`);
         }
       }
 
