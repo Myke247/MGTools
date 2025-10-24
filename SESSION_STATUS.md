@@ -10,27 +10,33 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 50.2% complete (2,508 of ~5,000 lines extracted)
+**Progress:** 59.9% complete (2,993 of ~5,000 lines extracted)
 
 ---
 
 ## ✅ Recently Completed
 
-### Session: 2025-10-24 (Day 2 - Auto-Favorite Extraction)
+### Session: 2025-10-24 (Day 2 - Continued Extraction)
 
-**Latest Work:**
-- ✅ Extracted Auto-Favorite Integration (~304 lines)
-  - `initAutoFavorite()` - Main monitoring system
-  - `checkAndFavoriteNewItems()` - Auto-favorite logic
-  - `favoriteSpecies()` - Favorite all crops of species
-  - `favoriteMutation()` - Favorite all crops with mutation
-  - `favoritePetAbility()` - Favorite pets with abilities (Gold/Rainbow Granter)
-  - Stub functions for unfavorite (preserve user favorites)
-- ✅ All code passes ESLint + Prettier + Airbnb style
+**Latest Work (Session 2):**
+- ✅ Extracted Additional Pet Functions (~485 lines)
+  - `playPetNotificationSound()` - Sound playback delegation
+  - `placePetPreset()` - Advanced preset loading with swap logic (~111 lines)
+  - `loadPetPreset()` - Alternative atomic swap implementation (~56 lines)
+  - `getAllUniquePets()` - Extract unique pet species from logs
+  - `populatePetSpeciesList()` - UI population with checkboxes (~39 lines)
+  - `shouldLogAbility()` - Ability filtering logic (~21 lines)
+  - `categorizeAbilityToFilterKey()` - Ability categorization (~24 lines)
+  - `monitorPetAbilities()` - Main ability monitoring system (~201 lines)
+- ✅ All code passes ESLint + Prettier
 - ✅ Both builds verified (mirror + modular)
-- ✅ Modular build now 197.6 KB (grew from ~186KB)
+- ✅ Modular build now 212.5 KB (grew from 197.6 KB)
 
-**Progress:** From 44.1% → 50.2% (+6.1%)
+**Progress:** From 50.2% → 59.9% (+9.7%)
+
+**Earlier Work (Session 1):**
+- ✅ Extracted Auto-Favorite Integration (~304 lines)
+- Progress: 44.1% → 50.2% (+6.1%)
 
 ### Session: 2025-10-24 (Day 2 - Repository Cleanup)
 
@@ -74,7 +80,7 @@
 
 ## 📊 Pet Feature Extraction Progress
 
-### Extracted (2,508 lines)
+### Extracted (2,993 lines)
 
 **Phase 1: Foundation** ✅
 - Pet Presets (import/export) - ~99 lines
@@ -103,8 +109,17 @@
   - favoriteMutation() - Mutation-based auto-favorite
   - favoritePetAbility() - Pet ability auto-favorite (Rainbow/Gold Granter)
   - Unfavorite stubs (preserve user favorites)
+- Additional Pet Functions - ~485 lines ✅
+  - playPetNotificationSound() - Sound playback
+  - placePetPreset() - Advanced preset loading
+  - loadPetPreset() - Alternative preset loader
+  - getAllUniquePets() - Species extraction
+  - populatePetSpeciesList() - UI population
+  - shouldLogAbility() - Filtering logic
+  - categorizeAbilityToFilterKey() - Categorization
+  - monitorPetAbilities() - Main ability monitoring
 
-### Remaining (2,492 lines)
+### Remaining (2,007 lines)
 
 **Phase 5: Additional Pet Features**
 - ⏳ Additional pet functions (~2,492 lines)
@@ -157,7 +172,7 @@
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 197.6 KB (growing as features extract)
+- Size: 212.5 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -221,8 +236,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Scan for remaining pet functions throughout file
-- Progress: 50.2% (2,508/5,000 lines extracted)
+- Next: Scan for remaining ~2,007 lines of pet code
+- Progress: 59.9% (2,993/5,000 lines extracted) - Nearly 60%!
 
 **Remember:**
 - Use dependency injection (no globals!)
