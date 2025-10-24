@@ -1,8 +1,26 @@
 # MGTools Development Workflow
 
 **Updated:** 2025-10-24
-**Status:** Phase 3B - Dual Build Mode (esbuild + mirror)
+**Status:** Phase 4 - Feature Extraction with Automated Quality Checks
 **Branch:** Live-Beta
+
+---
+
+## ⚡ NEW: Automated Workflow (Oct 24, 2025)
+
+**Git hooks now enforce quality automatically!**
+
+### What Changed:
+- ✅ **ESLint + Prettier** run automatically on every commit
+- ✅ **Forbidden files** blocked from commits (analysis docs, temp files)
+- ✅ **Build verification** ensures code compiles before commit
+- ✅ **Commit message** format validation
+
+### What This Means:
+- ✅ No more manual `npm run style` needed (automatic!)
+- ✅ No more accidentally committing temp files
+- ✅ No more broken commits (build must pass)
+- ✅ Consistent code quality (Airbnb + Prettier enforced)
 
 ---
 
@@ -29,6 +47,67 @@
 - ✅ Edit `MGTools.user.js` directly (for now)
 - ✅ Test with `npm run build` (mirror)
 - ⏳ Will extract to `src/features/` (Phase 4)
+
+---
+
+## 📋 New Commit Workflow (Automated Quality Checks)
+
+### Standard Workflow
+
+```bash
+# 1. Make your changes
+nano src/features/pets.js
+
+# 2. Stage files
+git add src/features/pets.js
+
+# 3. Commit (hooks run automatically!)
+git commit -m "feat: add pet ability filter"
+```
+
+**What happens automatically:**
+1. 🚫 Checks for forbidden files (temp/analysis docs)
+2. 📝 Runs ESLint + Prettier on ALL staged files
+3. 🔨 Verifies modular build compiles successfully
+4. ✅ Validates commit message format
+5. 💾 Creates commit if all checks pass
+
+### Manual Quality Check (Optional)
+
+If you want to check quality before committing:
+
+```bash
+npm run style              # Run ESLint + Prettier manually
+npm run build:esbuild      # Test build manually
+```
+
+### Bypassing Hooks (Emergency Only)
+
+```bash
+git commit --no-verify -m "fix: emergency hotfix"
+```
+
+**⚠️ Use sparingly!** Only for urgent production fixes.
+
+### Commit Message Format
+
+**Required prefix:**
+```
+feat:     New feature
+fix:      Bug fix
+docs:     Documentation changes
+refactor: Code refactoring
+test:     Test changes
+chore:    Build/tooling changes
+Phase:    Modularization work
+```
+
+**Examples:**
+```bash
+git commit -m "feat: add turtle growth calculations"
+git commit -m "fix: resolve pet hunger alert throttle"
+git commit -m "Phase 4 - Day 2: Pet helpers extracted"
+```
 
 ---
 
