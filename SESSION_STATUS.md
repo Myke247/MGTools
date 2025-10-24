@@ -10,7 +10,7 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 59.9% complete (2,993 of ~5,000 lines extracted)
+**Progress:** 65.3% complete (3,266 of ~5,000 lines extracted)
 
 ---
 
@@ -18,7 +18,24 @@
 
 ### Session: 2025-10-24 (Day 2 - Continued Extraction)
 
-**Latest Work (Session 2):**
+**Latest Work (Session 3):**
+- ✅ Extracted Ability Log Utilities (~273 lines)
+  - `getAllUniqueAbilities()` - Extract unique abilities from logs
+  - `populateIndividualAbilities()` - UI population with checkboxes (~40 lines)
+  - `selectAllFilters()` - Select all filters by mode (~26 lines)
+  - `selectNoneFilters()` - Deselect all filters by mode (~20 lines)
+  - `exportAbilityLogs()` - Export to CSV (~29 lines)
+  - `loadPresetByNumber()` - Load preset by numeric index
+  - `normalizeAbilityName()` - Fix ability name formatting (~17 lines)
+  - `formatTimestamp()` - Cached timestamp formatting (~33 lines)
+  - `getGardenCropIfUnique()` - Single-crop detection (~22 lines)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build now 221.4 KB (grew from 212.5 KB)
+
+**Progress:** From 59.9% → 65.3% (+5.4%)
+
+**Earlier Work (Session 2):**
 - ✅ Extracted Additional Pet Functions (~485 lines)
   - `playPetNotificationSound()` - Sound playback delegation
   - `placePetPreset()` - Advanced preset loading with swap logic (~111 lines)
@@ -80,7 +97,7 @@
 
 ## 📊 Pet Feature Extraction Progress
 
-### Extracted (2,993 lines)
+### Extracted (3,266 lines)
 
 **Phase 1: Foundation** ✅
 - Pet Presets (import/export) - ~99 lines
@@ -118,8 +135,18 @@
   - shouldLogAbility() - Filtering logic
   - categorizeAbilityToFilterKey() - Categorization
   - monitorPetAbilities() - Main ability monitoring
+- Ability Log Utilities - ~273 lines ✅
+  - getAllUniqueAbilities() - Unique ability extraction
+  - populateIndividualAbilities() - UI population
+  - selectAllFilters() - Select all by mode
+  - selectNoneFilters() - Deselect all by mode
+  - exportAbilityLogs() - CSV export
+  - loadPresetByNumber() - Load by index
+  - normalizeAbilityName() - Name formatting
+  - formatTimestamp() - Cached formatting
+  - getGardenCropIfUnique() - Single-crop detection
 
-### Remaining (2,007 lines)
+### Remaining (1,734 lines)
 
 **Phase 5: Additional Pet Features**
 - ⏳ Additional pet functions (~2,492 lines)
@@ -172,7 +199,7 @@
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 212.5 KB (growing as features extract)
+- Size: 221.4 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -236,8 +263,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Scan for remaining ~2,007 lines of pet code
-- Progress: 59.9% (2,993/5,000 lines extracted) - Nearly 60%!
+- Next: Scan for remaining ~1,734 lines of pet code
+- Progress: 65.3% (3,266/5,000 lines extracted) - Past 65%!
 
 **Remember:**
 - Use dependency injection (no globals!)
