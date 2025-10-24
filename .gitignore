@@ -94,6 +94,8 @@ complete-*.json
 # Internal directories
 .ops/
 
-# Claude Code settings (local preferences only)
-.claude/settings*.json
-# Note: .claude/PROJECT_CONTEXT.md IS committed (project documentation)
+# Claude Code directory (local AI collaboration files)
+.claude/*
+!.claude/PROJECT_CONTEXT.md
+# Note: Only PROJECT_CONTEXT.md is committed (technical project docs)
+# Everything else in .claude/ stays local (AI conversations, session notes, etc.)

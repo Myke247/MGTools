@@ -1,8 +1,8 @@
 # MGTools Project Context
 
-**READ THIS FIRST when starting any session!**
+**READ THIS FIRST when starting development!**
 
-This file contains permanent project rules and context that every new Sonnet instance must follow.
+This file contains permanent project rules and context for all developers.
 
 ---
 
@@ -232,7 +232,7 @@ git commit -m "feat: ..."    # Hooks run automatically
 
 ---
 
-## 💡 Tips for New Sonnet Instances
+## 💡 Development Tips
 
 ### Start Every Session With:
 
