@@ -37,9 +37,7 @@ let helpOverlay = null;
  * @returns {HTMLElement} - Created overlay element
  */
 export function showHotkeyHelp(options = {}) {
-  const {
-    shortcuts = null
-  } = options;
+  const { shortcuts = null } = options;
 
   // Remove existing overlay
   if (helpOverlay) {
@@ -83,33 +81,41 @@ export function showHotkeyHelp(options = {}) {
   });
 
   // Title
-  const title = el('h2', {
-    style: {
-      margin: '0 0 20px 0',
-      fontSize: '24px',
-      fontWeight: '600',
-      color: '#333',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between'
-    }
-  }, 'Keyboard Shortcuts');
+  const title = el(
+    'h2',
+    {
+      style: {
+        margin: '0 0 20px 0',
+        fontSize: '24px',
+        fontWeight: '600',
+        color: '#333',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }
+    },
+    'Keyboard Shortcuts'
+  );
 
   // Close button
-  const closeBtn = el('button', {
-    className: 'mgtools-hotkey-help-close',
-    style: {
-      padding: '8px 12px',
-      border: 'none',
-      borderRadius: '6px',
-      background: '#f3f4f6',
-      color: '#6b7280',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'background 0.2s'
-    }
-  }, '✕ Close');
+  const closeBtn = el(
+    'button',
+    {
+      className: 'mgtools-hotkey-help-close',
+      style: {
+        padding: '8px 12px',
+        border: 'none',
+        borderRadius: '6px',
+        background: '#f3f4f6',
+        color: '#6b7280',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'background 0.2s'
+      }
+    },
+    '✕ Close'
+  );
 
   closeBtn.addEventListener('click', hideHotkeyHelp);
   closeBtn.addEventListener('mouseenter', () => {
@@ -138,16 +144,20 @@ export function showHotkeyHelp(options = {}) {
       }
     });
 
-    const categoryTitle = el('h3', {
-      style: {
-        margin: '0 0 12px 0',
-        fontSize: '14px',
-        fontWeight: '600',
-        color: '#6b7280',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-      }
-    }, category);
+    const categoryTitle = el(
+      'h3',
+      {
+        style: {
+          margin: '0 0 12px 0',
+          fontSize: '14px',
+          fontWeight: '600',
+          color: '#6b7280',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px'
+        }
+      },
+      category
+    );
 
     const shortcutList = el('div', {
       style: {
@@ -168,25 +178,33 @@ export function showHotkeyHelp(options = {}) {
         }
       });
 
-      const description = el('span', {
-        style: {
-          fontSize: '14px',
-          color: '#374151'
-        }
-      }, shortcut.description);
+      const description = el(
+        'span',
+        {
+          style: {
+            fontSize: '14px',
+            color: '#374151'
+          }
+        },
+        shortcut.description
+      );
 
-      const keys = el('kbd', {
-        style: {
-          padding: '4px 8px',
-          borderRadius: '4px',
-          background: 'white',
-          border: '1px solid #d1d5db',
-          fontSize: '13px',
-          fontFamily: 'monospace',
-          color: '#1f2937',
-          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-        }
-      }, formatShortcut(shortcut));
+      const keys = el(
+        'kbd',
+        {
+          style: {
+            padding: '4px 8px',
+            borderRadius: '4px',
+            background: 'white',
+            border: '1px solid #d1d5db',
+            fontSize: '13px',
+            fontFamily: 'monospace',
+            color: '#1f2937',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+          }
+        },
+        formatShortcut(shortcut)
+      );
 
       shortcutRow.appendChild(description);
       shortcutRow.appendChild(keys);
@@ -206,14 +224,14 @@ export function showHotkeyHelp(options = {}) {
   helpOverlay.appendChild(modal);
 
   // Close on overlay click
-  helpOverlay.addEventListener('click', (e) => {
+  helpOverlay.addEventListener('click', e => {
     if (e.target === helpOverlay) {
       hideHotkeyHelp();
     }
   });
 
   // Close on Escape key
-  const handleEscape = (e) => {
+  const handleEscape = e => {
     if (e.key === 'Escape') {
       hideHotkeyHelp();
       document.removeEventListener('keydown', handleEscape);

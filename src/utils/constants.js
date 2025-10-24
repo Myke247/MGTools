@@ -157,7 +157,10 @@ if (isRunningWithoutTampermonkey) {
   console.error('%c⚠️ MGTOOLS INSTALLATION ERROR', 'font-size:16px;color:#ff0000;font-weight:bold');
   console.error('%cMGTools MUST be installed via Tampermonkey!', 'font-size:14px;color:#ff9900');
   console.error('%cDo NOT paste the script in console - it will not work correctly!', 'font-size:14px;color:#ff9900');
-  console.error('%c\n📋 Correct Installation:\n1. Install Tampermonkey: https://www.tampermonkey.net/\n2. Click: https://github.com/Myke247/MGTools/raw/main/MGTools.user.js\n3. Click "Install" button\n4. Refresh Magic Garden', 'font-size:12px;color:#00ffff');
+  console.error(
+    '%c\n📋 Correct Installation:\n1. Install Tampermonkey: https://www.tampermonkey.net/\n2. Click: https://github.com/Myke247/MGTools/raw/main/MGTools.user.js\n3. Click "Install" button\n4. Refresh Magic Garden',
+    'font-size:12px;color:#00ffff'
+  );
 
   // Try to continue anyway using localStorage fallback
   console.warn('%c⚠️ Attempting to run in fallback mode (limited functionality)...', 'font-size:12px;color:#ffff00');

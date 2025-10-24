@@ -121,14 +121,18 @@ export function renderConnectionStatus(container, initialState = CONNECTION_STAT
   }
 
   // Icon
-  const icon = el('span', {
-    className: 'mgtools-connection-icon',
-    style: {
-      fontSize: '14px',
-      lineHeight: '1',
-      display: 'inline-block'
-    }
-  }, config.icon);
+  const icon = el(
+    'span',
+    {
+      className: 'mgtools-connection-icon',
+      style: {
+        fontSize: '14px',
+        lineHeight: '1',
+        display: 'inline-block'
+      }
+    },
+    config.icon
+  );
 
   // Add rotation animation for reconnecting state
   if (state === CONNECTION_STATES.RECONNECTING) {
@@ -136,10 +140,14 @@ export function renderConnectionStatus(container, initialState = CONNECTION_STAT
   }
 
   // Status text
-  const statusText = el('span', {
-    className: 'mgtools-connection-text',
-    style: { letterSpacing: '0.3px' }
-  }, config.text);
+  const statusText = el(
+    'span',
+    {
+      className: 'mgtools-connection-text',
+      style: { letterSpacing: '0.3px' }
+    },
+    config.text
+  );
 
   // Assemble HUD
   hud.appendChild(icon);
@@ -259,23 +267,27 @@ export function attachConnectionHandlers(container, callbacks = {}) {
 
   // Reconnect button
   if (typeof onReconnect === 'function') {
-    const reconnectBtn = el('button', {
-      className: 'mgtools-connection-btn mgtools-reconnect-btn',
-      title: 'Reconnect',
-      style: {
-        padding: '4px 8px',
-        border: 'none',
-        borderRadius: '4px',
-        background: 'rgba(255, 255, 255, 0.2)',
-        color: 'white',
-        fontSize: '11px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'background 0.2s',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-      }
-    }, '↻');
+    const reconnectBtn = el(
+      'button',
+      {
+        className: 'mgtools-connection-btn mgtools-reconnect-btn',
+        title: 'Reconnect',
+        style: {
+          padding: '4px 8px',
+          border: 'none',
+          borderRadius: '4px',
+          background: 'rgba(255, 255, 255, 0.2)',
+          color: 'white',
+          fontSize: '11px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          transition: 'background 0.2s',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px'
+        }
+      },
+      '↻'
+    );
 
     reconnectBtn.addEventListener('mouseenter', () => {
       reconnectBtn.style.background = 'rgba(255, 255, 255, 0.3)';
@@ -285,7 +297,7 @@ export function attachConnectionHandlers(container, callbacks = {}) {
       reconnectBtn.style.background = 'rgba(255, 255, 255, 0.2)';
     });
 
-    reconnectBtn.addEventListener('click', (e) => {
+    reconnectBtn.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
       Logger.info('CONN_UI', 'User clicked reconnect button');
@@ -297,23 +309,27 @@ export function attachConnectionHandlers(container, callbacks = {}) {
 
   // Refresh button
   if (typeof onRefresh === 'function') {
-    const refreshBtn = el('button', {
-      className: 'mgtools-connection-btn mgtools-refresh-btn',
-      title: 'Refresh Page',
-      style: {
-        padding: '4px 8px',
-        border: 'none',
-        borderRadius: '4px',
-        background: 'rgba(255, 255, 255, 0.2)',
-        color: 'white',
-        fontSize: '11px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'background 0.2s',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-      }
-    }, '⟳');
+    const refreshBtn = el(
+      'button',
+      {
+        className: 'mgtools-connection-btn mgtools-refresh-btn',
+        title: 'Refresh Page',
+        style: {
+          padding: '4px 8px',
+          border: 'none',
+          borderRadius: '4px',
+          background: 'rgba(255, 255, 255, 0.2)',
+          color: 'white',
+          fontSize: '11px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          transition: 'background 0.2s',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px'
+        }
+      },
+      '⟳'
+    );
 
     refreshBtn.addEventListener('mouseenter', () => {
       refreshBtn.style.background = 'rgba(255, 255, 255, 0.3)';
@@ -323,7 +339,7 @@ export function attachConnectionHandlers(container, callbacks = {}) {
       refreshBtn.style.background = 'rgba(255, 255, 255, 0.2)';
     });
 
-    refreshBtn.addEventListener('click', (e) => {
+    refreshBtn.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
       Logger.info('CONN_UI', 'User clicked refresh button');

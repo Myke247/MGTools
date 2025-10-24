@@ -7,8 +7,13 @@ function sha256(p) {
   return h.digest('hex');
 }
 
-const have = (p) => {
-  try { readFileSync(p); return true; } catch { return false; }
+const have = p => {
+  try {
+    readFileSync(p);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const lines = [];

@@ -26838,7 +26838,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     }
 
     // PERFORMANCE OPTIMIZATION: Cache timer elements to avoid repeated DOM queries
-    let cachedTimerElements = {
+    const cachedTimerElements = {
       'timer-seed': [],
       'timer-egg': [],
       'timer-tool': [],

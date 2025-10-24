@@ -37,7 +37,7 @@ let config = {
   maxBackoffMs: 30000
 };
 
-let eventHandlers = {
+const eventHandlers = {
   open: [],
   update: [],
   error: [],
@@ -152,7 +152,6 @@ async function pollOnce() {
     // Schedule next poll with jitter
     const nextInterval = applyJitter(config.intervalMs, config.jitterMs);
     pollTimer = setTimeout(() => pollOnce(), nextInterval);
-
   } catch (err) {
     Logger.warn('ROOM_POLL', `Poll failed: ${err.message}`);
 
@@ -209,7 +208,10 @@ export const RoomPollController = {
     hasOpenedOnce = false;
     currentBackoffMs = 0;
 
-    Logger.info('ROOM_POLL', `Starting poll for room: ${config.roomIdOrCode} (interval: ${config.intervalMs}ms, jitter: ${config.jitterMs}ms)`);
+    Logger.info(
+      'ROOM_POLL',
+      `Starting poll for room: ${config.roomIdOrCode} (interval: ${config.intervalMs}ms, jitter: ${config.jitterMs}ms)`
+    );
 
     // Start polling immediately
     pollOnce();
