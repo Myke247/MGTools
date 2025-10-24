@@ -69,8 +69,15 @@
  *   • formatLogData() - Format log data objects
  *   • formatRelativeTime() - Relative time formatting
  *
- * Total Extracted: ~3,395 lines (of ~5,000 estimated)
- * Progress: 67.9%
+ * Phase 8 (Complete):
+ * - Display Update Functions - ~316 lines ✅
+ *   • updateAbilityLogDisplay() - Main log renderer with styling (~195 lines)
+ *   • updateLogVisibility() - CSS-based visibility toggle (~28 lines)
+ *   • updateAllLogVisibility() - Visibility orchestrator (~12 lines)
+ *   • updateAllAbilityLogDisplays() - Update across all contexts (~66 lines)
+ *
+ * Total Extracted: ~3,711 lines (of ~5,000 estimated)
+ * Progress: 74.2%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -3453,7 +3460,9 @@ export function MGA_manageLogMemory(logs, { MGA_MemoryConfig, MGA_loadJSON, MGA_
     return logs;
   }
 
-  productionLog(`🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`);
+  productionLog(
+    `🧠 [MEMORY] Managing log memory: ${logs.length} logs, keeping ${MGA_MemoryConfig.maxLogsInMemory} in memory`
+  );
 
   const recentLogs = logs.slice(0, MGA_MemoryConfig.maxLogsInMemory);
   const archivedLogs = logs.slice(MGA_MemoryConfig.maxLogsInMemory);
@@ -3555,6 +3564,286 @@ export function formatRelativeTime(timestamp) {
 }
 
 /* ====================================================================================
+ * ABILITY LOG DISPLAY UPDATE FUNCTIONS (LARGE)
+ * ====================================================================================
+ */
+
+/**
+ * Update ability log display in a given context (document or overlay)
+ * This is a large function (~195 lines) that handles rendering logs with full styling
+ * @param {Document|Element} context - Context to update (document or overlay element)
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function updateAbilityLogDisplay(
+  context,
+  {
+    MGA_getAllLogs,
+    shouldLogAbility,
+    categorizeAbilityToFilterKey,
+    formatTimestamp,
+    normalizeAbilityName,
+    formatLogData,
+    UnifiedState,
+    targetDocument,
+    debugLog,
+    CONFIG
+  }
+) {
+  const abilityLogs = context.querySelector('#ability-logs');
+  if (!abilityLogs) {
+    debugLog('ABILITY_LOGS', 'No ability logs element found in context', {
+      isDocument: context === document,
+      className: context.className || 'unknown'
+    });
+    return;
+  }
+
+  // Preserve drag state
+  const isOverlay = context.classList?.contains('mga-overlay-content-only');
+  const isDragInProgress = context.getAttribute?.('data-dragging') === 'true';
+  if (isOverlay && isDragInProgress) {
+    debugLog('ABILITY_LOGS', 'Skipping content update during drag operation', {
+      overlayId: context.id
+    });
+    return;
+  }
+
+  const logs = MGA_getAllLogs({ UnifiedState, MGA_loadJSON: window.MGA_loadJSON, productionLog: window.productionLog });
+  const filteredLogs = logs.filter(log =>
+    shouldLogAbility(log.abilityType, log.petName, { UnifiedState, categorizeAbilityToFilterKey })
+  );
+
+  debugLog('ABILITY_LOGS', 'Updating ability log display', {
+    totalLogs: logs.length,
+    filteredLogs: filteredLogs.length,
+    filterMode: UnifiedState.data.filterMode
+  });
+
+  if (CONFIG?.DEBUG?.FLAGS?.FIX_VALIDATION) {
+    console.log('[FIX_ABILITY_LOGS] Update called:', {
+      totalLogs: logs.length,
+      filteredLogs: filteredLogs.length,
+      filterMode: UnifiedState.data.filterMode,
+      elementFound: !!abilityLogs,
+      contextType: context === document ? 'document' : 'overlay'
+    });
+  }
+
+  const htmlParts = [];
+  const categoryData = {
+    xpBoost: { icon: '💫', color: '#4a9eff', label: 'XP Boost' },
+    cropSizeBoost: { icon: '📈', color: '#10b981', label: 'Crop Size' },
+    selling: { icon: '💰', color: '#f59e0b', label: 'Selling' },
+    harvesting: { icon: '🌾', color: '#84cc16', label: 'Harvesting' },
+    growthSpeed: { icon: '🐢', color: '#06b6d4', label: 'Growth Speed' },
+    specialMutations: { icon: '🌈✨', color: '#8b5cf6', label: 'Special' },
+    other: { icon: '🔧', color: '#6b7280', label: 'Other' }
+  };
+
+  filteredLogs.forEach(log => {
+    const category = categorizeAbilityToFilterKey(log.abilityType, { MGA_AbilityCache: window.MGA_AbilityCache });
+    const catData = categoryData[category] || categoryData.other;
+    const formattedTime = formatTimestamp(log.timestamp, { UnifiedState, MGA_AbilityCache: window.MGA_AbilityCache });
+    const isRecent = Date.now() - log.timestamp < 10000;
+    const displayAbilityName = normalizeAbilityName(log.abilityType, { UnifiedState });
+
+    htmlParts.push(`
+      <div class="mga-log-item ${isRecent ? 'mga-log-recent' : ''}" data-category="${category}" data-ability-type="${log.abilityType}" data-pet-name="${log.petName}" style="--category-color: ${catData.color}">
+        <div class="mga-log-header">
+          <span class="mga-log-icon">${catData.icon}</span>
+          <span class="mga-log-meta">
+            <span class="mga-log-pet" style="color: ${catData.color}; font-weight: 600;">${log.petName}</span>
+            <span class="mga-log-time">${formattedTime}</span>
+          </span>
+        </div>
+        <div class="mga-log-ability">${displayAbilityName}</div>
+        ${log.data && Object.keys(log.data).length > 0 ? `<div class="mga-log-details">${formatLogData(log.data)}</div>` : ''}
+      </div>
+    `);
+  });
+
+  const fragment = targetDocument.createDocumentFragment();
+  const tempContainer = targetDocument.createElement('div');
+
+  if (htmlParts.length === 0) {
+    const mode = UnifiedState.data.filterMode || 'categories';
+    const modeText = mode === 'categories' ? 'category filters' : mode === 'byPet' ? 'pet filters' : 'custom filters';
+    tempContainer.innerHTML = `<div class="mga-log-empty">
+      <div style="color: #888; text-align: center; padding: 20px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
+        <div>No abilities match the current ${modeText}</div>
+        <div style="font-size: 11px; margin-top: 4px; opacity: 0.7;">Try adjusting your filter settings</div>
+      </div>
+    </div>`;
+  } else {
+    tempContainer.innerHTML = htmlParts.join('');
+    setTimeout(() => {
+      if (abilityLogs.scrollHeight > abilityLogs.clientHeight) {
+        abilityLogs.scrollTop = 0;
+      }
+    }, 100);
+  }
+
+  while (tempContainer.firstChild) {
+    fragment.appendChild(tempContainer.firstChild);
+  }
+
+  abilityLogs.innerHTML = '';
+  abilityLogs.appendChild(fragment);
+
+  // Add styles if not present
+  if (!context.querySelector('#mga-log-styles')) {
+    const logStyles = targetDocument.createElement('style');
+    logStyles.id = 'mga-log-styles';
+    logStyles.textContent = `
+      .mga-log-item { margin: 4px 0; padding: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.02);
+        border-left: 2px solid var(--category-color, #6b7280); transition: all 0.2s ease; font-size: 11px; line-height: 1.3; }
+      .mga-log-item:hover { background: rgba(255, 255, 255, 0.05); transform: translateX(2px); }
+      .mga-log-recent { background: rgba(74, 158, 255, 0.30); border-color: #4a9eff;
+        box-shadow: 0 0 8px rgba(74, 158, 255, 0.3); animation: mgaLogPulse 2s ease-out; }
+      @keyframes mgaLogPulse { 0% { box-shadow: 0 0 8px rgba(74, 158, 255, 0.6); }
+        100% { box-shadow: 0 0 8px rgba(74, 158, 255, 0.3); } }
+      .mga-log-header { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+      .mga-log-icon { font-size: 12px; }
+      .mga-log-meta { display: flex; align-items: center; gap: 8px; flex: 1; }
+      .mga-log-pet { font-weight: 600; font-size: 11px; }
+      .mga-log-time { font-size: 9px; color: rgba(255, 255, 255, 0.6); margin-left: auto; }
+      .mga-log-ability { color: rgba(255, 255, 255, 0.9); font-size: 10px; margin: 2px 0 0 18px; }
+      .mga-log-details { font-size: 9px; color: rgba(255, 255, 255, 0.5); margin: 2px 0 0 18px; font-style: italic; }
+      .mga-log-empty { text-align: center; padding: 20px; color: #888; }
+    `;
+    (context.head || context.querySelector('head') || targetDocument.head).appendChild(logStyles);
+  }
+}
+
+/**
+ * Update log visibility via CSS (performance optimization)
+ * @param {Document|Element} context - Context to update
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function updateLogVisibility(context, { UnifiedState, debugLog }) {
+  const abilityLogs = context.querySelector('#ability-logs');
+  if (!abilityLogs) return;
+
+  const filterMode = UnifiedState.data.filterMode || 'categories';
+  const logItems = abilityLogs.querySelectorAll('.mga-log-item');
+
+  debugLog('ABILITY_LOGS', 'Updating log visibility via CSS', {
+    filterMode,
+    totalItems: logItems.length
+  });
+
+  logItems.forEach(item => {
+    let shouldShow = false;
+
+    if (filterMode === 'categories') {
+      const category = item.dataset.category;
+      shouldShow = UnifiedState.data.abilityFilters[category] || false;
+    } else if (filterMode === 'byPet') {
+      const petName = item.dataset.petName;
+      shouldShow = UnifiedState.data.petFilters.selectedPets[petName] || false;
+    } else if (filterMode === 'custom') {
+      const abilityType = item.dataset.abilityType;
+      shouldShow = UnifiedState.data.customAbilityFilters[abilityType] || false;
+    }
+
+    item.style.display = shouldShow ? '' : 'none';
+  });
+}
+
+/**
+ * Update log visibility across all contexts
+ * @param {Object} dependencies - Injected dependencies
+ */
+export function updateAllLogVisibility({ UnifiedState, targetDocument, debugLog, updateLogVisibility }) {
+  debugLog('ABILITY_LOGS', 'Updating log visibility across all contexts');
+
+  updateLogVisibility(document, { UnifiedState, debugLog });
+
+  const allOverlays = targetDocument.querySelectorAll('.mga-overlay-content-only, .mga-overlay');
+  allOverlays.forEach(overlay => {
+    if (overlay.offsetParent === null) return;
+    if (overlay.querySelector('#ability-logs')) {
+      updateLogVisibility(overlay, { UnifiedState, debugLog });
+    }
+  });
+}
+
+/**
+ * Update ability log displays across ALL contexts (main + overlays + popouts)
+ * @param {boolean} force - Force update even if no new logs
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Object} dependencies.lastLogCount - Ref to track log count
+ */
+export function updateAllAbilityLogDisplays(force, dependencies) {
+  const { UnifiedState, targetDocument, debugLog, CONFIG, updateAbilityLogDisplay, lastLogCount } = dependencies;
+
+  const currentLogCount = UnifiedState.data.petAbilityLogs?.length || 0;
+
+  if (CONFIG?.DEBUG?.FLAGS?.FIX_VALIDATION) {
+    console.log('[FIX_ABILITY_LOGS] Update called:', {
+      force,
+      currentLogCount,
+      lastLogCount: lastLogCount.value,
+      willUpdate: force || currentLogCount !== lastLogCount.value,
+      petAbilityLogsExists: !!UnifiedState.data.petAbilityLogs
+    });
+  }
+
+  if (!force && currentLogCount === lastLogCount.value) {
+    debugLog('ABILITY_LOGS', 'Skipping update - no new logs');
+    return;
+  }
+  lastLogCount.value = currentLogCount;
+
+  debugLog('ABILITY_LOGS', 'Updating ability logs across all contexts');
+
+  // Update main document
+  updateAbilityLogDisplay(document, dependencies);
+
+  // Update overlays
+  const allOverlays = targetDocument.querySelectorAll('.mga-overlay-content-only, .mga-overlay, .mgh-popout');
+  allOverlays.forEach(overlay => {
+    if (overlay.offsetParent === null) return;
+    if (overlay.querySelector('#ability-logs')) {
+      updateAbilityLogDisplay(overlay, dependencies);
+      debugLog('ABILITY_LOGS', 'Updated overlay/widget ability logs', {
+        overlayId: overlay.id || overlay.className
+      });
+    }
+  });
+
+  // Update separate window pop-outs
+  UnifiedState.data.popouts.windows.forEach((windowRef, tabName) => {
+    if (windowRef && !windowRef.closed && tabName === 'abilities') {
+      try {
+        const popoutContent = windowRef.document?.getElementById('popout-content');
+        if (popoutContent) {
+          const freshContent = dependencies.getAbilitiesTabContent();
+          popoutContent.innerHTML = freshContent;
+          if (typeof dependencies.setupAbilitiesTabHandlers === 'function') {
+            dependencies.setupAbilitiesTabHandlers.call(window, windowRef.document);
+          }
+          debugLog('ABILITY_LOGS', 'Updated pop-out via direct DOM manipulation');
+        } else if (windowRef.refreshPopoutContent && typeof windowRef.refreshPopoutContent === 'function') {
+          windowRef.refreshPopoutContent('abilities');
+          debugLog('ABILITY_LOGS', 'Updated pop-out via refresh function');
+        }
+      } catch (e) {
+        debugLog('ABILITY_LOGS', 'Error updating separate window:', e.message);
+        try {
+          windowRef.location.reload();
+          debugLog('ABILITY_LOGS', 'Forced pop-out refresh via reload');
+        } catch (e2) {
+          debugLog('ABILITY_LOGS', 'Window is dead, removing reference');
+          UnifiedState.data.popouts.windows.delete(tabName);
+        }
+      }
+    }
+  });
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -3645,5 +3934,11 @@ export default {
   MGA_getAllLogs,
   categorizeAbility,
   formatLogData,
-  formatRelativeTime
+  formatRelativeTime,
+
+  // Display Update Functions (Phase 8)
+  updateAbilityLogDisplay,
+  updateLogVisibility,
+  updateAllLogVisibility,
+  updateAllAbilityLogDisplays
 };

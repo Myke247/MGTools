@@ -10,7 +10,7 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 67.9% complete (3,395 of ~5,000 lines extracted)
+**Progress:** 74.2% complete (3,711 of ~5,000 lines extracted)
 
 ---
 
@@ -18,7 +18,19 @@
 
 ### Session: 2025-10-24 (Day 2 - Continued Extraction)
 
-**Latest Work (Session 4):**
+**Latest Work (Session 5):**
+- ✅ Extracted Display Update Functions (~316 lines)
+  - `updateAbilityLogDisplay()` - Main log renderer with full styling (~195 lines)
+  - `updateLogVisibility()` - CSS-based visibility toggle (~28 lines)
+  - `updateAllLogVisibility()` - Visibility orchestrator (~12 lines)
+  - `updateAllAbilityLogDisplays()` - Update logs across all contexts (~66 lines)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build now 238.3 KB (grew from 226.6 KB)
+
+**Progress:** From 67.9% → 74.2% (+6.3%)
+
+**Earlier Work (Session 4):**
 - ✅ Extracted Ability Log Management (~129 lines)
   - `KNOWN_ABILITY_TYPES` - Constant array of all known abilities (~40 lines)
   - `isKnownAbilityType()` - Ability type validation
@@ -113,7 +125,7 @@
 
 ## 📊 Pet Feature Extraction Progress
 
-### Extracted (3,395 lines)
+### Extracted (3,711 lines)
 
 **Phase 1: Foundation** ✅
 - Pet Presets (import/export) - ~99 lines
@@ -170,11 +182,16 @@
   - categorizeAbility() - Alternative categorization
   - formatLogData() - Data formatting
   - formatRelativeTime() - Relative time
+- Display Update Functions - ~316 lines ✅
+  - updateAbilityLogDisplay() - Main log renderer (~195 lines)
+  - updateLogVisibility() - CSS-based visibility toggle (~28 lines)
+  - updateAllLogVisibility() - Visibility orchestrator (~12 lines)
+  - updateAllAbilityLogDisplays() - Update across all contexts (~66 lines)
 
-### Remaining (1,605 lines)
+### Remaining (1,289 lines)
 
-**Phase 5: Additional Pet Features**
-- ⏳ Additional pet functions (~2,492 lines)
+**Phase 9: Additional Pet Features**
+- ⏳ Additional pet functions (~1,289 lines remaining)
   - Pet species lists
   - Pet ability filters
   - Pet logging
@@ -188,9 +205,9 @@
 
 ### Immediate (Next Session)
 
-1. **Continue Pet Function Extraction** (~2,492 lines remaining)
-   - Target: Additional ~500-1,000 lines per session
-   - Goal: Reach 60%+ extraction
+1. **Continue Pet Function Extraction** (~1,289 lines remaining)
+   - Target: Additional ~300-500 lines per session
+   - Goal: Reach 80%+ extraction
    - Focus areas:
      - Pet species lists
      - Pet ability filters
@@ -218,13 +235,13 @@
 **Mirror Build (Production)**
 - Command: `npm run build`
 - Output: `dist/mgtools.user.js`
-- Size: 1454.47 KB
-- Status: ✅ Stable, unchanged
+- Size: 1420.91 KB
+- Status: ✅ Stable
 
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 226.6 KB (growing as features extract)
+- Size: 238.3 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -238,8 +255,8 @@
 - `SESSION_STATUS.md` - This file (updated with cleanup info)
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
-### Pet Extraction Work (Earlier)
-- `src/features/pets.js` - Pet module (2,242 lines, 44.1% complete)
+### Pet Extraction Work (Current Session)
+- `src/features/pets.js` - Pet module (3,943 lines, 74.2% complete)
 - `package.json` - Updated npm scripts for comprehensive linting
 - `.husky/pre-commit` - Pre-commit quality checks (created, then fixed)
 - `.husky/commit-msg` - Commit message validation (created)
@@ -288,8 +305,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Scan for remaining ~1,605 lines of pet code
-- Progress: 67.9% (3,395/5,000 lines extracted) - Nearly 70%!
+- Next: Scan for remaining ~1,289 lines of pet code
+- Progress: 74.2% (3,711/5,000 lines extracted) - Nearly 75%!
 
 **Remember:**
 - Use dependency injection (no globals!)
