@@ -1,5 +1,36 @@
 # Changelog - MGTools
 
+## Version 2.0.0 (2025-10-24)
+
+**Breaking Changes:**
+- Dock sizing system expanded from 4 to 6 sizes (added Micro and Mini below Tiny)
+- Size cycle order changed: Micro → Mini → Tiny → Small → Medium (default) → Large
+
+**Bug Fixes:**
+- Fixed pet auto-favorite checkboxes not persisting state when clicked
+- Fixed pets with Gold/Rainbow granter abilities not being automatically favorited
+- Added defensive initialization for petAbilities array (fixes upgrade path from v1.1.8 and earlier)
+- Improved pet detection logic to check both `abilities` array AND `mutations` array
+- Fixed checkbox flash issue where settings weren't being saved properly
+
+**New Features:**
+- Added 2 smaller dock sizes: Micro (22x22 H / 20x20 V) and Mini (27x27 H / 25x25 V)
+- Dock size now cycles through 6 sizes total with Alt+= and Alt+-
+- Enhanced debug logging for pet auto-favorite troubleshooting
+
+**Technical Improvements:**
+- Added comprehensive logging to `favoritePetAbility()` function with pet structure debugging
+- Added null-safety checks for `petAbilities` array in all code paths
+- Improved error handling in pet favoriting logic
+- Pet favoriting now checks abilities array for ability type strings (e.g., "GoldCropGranter", "RainbowCropGranter")
+- Auto-favorite system logs detailed scan results and matched pets
+
+**Important Note:**
+- Unchecking pet ability checkboxes ONLY disables future auto-favoriting
+- Existing favorited pets are NEVER unfavorited (by design - preserves user choices)
+
+---
+
 ## Version 1.1.9 (2025-10-24)
 
 **New Features:**

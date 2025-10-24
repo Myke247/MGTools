@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      1.1.9
+// @version      2.0.0
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -173,7 +173,7 @@ async function rcSend(payload, opts = {}) {
 // === DIAGNOSTIC LOGGING (MUST EXECUTE IF SCRIPT LOADS) ===
 console.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
 console.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 1.1.9 - Shop loading fix + pet auto-favorite');
+console.log('[MGTOOLS-DEBUG] ⚡ VERSION: 2.0.0 - Pet auto-favorite fixes + Micro/Mini dock sizes');
 console.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new Date().toISOString());
 console.log('[MGTOOLS-DEBUG] 2. Location:', window.location.href);
 console.log('[MGTOOLS-DEBUG] 3. Navigator:', navigator.userAgent);
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '1.1.9',
+      CURRENT: '2.0.0',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -2486,6 +2486,42 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
 
           /* ==================== DOCK SIZE VARIANTS ==================== */
+          /* Micro size (0.50x scale - smallest) */
+          #mgh-dock.dock-size-micro.horizontal .mgh-dock-item {
+              width: 22px;
+              height: 22px;
+              font-size: 10px;
+          }
+
+          #mgh-dock.dock-size-micro.vertical .mgh-dock-item {
+              width: 20px;
+              height: 20px;
+              font-size: 11px;
+          }
+
+          #mgh-dock.dock-size-micro .mgh-dock-item img {
+              width: 12px;
+              height: 12px;
+          }
+
+          /* Mini size (0.61x scale) */
+          #mgh-dock.dock-size-mini.horizontal .mgh-dock-item {
+              width: 27px;
+              height: 27px;
+              font-size: 12px;
+          }
+
+          #mgh-dock.dock-size-mini.vertical .mgh-dock-item {
+              width: 25px;
+              height: 25px;
+              font-size: 13px;
+          }
+
+          #mgh-dock.dock-size-mini .mgh-dock-item img {
+              width: 15px;
+              height: 15px;
+          }
+
           /* Tiny size (0.73x scale) */
           #mgh-dock.dock-size-tiny.horizontal .mgh-dock-item {
               width: 32px;
@@ -8762,8 +8798,15 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       window.__dockSizeControlInstalled = true;
 
       const STORAGE_KEY = 'mgh_dock_size';
-      const SIZES = ['tiny', 'small', 'medium', 'large'];
-      const SIZE_LABELS = { tiny: 'Tiny', small: 'Small', medium: 'Medium', large: 'Large' };
+      const SIZES = ['micro', 'mini', 'tiny', 'small', 'medium', 'large'];
+      const SIZE_LABELS = {
+        micro: 'Micro',
+        mini: 'Mini',
+        tiny: 'Tiny',
+        small: 'Small',
+        medium: 'Medium',
+        large: 'Large'
+      };
 
       // Load saved size (defaults to medium)
       let currentSize = localStorage.getItem(STORAGE_KEY) || 'medium';
@@ -14534,7 +14577,16 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
       petAbilityCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', e => {
           const ability = e.target.value;
+
+          // DEFENSIVE: Ensure petAbilities array exists (v2.0.0 fix for upgrade path)
+          if (!UnifiedState.data.settings.autoFavorite.petAbilities) {
+            UnifiedState.data.settings.autoFavorite.petAbilities = [];
+            productionLog('🔧 [AUTO-FAVORITE-PET] Initialized petAbilities array');
+          }
+
           if (e.target.checked) {
+            productionLog(`✅ [AUTO-FAVORITE-PET] Checkbox CHECKED for ${ability}`);
+
             if (!UnifiedState.data.settings.autoFavorite.petAbilities.includes(ability)) {
               UnifiedState.data.settings.autoFavorite.petAbilities.push(ability);
             }
@@ -14543,14 +14595,23 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               targetWindow.favoritePetAbility(ability);
             }
           } else {
+            productionLog(
+              `⬜ [AUTO-FAVORITE-PET] Checkbox UNCHECKED for ${ability} - disabling auto-favorite (existing favorites preserved)`
+            );
+
             UnifiedState.data.settings.autoFavorite.petAbilities =
               UnifiedState.data.settings.autoFavorite.petAbilities.filter(a => a !== ability);
-            // Immediately unfavorite all existing pets with this ability
+            // Never unfavorite - only disable future auto-favoriting
             if (targetWindow.unfavoritePetAbility) {
               targetWindow.unfavoritePetAbility(ability);
             }
           }
           saveAutoFavoriteSettings();
+
+          productionLog(
+            `💾 [AUTO-FAVORITE-PET] Settings saved. Current pet abilities:`,
+            UnifiedState.data.settings.autoFavorite.petAbilities
+          );
         });
       });
     }
@@ -17070,9 +17131,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
                   <div class="mga-section-title">⌨️ Keyboard Shortcuts</div>
                   <div class="mga-help-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin-bottom: 16px;">
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+=</code>
-                      <span>Increase dock size (Tiny → Small → Medium → Large)</span>
+                      <span>Increase dock size (Micro → Mini → Tiny → Small → Medium → Large)</span>
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+-</code>
-                      <span>Decrease dock size (Large → Medium → Small → Tiny)</span>
+                      <span>Decrease dock size (Large → Medium → Small → Tiny → Mini → Micro)</span>
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+M</code>
                       <span>Toggle toolbar visibility (show/hide entire dock and sidebar)</span>
                       <code style="background: rgba(74, 158, 255, 0.48); padding: 2px 6px; border-radius: 3px;">Alt+B</code>
@@ -27252,6 +27313,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       function checkAndFavoriteNewItems(inventory) {
         if (!inventory?.items) return;
+
+        // DEFENSIVE: Ensure petAbilities array exists (v2.0.0 fix for upgrade path)
+        if (!UnifiedState.data.settings.autoFavorite.petAbilities) {
+          UnifiedState.data.settings.autoFavorite.petAbilities = [];
+        }
+
         if (
           !UnifiedState.data.settings.autoFavorite.species.length &&
           !UnifiedState.data.settings.autoFavorite.mutations.length &&
@@ -27271,14 +27338,25 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
           // Check if it's a pet
           if (item.itemType === 'Pet') {
-            // Check pet abilities
+            // Check pet mutations for Gold or Rainbow
             const petMutations = item.mutations || [];
             const hasGoldMutation = petMutations.includes('Gold');
             const hasRainbowMutation = petMutations.includes('Rainbow');
 
+            // ALSO check abilities array for granter abilities
+            const petAbilities = item.abilities || [];
+            const hasGoldGranterAbility = petAbilities.some(a => {
+              const abilityStr = typeof a === 'string' ? a : a?.type || a?.abilityType || '';
+              return abilityStr.toLowerCase().includes('gold') && abilityStr.toLowerCase().includes('grant');
+            });
+            const hasRainbowGranterAbility = petAbilities.some(a => {
+              const abilityStr = typeof a === 'string' ? a : a?.type || a?.abilityType || '';
+              return abilityStr.toLowerCase().includes('rainbow') && abilityStr.toLowerCase().includes('grant');
+            });
+
             const shouldFavorite =
-              (hasGoldMutation && targetPetAbilities.has('Gold Granter')) ||
-              (hasRainbowMutation && targetPetAbilities.has('Rainbow Granter'));
+              (targetPetAbilities.has('Gold Granter') && (hasGoldMutation || hasGoldGranterAbility)) ||
+              (targetPetAbilities.has('Rainbow Granter') && (hasRainbowMutation || hasRainbowGranterAbility));
 
             if (shouldFavorite) {
               if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
@@ -27433,12 +27511,29 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           return;
         }
 
+        productionLog(`🔍 [AUTO-FAVORITE-PET] Searching for pets with ${abilityName}...`);
+
         const items = targetWindow.myData.inventory.items;
         const favoritedIds = new Set(targetWindow.myData.inventory.favoritedItemIds || []);
         let count = 0;
+        let petsChecked = 0;
+
+        // Debug: Log first pet structure to understand data format
+        const firstPet = items.find(i => i.itemType === 'Pet');
+        if (firstPet) {
+          productionLog('🐾 [AUTO-FAVORITE-PET-DEBUG] Sample pet structure:', {
+            species: firstPet.petSpecies,
+            mutations: firstPet.mutations,
+            abilities: firstPet.abilities,
+            hasAbilitiesArray: Array.isArray(firstPet.abilities),
+            hasMutationsArray: Array.isArray(firstPet.mutations)
+          });
+        }
 
         for (const item of items) {
-          if (item.itemType !== 'Pet') continue; // Only process pets
+          if (item.itemType !== 'Pet') continue;
+          petsChecked++;
+
           if (favoritedIds.has(item.id)) continue; // Already favorited
 
           // Check pet mutations for Gold or Rainbow
@@ -27446,11 +27541,26 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const hasGoldMutation = petMutations.includes('Gold');
           const hasRainbowMutation = petMutations.includes('Rainbow');
 
+          // ALSO check abilities array for granter abilities
+          const petAbilities = item.abilities || [];
+          const hasGoldGranterAbility = petAbilities.some(a => {
+            const abilityStr = typeof a === 'string' ? a : a?.type || a?.abilityType || '';
+            return abilityStr.toLowerCase().includes('gold') && abilityStr.toLowerCase().includes('grant');
+          });
+          const hasRainbowGranterAbility = petAbilities.some(a => {
+            const abilityStr = typeof a === 'string' ? a : a?.type || a?.abilityType || '';
+            return abilityStr.toLowerCase().includes('rainbow') && abilityStr.toLowerCase().includes('grant');
+          });
+
           const shouldFavorite =
-            (abilityName === 'Gold Granter' && hasGoldMutation) ||
-            (abilityName === 'Rainbow Granter' && hasRainbowMutation);
+            (abilityName === 'Gold Granter' && (hasGoldMutation || hasGoldGranterAbility)) ||
+            (abilityName === 'Rainbow Granter' && (hasRainbowMutation || hasRainbowGranterAbility));
 
           if (shouldFavorite) {
+            productionLog(
+              `✨ [AUTO-FAVORITE-PET] Found matching pet: ${item.petSpecies} (${item.id}) - mutations: [${petMutations.join(', ')}], abilities: ${petAbilities.length}`
+            );
+
             if (targetWindow.MagicCircle_RoomConnection?.sendMessage) {
               targetWindow.MagicCircle_RoomConnection.sendMessage({
                 scopePath: ['Room', 'Quinoa'],
@@ -27462,9 +27572,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           }
         }
 
-        if (count > 0) {
-          productionLog(`✅ [AUTO-FAVORITE-PET] Favorited ${count} pets with ${abilityName} ability`);
-        }
+        productionLog(`✅ [AUTO-FAVORITE-PET] Scanned ${petsChecked} pets, favorited ${count} with ${abilityName}`);
       };
 
       // DISABLED: Script never unfavorites - only adds favorites
