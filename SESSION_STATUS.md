@@ -10,7 +10,7 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 81.5% complete (4,076 of ~5,000 lines extracted)
+**Progress:** 87.3% complete (4,363 of ~5,000 lines extracted)
 
 ---
 
@@ -18,7 +18,17 @@
 
 ### Session: 2025-10-24 (Day 2 - Continued Extraction)
 
-**Latest Work (Session 6):**
+**Latest Work (Session 7):**
+- ✅ Extracted Instant Feed Initialization & Polling (~287 lines)
+  - `injectInstantFeedButtons()` - Container-based button injection with re-entry guard (~133 lines)
+  - `initializeInstantFeedButtons()` - Polling-based initialization with auto-reinjection (~154 lines)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build now 258.8 KB (grew from 249.8 KB)
+
+**Progress:** From 81.5% → 87.3% (+5.8%)
+
+**Earlier Work (Session 6):**
 - ✅ Extracted Instant Feed Core Functions (~365 lines)
   - `createInstantFeedButton()` - Game-native styled feed button (~58 lines)
   - `flashButton()` - Success/error visual feedback (~14 lines)
@@ -202,15 +212,18 @@
   - createInstantFeedButton() - Game-native styled button (~58 lines)
   - flashButton() - Success/error visual feedback (~14 lines)
   - handleInstantFeed() - 3-tier fallback with auto-favorite protection (~293 lines)
+- Instant Feed Initialization & Polling - ~287 lines ✅
+  - injectInstantFeedButtons() - Container-based injection with re-entry guard (~133 lines)
+  - initializeInstantFeedButtons() - Polling initialization with auto-reinjection (~154 lines)
 
-### Remaining (924 lines)
+### Remaining (637 lines)
 
-**Phase 10: Additional Pet Features**
-- ⏳ Additional pet functions (~924 lines remaining)
-  - Instant feed initialization/polling (~200-250 lines)
+**Phase 11: Additional Pet Features**
+- ⏳ Additional pet functions (~637 lines remaining)
   - Pet-related UI generators
   - Pet hotkey handlers
   - Pet species lists
+  - Pet sorting functions
   - Any remaining pet utilities
 
 ---
@@ -219,13 +232,14 @@
 
 ### Immediate (Next Session)
 
-1. **Continue Pet Function Extraction** (~924 lines remaining)
+1. **Continue Pet Function Extraction** (~637 lines remaining)
    - Target: Additional ~300-400 lines per session
-   - Goal: Reach 90%+ extraction, then 100%
+   - Goal: Reach 95%+ extraction, then 100%
    - Focus areas:
-     - Instant feed initialization/polling functions
      - Pet-related UI generators
      - Pet hotkey handlers
+     - Pet species lists
+     - Pet sorting functions
      - Any remaining pet utilities
 
 ### Medium Term
@@ -253,7 +267,7 @@
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 249.8 KB (growing as features extract)
+- Size: 258.8 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -268,7 +282,7 @@
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
 ### Pet Extraction Work (Current Session)
-- `src/features/pets.js` - Pet module (4,322 lines, 81.5% complete)
+- `src/features/pets.js` - Pet module (4,674 lines, 87.3% complete)
 - `package.json` - Updated npm scripts for comprehensive linting
 - `.husky/pre-commit` - Pre-commit quality checks (created, then fixed)
 - `.husky/commit-msg` - Commit message validation (created)
@@ -317,8 +331,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Scan for remaining ~924 lines of pet code (instant feed init/polling + misc utilities)
-- Progress: 81.5% (4,076/5,000 lines extracted) - Over 80%!
+- Next: Scan for remaining ~637 lines of pet code (UI generators, hotkeys, species lists, sorting, misc utilities)
+- Progress: 87.3% (4,363/5,000 lines extracted) - Nearly 90%!
 
 **Remember:**
 - Use dependency injection (no globals!)
