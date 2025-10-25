@@ -72,7 +72,7 @@ export function detectEnvironment(dependencies = {}) {
   // PRIORITY FIX: Check for game environment FIRST (before Discord check)
   // This ensures that when running inside game iframe in Discord, we detect game mode
   const gameHosts = ['magiccircle.gg', 'magicgarden.gg', 'starweaver.org', 'discordsays.com'];
-  const isGameDomain = gameHosts.some((host) => environment.domain.includes(host));
+  const isGameDomain = gameHosts.some(host => environment.domain.includes(host));
   const hasGamePath = targetWindow.location.pathname.includes('/r/');
   const isDiscordActivity = environment.domain.includes('discordsays.com');
 
@@ -124,7 +124,7 @@ export function detectEnvironment(dependencies = {}) {
       try {
         const iframeSrc = iframe.src || '';
         // gameHosts includes all game domains plus discordsays.com
-        if (gameHosts.some((host) => iframeSrc.includes(host))) {
+        if (gameHosts.some(host => iframeSrc.includes(host))) {
           productionLog('✅ [DISCORD] Found game iframe:', iframeSrc);
           productionLog('💡 [DISCORD] Script should be running inside that iframe');
           foundGameIframe = true;
@@ -206,8 +206,7 @@ export function createPlatformDetection(dependencies = {}) {
     // Platform detection
     isDiscord: /discord|overlay|electron/i.test(nav.userAgent) || !!(win.DiscordNative || win.__discordApp),
 
-    isMobile:
-      /Mobile|Android|iPhone|iPad|iPod/i.test(nav.userAgent) || win.matchMedia?.('(max-width: 768px)').matches,
+    isMobile: /Mobile|Android|iPhone|iPad|iPod/i.test(nav.userAgent) || win.matchMedia?.('(max-width: 768px)').matches,
 
     isIframe: win !== win.top,
 

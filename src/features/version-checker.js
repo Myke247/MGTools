@@ -78,7 +78,7 @@ export async function checkVersion(indicatorElement, dependencies = {}) {
     indicatorElement.title = tooltipLines.join('\n');
     indicatorElement.style.cursor = 'pointer';
 
-    indicatorElement.addEventListener('click', (e) => {
+    indicatorElement.addEventListener('click', e => {
       e.stopPropagation();
       if (e.shiftKey && e.altKey) {
         win.open(BETA_DOWNLOAD_URL, '_blank');
@@ -147,7 +147,7 @@ export async function checkVersion(indicatorElement, dependencies = {}) {
       const newIndicator = indicatorElement.cloneNode(true);
       indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
 
-      newIndicator.addEventListener('click', (e) => {
+      newIndicator.addEventListener('click', e => {
         e.stopPropagation();
         if (e.shiftKey && e.altKey) {
           win.open(BETA_DOWNLOAD_URL, '_blank');
@@ -223,7 +223,7 @@ export async function checkVersion(indicatorElement, dependencies = {}) {
     const newIndicator = indicatorElement.cloneNode(true);
     indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
 
-    newIndicator.addEventListener('click', (e) => {
+    newIndicator.addEventListener('click', e => {
       e.stopPropagation();
       if (e.shiftKey && e.altKey) {
         win.open(BETA_DOWNLOAD_URL, '_blank');
@@ -255,7 +255,7 @@ export async function checkVersion(indicatorElement, dependencies = {}) {
     const newIndicator = indicatorElement.cloneNode(true);
     indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
 
-    newIndicator.addEventListener('click', (e) => {
+    newIndicator.addEventListener('click', e => {
       e.stopPropagation();
       if (e.shiftKey && e.altKey) {
         win.open(BETA_DOWNLOAD_URL, '_blank');
