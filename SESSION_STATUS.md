@@ -2,20 +2,20 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `70afa83` - feat: Theme & Styling System extracted (~1,417 lines)
+**Latest Commit:** `df6ae2b` - feat: Auto-Favorite System extracted (~309 lines)
 **Uncommitted Work:** SESSION_STATUS.md (updating documentation)
 
 ---
 
 ## 🎯 Current Task
 
-**MAJOR MILESTONE: 14 COMPLETE SYSTEMS EXTRACTED!** 🎉
+**MAJOR MILESTONE: 15 COMPLETE SYSTEMS EXTRACTED!** 🎉
 
-**PHASE A - QUICK WINS: IN PROGRESS** 🚀 (1 of 4 extractions complete)
+**PHASE A - QUICK WINS: IN PROGRESS** 🚀 (2 of 4 extractions complete - 50%!)
 
-**Latest Extraction:** Theme & Styling System ✅ COMPLETE (~1,417 lines)
-**Phase A Progress:** 25% (1/4 systems complete)
-**Next Target:** Auto-Favorite System (~309 lines)
+**Latest Extraction:** Auto-Favorite System ✅ COMPLETE (~309 lines)
+**Phase A Progress:** 50% (2/4 systems complete)
+**Next Target:** Value Calculation System (~539 lines)
 
 **Completed Systems:**
 - **UI Overlay System:** 100% complete (All 5 phases - ~4,277 lines)
@@ -26,14 +26,15 @@
 - **Protection System:** 100% complete (All 3 phases - ~907 lines)
 - **Crop Highlighting:** 100% complete (All 3 phases - ~515 lines)
 - **Crop Value & Turtle Timer:** 100% complete (All 3 phases - ~916 lines)
-- **Theme & Styling:** 100% complete (~1,417 lines) ✅ NEW
+- **Theme & Styling:** 100% complete (~1,417 lines)
+- **Auto-Favorite:** 100% complete (~309 lines) ✅ NEW
 - **Atom/State Management:** 100% complete (~653 lines)
 - **Draggable/Resizable:** 100% complete (~680 lines)
 - **Version Checker:** 100% complete (~275 lines)
 - **Environment Detection:** 100% complete (~307 lines)
 - **Modal Detection & Debug:** 100% complete (~341 lines)
 
-**Total Extracted:** ~17,635 lines across 14 systems (51.4% of monolith complete! 🎉)
+**Total Extracted:** ~17,944 lines across 15 systems (52.2% of monolith complete! 🎉)
 
 ---
 
@@ -41,17 +42,17 @@
 
 ### Phase A: Quick Wins (~2,500 lines total, 4-6 hours estimated)
 
-**Status:** 1 of 4 complete (25%)
+**Status:** 2 of 4 complete (50%)
 
 **✅ COMPLETE:**
 1. Theme & Styling System (~1,417 lines) - 2-3 hours ✅
+2. Auto-Favorite System (~309 lines) - 1 hour ✅
 
 **⏸️ PENDING:**
-2. Auto-Favorite System (~309 lines) - 1 hour
 3. Value Calculation System (~539 lines) - 1-2 hours
 4. Tooltip System (~177 lines) - 30 min
 
-**Next Up:** Auto-Favorite System (lines 27282-27590 in MGTools.user.js)
+**Next Up:** Value Calculation System (lines 26012-26550 in MGTools.user.js)
 
 ---
 
@@ -138,6 +139,63 @@
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-25 (Phase A - Auto-Favorite System COMPLETE! 🎉)
+
+**Auto-Favorite System - COMPLETE (~309 lines)**
+- ✅ **Automatic Item Favoriting Module (7 functions)**
+
+**Source:** MGTools.user.js lines 27282-27590
+**Target:** src/features/auto-favorite.js
+**Extraction Method:** Direct extraction with dependency injection pattern
+
+**Extracted Functions (7 total):**
+1. initAutoFavorite() - Main monitoring system with 2-second polling (~125 lines)
+   - Performance optimized (2s interval vs original 500ms - 4x less CPU)
+   - Inventory change detection (only processes when new items added)
+   - Internal checkAndFavoriteNewItems() helper function
+   - Monitors species, mutations, and pet abilities
+2. favoriteSpecies() - Favorite all crops of a species (~55 lines)
+   - Scans entire inventory for matching crops
+   - Excludes pets, eggs, and tools (crops only)
+   - Sends ToggleFavoriteItem messages to game
+3. unfavoriteSpecies() - Stub that preserves user favorites (~10 lines)
+   - Never removes favorites (protects manual choices)
+4. favoriteMutation() - Favorite all crops with a mutation (~55 lines)
+   - Mutation-based filtering (Rainbow, Frozen, Gold, etc.)
+   - Excludes pets, eggs, and tools (crops only)
+5. unfavoriteMutation() - Stub that preserves user favorites (~10 lines)
+6. favoritePetAbility() - Favorite pets by ability (~85 lines)
+   - Gold Granter and Rainbow Granter detection
+   - Checks both mutations array AND abilities array
+   - Debug logging for pet structure analysis
+7. unfavoritePetAbility() - Stub that preserves user favorites (~10 lines)
+
+**Key Features:**
+- **Performance Optimized:** 2-second polling (4x less CPU than original)
+- **Smart Detection:** Only processes when inventory count increases
+- **Species-Based:** Auto-favorite all crops of a species
+- **Mutation-Based:** Auto-favorite crops with specific mutations
+- **Pet Abilities:** Auto-favorite Gold/Rainbow Granter pets
+- **Never Unfavorites:** Preserves user manual favorites
+- **Extensive Filtering:** Multiple checks to exclude eggs, tools, pets from crop logic
+
+**Module Status:**
+- Auto-Favorite: src/features/auto-favorite.js - 463 lines total (100% complete)
+
+**Quality Validation:**
+✅ ESLint: 0 errors, 6 warnings (no-plusplus style preference only)
+✅ Prettier: Formatted automatically
+✅ Modular build: 275.2 KB (stable)
+✅ All functions use full dependency injection pattern
+✅ Comprehensive JSDoc documentation
+
+**Progress:** Phase A 25%→50% (+25%, 2/4 complete)
+**Total Extracted:** 51.4%→52.2% (+0.8%, ~17,944 lines total)
+
+**Commit:** `df6ae2b` - feat: Auto-Favorite System extracted (~309 lines)
+
+---
 
 ### Session: 2025-10-25 (Phase A - Theme & Styling System COMPLETE! 🎉)
 
