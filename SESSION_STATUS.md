@@ -10,7 +10,7 @@
 
 **Phase 5 - Notification System Extraction**
 
-**Progress:** 20% complete (~200 of ~800-1000 lines extracted)
+**Progress:** 35% complete (~320 of ~800-1000 lines extracted)
 
 ---
 
@@ -18,7 +18,19 @@
 
 ### Session: 2025-10-24 (Day 2 - Notification System Extraction)
 
-**Latest Work (Session 10):**
+**Latest Work (Session 11):**
+- ✅ Extracted Custom Sound Wrappers (~120 lines)
+  - `playCustomOrDefaultSound()` - Core wrapper utility (GM storage integration)
+  - `playGeneralNotificationSound()` - General notification wrapper
+  - `playShopNotificationSound()` - Shop-specific wrapper
+  - `playWeatherNotificationSound()` - Weather-specific wrapper
+  - NOTE: Pet/ability wrappers already in pets.js
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+
+**Progress:** 20% → 35% (+15%)
+
+**Earlier Work (Session 10):**
 - ✅ Started Notification System Extraction
 - ✅ Extracted Core Sound System (~200 lines)
   - `playNotificationSound()` - Web Audio API sound generator
@@ -26,8 +38,6 @@
   - Alarm sounds: alarm, continuous alarm (start/stop)
   - `playEpicNotification()` - 11-tone musical sequence
   - `playSelectedNotification()` - User preference selector
-- ✅ All code passes ESLint + Prettier
-- ✅ Both builds verified (mirror + modular)
 - ✅ Created `src/features/notifications.js` module
 
 **Progress:** 0% → 20% (+20%)
@@ -338,7 +348,7 @@
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
 ### Notification Extraction Work (Current Session)
-- `src/features/notifications.js` - Notification module (380 lines, 20% complete)
+- `src/features/notifications.js` - Notification module (506 lines, 35% complete)
 
 ### Pet Extraction Work (Previous Session - COMPLETE)
 - `src/features/pets.js` - **Pet module (5,225 lines, 100% COMPLETE!)** ✅
@@ -390,9 +400,9 @@ All systems operational:
 
 **Notification extraction in progress:**
 - File: `src/features/notifications.js`
-- Status: 20% complete - Core sound system extracted
-- Progress: ~200 of ~800-1000 lines extracted
-- Next: Extract custom sound wrappers, visual notifications, UI components
+- Status: 35% complete - Core sound system + custom sound wrappers extracted
+- Progress: ~320 of ~800-1000 lines extracted
+- Next: Extract visual notifications (toasts, modals), UI components
 
 **Pet extraction complete!** (Previous session)
 - File: `src/features/pets.js`
