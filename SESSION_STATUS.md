@@ -2,13 +2,13 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `e88fe0f` - feat: extract Version Checker system (~270 lines)
+**Latest Commit:** `882b883` - feat: extract Modal Detection & Debug System (~350 lines)
 
 ---
 
 ## 🎯 Current Task
 
-**MAJOR MILESTONE: 10 COMPLETE SYSTEMS EXTRACTED!** 🎉
+**MAJOR MILESTONE: 12 COMPLETE SYSTEMS EXTRACTED!** 🎉
 
 **Shop System:** 100% complete (All 6 phases - ~3,037 lines extracted)
 **Notification System:** 100% complete (All 5 phases - ~2,118 lines extracted)
@@ -19,12 +19,140 @@
 **Atom/State Management:** 100% complete (Core infrastructure - ~630 lines extracted)
 **Draggable/Resizable Utilities:** 100% complete (UI infrastructure - ~494 lines extracted)
 **Version Checker:** 100% complete (~270 lines extracted)
+**Environment Detection:** 100% complete (~305 lines extracted)
+**Modal Detection & Debug:** 100% complete (~350 lines extracted)
 
-**Latest:** Version Checker - 100% COMPLETE ✅
+**Latest:** Modal Detection & Debug System - 100% COMPLETE ✅
+
+**Total Extracted:** ~12,000+ lines across 12 systems
 
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-25 (Modal Detection & Debug System 100% COMPLETE!)
+
+**Modal Detection & Debug System - COMPLETE:**
+- ✅ **Comprehensive Debug Infrastructure Module (~350 lines, 4 functions)**
+  - checkForGameModals() - Game modal detection (~70 lines)
+    - Queries modals, dialogs, overlays, popups with CSS selectors
+    - Excludes normal game UI (drag overlays, MGA elements)
+    - Comprehensive modal tracking with class name extraction
+    - Debug event logging integration
+    - False positive prevention (disabled blocking logic)
+    - Safe fallback: allows initialization on detection errors
+  - logModalSystemStatus() - Modal verification logging (~30 lines)
+    - Verifies modal isolation state
+    - Checks event isolation function availability
+    - Tests context isolation mechanisms
+    - Validates target/regular document separation
+    - Mock event isolation testing
+  - createDebugLogger() - Comprehensive debug system (~140 lines)
+    - Performance tracking with high-resolution timestamps
+    - Loading stage tracking (scriptStart, domReady, gameReady, uiCreated, fullyLoaded)
+    - Modal event logging with element counts
+    - Context issue tracking with window/document comparison
+    - Error logging with stack traces
+    - Game element detection (Jotai atoms, MagicCircle connection, canvas, game container)
+    - Debug data export to JSON
+    - Global MGA_DEBUG object for manual debugging
+  - initializeDebugSystem() - Debug initialization (~55 lines)
+    - Global error event listener (window.error)
+    - Unhandled promise rejection listener
+    - Auto-export after 30s if issues detected:
+      - Error logs present
+      - Modal system active issues
+      - UI creation failures
+    - Success confirmation logging
+
+**Module Status:**
+- Modal Detection: src/core/modal-detection.js - 341 lines total (100% complete)
+- Environment: src/core/environment.js - 307 lines total (100% complete)
+- Version Checker: src/features/version-checker.js - 275 lines total (100% complete)
+- Draggable: src/ui/draggable.js - 680 lines total (100% complete)
+- Atoms: src/core/atoms.js - 653 lines total (100% complete)
+- Shop: src/features/shop.js - 3,597 lines total (100% complete)
+- Notifications: src/features/notifications.js - 2,118 lines total (100% complete)
+- Hotkeys: src/features/hotkeys.js - 975 lines total (100% complete)
+- Protection: src/features/protection.js - 907 lines total (100% complete)
+- Crop Highlighting: src/features/crop-highlighting.js - 515 lines total (100% complete)
+- Crop Value: src/features/crop-value.js - 916 lines total (100% complete)
+
+**Quality Validation:**
+✅ ESLint: 0 errors, 216 warnings (style preferences only)
+✅ Mirror build: 1420.91 KB (stable)
+✅ Modular build: 275.2 KB (stable)
+✅ All tests passing
+✅ All commits successful with hooks
+✅ All functions use full dependency injection pattern
+
+**Progress:** Modal Detection 0%→100% (+100%)
+
+---
+
+### Session: 2025-10-25 (Environment Detection 100% COMPLETE!)
+
+**Environment Detection System - COMPLETE:**
+- ✅ **Platform & Environment Detection Module (~305 lines, 3 functions)**
+  - detectEnvironment() - Main environment detection (~165 lines)
+    - Game environment detection (magiccircle.gg, magicgarden.gg, starweaver.org, discordsays.com)
+    - Discord Activity iframe detection (discordsays.com)
+    - Game readiness checks:
+      - hasJotaiAtoms: Jotai atom cache availability
+      - hasMagicCircleConnection: WebSocket connection object
+      - readyState: Document loading state
+    - Discord embed detection (running on discord.com)
+    - Game iframe discovery in Discord pages
+    - Initialization strategy determination:
+      - 'game-ready': Game fully loaded and ready
+      - 'game-wait': Game environment but not ready yet
+      - 'standalone': Standalone mode (non-game)
+      - 'skip': Skip initialization (Discord page)
+      - 'error': Missing dependencies
+  - createPlatformDetection() - Platform/device detection (~75 lines)
+    - Platform type detection:
+      - isDiscord: Discord client, overlay, or Electron app
+      - isMobile: Mobile device or narrow viewport (<768px)
+      - isIframe: Running in iframe context
+      - isTouch: Touch input capabilities
+    - Layout mode getter: mobile/discord/desktop
+    - Scale factor calculator:
+      - Mobile: 0.85 (smaller UI)
+      - Discord: 0.95 (slightly smaller)
+      - Desktop: 1.0 (full size)
+    - Responsive style application (CSS custom properties)
+    - Platform-specific optimizations:
+      - Fetch timeout: 8s (mobile), 6s (Discord), 5s (desktop)
+      - Animation duration: 200ms (mobile), 300ms (desktop)
+  - initializePlatformDetection() - Platform initialization (~65 lines)
+    - Initial responsive style application
+    - Debounced resize handler (250ms)
+    - Dynamic mobile detection on window resize
+    - Platform-specific logging and setup
+
+**Module Status:**
+- Environment: src/core/environment.js - 307 lines total (100% complete)
+- Version Checker: src/features/version-checker.js - 275 lines total (100% complete)
+- Draggable: src/ui/draggable.js - 680 lines total (100% complete)
+- Atoms: src/core/atoms.js - 653 lines total (100% complete)
+- Shop: src/features/shop.js - 3,597 lines total (100% complete)
+- Notifications: src/features/notifications.js - 2,118 lines total (100% complete)
+- Hotkeys: src/features/hotkeys.js - 975 lines total (100% complete)
+- Protection: src/features/protection.js - 907 lines total (100% complete)
+- Crop Highlighting: src/features/crop-highlighting.js - 515 lines total (100% complete)
+- Crop Value: src/features/crop-value.js - 916 lines total (100% complete)
+
+**Quality Validation:**
+✅ ESLint: 0 errors, 210 warnings (style preferences only)
+✅ Mirror build: 1420.91 KB (stable)
+✅ Modular build: 275.2 KB (stable)
+✅ All tests passing
+✅ All commits successful with hooks
+✅ All functions use full dependency injection pattern
+
+**Progress:** Environment Detection 0%→100% (+100%)
+
+---
 
 ### Session: 2025-10-25 (Version Checker 100% COMPLETE!)
 
