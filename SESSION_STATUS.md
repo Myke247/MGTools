@@ -2,20 +2,20 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `df6ae2b` - feat: Auto-Favorite System extracted (~309 lines)
+**Latest Commit:** `3eab0ba` - feat: Enhanced ValueManager System extracted (~539 lines)
 **Uncommitted Work:** SESSION_STATUS.md (updating documentation)
 
 ---
 
 ## 🎯 Current Task
 
-**MAJOR MILESTONE: 15 COMPLETE SYSTEMS EXTRACTED!** 🎉
+**MAJOR MILESTONE: 16 COMPLETE SYSTEMS EXTRACTED!** 🎉
 
-**PHASE A - QUICK WINS: IN PROGRESS** 🚀 (2 of 4 extractions complete - 50%!)
+**PHASE A - QUICK WINS: IN PROGRESS** 🚀 (3 of 4 extractions complete - 75%!)
 
-**Latest Extraction:** Auto-Favorite System ✅ COMPLETE (~309 lines)
-**Phase A Progress:** 50% (2/4 systems complete)
-**Next Target:** Value Calculation System (~539 lines)
+**Latest Extraction:** Enhanced ValueManager ✅ COMPLETE (~539 lines)
+**Phase A Progress:** 75% (3/4 systems complete)
+**Next Target:** Tooltip System (~177 lines)
 
 **Completed Systems:**
 - **UI Overlay System:** 100% complete (All 5 phases - ~4,277 lines)
@@ -27,14 +27,15 @@
 - **Crop Highlighting:** 100% complete (All 3 phases - ~515 lines)
 - **Crop Value & Turtle Timer:** 100% complete (All 3 phases - ~916 lines)
 - **Theme & Styling:** 100% complete (~1,417 lines)
-- **Auto-Favorite:** 100% complete (~309 lines) ✅ NEW
+- **Auto-Favorite:** 100% complete (~309 lines)
+- **Enhanced ValueManager:** 100% complete (~539 lines) ✅ NEW
 - **Atom/State Management:** 100% complete (~653 lines)
 - **Draggable/Resizable:** 100% complete (~680 lines)
 - **Version Checker:** 100% complete (~275 lines)
 - **Environment Detection:** 100% complete (~307 lines)
 - **Modal Detection & Debug:** 100% complete (~341 lines)
 
-**Total Extracted:** ~17,944 lines across 15 systems (52.2% of monolith complete! 🎉)
+**Total Extracted:** ~18,483 lines across 16 systems (53.8% of monolith complete! 🎉)
 
 ---
 
@@ -42,17 +43,17 @@
 
 ### Phase A: Quick Wins (~2,500 lines total, 4-6 hours estimated)
 
-**Status:** 2 of 4 complete (50%)
+**Status:** 3 of 4 complete (75%)
 
 **✅ COMPLETE:**
 1. Theme & Styling System (~1,417 lines) - 2-3 hours ✅
 2. Auto-Favorite System (~309 lines) - 1 hour ✅
+3. Enhanced ValueManager System (~539 lines) - 1-2 hours ✅
 
 **⏸️ PENDING:**
-3. Value Calculation System (~539 lines) - 1-2 hours
 4. Tooltip System (~177 lines) - 30 min
 
-**Next Up:** Value Calculation System (lines 26012-26550 in MGTools.user.js)
+**Next Up:** Tooltip System (final Phase A extraction!)
 
 ---
 
@@ -194,6 +195,128 @@
 **Total Extracted:** 51.4%→52.2% (+0.8%, ~17,944 lines total)
 
 **Commit:** `df6ae2b` - feat: Auto-Favorite System extracted (~309 lines)
+
+---
+
+### Session: 2025-10-25 (Phase A - Enhanced ValueManager COMPLETE! 🎉)
+
+**Enhanced ValueManager System - COMPLETE (~539 lines)**
+- ✅ **Advanced Value Calculation with Caching & Performance Optimization**
+
+**Source:** MGTools.user.js lines 26012-26550
+**Target:** src/features/value-manager.js
+**Extraction Method:** Direct extraction with dependency injection pattern + class-based architecture
+
+**Extracted Components (10 total: 5 constants + 1 function + 1 class + 3 helpers):**
+
+**Constants Exported (5 total):**
+1. SPECIES_VALUES - Base value lookup for all 29 crop species (~32 lines)
+   - Sunflower: 750,000 (cheapest)
+   - DawnCelestial: 11,000,000 (most expensive)
+   - Complete mapping for FriendsScript game balance
+2. COLOR_MULT - Color mutation multipliers (~3 lines)
+   - Gold: 25x, Rainbow: 50x
+3. WEATHER_MULT - Weather mutation multipliers (~4 lines)
+   - Wet: 2x, Chilled: 2x, Frozen: 10x
+4. TIME_MULT - Time mutation multipliers (~4 lines)
+   - Dawnlit: 2x, Amberlit: 5x, Dawnbound: 3x, Amberbound: 6x
+5. WEATHER_TIME_COMBO - Combined weather+time bonuses (~7 lines)
+   - Wet+Dawnlit: 3x, Frozen+Amberbound: 15x
+   - FriendsScript-compatible stacking logic
+
+**Core Functions:**
+6. calculateMutationMultiplier() - Calculate total mutation bonus (~56 lines)
+   - Best-of-each-type logic (color + weather + time)
+   - Combined bonus detection (weather+time)
+   - FriendsScript-compatible calculation order
+   - Comprehensive debug logging
+   - Returns total multiplier for value calculation
+
+**ValueManager Class (7 methods, ~402 lines):**
+7. constructor() - Initialize cache and MutationObserver (~44 lines)
+   - Three-tier cache: inventoryValue, tileValue, gardenValue
+   - 100ms throttle for value calculations (10 calcs/sec max)
+   - 3 retry attempts for failed calculations
+   - Automatic MutationObserver setup for cache invalidation
+   - Stores dependencies (UnifiedState, targetDocument, debug, UI updaters)
+8. getTileValue() - Calculate tile value with caching (~32 lines)
+   - Cache hit: returns cached value if fresh
+   - Cache miss: recalculates and caches
+   - Handles friend bonus multipliers
+   - Mutation multiplier integration
+   - Scale (size) factor application
+9. getInventoryValue() - Calculate inventory total with caching (~26 lines)
+   - Same caching strategy as getTileValue
+   - Iterates all inventory items
+   - Comprehensive value summation
+10. getGardenValue() - Calculate garden total with caching (~26 lines)
+    - Same caching strategy as getTileValue
+    - Scans all garden tiles
+    - Includes boardwalk tiles if applicable
+11. updateAllValues() - Force refresh all cached values (~20 lines)
+    - Recalculates tile, inventory, garden values
+    - Stores in UnifiedState.data
+    - Triggers synchronized UI updates
+    - Returns all three values as object
+12. updateValueDisplays() - Synchronized UI update orchestrator (~74 lines)
+    - Updates main overlay tabs
+    - Updates pure overlay content
+    - Refreshes separate window popouts
+    - Retry mechanism (3 attempts with 500ms delay)
+    - Comprehensive error handling and logging
+13. initializeObserver() - MutationObserver for automatic cache invalidation (~94 lines)
+    - Watches myData.inventory and myData.garden for changes
+    - Debounced invalidation (100ms threshold)
+    - Triggers updateAllValues() on changes
+    - Auto-reconnects on disconnect
+    - Safe cleanup on destroy
+14. invalidateCache() - Manual cache invalidation (~15 lines)
+    - Clears timestamp for specific cache entry
+    - Clears all caches if type=null
+15. getStatus() - Diagnostic cache status reporter (~22 lines)
+    - Returns cache freshness info
+    - Observer connection status
+    - Cache hit/miss analysis
+16. destroy() - Cleanup and teardown (~20 lines)
+    - Disconnects MutationObserver
+    - Clears all caches
+    - Nulls dependencies for GC
+
+**Helper Functions (3 total):**
+17. initializeValueManager() - Factory function for ValueManager (~26 lines)
+    - Creates ValueManager instance with dependencies
+    - Stores globally for access (window.MGA_ValueManager)
+    - Returns instance for local use
+18. updateValues() - Convenience wrapper for updateAllValues() (~8 lines)
+    - Calls ValueManager.updateAllValues() if instance exists
+    - Safe no-op if manager not initialized
+
+**Key Features:**
+- **Performance Optimized:** 100ms throttle prevents excessive recalculations
+- **Smart Caching:** Three-tier cache (inventory, tile, garden) with timestamp validation
+- **Automatic Invalidation:** MutationObserver watches game state for changes
+- **Retry Mechanism:** 3 attempts with 500ms delay for UI update reliability
+- **Synchronized Updates:** Updates across all UI contexts (tabs, overlays, windows)
+- **FriendsScript Compatible:** Mutation multiplier logic matches game calculations
+- **Comprehensive Logging:** Debug logs for all cache operations and value changes
+- **Memory Safe:** Proper cleanup with destroy() method and GC-friendly nulling
+
+**Module Status:**
+- Enhanced ValueManager: src/features/value-manager.js - 586 lines total (100% complete)
+
+**Quality Validation:**
+✅ ESLint: 0 errors, 1 warning (no-plusplus style preference only)
+✅ Prettier: Formatted automatically
+✅ Modular build: 275.2 KB (stable)
+✅ All functions use full dependency injection pattern
+✅ Comprehensive JSDoc documentation
+✅ Class-based architecture with proper encapsulation
+✅ MutationObserver lifecycle management
+
+**Progress:** Phase A 50%→75% (+25%, 3/4 complete)
+**Total Extracted:** 52.2%→53.8% (+1.6%, ~18,483 lines total)
+
+**Commit:** `3eab0ba` - feat: Enhanced ValueManager System extracted (~539 lines)
 
 ---
 
