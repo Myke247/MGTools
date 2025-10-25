@@ -21,14 +21,25 @@
  *   • playWeatherNotificationSound() - Weather-specific wrapper
  *   NOTE: playPetNotificationSound & playAbilityNotificationSound already in pets.js
  *
- * Total Extracted: ~320 lines (of ~800-1000 estimated)
- * Progress: 35%
+ * Phase 3 (Complete):
+ * - Visual Notifications - ~380 lines
+ *   • queueNotification() - Queue system with 2-second batching (~24 lines)
+ *   • updateNotificationModal() - Update existing modal (~15 lines)
+ *   • generateNotificationListHTML() - Generate queue HTML (~12 lines)
+ *   • showBatchedNotificationModal() - Batched modal display (~124 lines)
+ *   • dismissAllNotifications() - Dismiss and cleanup (~28 lines)
+ *   • showVisualNotification() - Toast/modal with animations (~177 lines)
+ *   • Module-level state: notificationQueue, currentNotificationModal, timer
+ *
+ * Total Extracted: ~700 lines (of ~800-1000 estimated)
+ * Progress: 75%
  *
  * Dependencies:
  * - Core: logging (productionLog)
  * - State: UnifiedState (for user preferences)
  * - Storage: GM_getValue (for custom sound uploads)
- * - Browser APIs: Web Audio API, Audio(), setTimeout
+ * - Browser APIs: Web Audio API, Audio(), setTimeout, DOM manipulation
+ * - Document: createElement, querySelector, appendChild (for visual notifications)
  */
 
 /* ====================================================================================
@@ -486,6 +497,459 @@ export function playWeatherNotificationSound(volume, dependencies = {}) {
 }
 
 /* ====================================================================================
+ * VISUAL NOTIFICATIONS (Phase 3)
+ * ====================================================================================
+ */
+
+// Module-level state for notification queue system
+let notificationQueue = [];
+let currentNotificationModal = null;
+let notificationQueueTimer = null;
+const NOTIFICATION_BATCH_DELAY = 2000; // 2 seconds to batch notifications
+
+/**
+ * Add notification to queue and trigger batched modal display
+ * Implements smart batching with 2-second delay to group multiple notifications
+ *
+ * @param {string} message - Notification message to display
+ * @param {boolean} requiresAcknowledgment - Whether notification requires user acknowledgment
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Function} [dependencies.updateNotificationModal] - Update modal function
+ * @param {Function} [dependencies.showBatchedNotificationModal] - Show batched modal function
+ */
+export function queueNotification(message, requiresAcknowledgment = false, dependencies = {}) {
+  const {
+    updateNotificationModal: updateModalFn = updateNotificationModal,
+    showBatchedNotificationModal: showBatchedFn = showBatchedNotificationModal
+  } = dependencies;
+
+  notificationQueue.push({ message, requiresAcknowledgment, timestamp: Date.now() });
+
+  // Clear existing timer and start new one
+  if (notificationQueueTimer) {
+    clearTimeout(notificationQueueTimer);
+  }
+
+  // If there's already a modal open, update it immediately
+  if (currentNotificationModal) {
+    updateModalFn(dependencies);
+    return;
+  }
+
+  // Otherwise, batch notifications for a short period
+  notificationQueueTimer = setTimeout(() => {
+    showBatchedFn(dependencies);
+  }, NOTIFICATION_BATCH_DELAY);
+}
+
+/**
+ * Update existing notification modal with new queued notifications
+ * Refreshes count and message list in currently displayed modal
+ *
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Function} [dependencies.generateNotificationListHTML] - Generate list HTML function
+ */
+export function updateNotificationModal(dependencies = {}) {
+  const { generateNotificationListHTML: generateListFn = generateNotificationListHTML } = dependencies;
+
+  if (!currentNotificationModal) return;
+
+  const messageContainer = currentNotificationModal.querySelector('.notification-messages');
+  if (messageContainer) {
+    messageContainer.innerHTML = generateListFn();
+  }
+
+  const countDisplay = currentNotificationModal.querySelector('.notification-count');
+  if (countDisplay) {
+    countDisplay.textContent = `${notificationQueue.length} Notification${notificationQueue.length > 1 ? 's' : ''}`;
+  }
+}
+
+/**
+ * Generate HTML for notification queue list
+ * Creates styled list items with message and timestamp
+ *
+ * @returns {string} HTML string for notification list
+ */
+export function generateNotificationListHTML() {
+  return notificationQueue
+    .map(
+      notif => `
+      <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.57); border-radius: 5px; border-left: 3px solid #fff;">
+          <div style="font-size: 14px; margin-bottom: 5px;">${notif.message}</div>
+          <div style="font-size: 10px; opacity: 0.8;">${new Date(notif.timestamp).toLocaleTimeString()}</div>
+      </div>
+  `
+    )
+    .join('');
+}
+
+/**
+ * Show batched notification modal for queued notifications
+ * Creates modal UI with all queued notifications, handles acknowledgment
+ * Smart display: single non-ack → toast, multiple non-ack → toasts, any ack → modal
+ *
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.targetDocument] - Target document (default: window.document)
+ * @param {Function} [dependencies.showVisualNotification] - Show visual notification function
+ * @param {Function} [dependencies.generateNotificationListHTML] - Generate list HTML function
+ * @param {Function} [dependencies.dismissAllNotifications] - Dismiss all function
+ */
+export function showBatchedNotificationModal(dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    showVisualNotification: showVisualFn = showVisualNotification,
+    generateNotificationListHTML: generateListFn = generateNotificationListHTML,
+    dismissAllNotifications: dismissAllFn = dismissAllNotifications
+  } = dependencies;
+
+  if (notificationQueue.length === 0) return;
+
+  // Ensure only one modal exists at a time - cleanup any existing modal
+  if (currentNotificationModal) {
+    dismissAllFn(dependencies);
+    // Wait a bit for the dismiss animation to complete
+    setTimeout(() => showBatchedNotificationModal(dependencies), 350);
+    return;
+  }
+
+  const hasAcknowledgmentRequired = notificationQueue.some(n => n.requiresAcknowledgment);
+
+  // If only one notification and no acknowledgment required, use regular notification
+  if (notificationQueue.length === 1 && !hasAcknowledgmentRequired) {
+    const notif = notificationQueue[0];
+    showVisualFn(notif.message, notif.requiresAcknowledgment, dependencies);
+    notificationQueue = [];
+    return;
+  }
+
+  // If multiple notifications but NONE require acknowledgment, show them as simple toasts
+  if (!hasAcknowledgmentRequired) {
+    // Show each notification as a simple non-blocking toast
+    notificationQueue.forEach(notif => {
+      showVisualFn(notif.message, false, dependencies);
+    });
+    notificationQueue = [];
+    return;
+  }
+
+  // Create batched modal (only if acknowledgment is required)
+  const notification = targetDocument.createElement('div');
+  notification.className = 'mga-batched-notification';
+
+  notification.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
+      z-index: 9999999;
+      font-weight: bold;
+      animation: mga-modal-entrance 0.5s ease-out;
+      border: 3px solid #ffffff;
+      text-align: center;
+      max-width: 500px;
+      max-height: 400px;
+      overflow-y: auto;
+  `;
+
+  notification.innerHTML = `
+      <div class="notification-count" style="font-size: 20px; margin-bottom: 15px;">
+          ${notificationQueue.length} Notification${notificationQueue.length > 1 ? 's' : ''}
+      </div>
+      <div class="notification-messages" style="text-align: left; margin-bottom: 20px; max-height: 200px; overflow-y: auto;">
+          ${generateListFn()}
+      </div>
+      <button class="acknowledge-all-btn" style="
+          background: white;
+          color: #ff0000;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 5px;
+          font-weight: bold;
+          font-size: 16px;
+          cursor: pointer;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+          transition: all 0.2s;
+      ">
+          ACKNOWLEDGE ALL (${notificationQueue.length})
+      </button>
+  `;
+
+  // Add button interactivity
+  const ackButton = notification.querySelector('.acknowledge-all-btn');
+  ackButton.onmouseover = () => {
+    ackButton.style.transform = 'scale(1.05)';
+    ackButton.style.boxShadow = '0 6px 15px rgba(0,0,0,0.4)';
+  };
+  ackButton.onmouseout = () => {
+    ackButton.style.transform = 'scale(1)';
+    ackButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+  };
+  ackButton.onclick = () => {
+    dismissAllFn(dependencies);
+  };
+
+  // Add backdrop
+  const backdrop = targetDocument.createElement('div');
+  backdrop.className = 'mga-notification-backdrop';
+  backdrop.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9999998;
+      animation: fadeIn 0.3s ease-in;
+  `;
+  backdrop.onclick = () => {
+    backdrop.style.animation = 'flash 0.3s ease-in-out';
+  };
+
+  targetDocument.body.appendChild(backdrop);
+  targetDocument.body.appendChild(notification);
+
+  currentNotificationModal = notification;
+
+  // NOTE: Don't stop continuous alarm here - it should keep playing until acknowledged
+  // The alarm will be stopped when the user clicks the acknowledge button
+}
+
+/**
+ * Dismiss all queued notifications and cleanup modal
+ * Stops continuous alarm, removes modal/backdrop, clears queue
+ *
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.targetDocument] - Target document (default: window.document)
+ * @param {Function} [dependencies.stopContinuousAlarm] - Stop alarm function
+ */
+export function dismissAllNotifications(dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    stopContinuousAlarm: stopAlarmFn = stopContinuousAlarm
+  } = dependencies;
+
+  stopAlarmFn(dependencies);
+
+  if (currentNotificationModal) {
+    const backdrop = targetDocument.querySelector('.mga-notification-backdrop');
+
+    currentNotificationModal.style.animation = 'fadeOut 0.3s ease-out';
+    if (backdrop) backdrop.style.animation = 'fadeOut 0.3s ease-out';
+
+    setTimeout(() => {
+      if (currentNotificationModal) currentNotificationModal.remove();
+      if (backdrop) backdrop.remove();
+      currentNotificationModal = null;
+    }, 300);
+  }
+
+  notificationQueue = [];
+
+  if (notificationQueueTimer) {
+    clearTimeout(notificationQueueTimer);
+    notificationQueueTimer = null;
+  }
+}
+
+/**
+ * Show visual notification in game (toast or modal)
+ * Creates either persistent modal (requires acknowledgment) or auto-dismiss toast
+ * Includes CSS animations for smooth entrance/exit
+ *
+ * @param {string} message - Notification message to display
+ * @param {boolean} requiresAcknowledgment - Whether notification requires user acknowledgment
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.targetDocument] - Target document (default: window.document)
+ * @param {Function} [dependencies.stopContinuousAlarm] - Stop alarm function
+ * @param {Function} [dependencies.dismissAllNotifications] - Dismiss all function
+ */
+export function showVisualNotification(message, requiresAcknowledgment = false, dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    stopContinuousAlarm: stopAlarmFn = stopContinuousAlarm,
+    dismissAllNotifications: dismissAllFn = dismissAllNotifications
+  } = dependencies;
+
+  // Ensure only one modal exists at a time for acknowledgment-required notifications
+  if (requiresAcknowledgment && currentNotificationModal) {
+    dismissAllFn(dependencies);
+    // Wait a bit for the dismiss animation to complete
+    setTimeout(() => showVisualNotification(message, requiresAcknowledgment, dependencies), 350);
+    return;
+  }
+
+  const notification = targetDocument.createElement('div');
+
+  if (requiresAcknowledgment) {
+    // Create persistent modal that requires acknowledgment
+    notification.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+          color: white;
+          padding: 30px;
+          border-radius: 15px;
+          box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
+          z-index: 9999999;
+          font-weight: bold;
+          font-size: 20px;
+          animation: mga-modal-entrance 0.5s ease-out;
+          border: 3px solid #ffffff;
+          text-align: center;
+          min-width: 400px;
+      `;
+
+    // Create message div
+    const messageDiv = targetDocument.createElement('div');
+    messageDiv.textContent = message;
+    messageDiv.style.marginBottom = '20px';
+    notification.appendChild(messageDiv);
+
+    // Create acknowledge button
+    const ackButton = targetDocument.createElement('button');
+    ackButton.textContent = 'ACKNOWLEDGE (Stop Alarm)';
+    ackButton.style.cssText = `
+          background: white;
+          color: #ff0000;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          font-weight: bold;
+          font-size: 16px;
+          cursor: pointer;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+          transition: all 0.2s;
+      `;
+    ackButton.onmouseover = () => {
+      ackButton.style.transform = 'scale(1.05)';
+      ackButton.style.boxShadow = '0 6px 15px rgba(0,0,0,0.4)';
+    };
+    ackButton.onmouseout = () => {
+      ackButton.style.transform = 'scale(1)';
+      ackButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+    };
+    ackButton.onclick = () => {
+      stopAlarmFn(dependencies);
+      notification.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => notification.remove(), 300);
+    };
+    notification.appendChild(ackButton);
+
+    // Add backdrop
+    const backdrop = targetDocument.createElement('div');
+    backdrop.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          z-index: 9999998;
+          animation: fadeIn 0.3s ease-in;
+      `;
+    backdrop.onclick = () => {
+      backdrop.style.animation = 'flash 0.3s ease-in-out';
+    };
+    targetDocument.body.appendChild(backdrop);
+
+    // Append notification to body
+    targetDocument.body.appendChild(notification);
+
+    // Set as current modal for tracking
+    currentNotificationModal = notification;
+
+    // Link backdrop removal to button click
+    ackButton.onclick = () => {
+      stopAlarmFn(dependencies);
+      notification.style.animation = 'fadeOut 0.3s ease-out';
+      backdrop.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => {
+        notification.remove();
+        backdrop.remove();
+        currentNotificationModal = null;
+      }, 300);
+    };
+  } else {
+    // Regular auto-dismiss notification
+    notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 15px 20px;
+          border-radius: 10px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+          z-index: 999999;
+          font-weight: bold;
+          font-size: 16px;
+          animation: slideInRight 0.5s ease-out;
+          border: 2px solid rgba(255,255,255,0.3);
+      `;
+    notification.textContent = message;
+
+    // Remove after 5 seconds
+    setTimeout(() => {
+      notification.style.animation = 'slideOutRight 0.5s ease-out';
+      setTimeout(() => notification.remove(), 500);
+    }, 5000);
+  }
+
+  // Add animation styles if not exists
+  if (!targetDocument.getElementById('mga-notification-animations')) {
+    const style = targetDocument.createElement('style');
+    style.id = 'mga-notification-animations';
+    style.textContent = `
+          @keyframes slideInRight {
+              from { transform: translateX(100%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+          }
+          @keyframes slideOutRight {
+              from { transform: translateX(0); opacity: 1; }
+              to { transform: translateX(100%); opacity: 0; }
+          }
+          @keyframes mga-notification-pulse {
+              from { transform: translate(-50%, -50%) scale(1); }
+              to { transform: translate(-50%, -50%) scale(1.05); }
+          }
+          @keyframes mga-modal-entrance {
+              from {
+                  opacity: 0;
+                  transform: translate(-50%, -50%) scale(0.8);
+              }
+              to {
+                  opacity: 1;
+                  transform: translate(-50%, -50%) scale(1);
+              }
+          }
+          @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+          }
+          @keyframes fadeOut {
+              from { opacity: 1; }
+              to { opacity: 0; }
+          }
+          @keyframes flash {
+              0%, 100% { background: rgba(0, 0, 0, 0.7); }
+              50% { background: rgba(255, 0, 0, 0.3); }
+          }
+      `;
+    targetDocument.head.appendChild(style);
+  }
+
+  targetDocument.body.appendChild(notification);
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -511,5 +975,13 @@ export default {
   playCustomOrDefaultSound,
   playGeneralNotificationSound,
   playShopNotificationSound,
-  playWeatherNotificationSound
+  playWeatherNotificationSound,
+
+  // Visual Notifications (Phase 3)
+  queueNotification,
+  updateNotificationModal,
+  generateNotificationListHTML,
+  showBatchedNotificationModal,
+  dismissAllNotifications,
+  showVisualNotification
 };
