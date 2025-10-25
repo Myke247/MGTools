@@ -5,7 +5,7 @@
  *
  * @module features/notifications
  *
- * Phase 1 (In Progress):
+ * Phase 1 (Complete):
  * - Core Sound System - ~200 lines
  *   • playNotificationSound() - Web Audio API sound generator
  *   • Basic sound presets (triple, double, single, chime, alert, buzz, ding, chirp)
@@ -13,13 +13,22 @@
  *   • Epic notification sequence
  *   • playSelectedNotification() - User preference selector
  *
- * Total Extracted: ~0 lines (of ~800-1000 estimated)
- * Progress: 0%
+ * Phase 2 (Complete):
+ * - Custom Sound Wrappers - ~120 lines
+ *   • playCustomOrDefaultSound() - Core wrapper utility (GM storage integration)
+ *   • playGeneralNotificationSound() - General notification wrapper
+ *   • playShopNotificationSound() - Shop-specific wrapper
+ *   • playWeatherNotificationSound() - Weather-specific wrapper
+ *   NOTE: playPetNotificationSound & playAbilityNotificationSound already in pets.js
+ *
+ * Total Extracted: ~320 lines (of ~800-1000 estimated)
+ * Progress: 35%
  *
  * Dependencies:
  * - Core: logging (productionLog)
  * - State: UnifiedState (for user preferences)
- * - Browser APIs: Web Audio API, setTimeout
+ * - Storage: GM_getValue (for custom sound uploads)
+ * - Browser APIs: Web Audio API, Audio(), setTimeout
  */
 
 /* ====================================================================================
@@ -345,6 +354,138 @@ export function playSelectedNotification(dependencies = {}) {
 }
 
 /* ====================================================================================
+ * CUSTOM SOUND WRAPPERS (Phase 2)
+ * ====================================================================================
+ */
+
+/**
+ * Play custom uploaded sound or fall back to default
+ * Core wrapper utility - checks GM storage for custom sounds
+ *
+ * @param {string} soundType - Sound type identifier (shop, pet, weather, ability)
+ * @param {Function} defaultPlayFunc - Default sound function to use if no custom sound
+ * @param {number} volume - Volume level 0-1
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Function} [dependencies.GM_getValue] - GM getValue function
+ * @param {Function} [dependencies.startContinuousAlarm] - Continuous alarm function
+ * @param {Function} [dependencies.productionLog] - Production logging function
+ */
+export function playCustomOrDefaultSound(soundType, defaultPlayFunc, volume, dependencies = {}) {
+  const {
+    GM_getValue = typeof window !== 'undefined' && window.GM_getValue,
+    startContinuousAlarm: startContinuousFn = startContinuousAlarm,
+    productionLog = console.log,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState
+  } = dependencies;
+
+  const customSound = GM_getValue(`mgtools_custom_sound_${soundType}`, null);
+
+  if (customSound) {
+    // Check if we're in continuous mode - custom sounds can't loop, so use default alarm instead
+    const notificationType = UnifiedState.data.settings.notifications.notificationType;
+    if (notificationType === 'continuous') {
+      productionLog(`🎵 [CUSTOM-SOUND] Continuous mode active - using alarm instead of custom ${soundType} sound`);
+      startContinuousFn(volume, dependencies);
+      return;
+    }
+
+    try {
+      const audio = new Audio(customSound);
+      audio.volume = volume || 0.3;
+      audio.play();
+      productionLog(`🎵 [CUSTOM-SOUND] Playing custom ${soundType} sound`);
+    } catch (err) {
+      console.error(`Failed to play custom ${soundType} sound:`, err);
+      defaultPlayFunc(volume);
+    }
+  } else {
+    defaultPlayFunc(volume);
+  }
+}
+
+/**
+ * Play general notification sound based on user settings
+ * Used as fallback for custom sounds and for general notifications
+ *
+ * @param {number} volume - Volume level 0-1
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @param {Function} [dependencies.playNotificationSound] - Core sound function
+ * @param {Function} [dependencies.playTripleBeepNotification] - Triple beep function
+ * @param {Function} [dependencies.playAlarmNotification] - Alarm function
+ * @param {Function} [dependencies.playEpicNotification] - Epic function
+ * @param {Function} [dependencies.startContinuousAlarm] - Continuous alarm function
+ */
+export function playGeneralNotificationSound(volume, dependencies = {}) {
+  const {
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    playNotificationSound: playSoundFn = playNotificationSound,
+    playTripleBeepNotification: playTripleFn = playTripleBeepNotification,
+    playAlarmNotification: playAlarmFn = playAlarmNotification,
+    playEpicNotification: playEpicFn = playEpicNotification,
+    startContinuousAlarm: startContinuousFn = startContinuousAlarm
+  } = dependencies;
+
+  const type = UnifiedState.data.settings.notifications.notificationType || 'epic';
+
+  switch (type) {
+    case 'simple':
+      playSoundFn(1000, 300, volume, dependencies);
+      break;
+    case 'triple':
+      playTripleFn(volume, dependencies);
+      break;
+    case 'alarm':
+      playAlarmFn(volume, dependencies);
+      break;
+    case 'epic':
+      playEpicFn(volume, dependencies);
+      break;
+    case 'continuous':
+      startContinuousFn(volume, dependencies);
+      break;
+    default:
+      playEpicFn(volume, dependencies);
+  }
+}
+
+/**
+ * Play shop notification sound (custom or default)
+ * Used for rare item alerts in shop
+ *
+ * @param {number} volume - Volume level 0-1
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Function} [dependencies.playCustomOrDefaultSound] - Custom sound wrapper
+ * @param {Function} [dependencies.playGeneralNotificationSound] - General sound function
+ */
+export function playShopNotificationSound(volume, dependencies = {}) {
+  const {
+    playCustomOrDefaultSound: playCustomFn = playCustomOrDefaultSound,
+    playGeneralNotificationSound: playGeneralFn = playGeneralNotificationSound
+  } = dependencies;
+
+  playCustomFn('shop', playGeneralFn, volume, dependencies);
+}
+
+/**
+ * Play weather notification sound (custom or default)
+ * Used for weather change alerts
+ *
+ * @param {number} volume - Volume level 0-1
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Function} [dependencies.playCustomOrDefaultSound] - Custom sound wrapper
+ * @param {Function} [dependencies.playGeneralNotificationSound] - General sound function
+ */
+export function playWeatherNotificationSound(volume, dependencies = {}) {
+  const {
+    playCustomOrDefaultSound: playCustomFn = playCustomOrDefaultSound,
+    playGeneralNotificationSound: playGeneralFn = playGeneralNotificationSound
+  } = dependencies;
+
+  playCustomFn('weather', playGeneralFn, volume, dependencies);
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -364,5 +505,11 @@ export default {
   startContinuousAlarm,
   stopContinuousAlarm,
   playEpicNotification,
-  playSelectedNotification
+  playSelectedNotification,
+
+  // Custom Sound Wrappers (Phase 2)
+  playCustomOrDefaultSound,
+  playGeneralNotificationSound,
+  playShopNotificationSound,
+  playWeatherNotificationSound
 };
