@@ -10,9 +10,9 @@
 
 **Phase 6 - Shop System Extraction**
 
-**Progress:** ~10% complete (Phase 1 of 6 - ~246 lines extracted)
+**Progress:** ~24% complete (Phase 2 of 6 - ~609 lines extracted)
 
-**Latest:** Phase 1 - Shop Constants & Utilities COMPLETE ✅
+**Latest:** Phase 2 - Inventory & Stock Management COMPLETE ✅
 
 ---
 
@@ -20,7 +20,28 @@
 
 ### Session: 2025-10-24 (Day 2 - Shop System Extraction)
 
-**Latest Work (Session 14):**
+**Latest Work (Session 15):**
+- ✅ **Phase 2: Inventory & Stock Management COMPLETE!**
+- ✅ Extracted Inventory Management Functions (~363 lines)
+  - `localPurchaseTrackerState` - Module-level purchase tracking state (~4 lines)
+  - `loadPurchaseTracker()` - Load from GM storage (~27 lines)
+  - `savePurchaseTracker()` - Save to GM storage (~15 lines)
+  - `trackLocalPurchase()` - Track item purchases (~20 lines)
+  - `getLocalPurchaseCount()` - Get purchase count with tool name compatibility (~23 lines)
+  - `resetLocalPurchases()` - Reset on shop restock (~24 lines)
+  - `isInventoryFull()` - Check 100-slot inventory cap (~10 lines)
+  - `getInventoryItemCount()` - Count items by type in inventory (~18 lines)
+  - `getItemStackCap()` - Stack capacity limits (WateringCan: 99, others: unlimited) (~13 lines)
+  - `flashInventoryFullFeedback()` - Red flash animation feedback (~33 lines)
+  - `getItemStock()` - Calculate shop stock with local purchases (~53 lines)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build stable at 275.2 KB
+- ✅ `shop.js` now 852 lines total (Phase 1-2 complete)
+
+**Progress:** 10% → 24% (+14%)
+
+**Earlier Work (Session 14):**
 - ✅ **Shop System Extraction Started!**
 - ✅ Created `SHOP_EXTRACTION_PLAN.md` - Complete 6-phase roadmap
 - ✅ Extracted Phase 1: Shop Constants & Utilities (~246 lines)
@@ -38,14 +59,13 @@
 - ✅ Created `src/features/shop.js` module
 - ✅ All code passes ESLint + Prettier
 - ✅ Both builds verified (mirror + modular)
-- ✅ Modular build stable at 275.2 KB
 
-**Progress:** 0% → ~10% (+10%)
+**Progress:** 0% → 10% (+10%)
 
 **Shop Extraction Roadmap:**
 - Phase 1: Constants & Utilities - ~246 lines ✅ COMPLETE
-- Phase 2: Inventory & Stock Management - ~300 lines (NEXT)
-- Phase 3: Shop Item Elements & Purchase Logic - ~500 lines
+- Phase 2: Inventory & Stock Management - ~363 lines ✅ COMPLETE
+- Phase 3: Shop Item Elements & Purchase Logic - ~500 lines (NEXT)
 - Phase 4: Shop Windows & Overlays - ~700 lines
 - Phase 5: Shop Tab Content - ~300 lines
 - Phase 6: Shop Monitoring & Restock Detection - ~500 lines
@@ -411,7 +431,7 @@
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
 ### Shop Extraction Work (Current Session)
-- `src/features/shop.js` - Shop module (446 lines total, Phase 1 complete)
+- `src/features/shop.js` - Shop module (852 lines total, Phase 1-2 complete)
 - `SHOP_EXTRACTION_PLAN.md` - Complete 6-phase extraction roadmap
 
 ### Notification Extraction Work (Previous Session)
