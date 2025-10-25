@@ -38,15 +38,30 @@
  *   • flashInventoryFullFeedback() - Red flash animation (~33 lines)
  *   • getItemStock() - Get current shop stock (~53 lines)
  *
- * Phase 3 (Current):
+ * Phase 3 (Complete):
  * - Shop Item Elements & Purchase Logic - ~405 lines
  *   • isShopDataReady() - Check if shop data loaded (~3 lines)
  *   • waitForShopData() - Polling wait for shop data (~26 lines)
  *   • createShopItemElement() - Create shop item UI element (~112 lines)
  *   • buyItem() - Purchase item with validation (~189 lines)
  *
- * Phase 4 (Planned):
- * - Shop Windows & Overlays
+ * Phase 4 (Current):
+ * - Shop Windows & Overlays - ~722 lines
+ *   • Module-level state - Window state management (~6 lines)
+ *   • SEED_SPECIES_SHOP - Seed item list (~30 lines)
+ *   • EGG_IDS_SHOP - Egg item list (~1 line)
+ *   • refreshAllShopWindows() - Refresh all shop UIs (~8 lines)
+ *   • createShopOverlay() - Create persistent backdrop (~16 lines)
+ *   • createShopSidebar() - Create sidebar UI (~84 lines)
+ *   • updateInventoryCounters() - Update inventory displays (~36 lines)
+ *   • startInventoryCounter() - Start counter updates (~9 lines)
+ *   • stopInventoryCounter() - Stop counter updates (~11 lines)
+ *   • toggleShopWindows() - Show/hide shop windows (~24 lines)
+ *   • createShopSidebars() - Create both sidebars (~10 lines)
+ *   • createShopWindow() - Create floating window (~115 lines)
+ *   • makeShopWindowDraggable() - Drag-and-drop logic (~47 lines)
+ *   • setupShopWindowHandlers() - Event handlers + rendering (~293 lines)
+ *   • getItemValue() - Item value lookup for sorting (~46 lines)
  *
  * Phase 5 (Planned):
  * - Shop Tab Content
@@ -54,9 +69,9 @@
  * Phase 6 (Planned):
  * - Shop Monitoring & Restock Detection
  *
- * Total Extracted (Current): ~1,014 lines (Phase 1-3)
+ * Total Extracted (Current): ~1,736 lines (Phase 1-4)
  * Estimated Total: ~2,000-2,500 lines (shop is a major feature comparable to pets)
- * Progress: ~41% complete (3/6 phases)
+ * Progress: ~70% complete (4/6 phases)
  *
  * @module features/shop
  */
@@ -1203,16 +1218,998 @@ export function buyItem(id, type, amount, itemEl, dependencies = {}) {
 }
 
 // ============================================================================
-// PHASE 4: SHOP WINDOWS & OVERLAYS (PLANNED)
+// PHASE 4: SHOP WINDOWS & OVERLAYS
 // ============================================================================
-// - createShopOverlay()
-// - createShopSidebar()
-// - toggleShopWindows()
-// - createShopSidebars()
-// - createShopWindow()
-// - makeShopWindowDraggable()
-// - setupShopWindowHandlers()
-// - refreshAllShopWindows()
+
+/**
+ * Module-level State: Shop Window Management
+ * Tracks window open state and references to DOM elements
+ */
+let shopWindowsOpen = false;
+let seedShopWindow = null;
+let eggShopWindow = null;
+let shopOverlay = null;
+const shopRenderFunctions = {
+  seed: null,
+  egg: null
+};
+
+/**
+ * Shop item lists for rendering
+ * Defines which items appear in each shop type
+ */
+export const SEED_SPECIES_SHOP = [
+  'Carrot',
+  'Strawberry',
+  'Aloe',
+  'Blueberry',
+  'Apple',
+  'OrangeTulip',
+  'Tomato',
+  'Daffodil',
+  'Corn',
+  'Watermelon',
+  'Pumpkin',
+  'Echeveria',
+  'Coconut',
+  'Banana',
+  'Lily',
+  'BurrosTail',
+  'Mushroom',
+  'Cactus',
+  'Bamboo',
+  'Grape',
+  'Pepper',
+  'Lemon',
+  'PassionFruit',
+  'DragonFruit',
+  'Lychee',
+  'Sunflower',
+  'Starweaver',
+  'DawnCelestial',
+  'MoonCelestial'
+];
+
+export const EGG_IDS_SHOP = ['CommonEgg', 'UncommonEgg', 'RareEgg', 'LegendaryEgg', 'MythicalEgg'];
+
+/**
+ * Refresh all shop windows
+ * Calls stored render functions for seed and egg shops
+ * Made globally available on targetWindow for atom hooks
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.shopRenderFunctions] - Render function registry
+ */
+export function refreshAllShopWindows(dependencies = {}) {
+  const { shopRenderFunctions: renderFns = shopRenderFunctions } = dependencies;
+
+  if (renderFns.seed) {
+    renderFns.seed();
+  }
+  if (renderFns.egg) {
+    renderFns.egg();
+  }
+}
+
+/**
+ * Create shop overlay backdrop
+ * Creates persistent backdrop for shop windows with click-to-close
+ * Returns cached overlay if already exists
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Function} [dependencies.toggleShopWindows] - Toggle function
+ * @param {HTMLElement} [dependencies.shopOverlay] - Cached overlay element
+ * @returns {HTMLElement} Shop overlay element
+ */
+export function createShopOverlay(dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    toggleShopWindows: toggleFn = toggleShopWindows,
+    shopOverlay: cachedOverlay = shopOverlay
+  } = dependencies;
+
+  if (!targetDocument) return null;
+  if (cachedOverlay) return cachedOverlay;
+
+  const overlay = targetDocument.createElement('div');
+  overlay.id = 'mga-shop-overlay';
+  targetDocument.body.appendChild(overlay);
+
+  // Click outside to close
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      toggleFn(dependencies);
+    }
+  });
+
+  // Update module-level reference
+  shopOverlay = overlay;
+
+  return overlay;
+}
+
+/**
+ * Module-level state for inventory counter management
+ * Tracks interval and cached DOM elements for performance
+ */
+let inventoryUpdateInterval = null;
+let cachedCounterElements = null;
+let cachedCountElements = null;
+let inventoryCounterRefs = 0;
+
+/**
+ * Create shop sidebar UI
+ * Creates sidebar with inventory counter, filters, and item list container
+ *
+ * @param {string} type - Shop type ('seed' or 'egg')
+ * @param {string} title - Sidebar title
+ * @param {string} side - Side to display ('left' or 'right')
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Object} [dependencies.UnifiedState] - Unified state
+ * @param {Function} [dependencies.toggleShopWindows] - Toggle function
+ * @returns {HTMLElement} Sidebar element
+ */
+export function createShopSidebar(type, title, side, dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    toggleShopWindows: toggleFn = toggleShopWindows
+  } = dependencies;
+
+  if (!targetDocument) return null;
+
+  const sidebar = targetDocument.createElement('div');
+  sidebar.className = `mga-shop-sidebar mga-shop-sidebar-${side}`;
+  sidebar.id = `mga-shop-${type}`;
+
+  // Get current inventory count (includes bag + hotbar)
+  const inventory = UnifiedState?.atoms?.inventory;
+  const currentCount = inventory?.items?.length || 0;
+  const maxCount = 100; // 91 bag + 9 hotbar = 100 total
+
+  // Color code based on inventory fullness
+  let inventoryColor = '#4caf50'; // Green (< 95)
+  if (currentCount >= 100) {
+    inventoryColor = '#ff4444'; // Red (full)
+  } else if (currentCount >= 95) {
+    inventoryColor = '#ffa500'; // Yellow (95-99)
+  }
+
+  sidebar.innerHTML = `
+    <div class="mga-shop-sidebar-header">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600;">🌱 ${title}</h3>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button class="shop-refresh-btn" style="cursor: pointer; font-size: 16px; color: #4a9eff; background: none; border: none; padding: 4px 8px; transition: color 0.2s ease;" title="Refresh shop">🔄</button>
+        <button class="shop-close-btn" style="cursor: pointer; font-weight: 700; font-size: 20px; color: #cfcfcf; background: none; border: none; padding: 0 8px; transition: color 0.2s ease;">×</button>
+      </div>
+    </div>
+
+    <!-- Inventory counter -->
+    <div class="shop-inventory-counter" style="
+      font-size: 12px;
+      font-weight: 600;
+      color: ${inventoryColor};
+      margin: 12px 12px 0 12px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      border-left: 3px solid ${inventoryColor};
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    ">
+      <span>📦</span>
+      <span>Inventory: <span class="shop-inventory-count">${currentCount}</span>/${maxCount}</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.57);">
+      <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+        <input type="checkbox" class="show-available-only" style="accent-color: #2afd23;">
+        <span>Show available only</span>
+      </label>
+      <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+        <input type="checkbox" class="sort-by-value" style="accent-color: #4a9eff;">
+        <span>Sort by Value</span>
+      </label>
+    </div>
+    <div class="shop-items-list" style="display: flex; flex-direction: column; gap: 6px; padding: 12px; overflow-y: auto; flex: 1;"></div>
+  `;
+
+  targetDocument.body.appendChild(sidebar);
+
+  // Close button handler
+  const closeBtn = sidebar.querySelector('.shop-close-btn');
+  closeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleFn(dependencies);
+  });
+  closeBtn.addEventListener('mouseenter', () => {
+    closeBtn.style.color = '#ff5555';
+  });
+  closeBtn.addEventListener('mouseleave', () => {
+    closeBtn.style.color = '#cfcfcf';
+  });
+
+  // Refresh button handler (will be fully wired in setupShopWindowHandlers)
+  const refreshBtn = sidebar.querySelector('.shop-refresh-btn');
+  refreshBtn.addEventListener('mouseenter', () => {
+    refreshBtn.style.color = '#6fbfff';
+  });
+  refreshBtn.addEventListener('mouseleave', () => {
+    refreshBtn.style.color = '#4a9eff';
+  });
+
+  return sidebar;
+}
+
+/**
+ * Update inventory counter displays
+ * Updates all inventory counter elements with current count and color
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Object} [dependencies.UnifiedState] - Unified state
+ */
+export function updateInventoryCounters(dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState
+  } = dependencies;
+
+  if (!targetDocument) return;
+
+  const inventory = UnifiedState?.atoms?.inventory;
+  const currentCount = inventory?.items?.length || 0;
+  const maxCount = 100;
+
+  // Determine color based on fullness
+  let inventoryColor = '#4caf50'; // Green
+  if (currentCount >= 100) {
+    inventoryColor = '#ff4444'; // Red
+  } else if (currentCount >= 95) {
+    inventoryColor = '#ffa500'; // Yellow
+  }
+
+  // Cache DOM elements on first run or if they don't exist
+  if (!cachedCountElements || cachedCountElements.length === 0) {
+    cachedCountElements = targetDocument.querySelectorAll('.shop-inventory-count, #shop-inventory-count');
+  }
+  if (!cachedCounterElements || cachedCounterElements.length === 0) {
+    cachedCounterElements = targetDocument.querySelectorAll('.shop-inventory-counter, #shop-inventory-counter');
+  }
+
+  // Update all inventory counter elements (using cached selectors)
+  cachedCountElements.forEach(el => {
+    if (el && el.textContent !== String(currentCount)) {
+      el.textContent = currentCount;
+    }
+  });
+
+  // Update counter colors (using cached selectors)
+  cachedCounterElements.forEach(el => {
+    if (el && el.style.color !== inventoryColor) {
+      el.style.color = inventoryColor;
+      el.style.borderLeftColor = inventoryColor;
+    }
+  });
+}
+
+/**
+ * Start inventory counter with reference counting
+ * Starts interval updates for inventory counters
+ * Uses reference counting to support multiple windows
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.updateInventoryCounters] - Update function
+ */
+export function startInventoryCounter(dependencies = {}) {
+  const { updateInventoryCounters: updateFn = updateInventoryCounters } = dependencies;
+
+  inventoryCounterRefs += 1;
+  if (inventoryCounterRefs === 1) {
+    // First reference - start the interval
+    updateFn(dependencies); // Update immediately
+    if (inventoryUpdateInterval) clearInterval(inventoryUpdateInterval);
+    inventoryUpdateInterval = setInterval(() => updateFn(dependencies), 1000); // Optimized: 500ms→1000ms
+  }
+}
+
+/**
+ * Stop inventory counter with reference counting
+ * Stops interval updates when no windows need them
+ * Clears cached elements for fresh queries on next start
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ */
+export function stopInventoryCounter(dependencies = {}) {
+  inventoryCounterRefs = Math.max(0, inventoryCounterRefs - 1);
+  if (inventoryCounterRefs === 0 && inventoryUpdateInterval) {
+    // No more references - stop the interval
+    clearInterval(inventoryUpdateInterval);
+    inventoryUpdateInterval = null;
+    // Clear cache so it refreshes next time
+    cachedCounterElements = null;
+    cachedCountElements = null;
+  }
+}
+
+/**
+ * Toggle shop windows open/closed
+ * Shows/hides both shop sidebars with inventory counter management
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.createShopSidebars] - Create sidebars function
+ * @param {Function} [dependencies.startInventoryCounter] - Start counter function
+ * @param {Function} [dependencies.stopInventoryCounter] - Stop counter function
+ */
+export function toggleShopWindows(dependencies = {}) {
+  const {
+    createShopSidebars: createSidebarsFn = createShopSidebars,
+    startInventoryCounter: startCounterFn = startInventoryCounter,
+    stopInventoryCounter: stopCounterFn = stopInventoryCounter
+  } = dependencies;
+
+  if (shopWindowsOpen) {
+    // Close both sidebars
+    if (seedShopWindow) {
+      seedShopWindow.classList.remove('open');
+    }
+    if (eggShopWindow) {
+      eggShopWindow.classList.remove('open');
+    }
+    shopWindowsOpen = false;
+
+    // Stop inventory counter updates
+    stopCounterFn(dependencies);
+  } else {
+    // Open both sidebars
+    if (!seedShopWindow) createSidebarsFn(dependencies);
+    seedShopWindow.classList.add('open');
+    eggShopWindow.classList.add('open');
+    shopWindowsOpen = true;
+
+    // Start inventory counter updates
+    startCounterFn(dependencies);
+  }
+}
+
+/**
+ * Create both shop sidebars (seed and egg)
+ * Initializes both sidebars and sets up their event handlers
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.createShopSidebar] - Create sidebar function
+ * @param {Function} [dependencies.setupShopWindowHandlers] - Setup handlers function
+ */
+export function createShopSidebars(dependencies = {}) {
+  const {
+    createShopSidebar: createSidebarFn = createShopSidebar,
+    setupShopWindowHandlers: setupHandlersFn = setupShopWindowHandlers
+  } = dependencies;
+
+  // Create seed shop sidebar (left)
+  seedShopWindow = createSidebarFn('seed', 'Seeds', 'left', dependencies);
+  // Create egg & tool shop sidebar (right)
+  eggShopWindow = createSidebarFn('egg', 'Eggs & Tools', 'right', dependencies);
+
+  // Setup handlers
+  setupHandlersFn(seedShopWindow, 'seed', dependencies);
+  setupHandlersFn(eggShopWindow, 'egg', dependencies); // This now handles both eggs and tools
+}
+
+/**
+ * Create floating shop window (alternative to sidebar)
+ * Creates draggable, resizable shop window with saved position
+ *
+ * @param {string} type - Shop type ('seed' or 'egg')
+ * @param {string} title - Window title
+ * @param {number} leftOffset - Default left position
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Window} [dependencies.targetWindow] - Target window
+ * @param {Function} [dependencies.MGA_loadJSON] - Load JSON from storage
+ * @param {Function} [dependencies.MGA_saveJSON] - Save JSON to storage
+ * @param {Function} [dependencies.makeShopWindowDraggable] - Make draggable function
+ * @param {Function} [dependencies.makeElementResizable] - Make resizable function
+ * @returns {HTMLElement} Shop window element
+ */
+export function createShopWindow(type, title, leftOffset, dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    MGA_loadJSON = typeof window !== 'undefined' && window.MGA_loadJSON,
+    MGA_saveJSON = typeof window !== 'undefined' && window.MGA_saveJSON,
+    makeShopWindowDraggable: makeDraggableFn = makeShopWindowDraggable,
+    makeElementResizable = typeof window !== 'undefined' && window.makeElementResizable
+  } = dependencies;
+
+  if (!targetDocument) return null;
+
+  const windowEl = targetDocument.createElement('div');
+  windowEl.className = 'mga-shop-window';
+  windowEl.id = `mga-shop-${type}`;
+
+  // Load saved position and size with validation
+  const savedPositions = MGA_loadJSON ? MGA_loadJSON('MGA_shopWindowPositions', {}) : {};
+  const savedSizes = MGA_loadJSON ? MGA_loadJSON('MGA_shopWindowSizes', {}) : {};
+  const savedPos = savedPositions[type] || { left: leftOffset, top: 120 };
+  const savedSize = savedSizes[type] || { width: 300, height: 500 };
+
+  // Validate saved position is on screen
+  if (targetWindow) {
+    if (savedPos.left < 0 || savedPos.left > targetWindow.innerWidth - 100) {
+      savedPos.left = leftOffset;
+    }
+    if (savedPos.top < 0 || savedPos.top > targetWindow.innerHeight - 100) {
+      savedPos.top = 120;
+    }
+  }
+
+  // Validate saved size is reasonable
+  if (savedSize.width < 250 || savedSize.width > 800) {
+    savedSize.width = 300;
+  }
+  if (savedSize.height < 300 || savedSize.height > 900) {
+    savedSize.height = 500;
+  }
+
+  windowEl.style.cssText = `
+    position: fixed;
+    top: ${savedPos.top}px;
+    left: ${savedPos.left}px;
+    width: ${savedSize.width}px;
+    height: ${savedSize.height}px;
+    background: rgba(17, 24, 39, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.73);
+    border-radius: 8px;
+    padding: 12px;
+    z-index: 999999;
+    overflow-y: auto;
+    color: #fff;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  `;
+
+  windowEl.innerHTML = `
+    <div class="shop-window-header" style="padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.57); cursor: grab;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative;">
+        <h3 style="margin: 0; font-size: 14px;">🌱 ${title}</h3>
+        <button class="shop-close-btn" style="position: absolute; top: -4px; right: -4px; cursor: pointer; font-weight: 700; font-size: 16px; color: #cfcfcf; background: none; border: none; padding: 0 6px; transition: color 0.2s ease;">×</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+          <input type="checkbox" class="show-available-only" style="accent-color: #2afd23;">
+          <span>Show available only</span>
+        </label>
+        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+          <input type="checkbox" class="sort-by-value" style="accent-color: #4a9eff;">
+          <span>Sort by Value</span>
+        </label>
+      </div>
+    </div>
+    <div class="shop-items-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+  `;
+
+  targetDocument.body.appendChild(windowEl);
+
+  // Add close button handler
+  const closeBtn = windowEl.querySelector('.shop-close-btn');
+  closeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    windowEl.remove();
+    // Update state
+    if (type === 'seed') {
+      seedShopWindow = null;
+    } else {
+      eggShopWindow = null;
+    }
+    // If both windows are closed, close overlay and update state
+    if (!seedShopWindow && !eggShopWindow) {
+      if (shopOverlay) shopOverlay.classList.remove('active');
+      shopWindowsOpen = false;
+    }
+  });
+  closeBtn.addEventListener('mouseenter', () => {
+    closeBtn.style.color = '#ff5555';
+  });
+  closeBtn.addEventListener('mouseleave', () => {
+    closeBtn.style.color = '#cfcfcf';
+  });
+
+  // Make draggable with type parameter for position saving
+  makeDraggableFn(windowEl, windowEl.querySelector('.shop-window-header'), type, dependencies);
+
+  // Make resizable with size saving
+  if (makeElementResizable) {
+    makeElementResizable(windowEl, {
+      minWidth: 250,
+      minHeight: 300,
+      maxWidth: 600,
+      maxHeight: 800,
+      showHandleOnHover: true
+    });
+
+    // Save size on resize
+    if (typeof ResizeObserver !== 'undefined' && MGA_saveJSON && MGA_loadJSON) {
+      const resizeObserver = new ResizeObserver(() => {
+        const sizes = MGA_loadJSON('MGA_shopWindowSizes', {});
+        sizes[type] = {
+          width: windowEl.offsetWidth,
+          height: windowEl.offsetHeight
+        };
+        MGA_saveJSON('MGA_shopWindowSizes', sizes);
+      });
+      resizeObserver.observe(windowEl);
+    }
+  }
+
+  return windowEl;
+}
+
+/**
+ * Make shop window draggable
+ * Adds drag-and-drop functionality with position saving
+ *
+ * @param {HTMLElement} element - Window element to make draggable
+ * @param {HTMLElement} handle - Drag handle element
+ * @param {string} windowType - Window type for saving position
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Function} [dependencies.MGA_loadJSON] - Load JSON from storage
+ * @param {Function} [dependencies.MGA_saveJSON] - Save JSON to storage
+ */
+export function makeShopWindowDraggable(element, handle, windowType, dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    MGA_loadJSON = typeof window !== 'undefined' && window.MGA_loadJSON,
+    MGA_saveJSON = typeof window !== 'undefined' && window.MGA_saveJSON
+  } = dependencies;
+
+  if (!targetDocument || !element || !handle) return;
+
+  let isDragging = false;
+  let startX;
+  let startY;
+  let startLeft;
+  let startTop;
+
+  handle.style.cursor = 'grab';
+
+  handle.addEventListener('mousedown', e => {
+    // Don't drag if clicking on interactive elements
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    // Allow dragging from labels and spans, but not if they contain an input
+    if (e.target.tagName === 'LABEL' && e.target.querySelector('input')) return;
+    // Don't start drag if clicking resize handle
+    if (e.target.classList && e.target.classList.contains('mga-resize-handle')) return;
+
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = element.offsetLeft;
+    startTop = element.offsetTop;
+    handle.style.cursor = 'grabbing';
+    element.style.zIndex = '9999999'; // Bring to front while dragging
+  });
+
+  targetDocument.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    element.style.left = `${startLeft + dx}px`;
+    element.style.top = `${startTop + dy}px`;
+  });
+
+  targetDocument.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      handle.style.cursor = 'grab';
+      element.style.zIndex = '999999'; // Reset z-index
+
+      // Save position
+      if (MGA_loadJSON && MGA_saveJSON) {
+        const positions = MGA_loadJSON('MGA_shopWindowPositions', {});
+        positions[windowType] = {
+          left: element.offsetLeft,
+          top: element.offsetTop
+        };
+        MGA_saveJSON('MGA_shopWindowPositions', positions);
+      }
+    }
+  });
+}
+
+/**
+ * Setup shop window event handlers
+ * Configures filtering, sorting, rendering, and restock detection
+ *
+ * @param {HTMLElement} windowEl - Shop window element
+ * @param {string} type - Shop type ('seed' or 'egg')
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Window} [dependencies.targetWindow] - Target window
+ * @param {Object} [dependencies.UnifiedState] - Unified state
+ * @param {Function} [dependencies.MGA_loadJSON] - Load JSON from storage
+ * @param {Function} [dependencies.MGA_saveJSON] - Save JSON to storage
+ * @param {Function} [dependencies.createShopItemElement] - Create item function
+ * @param {Function} [dependencies.getItemStock] - Get stock function
+ * @param {Function} [dependencies.getItemValue] - Get value function
+ * @param {Function} [dependencies.resetLocalPurchases] - Reset purchases function
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.productionWarn] - Production warn logger
+ * @param {Function} [dependencies.isShopDataReady] - Shop ready check
+ * @param {Function} [dependencies.waitForShopData] - Wait for shop data
+ */
+export function setupShopWindowHandlers(windowEl, type, dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    MGA_loadJSON = typeof window !== 'undefined' && window.MGA_loadJSON,
+    MGA_saveJSON = typeof window !== 'undefined' && window.MGA_saveJSON,
+    createShopItemElement: createItemFn = createShopItemElement,
+    getItemStock: getStockFn = getItemStock,
+    getItemValue: getValueFn = getItemValue,
+    resetLocalPurchases: resetPurchasesFn = resetLocalPurchases,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    productionWarn = typeof window !== 'undefined' && window.productionWarn,
+    isShopDataReady: isReadyFn = isShopDataReady,
+    waitForShopData: waitForDataFn = waitForShopData
+  } = dependencies;
+
+  if (!windowEl) return;
+
+  const itemsList = windowEl.querySelector('.shop-items-list');
+  const sortCheckbox = windowEl.querySelector('.sort-by-value');
+  const showAvailableCheckbox = windowEl.querySelector('.show-available-only');
+
+  const items = type === 'seed' ? SEED_SPECIES_SHOP : EGG_IDS_SHOP;
+
+  function renderItems(sortByValue = false, showAvailableOnly = false) {
+    if (!itemsList) return;
+    itemsList.innerHTML = '';
+
+    // For egg type, render both eggs and tools with divider
+    if (type === 'egg') {
+      // Render eggs section
+      let eggItemsToRender = EGG_IDS_SHOP.map(id => ({
+        id,
+        stock: getStockFn(id, 'egg', dependencies),
+        value: getValueFn(id, 'egg'),
+        type: 'egg'
+      }));
+
+      if (showAvailableOnly) {
+        eggItemsToRender = eggItemsToRender.filter(item => item.stock > 0);
+      }
+
+      if (sortByValue) {
+        eggItemsToRender.sort((a, b) => b.value - a.value);
+      }
+
+      eggItemsToRender.forEach(({ id, stock, value }) => {
+        const itemEl = createItemFn(id, 'egg', stock, value, {}, dependencies);
+        if (itemEl) itemsList.appendChild(itemEl);
+      });
+
+      // Get tools from game shop inventory
+      const toolShop = targetWindow?.globalShop?.shops?.tool;
+      const toolInventory = toolShop?.inventory || [];
+
+      // Only show divider and tools if tools exist
+      if (toolInventory.length > 0) {
+        // Add professional divider
+        const divider = targetDocument.createElement('div');
+        divider.style.cssText = `
+          margin: 12px 0;
+          padding: 8px 0;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          text-align: center;
+          font-size: 11px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.5);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        `;
+        divider.textContent = '🔧 Tools';
+        itemsList.appendChild(divider);
+
+        // Render tools dynamically from inventory
+        let toolItemsToRender = toolInventory.map((tool, idx) => {
+          const toolId = tool.toolId || tool.name || `Tool_${idx}`;
+
+          // Check if player owns Shovel (it's a one-time purchase)
+          let isOwned = false;
+          let isUnlimited = false;
+          if (toolId === 'Shovel' || toolId === 'GardenShovel') {
+            // Check player inventory for Shovel ownership
+            const playerInventory = targetWindow.myData?.inventory?.items || [];
+            isOwned = playerInventory.some(
+              item => item.itemType === 'Tool' && (item.toolId === 'Shovel' || item.toolId === 'GardenShovel')
+            );
+            if (isOwned) {
+              isUnlimited = true;
+            }
+          }
+
+          const toolStock = isOwned ? 0 : getStockFn(toolId, 'tool', dependencies);
+          return {
+            id: toolId,
+            stock: toolStock,
+            value: getValueFn(toolId, 'tool'),
+            type: 'tool',
+            owned: isOwned,
+            unlimited: isUnlimited
+          };
+        });
+
+        if (showAvailableOnly) {
+          // Don't filter out owned/unlimited items (like Shovel)
+          toolItemsToRender = toolItemsToRender.filter(item => item.stock > 0 || item.owned || item.unlimited);
+        }
+
+        if (sortByValue) {
+          toolItemsToRender.sort((a, b) => b.value - a.value);
+        }
+
+        toolItemsToRender.forEach(({ id, stock, value, owned, unlimited }) => {
+          const itemEl = createItemFn(id, 'tool', stock, value, { owned, unlimited }, dependencies);
+          if (itemEl) itemsList.appendChild(itemEl);
+        });
+      }
+
+      // Show empty state if no items after filtering
+      if (eggItemsToRender.length === 0 && toolInventory.length === 0 && showAvailableOnly) {
+        itemsList.innerHTML =
+          '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+      }
+    } else {
+      // Render seeds normally
+      let itemsToRender = items.map(id => ({
+        id,
+        stock: getStockFn(id, type, dependencies),
+        value: getValueFn(id, type)
+      }));
+
+      if (showAvailableOnly) {
+        itemsToRender = itemsToRender.filter(item => item.stock > 0);
+      }
+
+      if (sortByValue) {
+        itemsToRender.sort((a, b) => b.value - a.value);
+      }
+
+      itemsToRender.forEach(({ id, stock, value }) => {
+        const itemEl = createItemFn(id, type, stock, value, {}, dependencies);
+        if (itemEl) itemsList.appendChild(itemEl);
+      });
+
+      if (itemsToRender.length === 0 && showAvailableOnly) {
+        itemsList.innerHTML =
+          '<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">No items in stock</div>';
+      }
+    }
+  }
+
+  // Load saved checkbox states
+  const savedFilters = MGA_loadJSON ? MGA_loadJSON('MGA_shopFilters', {}) : {};
+  const savedShowAvailable = savedFilters.showAvailableOnly ?? false;
+  const savedSortByValue = savedFilters.sortByValue ?? false;
+
+  if (sortCheckbox) sortCheckbox.checked = savedSortByValue;
+  if (showAvailableCheckbox) showAvailableCheckbox.checked = savedShowAvailable;
+
+  if (sortCheckbox) {
+    sortCheckbox.addEventListener('change', () => {
+      if (MGA_saveJSON) {
+        const filters = {
+          showAvailableOnly: showAvailableCheckbox?.checked ?? false,
+          sortByValue: sortCheckbox.checked
+        };
+        MGA_saveJSON('MGA_shopFilters', filters);
+      }
+      renderItems(sortCheckbox.checked, showAvailableCheckbox?.checked ?? false);
+    });
+  }
+
+  if (showAvailableCheckbox) {
+    showAvailableCheckbox.addEventListener('change', () => {
+      if (MGA_saveJSON) {
+        const filters = {
+          showAvailableOnly: showAvailableCheckbox.checked,
+          sortByValue: sortCheckbox?.checked ?? false
+        };
+        MGA_saveJSON('MGA_shopFilters', filters);
+      }
+      renderItems(sortCheckbox?.checked ?? false, showAvailableCheckbox.checked);
+    });
+  }
+
+  // Manual refresh button handler
+  const refreshBtn = windowEl.querySelector('.shop-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      renderItems(sortCheckbox?.checked ?? false, showAvailableCheckbox?.checked ?? false);
+    });
+  }
+
+  // Loading and error states
+  function showLoadingState() {
+    if (!itemsList) return;
+    itemsList.innerHTML = `
+      <div style="color: #4a9eff; text-align: center; padding: 40px 20px; font-size: 13px;">
+        <div style="margin-bottom: 12px; font-size: 24px;">⏳</div>
+        <div style="font-weight: 600; margin-bottom: 8px;">Loading shop data...</div>
+        <div style="font-size: 11px; color: rgba(255, 255, 255, 0.5);">Waiting for game data</div>
+      </div>
+    `;
+  }
+
+  function showTimeoutError() {
+    if (!itemsList) return;
+    itemsList.innerHTML = `
+      <div style="color: #ff6b6b; text-align: center; padding: 40px 20px; font-size: 13px;">
+        <div style="margin-bottom: 12px; font-size: 24px;">⚠️</div>
+        <div style="font-weight: 600; margin-bottom: 8px;">Shop data unavailable</div>
+        <div style="font-size: 11px; color: rgba(255, 255, 255, 0.5); margin-bottom: 16px;">
+          Game data not loaded yet
+        </div>
+        <div style="font-size: 11px; color: rgba(255, 255, 255, 0.7);">
+          Try using the refresh button (🔄) or closing and reopening the shop
+        </div>
+      </div>
+    `;
+  }
+
+  // Check if shop data is ready on initial render
+  if (isReadyFn(dependencies)) {
+    // Data ready immediately - render normally
+    renderItems(savedSortByValue, savedShowAvailable);
+  } else {
+    // Data not ready - show loading state and wait
+    if (productionLog) {
+      productionLog(`⏳ [SHOP] Shop data not ready yet, showing loading state for ${type} shop`);
+    }
+    showLoadingState();
+
+    waitForDataFn(
+      success => {
+        if (success) {
+          // Data became available - render shop
+          renderItems(savedSortByValue, savedShowAvailable);
+        } else {
+          // Timeout - show error
+          showTimeoutError();
+        }
+      },
+      5000,
+      dependencies
+    );
+  }
+
+  // Store render function for global refresh
+  shopRenderFunctions[type] = () =>
+    renderItems(sortCheckbox?.checked ?? false, showAvailableCheckbox?.checked ?? false);
+
+  // Auto-refresh stock and detect restocks using pattern-based detection
+  let lastTimerValue = null;
+  let timerWasDecreasing = false;
+
+  setInterval(() => {
+    // Check if shop has restocked by watching secondsUntilRestock timer pattern
+    const shop = targetWindow?.globalShop?.shops;
+    if (shop) {
+      const shopData = type === 'seed' ? shop.seed : shop.egg;
+      if (shopData && typeof shopData.secondsUntilRestock !== 'undefined') {
+        const currentTimer = Number(shopData.secondsUntilRestock) || 0;
+
+        // First reading - initialize tracking
+        if (lastTimerValue === null) {
+          lastTimerValue = currentTimer;
+          return;
+        }
+
+        let restockDetected = false;
+
+        // Pattern-based detection: timer naturally decreases, then suddenly increases = restock
+        if (currentTimer < lastTimerValue) {
+          // Timer decreasing normally (countdown in progress)
+          timerWasDecreasing = true;
+        } else if (timerWasDecreasing && currentTimer > lastTimerValue + 2) {
+          // Timer increased after decreasing - this is the restock pattern!
+          // +2 threshold prevents false positives from network jitter
+          restockDetected = true;
+          timerWasDecreasing = false;
+
+          if (UnifiedState?.data?.settings?.debugMode) {
+            console.log(
+              `[SHOP DEBUG] Restock detected for ${type}! Pattern: ${lastTimerValue}s → ${currentTimer}s (was decreasing, then increased)`
+            );
+          }
+        }
+
+        lastTimerValue = currentTimer;
+
+        // Refresh UI when restock is detected
+        if (restockDetected) {
+          // Reset local purchase tracking for this shop type
+          resetPurchasesFn(type, dependencies);
+
+          // Short delay to ensure stock data is stable
+          setTimeout(() => {
+            renderItems(sortCheckbox?.checked ?? false, showAvailableCheckbox?.checked ?? false);
+          }, 500);
+          return; // Skip the immediate render below
+        }
+      }
+    }
+
+    // Normal periodic refresh (no restock detected)
+    // In-game purchases are now detected via sendMessage interception
+    // ONLY refresh if no buttons are being hovered (prevents flickering)
+    const isHovering = itemsList?.querySelector('.buy-btn:hover');
+    if (!isHovering) {
+      renderItems(sortCheckbox?.checked ?? false, showAvailableCheckbox?.checked ?? false);
+    }
+  }, 2000); // Check every 2 seconds for better responsiveness
+}
+
+/**
+ * Get item value for sorting
+ * Returns approximate value for shop item sorting
+ *
+ * @param {string} id - Item identifier
+ * @param {string} type - Item type ('seed', 'egg', 'tool')
+ * @returns {number} Item value for sorting
+ */
+export function getItemValue(id, type) {
+  const valueMap = {
+    // Seeds (approximate values)
+    MoonCelestial: 50000,
+    DawnCelestial: 45000,
+    Starweaver: 40000,
+    Lychee: 8000,
+    DragonFruit: 7000,
+    PassionFruit: 6000,
+    Sunflower: 5000,
+    Lemon: 4000,
+    Pepper: 3500,
+    Grape: 3000,
+    Bamboo: 2500,
+    Cactus: 2000,
+    Mushroom: 1800,
+    BurrosTail: 1500,
+    Lily: 1200,
+    Banana: 1000,
+    Coconut: 900,
+    Echeveria: 800,
+    Pumpkin: 600,
+    Watermelon: 500,
+    Corn: 400,
+    Daffodil: 300,
+    Tomato: 250,
+    OrangeTulip: 200,
+    Apple: 150,
+    Blueberry: 100,
+    Aloe: 80,
+    Strawberry: 60,
+    Carrot: 40,
+    // Eggs
+    MythicalEgg: 10000,
+    LegendaryEgg: 5000,
+    RareEgg: 1000,
+    UncommonEgg: 200,
+    CommonEgg: 50,
+    // Tools (placeholder values)
+    Shovel: 500,
+    WateringCan: 300,
+    PlanterPot: 200,
+    Fertilizer: 200
+  };
+  return valueMap[id] || 100;
+}
 
 // ============================================================================
 // PHASE 5: SHOP TAB CONTENT (PLANNED)
@@ -1261,6 +2258,21 @@ export default {
   isShopDataReady,
   waitForShopData,
   createShopItemElement,
-  buyItem
-  // Phase 4-6: To be added
+  buyItem,
+  // Phase 4: Shop Windows & Overlays
+  SEED_SPECIES_SHOP,
+  EGG_IDS_SHOP,
+  refreshAllShopWindows,
+  createShopOverlay,
+  createShopSidebar,
+  updateInventoryCounters,
+  startInventoryCounter,
+  stopInventoryCounter,
+  toggleShopWindows,
+  createShopSidebars,
+  createShopWindow,
+  makeShopWindowDraggable,
+  setupShopWindowHandlers,
+  getItemValue
+  // Phase 5-6: To be added
 };
