@@ -82,8 +82,13 @@
  *   • flashButton() - Success/error visual feedback (~14 lines)
  *   • handleInstantFeed() - 3-tier fallback feed logic with auto-favorite protection (~293 lines)
  *
- * Total Extracted: ~4,076 lines (of ~5,000 estimated)
- * Progress: 81.5%
+ * Phase 10 (Complete):
+ * - Instant Feed Initialization & Polling - ~287 lines ✅
+ *   • injectInstantFeedButtons() - Container-based button injection (~133 lines)
+ *   • initializeInstantFeedButtons() - Polling-based initialization with auto-reinjection (~154 lines)
+ *
+ * Total Extracted: ~4,363 lines (of ~5,000 estimated)
+ * Progress: 87.3%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -4217,6 +4222,347 @@ export async function handleInstantFeed(
 }
 
 /* ====================================================================================
+ * INSTANT FEED INITIALIZATION & POLLING (Phase 10)
+ * ====================================================================================
+ */
+
+/**
+ * Inject instant feed buttons next to pet avatars (container-based)
+ * Uses re-entry guard to prevent infinite loop with MutationObserver
+ *
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Document} dependencies.targetDocument - Target document (may be iframe/popout)
+ * @param {Window} dependencies.targetWindow - Target window
+ * @param {Function} dependencies.createInstantFeedButton - Button factory function
+ * @param {Function} dependencies.productionLog - Production logging function
+ * @returns {Function} - Injection function
+ */
+export function injectInstantFeedButtons({ targetDocument, targetWindow, createInstantFeedButton, productionLog }) {
+  // Re-entry guard to prevent infinite loop
+  let isInjecting = false;
+
+  return function inject() {
+    // Prevent re-entry while already injecting (avoids MutationObserver infinite loop)
+    if (isInjecting) {
+      return;
+    }
+
+    try {
+      isInjecting = true;
+      console.log('[MGTools Feed] 🔍 Starting container-based injection...');
+
+      // Check which buttons already exist by data-pet-index
+      const existingButtons = targetDocument.querySelectorAll('.mgtools-instant-feed-btn');
+      const existingIndices = new Set();
+      existingButtons.forEach(btn => {
+        const index = btn.getAttribute('data-pet-index');
+        if (index !== null) {
+          existingIndices.add(parseInt(index, 10));
+        }
+      });
+
+      if (existingIndices.size === 3) {
+        isInjecting = false;
+        return;
+      }
+
+      const missingIndices = [0, 1, 2].filter(i => !existingIndices.has(i));
+
+      // Find ALL canvas elements
+      const allCanvases = Array.from(targetDocument.querySelectorAll('canvas'));
+
+      // Filter to pet avatar canvases (left 15% of screen, reasonable size)
+      const viewportWidth = targetWindow.innerWidth;
+      const viewportHeight = targetWindow.innerHeight;
+      const leftThreshold = viewportWidth * 0.15;
+      const minTop = 80;
+      const maxTop = viewportHeight - 100;
+
+      const petAvatarCanvases = allCanvases
+        .filter(canvas => {
+          const rect = canvas.getBoundingClientRect();
+          const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
+          const hasReasonableSize = rect.width > 20 && rect.width < 200 && rect.height > 20 && rect.height < 200;
+          const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
+
+          if (isOnScreen && hasReasonableSize && isInValidVerticalRange) {
+            // Intentionally empty - just for debugging in original
+          }
+
+          return isOnScreen && hasReasonableSize && isInValidVerticalRange;
+        })
+        .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+        .slice(0, 3);
+
+      if (petAvatarCanvases.length === 0) {
+        console.warn('[MGTools Feed] ⚠️ No pet avatar canvases found!');
+        isInjecting = false;
+        return;
+      }
+
+      // For EACH canvas, find its pet panel container and inject button
+      petAvatarCanvases.forEach((canvas, index) => {
+        try {
+          // Skip if button already exists
+          if (existingIndices.has(index)) {
+            return;
+          }
+
+          // Find the SMALLEST container with STR/INT text (the pet panel)
+          let container = canvas.parentElement;
+          let levelsUp = 0;
+          const maxLevels = 10;
+          const candidates = [];
+
+          while (container && levelsUp < maxLevels && container !== targetDocument.body) {
+            const hasStats = /STR\s+\d+|INT\s+\d+/.test(container.textContent);
+            const rect = container.getBoundingClientRect();
+
+            if (hasStats && rect.width < 200 && rect.height < 200) {
+              // Valid small container with stats
+              candidates.push({
+                element: container,
+                area: rect.width * rect.height,
+                width: rect.width,
+                height: rect.height
+              });
+            }
+
+            container = container.parentElement;
+            levelsUp++;
+          }
+
+          if (candidates.length === 0) {
+            console.warn(`[MGTools Feed] ⚠️ No valid container found for pet ${index + 1}`);
+            return;
+          }
+
+          // Use SMALLEST container (most direct parent)
+          candidates.sort((a, b) => a.area - b.area);
+          const targetContainer = candidates[0].element;
+
+          console.log(`[MGTools Feed] 📐 Selected container:`, {
+            width: candidates[0].width.toFixed(1),
+            height: candidates[0].height.toFixed(1),
+            tagName: targetContainer.tagName
+          });
+
+          // Check if button already exists in this container
+          if (targetContainer.querySelector('.mgtools-instant-feed-btn')) {
+            return;
+          }
+
+          // Set container to position: relative
+          const currentPosition = targetWindow.getComputedStyle(targetContainer).position;
+          if (currentPosition === 'static') {
+            targetContainer.style.position = 'relative';
+          }
+
+          // Create and append button
+          const btn = createInstantFeedButton(index);
+          targetContainer.appendChild(btn);
+
+          productionLog(`[MGTools Feed] Injected feed button ${index + 1}`);
+        } catch (err) {
+          console.error(`[MGTools Feed] Error processing canvas ${index + 1}:`, err);
+        }
+      });
+
+      // Reset flag after successful injection
+      isInjecting = false;
+    } catch (error) {
+      console.error('[MGTools Feed] Error in injectInstantFeedButtons:', error);
+      isInjecting = false; // Reset flag even on error
+    }
+  };
+}
+
+/**
+ * Initialize instant feed buttons with polling interval
+ * Handles CSS visibility changes that MutationObserver can't detect
+ *
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Document} dependencies.targetDocument - Target document (may be iframe/popout)
+ * @param {Window} dependencies.targetWindow - Target window
+ * @param {Function} dependencies.createInstantFeedButton - Button factory function
+ * @param {Function} dependencies.captureJotaiStore - Jotai store capture function
+ * @param {Function} dependencies.productionLog - Production logging function
+ * @param {Object} [options] - Optional configuration
+ * @param {number} [options.pollInterval=2000] - Polling interval in milliseconds
+ */
+export function initializeInstantFeedButtons(
+  { targetDocument, targetWindow, createInstantFeedButton, captureJotaiStore, productionLog },
+  options = {}
+) {
+  const { pollInterval = 2000 } = options;
+
+  console.log('[MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...');
+
+  // Capture jotaiStore early (but don't block if unavailable)
+  let jotaiStore = null;
+  if (!jotaiStore) {
+    jotaiStore = captureJotaiStore();
+    if (jotaiStore) {
+      console.log('[MGTools Feed] ✅ Jotai store captured at initialization');
+    } else {
+      console.log('[MGTools Feed] ⏳ Jotai store not ready yet - will use fallback data');
+    }
+  }
+
+  /**
+   * Helper to find all visible pet containers
+   * @returns {HTMLElement[]} Array of visible pet containers
+   */
+  function findVisiblePetContainers() {
+    const allCanvases = Array.from(targetDocument.querySelectorAll('canvas'));
+    const viewportWidth = targetWindow.innerWidth;
+    const viewportHeight = targetWindow.innerHeight;
+    const leftThreshold = viewportWidth * 0.15;
+    const minTop = 80;
+    const maxTop = viewportHeight - 100;
+
+    // Filter to pet avatar canvases (left side, reasonable size, visible)
+    const petAvatarCanvases = allCanvases
+      .filter(canvas => {
+        const rect = canvas.getBoundingClientRect();
+
+        // Check if visible (not hidden with CSS)
+        const computedStyle = targetWindow.getComputedStyle(canvas);
+        const isVisible =
+          computedStyle.display !== 'none' &&
+          computedStyle.visibility !== 'hidden' &&
+          rect.width > 0 &&
+          rect.height > 0;
+
+        if (!isVisible) return false;
+
+        const isOnScreen = rect.left >= 0 && rect.left < leftThreshold;
+        const hasReasonableSize = rect.width > 20 && rect.width < 200 && rect.height > 20 && rect.height < 200;
+        const isInValidVerticalRange = rect.top > minTop && rect.top < maxTop;
+
+        return isOnScreen && hasReasonableSize && isInValidVerticalRange;
+      })
+      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+      .slice(0, 3);
+
+    // Find containers for each canvas
+    const containers = [];
+    petAvatarCanvases.forEach(canvas => {
+      let container = canvas.parentElement;
+      let levelsUp = 0;
+      const maxLevels = 10;
+      const candidates = [];
+
+      while (container && levelsUp < maxLevels && container !== targetDocument.body) {
+        const hasStats = /STR\s+\d+|INT\s+\d+/.test(container.textContent);
+        const rect = container.getBoundingClientRect();
+
+        if (hasStats && rect.width < 200 && rect.height < 200 && rect.width > 0) {
+          candidates.push({
+            element: container,
+            area: rect.width * rect.height
+          });
+        }
+
+        container = container.parentElement;
+        levelsUp++;
+      }
+
+      if (candidates.length > 0) {
+        // Use smallest container (most direct parent)
+        candidates.sort((a, b) => a.area - b.area);
+        containers.push(candidates[0].element);
+      }
+    });
+
+    return containers;
+  }
+
+  /**
+   * Helper to inject button into container
+   * @param {HTMLElement} container - Container element
+   * @param {number} index - Pet index (0-2)
+   * @returns {boolean} - True if button was injected, false if already exists
+   */
+  function injectButton(container, index) {
+    // Skip if button already exists
+    if (container.querySelector('.mgtools-instant-feed-btn')) {
+      return false;
+    }
+
+    try {
+      // Set container to position: relative
+      const currentPosition = targetWindow.getComputedStyle(container).position;
+      if (currentPosition === 'static') {
+        container.style.position = 'relative';
+      }
+
+      // Create and append button
+      const btn = createInstantFeedButton(index);
+      container.appendChild(btn);
+
+      return true;
+    } catch (err) {
+      console.error(`[MGTools Feed] Error injecting button ${index + 1}:`, err);
+      return false;
+    }
+  }
+
+  /**
+   * Main polling function - checks and injects buttons if needed
+   */
+  function checkAndInjectButtons() {
+    const containers = findVisiblePetContainers();
+
+    if (containers.length === 0) {
+      // No visible pet containers - buttons will be checked again next poll
+      return;
+    }
+
+    // Check if we need to inject any buttons
+    let injectedCount = 0;
+    containers.forEach((container, index) => {
+      const injected = injectButton(container, index);
+      if (injected) injectedCount++;
+    });
+
+    // Log if buttons were re-injected (means they disappeared and came back)
+    if (injectedCount > 0) {
+      // Intentionally empty - could add logging here if needed
+    }
+  }
+
+  // Initial injection
+  checkAndInjectButtons();
+
+  // Poll every pollInterval ms to check if buttons need re-injection
+  // Reduced from 500ms for better performance while maintaining functionality
+  // This handles CSS visibility changes that MutationObserver can't detect
+  const interval = setInterval(() => {
+    try {
+      // Only check if pet containers are actually visible
+      const petContainers = findVisiblePetContainers();
+      if (petContainers.length > 0) {
+        checkAndInjectButtons();
+      }
+    } catch (err) {
+      console.error('[MGTools Feed] Error in polling:', err);
+    }
+  }, pollInterval);
+
+  // Store interval ID for potential cleanup
+  if (!targetWindow.MGToolsIntervals) {
+    targetWindow.MGToolsIntervals = [];
+  }
+  targetWindow.MGToolsIntervals.push(interval);
+
+  console.log(
+    `[MGTools Feed] ✅ Polling active (${pollInterval}ms) - buttons will auto-reappear when containers become visible`
+  );
+  productionLog('✅ [MGTools] Instant feed buttons initialized with polling detection');
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -4318,5 +4664,9 @@ export default {
   // Instant Feed Core Functions (Phase 9)
   createInstantFeedButton,
   flashButton,
-  handleInstantFeed
+  handleInstantFeed,
+
+  // Instant Feed Initialization & Polling (Phase 10)
+  injectInstantFeedButtons,
+  initializeInstantFeedButtons
 };
