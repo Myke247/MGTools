@@ -56,9 +56,9 @@ export function checkForGameModals(dependencies = {}) {
       mgcElements: mgcModals.length,
       dragOverlaysExcluded: dragOverlays.length,
       total: totalModalElements,
-      modalClasses: Array.from(modals).map((m) => m.className),
-      overlayClasses: Array.from(overlays).map((o) => o.className),
-      mgcClasses: Array.from(mgcModals).map((m) => m.className)
+      modalClasses: Array.from(modals).map(m => m.className),
+      overlayClasses: Array.from(overlays).map(o => o.className),
+      mgcClasses: Array.from(mgcModals).map(m => m.className)
     };
 
     if (win.MGA_DEBUG) {
@@ -309,13 +309,13 @@ export function initializeDebugSystem(debugLogger, dependencies = {}) {
   logInfo('DEBUG-SYSTEM', 'Debug system initialized successfully');
 
   // Add global error handler for comprehensive error logging
-  win.addEventListener('error', (event) => {
+  win.addEventListener('error', event => {
     if (win.MGA_DEBUG) {
       win.MGA_DEBUG.logError(event.error || new Error(event.message), 'GLOBAL_ERROR_HANDLER');
     }
   });
 
-  win.addEventListener('unhandledrejection', (event) => {
+  win.addEventListener('unhandledrejection', event => {
     if (win.MGA_DEBUG) {
       win.MGA_DEBUG.logError(event.reason || new Error('Unhandled Promise Rejection'), 'UNHANDLED_REJECTION');
     }
@@ -326,8 +326,8 @@ export function initializeDebugSystem(debugLogger, dependencies = {}) {
     if (win.MGA_DEBUG) {
       const debugData = win.MGA_DEBUG.getData();
       const hasErrors = debugData.errorLogs.length > 0;
-      const hasModalIssues = debugData.modalEvents.some((e) => e.event === 'MODAL_SYSTEM_ACTIVE');
-      const uiNotCreated = !debugData.loadingStages.some((s) => s.stage === 'CREATE_UI_COMPLETED');
+      const hasModalIssues = debugData.modalEvents.some(e => e.event === 'MODAL_SYSTEM_ACTIVE');
+      const uiNotCreated = !debugData.loadingStages.some(s => s.stage === 'CREATE_UI_COMPLETED');
 
       if (hasErrors || hasModalIssues || uiNotCreated) {
         productionLog('🚨 [AUTO-DEBUG] Issues detected - exporting debug data...');
