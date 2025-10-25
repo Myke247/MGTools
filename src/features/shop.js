@@ -45,7 +45,7 @@
  *   • createShopItemElement() - Create shop item UI element (~112 lines)
  *   • buyItem() - Purchase item with validation (~189 lines)
  *
- * Phase 4 (Current):
+ * Phase 4 (Complete):
  * - Shop Windows & Overlays - ~722 lines
  *   • Module-level state - Window state management (~6 lines)
  *   • SEED_SPECIES_SHOP - Seed item list (~30 lines)
@@ -63,15 +63,22 @@
  *   • setupShopWindowHandlers() - Event handlers + rendering (~293 lines)
  *   • getItemValue() - Item value lookup for sorting (~46 lines)
  *
- * Phase 5 (Planned):
- * - Shop Tab Content
+ * Phase 5 (Complete):
+ * - Shop Tab Content - ~438 lines
+ *   • getShopTabContent() - Generate tab HTML (~72 lines)
+ *   • setupShopTabHandlers() - Tab handlers with nested functions (~366 lines)
+ *     - createShopItem() - Tab item UI (~52 lines)
+ *     - getTabItemStock() - Tab stock lookup (~30 lines)
+ *     - buyTabItem() - Tab purchase logic (~157 lines)
+ *     - applyStockFilter() - Filter by stock (~10 lines)
+ *     - Auto-refresh interval (~28 lines)
  *
  * Phase 6 (Planned):
  * - Shop Monitoring & Restock Detection
  *
- * Total Extracted (Current): ~1,736 lines (Phase 1-4)
- * Estimated Total: ~2,000-2,500 lines (shop is a major feature comparable to pets)
- * Progress: ~70% complete (4/6 phases)
+ * Total Extracted (Current): ~2,174 lines (Phase 1-5)
+ * Estimated Total: ~2,500-2,700 lines (shop is a major feature comparable to pets)
+ * Progress: ~85% complete (5/6 phases)
  *
  * @module features/shop
  */
@@ -2212,10 +2219,447 @@ export function getItemValue(id, type) {
 }
 
 // ============================================================================
-// PHASE 5: SHOP TAB CONTENT (PLANNED)
+// PHASE 5: SHOP TAB CONTENT
 // ============================================================================
-// - getShopTabContent()
-// - setupShopTabHandlers()
+
+/**
+ * Generate shop tab HTML content
+ * Creates settings tab content with inventory counter, filters, seed/egg lists
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state
+ * @param {Object} [dependencies.SHOP_DISPLAY_NAMES] - Display name overrides
+ * @returns {string} HTML content for shop tab
+ */
+export function getShopTabContent(dependencies = {}) {
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
+
+  // Get current inventory count (includes bag + hotbar)
+  const inventory = UnifiedState?.atoms?.inventory;
+  const currentCount = inventory?.items?.length || 0;
+  const maxCount = 100; // 91 bag + 9 hotbar = 100 total
+
+  // Color code based on inventory fullness
+  let inventoryColor = '#4caf50'; // Green (< 95)
+  if (currentCount >= 100) {
+    inventoryColor = '#ff4444'; // Red (full)
+  } else if (currentCount >= 95) {
+    inventoryColor = '#ffa500'; // Yellow (95-99)
+  }
+
+  return `
+    <div class="mga-section">
+      <div class="mga-section-title">🛒 Shop</div>
+      <p style="font-size: 12px; color: #aaa; margin-bottom: 8px;">
+        Quick buy seeds and eggs. Stock updates automatically when shop resets.
+      </p>
+
+      <!-- Inventory counter -->
+      <div id="shop-inventory-counter" style="
+        font-size: 13px;
+        font-weight: 600;
+        color: ${inventoryColor};
+        margin-bottom: 16px;
+        padding: 8px 12px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 6px;
+        border-left: 3px solid ${inventoryColor};
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      ">
+        <span>📦</span>
+        <span>Inventory: <span id="shop-inventory-count">${currentCount}</span>/${maxCount}</span>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <input type="checkbox" id="shop-in-stock-only" class="mga-checkbox">
+          <span>Show only items in stock</span>
+        </label>
+      </div>
+
+      <div id="shop-seed-section" style="margin-bottom: 24px;">
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: #fff;">🌱 Seeds</h3>
+        <div id="shop-seed-list" style="display: grid; gap: 6px;"></div>
+      </div>
+
+      <div id="shop-egg-section">
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: #fff;">🥚 Eggs</h3>
+        <div id="shop-egg-list" style="display: grid; gap: 6px;"></div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Setup shop tab event handlers
+ * Initializes shop tab with item lists, filters, and auto-refresh
+ *
+ * @param {HTMLElement|Document} context - DOM context for the tab
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Window} [dependencies.targetWindow] - Target window
+ * @param {Object} [dependencies.UnifiedState] - Unified state
+ * @param {Object} [dependencies.SHOP_DISPLAY_NAMES] - Display name overrides
+ * @param {Function} [dependencies.getItemStock] - Get stock function
+ * @param {Function} [dependencies.isInventoryFull] - Inventory full check
+ * @param {Function} [dependencies.flashInventoryFullFeedback] - Visual feedback
+ * @param {Function} [dependencies.getInventoryItemCount] - Get inventory count
+ * @param {Function} [dependencies.getItemStackCap] - Get stack cap
+ * @param {Function} [dependencies.getLocalPurchaseCount] - Get purchase count
+ * @param {Function} [dependencies.startInventoryCounter] - Start counter function
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.productionError] - Production error logger
+ * @param {Function} [dependencies.alert] - Alert function
+ * @param {Console} [dependencies.console] - Console for logging
+ */
+export function setupShopTabHandlers(context, dependencies = {}) {
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    SHOP_DISPLAY_NAMES: displayNames = SHOP_DISPLAY_NAMES,
+    getItemStock: getStockFn = getItemStock,
+    isInventoryFull: isInvFullFn = isInventoryFull,
+    flashInventoryFullFeedback: flashInvFullFn = flashInventoryFullFeedback,
+    getInventoryItemCount: getInvCountFn = getInventoryItemCount,
+    getItemStackCap: getStackCapFn = getItemStackCap,
+    getLocalPurchaseCount: getPurchaseCountFn = getLocalPurchaseCount,
+    startInventoryCounter: startCounterFn = startInventoryCounter,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    productionError = typeof window !== 'undefined' && window.productionError,
+    alert: alertFn = typeof window !== 'undefined' ? window.alert : console.log,
+    console: consoleObj = console
+  } = dependencies;
+
+  let contextLocal = context;
+  if (!contextLocal) contextLocal = targetDocument;
+  if (!contextLocal) return;
+
+  const inStockCheckbox = contextLocal.querySelector('#shop-in-stock-only');
+  const seedList = contextLocal.querySelector('#shop-seed-list');
+  const eggList = contextLocal.querySelector('#shop-egg-list');
+
+  if (!seedList || !eggList) return;
+
+  // Start inventory counter updates for shop tab
+  if (startCounterFn) {
+    startCounterFn(dependencies);
+  }
+
+  // Seed/Egg item definition (using module constants)
+  const SEED_SPECIES = SEED_SPECIES_SHOP;
+  const EGG_IDS = EGG_IDS_SHOP;
+
+  // Create shop items (tab version - simplified UI)
+  function createShopItem(id, type) {
+    if (!targetDocument) return null;
+
+    const item = targetDocument.createElement('div');
+    item.className = 'shop-item';
+    item.dataset.itemId = id;
+    item.dataset.itemType = type;
+    item.style.cssText = `
+      padding: 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255, 255, 255, 0.57);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: all 0.2s ease;
+    `;
+
+    const displayName = displayNames[id] || id.replace(/([A-Z])/g, ' $1').trim();
+    const stock = getTabItemStock(id, type);
+
+    item.innerHTML = `
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-weight: 600; font-size: 13px; color: #fff; margin-bottom: 2px;">${displayName}</div>
+        <div class="stock-display" style="font-size: 11px; color: #888;">Stock: ${stock}</div>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button class="mga-btn mga-btn-secondary buy-one" ${stock === 0 ? 'disabled' : ''}
+          style="padding: 6px 12px; font-size: 12px;">Buy 1</button>
+        <button class="mga-btn mga-btn-secondary buy-all" ${stock === 0 ? 'disabled' : ''}
+          style="padding: 6px 12px; font-size: 12px;">Buy All</button>
+      </div>
+    `;
+
+    if (stock > 0) {
+      item.style.background = 'rgba(76, 255, 106, 0.40)';
+      item.style.borderColor = 'rgba(9, 255, 0, 0.48)';
+    }
+
+    // Event handlers
+    const buyOneBtn = item.querySelector('.buy-one');
+    const buyAllBtn = item.querySelector('.buy-all');
+    if (buyOneBtn) {
+      buyOneBtn.addEventListener('click', () => buyTabItem(id, type, 1, item));
+    }
+    if (buyAllBtn) {
+      buyAllBtn.addEventListener('click', () => buyTabItem(id, type, stock, item));
+    }
+
+    return item;
+  }
+
+  // Get item stock (tab version - uses extracted function)
+  function getTabItemStock(id, type) {
+    try {
+      const shop = targetWindow?.globalShop?.shops;
+      if (!shop) return 0;
+
+      const inventory = type === 'seed' ? shop.seed?.inventory : shop.egg?.inventory;
+      if (!inventory) return 0;
+
+      const item = inventory.find(i => {
+        const itemId = type === 'seed' ? i.species : i.eggId;
+        return itemId === id;
+      });
+
+      if (!item) return 0;
+
+      // initialStock is a snapshot that only updates on restock
+      // We must subtract local purchases to get current stock
+      const initial = item.initialStock || 0;
+      // Cap purchased count to initial - can't have purchased more than what was available
+      const purchased = Math.min(getPurchaseCountFn(id, type, dependencies), initial);
+      const stock = Math.max(0, initial - purchased);
+
+      return stock;
+    } catch (e) {
+      if (productionError) {
+        productionError('[SHOP-TAB] getItemStock error:', e);
+      }
+      return 0;
+    }
+  }
+
+  // Buy item (tab version - similar to main buyItem but with tab-specific UI)
+  function buyTabItem(id, type, amount, itemEl) {
+    const conn = targetWindow?.MagicCircle_RoomConnection;
+    if (!conn?.sendMessage) {
+      alertFn('Connection not available');
+      return;
+    }
+
+    // SMART INVENTORY CHECK: Only block if truly full
+    const inventory = UnifiedState?.atoms?.inventory;
+    const hasExistingStack = inventory?.items?.some(item => {
+      if (type === 'seed') return item.species === id && item.itemType !== 'Produce';
+      if (type === 'egg') return item.eggId === id;
+      if (type === 'tool') return item.toolId === id || item.name === id;
+      return false;
+    });
+
+    // If inventory is full AND we don't have an existing stack, block purchase
+    if (isInvFullFn(dependencies) && !hasExistingStack) {
+      flashInvFullFn(itemEl, `Inventory Full! (100/100) - Cannot purchase new items`, dependencies);
+      if (consoleObj) {
+        consoleObj.log(`[SHOP] Purchase blocked: Inventory full and no existing stack for ${id}`);
+      }
+      return;
+    }
+
+    // If we have an existing stack, the quantity cap check will handle it
+    if (hasExistingStack && consoleObj) {
+      consoleObj.log(`[SHOP] ✅ Inventory full but ${id} can stack on existing item`);
+    }
+
+    // Check if at item stack cap before purchase
+    const currentCount = getInvCountFn(id, type, dependencies);
+    const stackCap = getStackCapFn(id, type);
+
+    if (currentCount >= stackCap) {
+      const displayName = displayNames[id] || id.replace(/([A-Z])/g, ' $1').trim();
+
+      // Special visual feedback for items at max quantity
+      if (stackCap < Infinity) {
+        flashInvFullFn(
+          itemEl,
+          `${displayName} at MAX! (${currentCount}/${stackCap}) - Cannot purchase more`,
+          dependencies
+        );
+
+        // Update the item display to show current quantity persistently
+        const quantityDisplay = itemEl.querySelector('.quantity-display');
+        if (quantityDisplay) {
+          quantityDisplay.textContent = `Owned: ${currentCount}/${stackCap}`;
+          quantityDisplay.style.color = '#ff4444';
+          quantityDisplay.style.fontWeight = 'bold';
+        }
+      } else {
+        flashInvFullFn(itemEl, `${displayName} at max capacity! (${currentCount}/${stackCap})`, dependencies);
+      }
+
+      if (UnifiedState?.data?.settings?.debugMode && consoleObj) {
+        consoleObj.log(`[SHOP-TAB] ❌ Purchase blocked: ${id} at cap (${currentCount}/${stackCap})`);
+      }
+      return;
+    }
+
+    // Check if purchasing would exceed cap
+    if (currentCount + amount > stackCap) {
+      const displayName = displayNames[id] || id.replace(/([A-Z])/g, ' $1').trim();
+      const canPurchase = stackCap - currentCount;
+      flashInvFullFn(
+        itemEl,
+        `Can only purchase ${canPurchase} more ${displayName} (currently ${currentCount}/${stackCap})`,
+        dependencies
+      );
+      if (UnifiedState?.data?.settings?.debugMode && consoleObj) {
+        consoleObj.log(`[SHOP-TAB] ❌ Purchase blocked: would exceed cap (${currentCount} + ${amount} > ${stackCap})`);
+      }
+      return;
+    }
+
+    if (UnifiedState?.data?.settings?.debugMode && consoleObj) {
+      consoleObj.log(`[SHOP-TAB] ✅ Purchase allowed: ${id} (${currentCount} + ${amount} <= ${stackCap})`);
+    }
+
+    try {
+      for (let i = 0; i < amount; i += 1) {
+        let messageType;
+        let itemKey;
+
+        if (type === 'seed') {
+          messageType = 'PurchaseSeed';
+          itemKey = 'species';
+        } else if (type === 'egg') {
+          messageType = 'PurchaseEgg';
+          itemKey = 'eggId';
+        } else if (type === 'tool') {
+          messageType = 'PurchaseTool';
+          itemKey = 'toolId';
+        }
+
+        conn.sendMessage({
+          scopePath: ['Room', 'Quinoa'],
+          type: messageType,
+          [itemKey]: id
+        });
+      }
+
+      // Purchase tracking happens automatically in sendMessage intercept
+
+      // Update UI
+      setTimeout(() => {
+        const newStock = getTabItemStock(id, type);
+        const stockDisplay = itemEl.querySelector('.stock-display');
+        if (stockDisplay) stockDisplay.textContent = `Stock: ${newStock}`;
+
+        // Update quantity display
+        const quantityDiv = itemEl.querySelector('.quantity-display');
+        if (quantityDiv) {
+          const ownedCount = getInvCountFn(id, type, dependencies);
+          const itemStackCap = getStackCapFn(id, type);
+
+          if (itemStackCap < Infinity && ownedCount > 0) {
+            const percentFull = (ownedCount / itemStackCap) * 100;
+            let color = 'rgba(255, 255, 255, 0.7)';
+
+            if (percentFull >= 100) {
+              color = '#ff4444';
+            } else if (percentFull >= 80) {
+              color = '#ffaa44';
+            } else if (percentFull >= 50) {
+              color = '#ffff44';
+            }
+
+            quantityDiv.style.color = color;
+            quantityDiv.style.fontWeight = percentFull >= 100 ? 'bold' : 'normal';
+            quantityDiv.textContent = `Owned: ${ownedCount}/${itemStackCap}`;
+          } else if (ownedCount > 0) {
+            quantityDiv.textContent = `Owned: ${ownedCount}`;
+          }
+        }
+
+        const buttons = itemEl.querySelectorAll('button');
+        buttons.forEach(btn => {
+          btn.disabled = newStock === 0;
+        });
+
+        if (newStock === 0) {
+          itemEl.style.background = 'rgba(255,255,255,0.03)';
+          itemEl.style.borderColor = 'rgba(255, 255, 255, 0.57)';
+        }
+
+        applyStockFilter();
+      }, 100);
+
+      if (productionLog) {
+        productionLog(`✅ Purchased ${amount}x ${id}`);
+      }
+    } catch (e) {
+      if (consoleObj) {
+        consoleObj.error('Purchase error:', e);
+      }
+      alertFn('Purchase failed');
+    }
+  }
+
+  // Apply stock filter
+  function applyStockFilter() {
+    if (!inStockCheckbox || !contextLocal) return;
+    const showOnlyInStock = inStockCheckbox.checked;
+
+    contextLocal.querySelectorAll('.shop-item').forEach(item => {
+      const id = item.dataset.itemId;
+      const type = item.dataset.itemType;
+      const stock = getTabItemStock(id, type);
+      item.style.display = showOnlyInStock && stock === 0 ? 'none' : 'flex';
+    });
+  }
+
+  // Initialize shop
+  SEED_SPECIES.forEach(species => {
+    const itemEl = createShopItem(species, 'seed');
+    if (itemEl) seedList.appendChild(itemEl);
+  });
+
+  EGG_IDS.forEach(eggId => {
+    const itemEl = createShopItem(eggId, 'egg');
+    if (itemEl) eggList.appendChild(itemEl);
+  });
+
+  if (inStockCheckbox) {
+    inStockCheckbox.addEventListener('change', applyStockFilter);
+  }
+
+  // Auto-refresh on shop update
+  const refreshInterval = setInterval(() => {
+    if (!contextLocal || !contextLocal.querySelector('#shop-seed-list')) {
+      clearInterval(refreshInterval);
+      return;
+    }
+
+    contextLocal.querySelectorAll('.shop-item').forEach(item => {
+      const id = item.dataset.itemId;
+      const type = item.dataset.itemType;
+      const newStock = getTabItemStock(id, type);
+      const stockDisplay = item.querySelector('.stock-display');
+      if (stockDisplay) stockDisplay.textContent = `Stock: ${newStock}`;
+
+      const buttons = item.querySelectorAll('button');
+      buttons.forEach(btn => {
+        btn.disabled = newStock === 0;
+      });
+
+      if (newStock > 0) {
+        item.style.background = 'rgba(76, 255, 106, 0.40)';
+        item.style.borderColor = 'rgba(9, 255, 0, 0.48)';
+      } else {
+        item.style.background = 'rgba(255,255,255,0.03)';
+        item.style.borderColor = 'rgba(255, 255, 255, 0.57)';
+      }
+    });
+
+    applyStockFilter();
+  }, 2000);
+}
 
 // ============================================================================
 // PHASE 6: SHOP MONITORING & RESTOCK DETECTION (PLANNED)
@@ -2273,6 +2717,9 @@ export default {
   createShopWindow,
   makeShopWindowDraggable,
   setupShopWindowHandlers,
-  getItemValue
-  // Phase 5-6: To be added
+  getItemValue,
+  // Phase 5: Shop Tab Content
+  getShopTabContent,
+  setupShopTabHandlers
+  // Phase 6: To be added
 };
