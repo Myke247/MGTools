@@ -73,12 +73,24 @@
  *     - applyStockFilter() - Filter by stock (~10 lines)
  *     - Auto-refresh interval (~28 lines)
  *
- * Phase 6 (Planned):
- * - Shop Monitoring & Restock Detection
+ * Phase 6 (Complete):
+ * - Shop Monitoring & Restock Detection - ~863 lines
+ *   • Module-level state - Watcher state management (~4 lines)
+ *   • checkForWatchedItems() - Scan shops for watched items (~518 lines)
+ *     - Edge-based restock detection (pattern analysis)
+ *     - Batch notification system
+ *     - Supports seeds, eggs, and decor shops
+ *     - Internal state management with closures
+ *   • scheduleRefresh() - Debounced shop refresh (~14 lines)
+ *   • handleEggRestockDetection() - Pattern-based egg restock (~33 lines)
+ *   • initializeToolRestockWatcher() - Tool restock monitoring (~44 lines)
+ *   • initializeShopWatcher() - Main watcher system (~156 lines)
+ *     - Nested watchShopData() - Global shop monitoring
+ *     - Proxy-based globalShop replacement detection
+ *     - Lightweight 5s polling (no MutationObserver for performance)
  *
- * Total Extracted (Current): ~2,174 lines (Phase 1-5)
- * Estimated Total: ~2,500-2,700 lines (shop is a major feature comparable to pets)
- * Progress: ~85% complete (5/6 phases)
+ * Total Extracted: ~3,037 lines (ALL 6 PHASES COMPLETE!)
+ * Progress: 100% complete (6/6 phases) - SHOP EXTRACTION FINISHED!
  *
  * @module features/shop
  */
@@ -2662,13 +2674,865 @@ export function setupShopTabHandlers(context, dependencies = {}) {
 }
 
 // ============================================================================
-// PHASE 6: SHOP MONITORING & RESTOCK DETECTION (PLANNED)
+// PHASE 6: SHOP MONITORING & RESTOCK DETECTION
 // ============================================================================
-// - initializeShopWatcher()
-// - watchShopData()
-// - scheduleRefresh()
-// - handleEggRestockDetection()
-// - Tool shop restock detection
+
+/**
+ * Module-level State: Shop Watcher Management
+ * Tracks watcher initialization and restock detection state
+ */
+let shopWatcherInitialized = false;
+let lastEggSeconds = null;
+let eggWasDecreasing = false;
+let refreshDebounceTimer = null;
+
+/**
+ * Check for watched shop items and trigger notifications
+ * Scans seed, egg, and decor shops for watched items and notifies user
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state
+ * @param {Window} [dependencies.targetWindow] - Target window
+ * @param {Function} [dependencies.MGA_saveJSON] - Save JSON function
+ * @param {Function} [dependencies.isWatchedItem] - Check if item is watched
+ * @param {Function} [dependencies.updateLastSeen] - Update last seen timestamp
+ * @param {Function} [dependencies.queueNotification] - Queue notification function
+ * @param {Function} [dependencies.playShopNotificationSound] - Play notification sound
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.normalizeSpeciesName] - Normalize species name
+ * @param {Console} [dependencies.console] - Console for error logging
+ */
+export function checkForWatchedItems(dependencies = {}) {
+  const {
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    MGA_saveJSON = typeof window !== 'undefined' && window.MGA_saveJSON,
+    isWatchedItem = typeof window !== 'undefined' && window.isWatchedItem,
+    updateLastSeen = typeof window !== 'undefined' && window.updateLastSeen,
+    queueNotification = typeof window !== 'undefined' && window.queueNotification,
+    playShopNotificationSound = typeof window !== 'undefined' && window.playShopNotificationSound,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    console: consoleObj = console
+  } = dependencies;
+
+  const notifications = UnifiedState?.data?.settings?.notifications;
+  if (!notifications || !notifications.enabled) return;
+
+  try {
+    const now = Date.now();
+
+    // Collect all detected items in this check cycle for batch notification
+    const detectedItems = [];
+
+    // Constants for restock detection
+    const CHECK_INTERVAL = 5000;
+    const SMALL_EDGE = 5;
+    const LARGE_EDGE = 180;
+    const BIG_JUMP_DELTA = 60;
+    const RESTOCK_COOLDOWN = 30000;
+    const NOTIFICATION_COOLDOWN = 60000;
+
+    // Module-level state for checkForWatchedItems (maintained across calls)
+    if (!checkForWatchedItems._state) {
+      checkForWatchedItems._state = {
+        lastRestockCheck: 0,
+        lastSeedTimer: 999,
+        lastEggTimer: 999,
+        lastDecorTimer: 999,
+        lastSeedRestock: 0,
+        lastEggRestock: 0,
+        lastDecorRestock: 0,
+        previousSeedInventory: [],
+        previousSeedQuantities: {},
+        previousEggInventory: [],
+        previousEggQuantities: {},
+        previousDecorInventory: [],
+        previousDecorQuantities: {},
+        seedRestockNotifiedItems: new Set(),
+        eggRestockNotifiedItems: new Set(),
+        decorRestockNotifiedItems: new Set(),
+        isFirstRun: true
+      };
+    }
+
+    const state = checkForWatchedItems._state;
+
+    // Check every 5 seconds to catch items quickly
+    if (now - state.lastRestockCheck < CHECK_INTERVAL) return;
+    state.lastRestockCheck = now;
+
+    // Get timer data - use both sources for reliability
+    const quinoaData = UnifiedState?.atoms?.quinoaData || targetWindow?.globalShop;
+    if (!quinoaData && !targetWindow?.globalShop) return; // No shop data available
+
+    // Use targetWindow.globalShop as primary source, quinoaData as fallback
+    const shopData = targetWindow?.globalShop || UnifiedState?.atoms?.quinoaData || quinoaData;
+    const seedTimer = shopData?.shops?.seed?.secondsUntilRestock || 999;
+    const eggTimer = shopData?.shops?.egg?.secondsUntilRestock || 999;
+    const decorTimer = shopData?.shops?.decor?.secondsUntilRestock || 999;
+
+    // Detect restock using robust edge-detection
+    const seedRestocked =
+      (state.lastSeedTimer <= SMALL_EDGE && seedTimer >= LARGE_EDGE) ||
+      (seedTimer - state.lastSeedTimer >= BIG_JUMP_DELTA && state.lastSeedTimer > 0);
+
+    const eggRestocked =
+      (state.lastEggTimer <= SMALL_EDGE && eggTimer >= LARGE_EDGE) ||
+      (eggTimer - state.lastEggTimer >= BIG_JUMP_DELTA && state.lastEggTimer > 0);
+
+    const decorRestocked =
+      (state.lastDecorTimer <= SMALL_EDGE && decorTimer >= LARGE_EDGE) ||
+      (decorTimer - state.lastDecorTimer >= BIG_JUMP_DELTA && state.lastDecorTimer > 0);
+
+    // Handle restock events
+    if (seedRestocked) {
+      if (productionLog) {
+        productionLog(`🔄 [NOTIFICATIONS] SEED SHOP RESTOCKED! (Edge detection: ${state.lastSeedTimer}→${seedTimer})`);
+      }
+      state.previousSeedInventory = [];
+      state.previousSeedQuantities = {};
+      state.seedRestockNotifiedItems.clear();
+      state.lastSeedRestock = now;
+    }
+
+    if (eggRestocked) {
+      if (productionLog) {
+        productionLog(`🔄 [NOTIFICATIONS] EGG SHOP RESTOCKED! (Edge detection: ${state.lastEggTimer}→${eggTimer})`);
+      }
+      state.previousEggInventory = [];
+      state.previousEggQuantities = {};
+      state.eggRestockNotifiedItems.clear();
+      state.lastEggRestock = now;
+    }
+
+    if (decorRestocked) {
+      if (productionLog) {
+        productionLog(
+          `🔄 [NOTIFICATIONS] DECOR SHOP RESTOCKED! (Edge detection: ${state.lastDecorTimer}→${decorTimer})`
+        );
+      }
+      state.previousDecorInventory = [];
+      state.previousDecorQuantities = {};
+      state.decorRestockNotifiedItems.clear();
+      state.lastDecorRestock = now;
+    }
+
+    // Update last timer values
+    state.lastSeedTimer = seedTimer;
+    state.lastEggTimer = eggTimer;
+    state.lastDecorTimer = decorTimer;
+
+    // Check seed shop
+    const currentSeeds = targetWindow?.globalShop?.shops?.seed?.inventory || [];
+    const inStockSeeds = currentSeeds.filter(item => item.initialStock > 0);
+    const currentSeedIds = inStockSeeds.map(item => item.species);
+
+    // Track seed quantities
+    const currentSeedQuantities = {};
+    inStockSeeds.forEach(item => {
+      currentSeedQuantities[item.species] = item.initialStock;
+    });
+
+    // Initialize previous quantities if empty (first run)
+    if (Object.keys(state.previousSeedQuantities).length === 0 && !seedRestocked) {
+      if (productionLog) {
+        productionLog(`🔧 [NOTIFICATIONS] Initializing previous seed quantities...`);
+      }
+      Object.keys(currentSeedQuantities).forEach(seedId => {
+        state.previousSeedQuantities[seedId] = currentSeedQuantities[seedId];
+      });
+    }
+
+    if (productionLog) {
+      productionLog(
+        `🛒 [NOTIFICATIONS] Current seed quantities:`,
+        currentSeedQuantities,
+        `| Previous:`,
+        state.previousSeedQuantities
+      );
+    }
+
+    // Find seeds with increased quantities or new items (after restock)
+    Object.keys(currentSeedQuantities).forEach(seedId => {
+      const oldQuantity = state.previousSeedQuantities[seedId] || 0;
+      const newQuantity = currentSeedQuantities[seedId];
+
+      if (productionLog) {
+        productionLog(`🔍 [NOTIFICATIONS] Processing seed: ${seedId} (${oldQuantity}→${newQuantity})`);
+      }
+
+      // Determine if we should check for notification
+      const quantityIncreased = newQuantity > oldQuantity;
+      const isRestockWindow = seedRestocked && now - state.lastSeedRestock < RESTOCK_COOLDOWN;
+      const alreadyNotifiedInRestock = state.seedRestockNotifiedItems.has(seedId);
+
+      if (productionLog) {
+        productionLog(
+          `🔍 [NOTIFICATIONS] ${seedId} check logic: quantityIncreased=${quantityIncreased}, isRestockWindow=${isRestockWindow}, alreadyNotifiedInRestock=${alreadyNotifiedInRestock}`
+        );
+      }
+
+      const shouldCheck =
+        (state.isFirstRun && newQuantity > 0) ||
+        (quantityIncreased && !isRestockWindow) ||
+        (isRestockWindow && !alreadyNotifiedInRestock) ||
+        (oldQuantity === 0 && newQuantity > 0);
+
+      if (productionLog) {
+        productionLog(`🔍 [NOTIFICATIONS] ${seedId} shouldCheck: ${shouldCheck}`);
+      }
+
+      if (shouldCheck) {
+        if (productionLog) {
+          productionLog(
+            `🆕 [NOTIFICATIONS] Seed stock change: ${seedId} (${oldQuantity}→${newQuantity}) | Restock: ${seedRestocked} | RestockWindow: ${isRestockWindow}`
+          );
+        }
+
+        // Update last seen for ANY seed that appears or increases
+        if (updateLastSeen) {
+          updateLastSeen(seedId);
+        }
+
+        // Check if it's a watched seed
+        const isWatched = isWatchedItem ? isWatchedItem(seedId, 'seed') : false;
+        if (productionLog) {
+          productionLog(`🔍 [NOTIFICATIONS] Is ${seedId} watched? ${isWatched}`);
+        }
+
+        if (isWatched) {
+          // Check cooldown (1 minute per item)
+          const itemKey = `seed_${seedId}`;
+          const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
+          const canNotify = now - lastNotified > NOTIFICATION_COOLDOWN;
+
+          if (productionLog) {
+            productionLog(
+              `🔍 [NOTIFICATIONS] ${seedId} cooldown check: lastNotified=${lastNotified}, now=${now}, diff=${now - lastNotified}, canNotify=${canNotify}`
+            );
+          }
+
+          if (canNotify) {
+            if (productionLog) {
+              productionLog(`🎉 [NOTIFICATIONS] RARE SEED DETECTED: ${seedId} (${newQuantity} in stock)`);
+            }
+            notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+
+            // Track that we notified this item during restock
+            if (isRestockWindow) {
+              state.seedRestockNotifiedItems.add(seedId);
+            }
+
+            if (MGA_saveJSON) {
+              MGA_saveJSON('MGA_data', UnifiedState.data);
+            }
+
+            // Collect item for batch notification
+            detectedItems.push({
+              type: 'seed',
+              id: seedId,
+              quantity: newQuantity,
+              icon: '🌱'
+            });
+          } else if (productionLog) {
+            productionLog(`⏰ [NOTIFICATIONS] ${seedId} on cooldown, not notifying`);
+          }
+        } else if (productionLog) {
+          productionLog(`❌ [NOTIFICATIONS] ${seedId} is not watched, skipping notification`);
+        }
+      } else if (productionLog) {
+        productionLog(`⏭️ [NOTIFICATIONS] ${seedId} shouldCheck=false, skipping`);
+      }
+    });
+
+    if (productionLog) {
+      productionLog(`✅ [NOTIFICATIONS] Finished checking seeds, moving to eggs...`);
+    }
+
+    // Check egg shop
+    let currentEggIds = [];
+    const currentEggQuantities = {};
+
+    try {
+      if (productionLog) {
+        productionLog(`🥚 [NOTIFICATIONS] === CHECKING EGG SHOP ===`);
+      }
+      const currentEggs = targetWindow?.globalShop?.shops?.egg?.inventory || [];
+      const inStockEggs = currentEggs.filter(item => item.initialStock > 0);
+      currentEggIds = inStockEggs.map(item => item.eggId);
+
+      if (productionLog) {
+        productionLog(
+          `🥚 [NOTIFICATIONS] Current eggs in shop: [${currentEggIds.join(', ')}] | Previous: [${state.previousEggInventory.join(', ')}]`
+        );
+      }
+
+      // Track egg quantities
+      inStockEggs.forEach(item => {
+        currentEggQuantities[item.eggId] = item.initialStock;
+      });
+
+      // Initialize previous quantities if empty (first run)
+      if (Object.keys(state.previousEggQuantities).length === 0 && !eggRestocked) {
+        if (productionLog) {
+          productionLog(`🔧 [NOTIFICATIONS] Initializing previous egg quantities...`);
+        }
+        Object.keys(currentEggQuantities).forEach(eggId => {
+          state.previousEggQuantities[eggId] = currentEggQuantities[eggId];
+        });
+      }
+
+      if (productionLog) {
+        productionLog(
+          `🥚 [NOTIFICATIONS] Current egg quantities:`,
+          currentEggQuantities,
+          `| Previous:`,
+          state.previousEggQuantities
+        );
+      }
+
+      // Find eggs with increased quantities or new items
+      Object.keys(currentEggQuantities).forEach(eggId => {
+        const oldQuantity = state.previousEggQuantities[eggId] || 0;
+        const newQuantity = currentEggQuantities[eggId];
+
+        if (productionLog) {
+          productionLog(`🔍 [NOTIFICATIONS] Processing egg: ${eggId} (${oldQuantity}→${newQuantity})`);
+        }
+
+        const quantityIncreased = newQuantity > oldQuantity;
+        const isRestockWindow = eggRestocked && now - state.lastEggRestock < RESTOCK_COOLDOWN;
+        const alreadyNotifiedInRestock = state.eggRestockNotifiedItems.has(eggId);
+
+        const shouldCheck =
+          (state.isFirstRun && newQuantity > 0) ||
+          (quantityIncreased && !isRestockWindow) ||
+          (isRestockWindow && !alreadyNotifiedInRestock) ||
+          (oldQuantity === 0 && newQuantity > 0);
+
+        if (shouldCheck) {
+          if (updateLastSeen) {
+            updateLastSeen(eggId);
+          }
+
+          const isWatched = isWatchedItem ? isWatchedItem(eggId, 'egg') : false;
+
+          if (isWatched) {
+            const itemKey = `egg_${eggId}`;
+            const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
+            const canNotify = now - lastNotified > NOTIFICATION_COOLDOWN;
+
+            if (canNotify) {
+              if (productionLog) {
+                productionLog(`🎉 [NOTIFICATIONS] RARE EGG DETECTED: ${eggId} (${newQuantity} in stock)`);
+              }
+              notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+
+              if (isRestockWindow) {
+                state.eggRestockNotifiedItems.add(eggId);
+              }
+
+              if (MGA_saveJSON) {
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+              }
+
+              detectedItems.push({
+                type: 'egg',
+                id: eggId,
+                quantity: newQuantity,
+                icon: '🥚'
+              });
+            }
+          }
+        }
+      });
+
+      if (productionLog) {
+        productionLog(`✅ [NOTIFICATIONS] Finished checking all eggs`);
+      }
+
+      // Update egg inventory and quantities
+      state.previousEggInventory = [...currentEggIds];
+      state.previousEggQuantities = { ...currentEggQuantities };
+    } catch (eggError) {
+      if (consoleObj) {
+        consoleObj.error(`❌ [NOTIFICATIONS] Error checking eggs:`, eggError);
+      }
+    }
+
+    if (productionLog) {
+      productionLog(`✅ [NOTIFICATIONS] Finished checking eggs, moving to decor...`);
+    }
+
+    // Check decor shop (hourly resets)
+    let currentDecorIds = [];
+    const currentDecorQuantities = {};
+
+    try {
+      // Ensure watchedDecor exists (backwards compatibility)
+      if (!notifications.watchedDecor) {
+        notifications.watchedDecor = [];
+      }
+
+      if (productionLog) {
+        productionLog(`🎨 [NOTIFICATIONS] === CHECKING DECOR SHOP ===`);
+      }
+      const currentDecor = targetWindow?.globalShop?.shops?.decor?.inventory || [];
+      const inStockDecor = currentDecor.filter(item => item.initialStock > 0);
+      currentDecorIds = inStockDecor.map(item => item.decorId);
+
+      if (productionLog) {
+        productionLog(
+          `🎨 [NOTIFICATIONS] Current decor in shop: [${currentDecorIds.join(', ')}] | Previous: [${state.previousDecorInventory.join(', ')}]`
+        );
+      }
+
+      // Track decor quantities
+      inStockDecor.forEach(item => {
+        currentDecorQuantities[item.decorId] = item.initialStock;
+      });
+
+      // Initialize previous quantities if empty (first run)
+      if (Object.keys(state.previousDecorQuantities).length === 0 && !decorRestocked) {
+        if (productionLog) {
+          productionLog(`🔧 [NOTIFICATIONS] Initializing previous decor quantities...`);
+        }
+        Object.keys(currentDecorQuantities).forEach(decorId => {
+          state.previousDecorQuantities[decorId] = currentDecorQuantities[decorId];
+        });
+      }
+
+      // Find decor with increased quantities or new items
+      Object.keys(currentDecorQuantities).forEach(decorId => {
+        const oldQuantity = state.previousDecorQuantities[decorId] || 0;
+        const newQuantity = currentDecorQuantities[decorId];
+
+        const quantityIncreased = newQuantity > oldQuantity;
+        const isRestockWindow = decorRestocked && now - state.lastDecorRestock < RESTOCK_COOLDOWN;
+        const alreadyNotifiedInRestock = state.decorRestockNotifiedItems.has(decorId);
+
+        const shouldCheck =
+          (state.isFirstRun && newQuantity > 0) ||
+          (quantityIncreased && !isRestockWindow) ||
+          (isRestockWindow && !alreadyNotifiedInRestock) ||
+          (oldQuantity === 0 && newQuantity > 0);
+
+        if (shouldCheck) {
+          if (updateLastSeen) {
+            updateLastSeen(decorId);
+          }
+
+          const isWatched = isWatchedItem ? isWatchedItem(decorId, 'decor') : false;
+
+          if (isWatched) {
+            const itemKey = `decor_${decorId}`;
+            const lastNotified = notifications.lastSeenTimestamps[`notified_${itemKey}`] || 0;
+            const canNotify = now - lastNotified > NOTIFICATION_COOLDOWN;
+
+            if (canNotify) {
+              if (productionLog) {
+                productionLog(`🎉 [NOTIFICATIONS] WATCHED DECOR DETECTED: ${decorId} (${newQuantity} in stock)`);
+              }
+              notifications.lastSeenTimestamps[`notified_${itemKey}`] = now;
+
+              if (isRestockWindow) {
+                state.decorRestockNotifiedItems.add(decorId);
+              }
+
+              if (MGA_saveJSON) {
+                MGA_saveJSON('MGA_data', UnifiedState.data);
+              }
+
+              detectedItems.push({
+                type: 'decor',
+                id: decorId,
+                quantity: newQuantity,
+                icon: '🎨'
+              });
+            }
+          }
+        }
+      });
+
+      if (productionLog) {
+        productionLog(`✅ [NOTIFICATIONS] Finished checking all decor`);
+      }
+
+      // Update decor inventory and quantities
+      state.previousDecorInventory = [...currentDecorIds];
+      state.previousDecorQuantities = { ...currentDecorQuantities };
+    } catch (decorError) {
+      if (consoleObj) {
+        consoleObj.error(`❌ [NOTIFICATIONS] Error checking decor:`, decorError);
+      }
+    }
+
+    // Process batch notifications if any items were detected
+    if (detectedItems.length > 0) {
+      if (productionLog) {
+        productionLog(`🎉 [NOTIFICATIONS] Batch detected: ${detectedItems.length} items`);
+      }
+
+      // Play notification sound once for all items
+      const volume = UnifiedState?.data?.settings?.notifications?.volume || 0.3;
+      if (playShopNotificationSound) {
+        playShopNotificationSound(volume);
+      }
+
+      // Create notification message based on number of items
+      let notificationMessage;
+      if (detectedItems.length === 1) {
+        const item = detectedItems[0];
+        notificationMessage = `${item.icon} Rare ${item.type} in shop: ${item.id}! (${item.quantity} available)`;
+      } else {
+        notificationMessage = `🎉 Multiple items in stock:\n`;
+        detectedItems.forEach(item => {
+          notificationMessage += `${item.icon} ${item.id} (${item.quantity} available)\n`;
+        });
+      }
+
+      // Queue the batch notification
+      if (queueNotification) {
+        queueNotification(notificationMessage.trim(), notifications.requiresAcknowledgment);
+      }
+      if (productionLog) {
+        productionLog(`📢 [NOTIFICATIONS] Batched notification sent for ${detectedItems.length} items`);
+      }
+    }
+
+    // Update previous seed inventory and quantities
+    state.previousSeedInventory = [...currentSeedIds];
+    state.previousSeedQuantities = { ...currentSeedQuantities };
+
+    // Clear first run flag after first check completes
+    if (state.isFirstRun) {
+      if (productionLog) {
+        productionLog(`✅ [NOTIFICATIONS] First run complete - will now only notify on changes`);
+      }
+      state.isFirstRun = false;
+    }
+  } catch (error) {
+    if (consoleObj) {
+      consoleObj.error('❌ [NOTIFICATIONS] Error checking for watched items:', error);
+      consoleObj.error('Stack trace:', error.stack);
+    }
+  }
+}
+
+/**
+ * Schedule shop refresh with debouncing
+ * Debounces shop refresh to prevent multiple rapid refreshes
+ *
+ * @param {string} type - Shop type that restocked
+ * @param {Object} shopValue - Shop data value (unused but kept for compatibility)
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.checkForWatchedItems] - Check watched items function
+ * @param {Function} [dependencies.refreshAllShopWindows] - Refresh windows function
+ * @param {Function} [dependencies.productionLog] - Production logger
+ */
+export function scheduleRefresh(type, shopValue, dependencies = {}) {
+  const {
+    checkForWatchedItems: checkWatchedFn = checkForWatchedItems,
+    refreshAllShopWindows: refreshWindowsFn = refreshAllShopWindows,
+    productionLog = typeof window !== 'undefined' && window.productionLog
+  } = dependencies;
+
+  if (refreshDebounceTimer) {
+    clearTimeout(refreshDebounceTimer);
+  }
+
+  refreshDebounceTimer = setTimeout(() => {
+    if (productionLog) {
+      productionLog(`🔄 [SHOP-REFRESH] Refreshing ${type} shop after pattern-based restock detection`);
+    }
+    if (checkWatchedFn) {
+      checkWatchedFn(dependencies);
+    }
+    if (refreshWindowsFn) {
+      refreshWindowsFn(dependencies);
+    }
+    refreshDebounceTimer = null;
+  }, 100);
+}
+
+/**
+ * Handle egg shop restock detection using pattern analysis
+ * Detects egg shop restocks by monitoring timer patterns
+ *
+ * @param {number} curr - Current secondsUntilRestock value
+ * @param {Object} shopValue - Egg shop data
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.resetLocalPurchases] - Reset purchases function
+ * @param {Function} [dependencies.scheduleRefresh] - Schedule refresh function
+ * @param {Function} [dependencies.productionLog] - Production logger
+ */
+export function handleEggRestockDetection(curr, shopValue, dependencies = {}) {
+  const {
+    resetLocalPurchases: resetPurchasesFn = resetLocalPurchases,
+    scheduleRefresh: scheduleRefreshFn = scheduleRefresh,
+    productionLog = typeof window !== 'undefined' && window.productionLog
+  } = dependencies;
+
+  // First reading
+  if (lastEggSeconds === null) {
+    lastEggSeconds = curr;
+    return;
+  }
+
+  // Detect pattern change
+  if (curr < lastEggSeconds) {
+    // Countdown decreasing normally
+    eggWasDecreasing = true;
+  } else if (eggWasDecreasing && curr > lastEggSeconds + 2) {
+    // Countdown started increasing again after decreasing
+    if (productionLog) {
+      productionLog('🐣 Egg restock detected (pattern-based jump)', { curr, lastEggSeconds });
+    }
+
+    // Reset tracker
+    eggWasDecreasing = false;
+    lastEggSeconds = curr;
+
+    // Reset local purchase tracking for egg shop
+    if (resetPurchasesFn) {
+      resetPurchasesFn('egg', dependencies);
+    }
+
+    // Trigger refresh safely (debounced)
+    if (scheduleRefreshFn) {
+      scheduleRefreshFn('egg', shopValue, dependencies);
+    }
+    return;
+  }
+
+  // Keep tracking
+  lastEggSeconds = curr;
+}
+
+/**
+ * Initialize tool shop restock watcher
+ * Sets up interval-based monitoring for tool shop restocks
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Window} [dependencies.targetWindow] - Target window
+ * @param {Function} [dependencies.setManagedInterval] - Managed interval function
+ * @param {Function} [dependencies.resetLocalPurchases] - Reset purchases function
+ * @param {Function} [dependencies.scheduleRefresh] - Schedule refresh function
+ * @param {Function} [dependencies.productionLog] - Production logger
+ */
+export function initializeToolRestockWatcher(dependencies = {}) {
+  const {
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    setManagedInterval = typeof window !== 'undefined' && window.setManagedInterval,
+    resetLocalPurchases: resetPurchasesFn = resetLocalPurchases,
+    scheduleRefresh: scheduleRefreshFn = scheduleRefresh,
+    productionLog = typeof window !== 'undefined' && window.productionLog
+  } = dependencies;
+
+  if (!setManagedInterval) return;
+
+  let toolWasDecreasing = false;
+  let lastToolSeconds = 0;
+
+  setManagedInterval(
+    'toolRestockWatch',
+    () => {
+      const toolShop = targetWindow?.globalShop?.shops?.tool;
+      if (!toolShop || !toolShop.secondsUntilRestock) return;
+
+      const curr = toolShop.secondsUntilRestock;
+
+      if (curr < lastToolSeconds) {
+        toolWasDecreasing = true;
+      } else if (toolWasDecreasing && curr > lastToolSeconds + 2) {
+        if (productionLog) {
+          productionLog('🔧 Tool restock detected (pattern-based jump)', { curr, lastToolSeconds });
+        }
+        toolWasDecreasing = false;
+        lastToolSeconds = curr;
+        if (resetPurchasesFn) {
+          resetPurchasesFn('tool', dependencies);
+        }
+        if (scheduleRefreshFn) {
+          scheduleRefreshFn('tool', toolShop, dependencies);
+        }
+      }
+
+      lastToolSeconds = curr;
+    },
+    1000
+  );
+}
+
+/**
+ * Initialize shop watcher system
+ * Sets up event-driven shop monitoring with restock detection
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Window} [dependencies.targetWindow] - Target window
+ * @param {Function} [dependencies.checkForWatchedItems] - Check watched items function
+ * @param {Function} [dependencies.refreshAllShopWindows] - Refresh windows function
+ * @param {Function} [dependencies.resetLocalPurchases] - Reset purchases function
+ * @param {Function} [dependencies.handleEggRestockDetection] - Egg restock handler
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.productionWarn] - Production warn logger
+ */
+export function initializeShopWatcher(dependencies = {}) {
+  const {
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    checkForWatchedItems: checkWatchedFn = checkForWatchedItems,
+    refreshAllShopWindows: refreshWindowsFn = refreshAllShopWindows,
+    resetLocalPurchases: resetPurchasesFn = resetLocalPurchases,
+    handleEggRestockDetection: handleEggRestockFn = handleEggRestockDetection,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    productionWarn = typeof window !== 'undefined' && window.productionWarn
+  } = dependencies;
+
+  if (shopWatcherInitialized) return;
+
+  if (productionLog) {
+    productionLog('🔄 [SHOP-WATCHER] Initializing event-driven shop monitoring...');
+  }
+
+  // Try to find and watch globalShop
+  function watchShopData() {
+    if (!targetWindow || !targetWindow.globalShop) {
+      if (productionWarn) {
+        productionWarn('⚠️ [SHOP-WATCHER] globalShop not found, will retry...');
+      }
+      setTimeout(() => watchShopData(), 5000);
+      return;
+    }
+
+    if (productionLog) {
+      productionLog('✅ [SHOP-WATCHER] Found globalShop, setting up watchers...');
+    }
+
+    // Use lightweight restock detection instead of heavy JSON.stringify
+    let lastSeedRestock = 0;
+    let lastEggRestock = 0;
+    let lastDecorRestock = 0;
+
+    setInterval(() => {
+      try {
+        if (!targetWindow.globalShop || !targetWindow.globalShop.shops) return;
+
+        const shops = targetWindow.globalShop.shops;
+
+        // Lightweight check: only compare secondsUntilRestock (resets to high number on restock)
+        if (shops.seed) {
+          const currentRestock = shops.seed.secondsUntilRestock || 0;
+          if (lastSeedRestock > 100 && currentRestock > lastSeedRestock) {
+            // Restock detected (timer reset to high value)
+            if (productionLog) {
+              productionLog('🔄 [SHOP-WATCHER] Seed shop restocked');
+            }
+            if (resetPurchasesFn) {
+              resetPurchasesFn('seed', dependencies);
+            }
+            setTimeout(() => {
+              if (checkWatchedFn) {
+                checkWatchedFn(dependencies);
+              }
+              if (refreshWindowsFn) {
+                refreshWindowsFn(dependencies);
+              }
+            }, 0);
+          }
+          lastSeedRestock = currentRestock;
+        }
+
+        if (shops.egg) {
+          const currentRestock = shops.egg.secondsUntilRestock || 0;
+
+          // Use pattern-based detection for egg shop
+          if (typeof currentRestock === 'number' && handleEggRestockFn) {
+            handleEggRestockFn(currentRestock, shops.egg, dependencies);
+          }
+
+          // Keep the fallback detection too
+          if (lastEggRestock > 100 && currentRestock > lastEggRestock) {
+            if (productionLog) {
+              productionLog('🔄 [SHOP-WATCHER] Egg shop restocked (fallback detection)');
+            }
+            if (resetPurchasesFn) {
+              resetPurchasesFn('egg', dependencies);
+            }
+            setTimeout(() => {
+              if (checkWatchedFn) {
+                checkWatchedFn(dependencies);
+              }
+              if (refreshWindowsFn) {
+                refreshWindowsFn(dependencies);
+              }
+            }, 0);
+          }
+          lastEggRestock = currentRestock;
+        }
+
+        if (shops.decor) {
+          const currentRestock = shops.decor.secondsUntilRestock || 0;
+          if (lastDecorRestock > 100 && currentRestock > lastDecorRestock) {
+            if (productionLog) {
+              productionLog('🔄 [SHOP-WATCHER] Decor shop restocked');
+            }
+            setTimeout(() => {
+              if (checkWatchedFn) {
+                checkWatchedFn(dependencies);
+              }
+            }, 0);
+          }
+          lastDecorRestock = currentRestock;
+        }
+      } catch (e) {
+        // Silent fail
+      }
+    }, 5000); // Poll every 5 seconds - lightweight check
+
+    if (productionLog) {
+      productionLog('✅ [SHOP-WATCHER] Using lightweight restock detection (5s interval)');
+    }
+
+    // Also watch for complete globalShop replacement
+    const globalShopDescriptor = Object.getOwnPropertyDescriptor(targetWindow, 'globalShop');
+    if (!globalShopDescriptor || globalShopDescriptor.configurable !== false) {
+      Object.defineProperty(targetWindow, 'globalShop', {
+        get() {
+          return this._globalShop;
+        },
+        set(newValue) {
+          if (productionLog) {
+            productionLog('🔄 [SHOP-WATCHER] globalShop replaced entirely!');
+          }
+          this._globalShop = newValue;
+
+          // Re-initialize watchers for the new shop
+          shopWatcherInitialized = false;
+          setTimeout(() => initializeShopWatcher(dependencies), 100);
+
+          // Trigger immediate check
+          setTimeout(() => {
+            if (checkWatchedFn) {
+              checkWatchedFn(dependencies);
+            }
+          }, 0);
+        },
+        configurable: true
+      });
+
+      // Set initial value
+      targetWindow._globalShop = targetWindow.globalShop;
+      if (productionLog) {
+        productionLog('✅ [SHOP-WATCHER] globalShop setter installed');
+      }
+    }
+
+    shopWatcherInitialized = true;
+  }
+
+  // Start watching
+  watchShopData();
+}
 
 // ============================================================================
 // DEFAULT EXPORT
@@ -2720,6 +3584,11 @@ export default {
   getItemValue,
   // Phase 5: Shop Tab Content
   getShopTabContent,
-  setupShopTabHandlers
-  // Phase 6: To be added
+  setupShopTabHandlers,
+  // Phase 6: Shop Monitoring & Restock Detection
+  checkForWatchedItems,
+  scheduleRefresh,
+  handleEggRestockDetection,
+  initializeToolRestockWatcher,
+  initializeShopWatcher
 };
