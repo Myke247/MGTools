@@ -8,13 +8,48 @@
 
 ## 🎯 Current Task
 
-**Phase 5 - Notification System Extraction**
+**Phase 6 - Shop System Extraction**
 
-**Progress:** 85% complete (core functionality - ~784 lines extracted)
+**Progress:** ~10% complete (Phase 1 of 6 - ~246 lines extracted)
+
+**Latest:** Phase 1 - Shop Constants & Utilities COMPLETE ✅
 
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-24 (Day 2 - Shop System Extraction)
+
+**Latest Work (Session 14):**
+- ✅ **Shop System Extraction Started!**
+- ✅ Created `SHOP_EXTRACTION_PLAN.md` - Complete 6-phase roadmap
+- ✅ Extracted Phase 1: Shop Constants & Utilities (~246 lines)
+  - `SHOP_IMAGE_MAP` - Discord CDN URLs for item sprites (~45 lines)
+  - `SHOP_COLOR_GROUPS` - Rarity color groupings (~7 lines)
+  - `SHOP_RAINBOW_ITEMS` - Celestial seed list (~1 line)
+  - `SHOP_PRICES` - Price data for all items (~50 lines)
+  - `SHOP_DISPLAY_NAMES` - Human-readable name overrides (~7 lines)
+  - `formatShopPrice()` - Format prices with k/m/b notation (~17 lines)
+  - `normalizeShopKey()` - Normalize strings for comparison (~5 lines)
+  - `getShopItemColorClass()` - Get rarity color class (~24 lines)
+  - `preloadShopImages()` - Image preloading for performance (~7 lines)
+  - `flashPurchaseFeedback()` - Visual purchase feedback (~75 lines)
+  - `showFloatingMsg()` - Floating message helper (~8 lines)
+- ✅ Created `src/features/shop.js` module
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build stable at 275.2 KB
+
+**Progress:** 0% → ~10% (+10%)
+
+**Shop Extraction Roadmap:**
+- Phase 1: Constants & Utilities - ~246 lines ✅ COMPLETE
+- Phase 2: Inventory & Stock Management - ~300 lines (NEXT)
+- Phase 3: Shop Item Elements & Purchase Logic - ~500 lines
+- Phase 4: Shop Windows & Overlays - ~700 lines
+- Phase 5: Shop Tab Content - ~300 lines
+- Phase 6: Shop Monitoring & Restock Detection - ~500 lines
+- **Total Estimated:** ~2,500 lines (major feature comparable to pets!)
 
 ### Session: 2025-10-24 (Day 2 - Notification System Extraction)
 
@@ -375,11 +410,15 @@
 - `SESSION_STATUS.md` - This file (updated with cleanup info)
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
-### Notification Extraction Work (Current Session)
+### Shop Extraction Work (Current Session)
+- `src/features/shop.js` - Shop module (446 lines total, Phase 1 complete)
+- `SHOP_EXTRACTION_PLAN.md` - Complete 6-phase extraction roadmap
+
+### Notification Extraction Work (Previous Session)
 - `src/features/notifications.js` - Notification module (1,164 lines, 85% core complete)
 
 ### Pet Extraction Work (Previous Session - COMPLETE)
-- `src/features/pets.js` - **Pet module (5,225 lines, 100% COMPLETE!)** ✅
+- `src/features/pets.js` - **Pet module (5,732 lines, 100% COMPLETE!)** ✅
 - `package.json` - Updated npm scripts for comprehensive linting
 - `.husky/pre-commit` - Pre-commit quality checks (created, then fixed)
 - `.husky/commit-msg` - Commit message validation (created)
@@ -426,7 +465,14 @@ All systems operational:
 - Conversation/analysis files stay LOCAL ONLY
 - See PROJECT_CONTEXT.md "Repository Philosophy" section for details
 
-**Notification extraction status:**
+**Shop extraction in progress:** (Current session)
+- File: `src/features/shop.js`
+- Status: ~10% complete - Phase 1 of 6 complete!
+- Progress: ~246 lines extracted (constants & utilities)
+- Roadmap: `SHOP_EXTRACTION_PLAN.md`
+- Phases remaining: 5 (Inventory, Purchase Logic, UI Windows, Tab Content, Monitoring)
+
+**Notification extraction status:** (Previous session)
 - File: `src/features/notifications.js`
 - Status: 85% complete - Core functionality fully extracted!
 - Progress: ~784 functional lines extracted
