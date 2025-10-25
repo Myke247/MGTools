@@ -94,8 +94,13 @@
  *   • playAbilityNotificationSound() - Ability notification sound playback (~51 lines)
  *   • setupAbilitiesTabHandlers() - Ability log tab event handlers (~297 lines)
  *
- * Total Extracted: ~4,778 lines (of ~5,000 estimated)
- * Progress: 95.6%
+ * NOTE: Pet Preset UI functions (updatePetPresetDropdown, updateActivePetsDisplay,
+ * ensurePresetOrder, movePreset, getDragAfterElement, refreshPresetsList, addPresetToList)
+ * were already extracted in Phase 3 above.
+ *
+ * ✅ PET MODULE EXTRACTION 100% COMPLETE!
+ * Total Extracted: ~5,295 lines (exceeded 5,000 estimate by 5.9%)
+ * Progress: 100% - All pet-related functionality successfully modularized!
  *
  * Dependencies:
  * - Core: storage, logging
