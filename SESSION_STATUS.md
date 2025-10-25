@@ -10,7 +10,7 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 87.3% complete (4,363 of ~5,000 lines extracted)
+**Progress:** 95.6% complete (4,778 of ~5,000 lines extracted)
 
 ---
 
@@ -18,7 +18,19 @@
 
 ### Session: 2025-10-24 (Day 2 - Continued Extraction)
 
-**Latest Work (Session 7):**
+**Latest Work (Session 8):**
+- ✅ Extracted Additional Pet Management Functions (~415 lines)
+  - `presetHasCropEater()` - Detect Crop Eater ability in presets (~26 lines)
+  - `cycleToNextPreset()` - Cycle through presets, skip Crop Eater (~41 lines)
+  - `playAbilityNotificationSound()` - Ability notification sound playback (~51 lines)
+  - `setupAbilitiesTabHandlers()` - Ability log tab event handlers (~297 lines)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build now 275.2 KB (grew from 258.8 KB)
+
+**Progress:** From 87.3% → 95.6% (+8.3%)
+
+**Earlier Work (Session 7):**
 - ✅ Extracted Instant Feed Initialization & Polling (~287 lines)
   - `injectInstantFeedButtons()` - Container-based button injection with re-entry guard (~133 lines)
   - `initializeInstantFeedButtons()` - Polling-based initialization with auto-reinjection (~154 lines)
@@ -215,16 +227,19 @@
 - Instant Feed Initialization & Polling - ~287 lines ✅
   - injectInstantFeedButtons() - Container-based injection with re-entry guard (~133 lines)
   - initializeInstantFeedButtons() - Polling initialization with auto-reinjection (~154 lines)
+- Additional Pet Management Functions - ~415 lines ✅
+  - presetHasCropEater() - Detect Crop Eater ability (~26 lines)
+  - cycleToNextPreset() - Cycle presets, skip Crop Eater (~41 lines)
+  - playAbilityNotificationSound() - Sound playback (~51 lines)
+  - setupAbilitiesTabHandlers() - Tab event handlers (~297 lines)
 
-### Remaining (637 lines)
+### Remaining (222 lines)
 
-**Phase 11: Additional Pet Features**
-- ⏳ Additional pet functions (~637 lines remaining)
-  - Pet-related UI generators
-  - Pet hotkey handlers
-  - Pet species lists
-  - Pet sorting functions
-  - Any remaining pet utilities
+**Phase 12: Final Pet Features**
+- ⏳ Remaining pet functions (~222 lines remaining)
+  - Misc utility functions
+  - Final helper functions
+  - Any remaining pet code
 
 ---
 
@@ -232,15 +247,13 @@
 
 ### Immediate (Next Session)
 
-1. **Continue Pet Function Extraction** (~637 lines remaining)
-   - Target: Additional ~300-400 lines per session
-   - Goal: Reach 95%+ extraction, then 100%
+1. **Complete Pet Function Extraction** (~222 lines remaining)
+   - Target: Extract final ~222 lines to reach 100%
+   - Goal: Complete Phase 4 pet feature extraction
    - Focus areas:
-     - Pet-related UI generators
-     - Pet hotkey handlers
-     - Pet species lists
-     - Pet sorting functions
-     - Any remaining pet utilities
+     - Final misc utility functions
+     - Any remaining helper functions
+     - Complete the pet module
 
 ### Medium Term
 
@@ -267,7 +280,7 @@
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 258.8 KB (growing as features extract)
+- Size: 275.2 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -282,7 +295,7 @@
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
 ### Pet Extraction Work (Current Session)
-- `src/features/pets.js` - Pet module (4,674 lines, 87.3% complete)
+- `src/features/pets.js` - Pet module (5,215 lines, 95.6% complete)
 - `package.json` - Updated npm scripts for comprehensive linting
 - `.husky/pre-commit` - Pre-commit quality checks (created, then fixed)
 - `.husky/commit-msg` - Commit message validation (created)
@@ -331,8 +344,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Scan for remaining ~637 lines of pet code (UI generators, hotkeys, species lists, sorting, misc utilities)
-- Progress: 87.3% (4,363/5,000 lines extracted) - Nearly 90%!
+- Next: Scan for final ~222 lines of pet code (misc utilities, final helpers)
+- Progress: 95.6% (4,778/5,000 lines extracted) - Nearly complete!
 
 **Remember:**
 - Use dependency injection (no globals!)
