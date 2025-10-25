@@ -76,8 +76,14 @@
  *   • updateAllLogVisibility() - Visibility orchestrator (~12 lines)
  *   • updateAllAbilityLogDisplays() - Update across all contexts (~66 lines)
  *
- * Total Extracted: ~3,711 lines (of ~5,000 estimated)
- * Progress: 74.2%
+ * Phase 9 (Complete):
+ * - Instant Feed Core Functions - ~365 lines ✅
+ *   • createInstantFeedButton() - Game-native styled feed button (~58 lines)
+ *   • flashButton() - Success/error visual feedback (~14 lines)
+ *   • handleInstantFeed() - 3-tier fallback feed logic with auto-favorite protection (~293 lines)
+ *
+ * Total Extracted: ~4,076 lines (of ~5,000 estimated)
+ * Progress: 81.5%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -3844,6 +3850,373 @@ export function updateAllAbilityLogDisplays(force, dependencies) {
 }
 
 /* ====================================================================================
+ * INSTANT FEED UI FUNCTIONS (PHASE 9)
+ * ====================================================================================
+ */
+
+/**
+ * Create instant feed button for pet with game-native styling
+ * @param {number} petIndex - Pet slot index (0-2)
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Document} dependencies.targetDocument - Target document (may be popout/iframe)
+ * @param {Object} dependencies.UnifiedState - Global unified state
+ * @param {Function} dependencies.handleInstantFeed - Click handler for instant feed
+ * @returns {HTMLButtonElement} - Created button element
+ */
+export function createInstantFeedButton(petIndex, { targetDocument, UnifiedState, handleInstantFeed }) {
+  const btn = targetDocument.createElement('button');
+  btn.className = 'mgtools-instant-feed-btn';
+  btn.textContent = 'Feed';
+  btn.setAttribute('data-pet-index', petIndex);
+  btn.setAttribute('data-cooldown', 'false');
+
+  const shouldHide = UnifiedState.data.settings.hideFeedButtons;
+
+  btn.style.cssText = `
+    position: absolute !important;
+    right: -50px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 48px !important;
+    height: 24px !important;
+    border: 2px solid #FFC83D !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    color: rgb(205, 200, 193) !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    z-index: 9999 !important;
+    transition: all 0.2s ease !important;
+    pointer-events: auto !important;
+    display: ${shouldHide ? 'none' : 'block'} !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  `;
+
+  btn.addEventListener('mouseenter', () => {
+    btn.style.setProperty('box-shadow', '0 0 8px rgba(255, 200, 61, 0.6)', 'important');
+    btn.style.setProperty('transform', 'translateY(-50%) scale(1.05)', 'important');
+  });
+
+  btn.addEventListener('mouseleave', () => {
+    btn.style.setProperty('box-shadow', 'none', 'important');
+    btn.style.setProperty('transform', 'translateY(-50%) scale(1)', 'important');
+  });
+
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleInstantFeed(petIndex, btn);
+  });
+
+  return btn;
+}
+
+/**
+ * Flash button with success/error color feedback
+ * @param {HTMLButtonElement} btn - Button element to flash
+ * @param {string} type - Flash type: 'success' or 'error'
+ */
+export function flashButton(btn, type) {
+  const color = type === 'success' ? '#4CAF50' : '#F44336';
+  const originalBorder = btn.style.borderColor;
+  const originalShadow = btn.style.boxShadow;
+
+  btn.style.borderColor = color;
+  btn.style.boxShadow = `0 0 10px ${color}`;
+
+  setTimeout(() => {
+    btn.style.borderColor = originalBorder || '#FFC83D';
+    btn.style.boxShadow = originalShadow || 'none';
+  }, 300);
+}
+
+/**
+ * Handle instant feed action with 3-tier fallback and auto-favorite protection
+ * @param {number} petIndex - Pet slot index (0-2)
+ * @param {HTMLButtonElement} buttonEl - Feed button element
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Window} dependencies.targetWindow - Target window (may be popout/iframe)
+ * @param {Object} dependencies.UnifiedState - Global unified state
+ * @param {Function} dependencies.getAtomValue - Jotai atom getter (async)
+ * @param {Function} dependencies.readAtom - Jotai atom reader (sync)
+ * @param {Function} dependencies.readMyPetSlots - Get current pet slots
+ * @param {Object} dependencies.PET_FEED_CATALOG - Pet species → compatible crops mapping
+ * @param {Function} dependencies.sendFeedPet - Send feed pet message
+ * @param {Function} dependencies.feedPetEnsureSync - Feed with verification
+ * @param {Function} dependencies.flashButton - Button flash feedback
+ * @param {Set} dependencies.usedCropIds - Set of used crop IDs (shared state)
+ * @returns {Promise<void>}
+ */
+export async function handleInstantFeed(
+  petIndex,
+  buttonEl,
+  {
+    targetWindow,
+    UnifiedState,
+    getAtomValue,
+    readAtom,
+    readMyPetSlots,
+    PET_FEED_CATALOG,
+    sendFeedPet,
+    feedPetEnsureSync,
+    flashButton,
+    usedCropIds
+  }
+) {
+  if (buttonEl.disabled) return;
+
+  buttonEl.disabled = true;
+  buttonEl.textContent = '...';
+  buttonEl.style.opacity = '0.6';
+
+  try {
+    let pet = null;
+
+    if (targetWindow.jotaiAtomCache) {
+      try {
+        const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
+        if (freshPetSlots?.[petIndex]) {
+          pet = freshPetSlots[petIndex];
+          console.log('[MGTOOLS-FIX-A] Using fresh pet data from Jotai atom cache (Tier 1)');
+        }
+      } catch (e) {
+        console.warn('[MGTOOLS-FIX-A] Tier 1 (atom cache) failed:', e.message);
+      }
+    }
+
+    if (!pet && UnifiedState.atoms.activePets?.[petIndex]) {
+      pet = UnifiedState.atoms.activePets[petIndex];
+      console.log('[MGTOOLS-FIX-A] Using UnifiedState atoms (Tier 2)');
+    }
+
+    if (!pet && targetWindow.myData?.petSlots?.[petIndex]) {
+      pet = targetWindow.myData.petSlots[petIndex];
+      console.log('[MGTOOLS-FIX-A] Using window.myData (Tier 3)');
+    }
+
+    if (!pet) {
+      console.error('[MGTOOLS-FIX-A] ❌ No pet data available from any source');
+      alert('Pet data not ready. Please wait a moment and try again.');
+      flashButton(buttonEl, 'error');
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Feed';
+      buttonEl.style.opacity = '1';
+      return;
+    }
+
+    const species = pet.petSpecies;
+    const petItemId = pet.id;
+
+    console.log('[Feed-Flow-1] 🐾 Active Pet:', {
+      species,
+      petItemId: petItemId.substring(0, 8) + '...',
+      hunger: pet.hunger,
+      hungerPercentage: pet.hunger ? `${pet.hunger}%` : 'N/A'
+    });
+
+    const compatibleCrops = PET_FEED_CATALOG[species];
+
+    console.log(`[Feed-Flow-2] 🌾 Compatible crops for ${species}:`, compatibleCrops || []);
+
+    if (!compatibleCrops || compatibleCrops.length === 0) {
+      console.error('[MGTools Feed] No compatible crops for', species);
+      flashButton(buttonEl, 'error');
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Feed';
+      buttonEl.style.opacity = '1';
+      return;
+    }
+
+    if (typeof unsafeWindow !== 'undefined' && unsafeWindow.__mga_cachedInventory) {
+      delete unsafeWindow.__mga_cachedInventory;
+    }
+
+    let inventoryItems = null;
+
+    if (targetWindow.jotaiAtomCache) {
+      try {
+        const freshInventory = await getAtomValue('myCropInventoryAtom');
+        if (freshInventory?.items) {
+          inventoryItems = freshInventory.items;
+          console.log('[MGTOOLS-FIX-A] Using fresh inventory from Jotai atom cache (Tier 1)');
+        }
+      } catch (e) {
+        console.warn('[MGTOOLS-FIX-A] Inventory Tier 1 (atom cache) failed:', e.message);
+      }
+    }
+
+    if (!inventoryItems) {
+      try {
+        inventoryItems = readAtom('myCropItemsAtom') || [];
+        if (inventoryItems.length > 0) {
+          console.log('[MGTOOLS-FIX-A] Using myCropItemsAtom (Tier 1.5)');
+        }
+      } catch (e) {
+        console.warn('[MGTOOLS-FIX-A] myCropItemsAtom failed:', e.message);
+      }
+    }
+
+    if (!inventoryItems || inventoryItems.length === 0) {
+      if (UnifiedState.atoms.inventory?.items) {
+        inventoryItems = UnifiedState.atoms.inventory.items.filter(
+          i => i.itemType === 'Produce' || i.itemType === 'Crop'
+        );
+        console.log('[MGTOOLS-FIX-A] Using UnifiedState inventory (Tier 2)');
+      }
+    }
+
+    if (!inventoryItems || inventoryItems.length === 0) {
+      if (targetWindow.myData?.inventory?.items) {
+        inventoryItems = targetWindow.myData.inventory.items;
+        console.log('[MGTOOLS-FIX-A] Using window.myData inventory (Tier 3)');
+      }
+    }
+
+    console.log('[Feed-Inventory] Fresh read:', inventoryItems?.length || 0, 'items');
+
+    if (!inventoryItems || inventoryItems.length === 0) {
+      console.error('[MGTOOLS-FIX-A] ❌ No inventory data available from any source');
+      alert('Inventory not ready. Please wait a moment.');
+      flashButton(buttonEl, 'error');
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Feed';
+      buttonEl.style.opacity = '1';
+      return;
+    }
+
+    console.log('[Feed-Flow-3] 📦 Full inventory:', {
+      count: inventoryItems.length,
+      species: inventoryItems.map(item => item.species),
+      items: inventoryItems
+    });
+
+    const favoritedSpecies = UnifiedState.data?.autoFavorite?.selectedSpecies || [];
+
+    console.log('[Feed-Flow-4] 🚫 Favorited species:', favoritedSpecies);
+
+    const nonFavoritedCompatibleCrops = inventoryItems.filter(item => {
+      if (!item || !item.species || !item.id) return false;
+      const isCompatible = compatibleCrops.includes(item.species);
+      const isFavorited = favoritedSpecies.includes(item.species);
+      const notUsed = !usedCropIds.has(item.id);
+      return isCompatible && !isFavorited && notUsed;
+    });
+
+    console.log('[Feed-Flow-5] ✅ Non-favorited compatible crops available:', {
+      count: nonFavoritedCompatibleCrops.length,
+      species: nonFavoritedCompatibleCrops.map(item => item.species),
+      items: nonFavoritedCompatibleCrops
+    });
+
+    const cropToFeed = nonFavoritedCompatibleCrops[0];
+
+    console.log(`[Feed-Flow-6] ❓ Compatible crop exists: ${!!cropToFeed}`);
+
+    if (!cropToFeed) {
+      console.error('[MGTools Feed] No feedable crops (compatible, non-favorited, unused)');
+      console.log('[MGTools Feed] Compatible species:', compatibleCrops);
+      console.log('[MGTools Feed] Favorited species:', favoritedSpecies);
+      console.log('[MGTools Feed] Used crop IDs:', Array.from(usedCropIds));
+      usedCropIds.clear();
+      flashButton(buttonEl, 'error');
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Feed';
+      buttonEl.style.opacity = '1';
+      return;
+    }
+
+    usedCropIds.add(cropToFeed.id);
+
+    const cropItemId = cropToFeed?.id || cropToFeed?.inventoryItemId || cropToFeed?.itemId;
+
+    console.log('[Feed-Flow-7a] 🧪 Selected crop:', {
+      species: cropToFeed?.species,
+      fullItem: cropToFeed,
+      resolvedId: cropItemId
+    });
+
+    if (!cropItemId) {
+      console.error('[Feed] No valid ID found in crop item:', cropToFeed);
+      flashButton(buttonEl, 'error');
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Feed';
+      buttonEl.style.opacity = '1';
+      return;
+    }
+
+    const currentInventory = inventoryItems || [];
+    const cropStillExists = currentInventory.some(
+      item => item.id === cropItemId || item.inventoryItemId === cropItemId || item.itemId === cropItemId
+    );
+
+    if (!cropStillExists) {
+      console.error('[Feed] Crop no longer in inventory! ID:', cropItemId);
+      console.log(
+        '[Feed] Current inventory IDs:',
+        currentInventory.map(i => i.id || i.inventoryItemId || i.itemId)
+      );
+      usedCropIds.delete(cropItemId);
+      flashButton(buttonEl, 'error');
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Feed';
+      buttonEl.style.opacity = '1';
+      return;
+    }
+
+    const slotsNow = readMyPetSlots() || [];
+    const reboundPetItemId = slotsNow?.[petIndex]?.id || petItemId;
+    if (reboundPetItemId !== petItemId) {
+      console.warn('[Feed-Guard] Rebound petItemId from slots', {
+        old: petItemId,
+        new: reboundPetItemId,
+        petIndex
+      });
+    }
+
+    console.log('[Feed-Debug] 🚀 Sending FeedPet message with inventoryItemId');
+
+    try {
+      await sendFeedPet(reboundPetItemId, cropItemId);
+      console.log(`[MGTools Feed] 🚀 Sent feed: ${species} with ${cropToFeed.species}`);
+
+      flashButton(buttonEl, 'success');
+
+      setTimeout(() => {
+        buttonEl.disabled = false;
+        buttonEl.textContent = 'Feed';
+        buttonEl.style.opacity = '1';
+      }, 200);
+
+      feedPetEnsureSync(reboundPetItemId, cropItemId, petIndex, false)
+        .then(result => {
+          if (!result?.verified) {
+            console.warn('[MGTools Feed] ⚠️ Background verification failed (feed may have worked anyway)');
+          } else {
+            console.log('[MGTools Feed] ✅ Background verification succeeded');
+          }
+        })
+        .catch(err => console.warn('[MGTools Feed] Background verification error:', err));
+    } catch (err) {
+      console.warn('[MGTools Feed] ⚠️ Feed failed:', err.message);
+      flashButton(buttonEl, 'error');
+      usedCropIds.delete(cropToFeed.id);
+      buttonEl.disabled = false;
+      buttonEl.textContent = 'Feed';
+      buttonEl.style.opacity = '1';
+    }
+  } catch (error) {
+    console.error('[MGTools Feed] Error:', error);
+    flashButton(buttonEl, 'error');
+
+    buttonEl.disabled = false;
+    buttonEl.textContent = 'Feed';
+    buttonEl.style.opacity = '1';
+  }
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -3940,5 +4313,10 @@ export default {
   updateAbilityLogDisplay,
   updateLogVisibility,
   updateAllLogVisibility,
-  updateAllAbilityLogDisplays
+  updateAllAbilityLogDisplays,
+
+  // Instant Feed Core Functions (Phase 9)
+  createInstantFeedButton,
+  flashButton,
+  handleInstantFeed
 };

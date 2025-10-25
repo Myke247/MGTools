@@ -10,7 +10,7 @@
 
 **Phase 4 - Pet Feature Extraction**
 
-**Progress:** 74.2% complete (3,711 of ~5,000 lines extracted)
+**Progress:** 81.5% complete (4,076 of ~5,000 lines extracted)
 
 ---
 
@@ -18,7 +18,18 @@
 
 ### Session: 2025-10-24 (Day 2 - Continued Extraction)
 
-**Latest Work (Session 5):**
+**Latest Work (Session 6):**
+- ✅ Extracted Instant Feed Core Functions (~365 lines)
+  - `createInstantFeedButton()` - Game-native styled feed button (~58 lines)
+  - `flashButton()` - Success/error visual feedback (~14 lines)
+  - `handleInstantFeed()` - 3-tier fallback feed logic with auto-favorite protection (~293 lines)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build now 249.8 KB (grew from 238.3 KB)
+
+**Progress:** From 74.2% → 81.5% (+7.3%)
+
+**Earlier Work (Session 5):**
 - ✅ Extracted Display Update Functions (~316 lines)
   - `updateAbilityLogDisplay()` - Main log renderer with full styling (~195 lines)
   - `updateLogVisibility()` - CSS-based visibility toggle (~28 lines)
@@ -125,7 +136,7 @@
 
 ## 📊 Pet Feature Extraction Progress
 
-### Extracted (3,711 lines)
+### Extracted (4,076 lines)
 
 **Phase 1: Foundation** ✅
 - Pet Presets (import/export) - ~99 lines
@@ -187,17 +198,20 @@
   - updateLogVisibility() - CSS-based visibility toggle (~28 lines)
   - updateAllLogVisibility() - Visibility orchestrator (~12 lines)
   - updateAllAbilityLogDisplays() - Update across all contexts (~66 lines)
+- Instant Feed Core Functions - ~365 lines ✅
+  - createInstantFeedButton() - Game-native styled button (~58 lines)
+  - flashButton() - Success/error visual feedback (~14 lines)
+  - handleInstantFeed() - 3-tier fallback with auto-favorite protection (~293 lines)
 
-### Remaining (1,289 lines)
+### Remaining (924 lines)
 
-**Phase 9: Additional Pet Features**
-- ⏳ Additional pet functions (~1,289 lines remaining)
-  - Pet species lists
-  - Pet ability filters
-  - Pet logging
-  - Pet swap logic (remaining pieces)
+**Phase 10: Additional Pet Features**
+- ⏳ Additional pet functions (~924 lines remaining)
+  - Instant feed initialization/polling (~200-250 lines)
   - Pet-related UI generators
   - Pet hotkey handlers
+  - Pet species lists
+  - Any remaining pet utilities
 
 ---
 
@@ -205,16 +219,14 @@
 
 ### Immediate (Next Session)
 
-1. **Continue Pet Function Extraction** (~1,289 lines remaining)
-   - Target: Additional ~300-500 lines per session
-   - Goal: Reach 80%+ extraction
+1. **Continue Pet Function Extraction** (~924 lines remaining)
+   - Target: Additional ~300-400 lines per session
+   - Goal: Reach 90%+ extraction, then 100%
    - Focus areas:
-     - Pet species lists
-     - Pet ability filters
-     - Pet logging
-     - Pet swap logic
+     - Instant feed initialization/polling functions
      - Pet-related UI generators
      - Pet hotkey handlers
+     - Any remaining pet utilities
 
 ### Medium Term
 
@@ -241,7 +253,7 @@
 **Modular Build (Development)**
 - Command: `npm run build:esbuild`
 - Output: `dist/mgtools.esbuild.user.js`
-- Size: 238.3 KB (growing as features extract)
+- Size: 249.8 KB (growing as features extract)
 - Status: ✅ Compiles successfully
 
 ---
@@ -256,7 +268,7 @@
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
 ### Pet Extraction Work (Current Session)
-- `src/features/pets.js` - Pet module (3,943 lines, 74.2% complete)
+- `src/features/pets.js` - Pet module (4,322 lines, 81.5% complete)
 - `package.json` - Updated npm scripts for comprehensive linting
 - `.husky/pre-commit` - Pre-commit quality checks (created, then fixed)
 - `.husky/commit-msg` - Commit message validation (created)
@@ -305,8 +317,8 @@ All systems operational:
 
 **Current extraction location:**
 - File: `MGTools.user.js`
-- Next: Scan for remaining ~1,289 lines of pet code
-- Progress: 74.2% (3,711/5,000 lines extracted) - Nearly 75%!
+- Next: Scan for remaining ~924 lines of pet code (instant feed init/polling + misc utilities)
+- Progress: 81.5% (4,076/5,000 lines extracted) - Over 80%!
 
 **Remember:**
 - Use dependency injection (no globals!)
