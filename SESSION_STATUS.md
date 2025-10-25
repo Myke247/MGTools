@@ -2,25 +2,112 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `a9d3d8b` - feat: complete crop highlighting system extraction (~515 lines)
+**Latest Commit:** `2e49cb4` - feat: complete crop value & turtle timer extraction (~916 lines)
 
 ---
 
 ## 🎯 Current Task
 
-**MAJOR MILESTONE: 6 COMPLETE SYSTEMS EXTRACTED!** 🎉
+**MAJOR MILESTONE: 7 COMPLETE SYSTEMS EXTRACTED!** 🎉
 
 **Shop System:** 100% complete (All 6 phases - ~3,037 lines extracted)
 **Notification System:** 100% complete (All 5 phases - ~2,118 lines extracted)
 **Hotkey System:** 100% complete (All 4 phases - ~975 lines extracted)
 **Protection System:** 100% complete (All 3 phases - ~684 lines extracted)
 **Crop Highlighting:** 100% complete (All 3 phases - ~515 lines extracted)
+**Crop Value & Turtle Timer:** 100% complete (All 3 phases - ~916 lines extracted)
 
-**Latest:** Crop Highlighting System - ALL 3 PHASES COMPLETE ✅
+**Latest:** Crop Value & Turtle Timer System - ALL 3 PHASES COMPLETE ✅
 
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-25 (Crop Value & Turtle Timer 100% COMPLETE!)
+
+**Crop Value & Turtle Timer System - ALL 3 Phases COMPLETE:**
+- ✅ **Phase 1: Value Constants & Multipliers (~100 lines)**
+  - SPECIES_VALUES - Base values for all 29 crop species (Sunflower: 750k, Starweaver: 10m, etc.)
+  - COLOR_MULT - Color mutation multipliers (Gold: 25x, Rainbow: 50x)
+  - WEATHER_MULT - Weather mutation multipliers (Wet: 2x, Chilled: 2x, Frozen: 10x)
+  - TIME_MULT - Time mutation multipliers (Dawnlit: 2x, Amberlit: 5x, Dawnbound: 3x, Amberbound: 6x)
+  - WEATHER_TIME_COMBO - Combined mutation multipliers (Wet+Dawnlit: 3x, Frozen+Amberbound: 15x, etc.)
+  - calculateMutationMultiplier() - Calculate total mutation value bonus with best-of-each-type logic
+- ✅ **Phase 2: Value Calculation Functions (~100 lines)**
+  - getCurrentSlotIndex() - Get current crop slot index for multi-harvest crops
+  - calculateCurrentSlotValue() - Calculate value of current visible slot with:
+    - Friend bonus integration for multiplayer
+    - Sorted slot indices support for game's crop sorting system
+    - Species base value lookup
+    - Mutation multiplier calculation
+    - Scale (size) factor
+    - Debug logging for slot tracking
+  - isValidTooltipElement() - Validate tooltip DOM element position and size
+    - Reject top-left corner elements (UI, not tooltips)
+    - Reject off-screen elements
+    - Reject undersized elements
+    - Require text content
+    - Prevents value display contamination in UI elements
+- ✅ **Phase 3: Turtle Timer & UI Integration (~716 lines)**
+  - insertTurtleEstimate() - Insert growth timer and value into crop tooltip (~273 lines)
+    - Remove existing estimates from DOM
+    - Find correct tooltip element with fallback selectors
+    - Validate tooltip position to prevent UI contamination
+    - Multiple fallback strategies for crop/egg data retrieval:
+      - targetWindow.currentCrop / UnifiedState.atoms.currentCrop
+      - Game state locations (gameState, garden, playerState)
+      - Jotai atom cache direct reading
+      - DOM parsing fallback (extract species from tooltip text)
+    - Egg timer support:
+      - Parse remaining time from tooltip (h/m/s format)
+      - Calculate boosted time with pet expectations
+      - Display egg timer with yellow color
+    - Crop timer support:
+      - Get current slot index with sorted indices handling
+      - Call estimateUntilLatestCrop() with pet boosts
+      - Display turtle timer estimate with green color
+    - Slot value display:
+      - Calculate current slot value with all bonuses
+      - Display value with inline emoji icon
+      - Format with thousands separators
+  - initializeTurtleTimer() - Initialize atom hooks and event listeners (~239 lines)
+    - Start listening to slot index changes via listenToSlotIndexAtom()
+    - Hook sortedSlotIndices atom for proper crop order tracking
+    - Hook currentCrop atom with hash-based change detection:
+      - Extract crop data from atom value (handle nested structures)
+      - Store in both UnifiedState.atoms and targetWindow
+      - Calculate crop hash to detect changes
+      - Trigger estimate update on change via requestAnimationFrame
+    - Polling interval (1s) to catch missed updates:
+      - Find Jotai store if not already found (multiple possible locations)
+      - Try to read atom using store with Promise handling
+      - Fallback to debugValue, atom.read() direct call
+      - Check if tooltip visible, ensure estimate shown
+    - Movement key handlers (WASD, arrows):
+      - Remove turtle estimates on keydown (hide while moving)
+      - Insert turtle estimates on keyup (show when stopped)
+      - Predicate function to detect movement keys
+      - Curried helper for clean event handler composition
+
+**Module Status:**
+- Shop: src/features/shop.js - 3,597 lines total (100% complete, all 6 phases)
+- Notifications: src/features/notifications.js - 2,118 lines total (100% complete, all 5 phases)
+- Hotkeys: src/features/hotkeys.js - 975 lines total (100% complete, all 4 phases)
+- Protection: src/features/protection.js - 907 lines total (100% complete, all 3 phases)
+- Crop Highlighting: src/features/crop-highlighting.js - 515 lines total (100% complete, all 3 phases)
+- Crop Value: src/features/crop-value.js - 916 lines total (100% complete, all 3 phases)
+
+**Quality Validation:**
+✅ ESLint: 0 errors, 207 warnings (style preferences only)
+✅ Mirror build: 1420.91 KB (stable)
+✅ Modular build: 275.2 KB (stable)
+✅ All tests passing
+✅ All commits successful with hooks
+✅ All functions use full dependency injection pattern
+
+**Progress:** Crop Value 0%→100% (+100%)
+
+---
 
 ### Session: 2025-10-25 (MAJOR MILESTONE - Shop, Notifications, Hotkeys & Protection 100% COMPLETE!)
 
