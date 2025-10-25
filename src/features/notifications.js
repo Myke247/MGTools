@@ -39,13 +39,13 @@
  *   • getTimeSinceLastSeen() - Human-readable time since last seen (~26 lines)
  *   • showNotificationToast() - Simple colored toast notifications (~32 lines)
  *
- * Total Extracted: ~784 lines of core notification functionality
- * Progress: 85% (core complete)
+ * Phase 5 (Complete):
+ * - UI Tab Content - ~1,205 lines
+ *   • getNotificationsTabContent() - HTML generation for settings tab (~592 lines)
+ *   • setupNotificationsTabHandlers() - Event handlers for settings tab (~613 lines)
  *
- * Remaining (UI Layer - belongs in separate module):
- * - getNotificationsTabContent() - ~592 lines of HTML generation for settings tab
- * - setupNotificationsTabHandlers() - ~613 lines of event handlers for settings tab
- * These are UI-specific and belong in the UI layer, not core notification logic.
+ * Total Extracted: ~1,989 lines (ALL PHASES COMPLETE!)
+ * Progress: 100% (notification system fully extracted!)
  *
  * Dependencies:
  * - Core: logging (productionLog)
@@ -1115,6 +1115,1005 @@ export function showNotificationToast(message, type = 'info', dependencies = {})
     }, 5000);
   } catch (error) {
     console.error('❌ [TOAST] Error showing notification toast:', error);
+  }
+}
+
+/* ====================================================================================
+ * UI TAB CONTENT (Phase 5)
+ * ====================================================================================
+ */
+
+/**
+ * Generate notifications tab HTML content
+ * Creates settings tab content with all notification configuration options
+ *
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @param {Array} [dependencies.DECOR_ITEMS] - Decor items constant
+ * @returns {string} HTML content for notifications tab
+ */
+export function getNotificationsTabContent(dependencies = {}) {
+  const {
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    DECOR_ITEMS = typeof window !== 'undefined' && window.DECOR_ITEMS ? window.DECOR_ITEMS : []
+  } = dependencies;
+
+  const settings = UnifiedState.data.settings;
+
+  // Ensure new notification properties exist (for backwards compatibility with old saved data)
+  if (!settings.notifications.petHungerEnabled && settings.notifications.petHungerEnabled !== false) {
+    settings.notifications.petHungerEnabled = false;
+  }
+  if (!settings.notifications.petHungerThreshold) {
+    settings.notifications.petHungerThreshold = 20;
+  }
+  if (
+    !settings.notifications.abilityNotificationsEnabled &&
+    settings.notifications.abilityNotificationsEnabled !== false
+  ) {
+    settings.notifications.abilityNotificationsEnabled = false;
+  }
+  if (!settings.notifications.watchedAbilities) {
+    settings.notifications.watchedAbilities = [];
+  }
+  if (!settings.notifications.watchedAbilityCategories) {
+    settings.notifications.watchedAbilityCategories = {
+      xpBoost: true,
+      cropSizeBoost: true,
+      selling: true,
+      harvesting: true,
+      growthSpeed: true,
+      specialMutations: true,
+      other: true
+    };
+  }
+  if (
+    !settings.notifications.weatherNotificationsEnabled &&
+    settings.notifications.weatherNotificationsEnabled !== false
+  ) {
+    settings.notifications.weatherNotificationsEnabled = false;
+  }
+  if (!settings.notifications.watchedDecor) {
+    settings.notifications.watchedDecor = [];
+  }
+  if (!settings.notifications.watchedWeatherEvents) {
+    settings.notifications.watchedWeatherEvents = ['Snow', 'Rain', 'AmberMoon', 'Dawn'];
+  }
+  if (!settings.notifications.abilityNotificationSound) {
+    settings.notifications.abilityNotificationSound = 'single';
+  }
+  if (settings.notifications.abilityNotificationVolume === undefined) {
+    settings.notifications.abilityNotificationVolume = 0.2;
+  }
+  // Ensure continuousEnabled is explicitly false if undefined
+  if (settings.notifications.continuousEnabled === undefined || settings.notifications.continuousEnabled === null) {
+    settings.notifications.continuousEnabled = false;
+  }
+  // Ensure debugMode exists
+  if (settings.debugMode === undefined) {
+    settings.debugMode = false;
+  }
+
+  return `
+          <div class="mga-section">
+              <div class="mga-section-title">🔔 Shop Alert Notifications</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get audio and visual alerts when rare seeds or eggs appear in the shop.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="notifications-enabled-checkbox" class="mga-checkbox"
+                             ${settings.notifications.enabled ? 'checked' : ''}
+                             style="accent-color: #4a9eff;">
+                      <span>🔊 Enable Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Volume: ${Math.round(settings.notifications.volume * 100)}%
+                  </label>
+                  <input type="range" class="mga-slider" id="notification-volume-slider"
+                         min="0" max="100" value="${settings.notifications.volume * 100}"
+                         style="width: 100%; accent-color: #4a9eff;">
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="notification-continuous-checkbox" class="mga-checkbox"
+                             ${settings.notifications.continuousEnabled ? 'checked' : ''}
+                             style="accent-color: #ff9900;">
+                      <span>⚠️ Enable Continuous Mode</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      Allows selection of continuous notification type that plays until acknowledged.
+                  </p>
+              </div>
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Notification Sound Type
+                  </label>
+                  <select class="mga-select" id="notification-type-select">
+                      <option value="simple" ${settings.notifications.notificationType === 'simple' ? 'selected' : ''}>🔊 Simple Beep</option>
+                      <option value="triple" ${settings.notifications.notificationType === 'triple' ? 'selected' : ''}>🔔 Triple Beep</option>
+                      <option value="alarm" ${settings.notifications.notificationType === 'alarm' ? 'selected' : ''}>🚨 Alarm Siren</option>
+                      <option value="epic" ${settings.notifications.notificationType === 'epic' ? 'selected' : ''}>🎵 Epic Fanfare</option>
+                      <option value="continuous" ${settings.notifications.notificationType === 'continuous' ? 'selected' : ''} ${!settings.notifications.continuousEnabled ? 'disabled' : ''}>⚠️ Continuous (Until Acknowledged)</option>
+                  </select>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="notification-acknowledgment-checkbox" class="mga-checkbox"
+                             ${settings.notifications.requiresAcknowledgment ? 'checked' : ''}
+                             style="accent-color: #ff4444;">
+                      <span>🚨 Require acknowledgment (persistent alert)</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      When enabled, notifications will show a modal that must be clicked to dismiss.
+                  </p>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <button class="mga-btn mga-btn-sm" id="test-notification-btn" style="background: #4a5568;">
+                      🔔 Test Notification
+                  </button>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">🎵 Custom Notification Sounds</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Upload your own .mp3/.wav/.ogg files to replace default beep sounds. Max 2MB per file.
+              </p>
+
+              <div id="custom-sounds-container" style="display: grid; gap: 12px;">
+                  <!-- Custom sound upload controls will be populated by setupNotificationsTabHandlers -->
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Seeds
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'Tulip', 'Tomato', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail', 'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'Dawnbinder', 'Moonbinder']
+                        .map(
+                          seed => `
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-${seed.toLowerCase()}" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes(seed) ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>${seed === 'BurrosTail' ? "🌱 Burro's Tail" : seed === 'Dawnbinder' ? '🌅 Dawnbinder' : seed === 'Moonbinder' ? '🌙 Moonbinder' : seed === 'Starweaver' ? '⭐ Starweaver' : '🌱 ' + seed}</span>
+                        </label>
+                    `
+                        )
+                        .join('')}
+                  </div>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Eggs
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${['CommonEgg', 'UncommonEgg', 'RareEgg', 'LegendaryEgg', 'MythicalEgg']
+                        .map(
+                          egg => `
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-${egg.toLowerCase().replace('egg', '-egg')}" class="mga-checkbox"
+                                   ${settings.notifications.watchedEggs.includes(egg) ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>🥚 ${egg.replace('Egg', ' Egg')}</span>
+                        </label>
+                    `
+                        )
+                        .join('')}
+                  </div>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Decor (Hourly Shop)
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${DECOR_ITEMS.map(
+                        decor => `
+                          <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                              <input type="checkbox" id="watch-decor-${decor.id.toLowerCase()}" class="mga-checkbox"
+                                     ${settings.notifications.watchedDecor.includes(decor.id) ? 'checked' : ''}
+                                     style="accent-color: #4a9eff; transform: scale(0.8);">
+                              <span>🎨 ${decor.name}</span>
+                          </label>
+                      `
+                      ).join('')}
+                  </div>
+              </div>
+
+              <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.15); border-radius: 4px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px; font-size: 12px;">
+                      Last Seen
+                  </label>
+                  <div id="last-seen-display" style="font-size: 11px; color: #888; line-height: 1.3;">
+                      Loading...
+                  </div>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">🐾 Pet Hunger Alerts</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get notified when your pets' hunger drops below a threshold.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="pet-hunger-enabled" class="mga-checkbox"
+                             ${settings.notifications.petHungerEnabled ? 'checked' : ''}
+                             style="accent-color: #4a9eff;">
+                      <span>🔊 Enable Pet Hunger Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Alert when hunger below: ${settings.notifications.petHungerThreshold || 20}%
+                  </label>
+                  <input type="range" class="mga-slider" id="pet-hunger-threshold"
+                         min="5" max="50" step="5" value="${settings.notifications.petHungerThreshold || 20}"
+                         style="width: 100%; accent-color: #ff9900;">
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">✨ Ability Trigger Alerts</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get notified when your pets trigger abilities. Leave all unchecked to be notified for all abilities.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="ability-notifications-enabled" class="mga-checkbox"
+                             ${settings.notifications.abilityNotificationsEnabled ? 'checked' : ''}
+                             style="accent-color: #4a9eff;">
+                      <span>🔊 Enable Ability Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Ability Sound Type
+                  </label>
+                  <select class="mga-select" id="ability-notification-sound-select"
+                          style="width: 100%; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: white; font-size: 12px;">
+                      <option value="single" ${settings.notifications.abilityNotificationSound === 'single' ? 'selected' : ''}>🔊 Single Beep (Subtle)</option>
+                      <option value="double" ${settings.notifications.abilityNotificationSound === 'double' ? 'selected' : ''}>🔔 Double Beep</option>
+                      <option value="triple" ${settings.notifications.abilityNotificationSound === 'triple' ? 'selected' : ''}>🎵 Triple Beep</option>
+                      <option value="chime" ${settings.notifications.abilityNotificationSound === 'chime' ? 'selected' : ''}>🎐 Chime (Pleasant)</option>
+                      <option value="alert" ${settings.notifications.abilityNotificationSound === 'alert' ? 'selected' : ''}>🚨 Alert (Urgent)</option>
+                      <option value="buzz" ${settings.notifications.abilityNotificationSound === 'buzz' ? 'selected' : ''}>📳 Buzz (Energetic)</option>
+                      <option value="ding" ${settings.notifications.abilityNotificationSound === 'ding' ? 'selected' : ''}>🔔 Ding (Clear)</option>
+                      <option value="chirp" ${settings.notifications.abilityNotificationSound === 'chirp' ? 'selected' : ''}>🐦 Chirp (Cute)</option>
+                      <option value="epic" ${settings.notifications.abilityNotificationSound === 'epic' ? 'selected' : ''}>🎵 Epic Fanfare</option>
+                  </select>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Ability Alert Volume: ${Math.round((settings.notifications.abilityNotificationVolume || 0.2) * 100)}%
+                  </label>
+                  <input type="range" class="mga-slider" id="ability-notification-volume-slider"
+                         min="0" max="100" value="${(settings.notifications.abilityNotificationVolume || 0.2) * 100}"
+                         style="width: 100%; accent-color: #9f7aea;">
+              </div>
+
+              <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57);">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                      📋 Which Abilities to Notify For
+                  </label>
+                  <p style="font-size: 11px; color: #888; margin-bottom: 8px;">
+                      Select individual abilities that will trigger notifications. All abilities start enabled by default.
+                  </p>
+
+                  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                      <button id="select-all-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select All</button>
+                      <button id="select-none-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select None</button>
+                  </div>
+
+                  <input type="text" id="ability-search-box" placeholder="🔍 Search abilities..."
+                         style="width: 100%; padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: #fff; font-size: 12px;">
+
+                  <div id="individual-abilities-notification-list" style="display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 400px; overflow-y: auto; padding: 4px;">
+                      <!-- Ability checkboxes will be populated by handler -->
+                  </div>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">🌤️ Weather Event Alerts</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get notified when weather events occur in the game.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="weather-notifications-enabled" class="mga-checkbox"
+                             ${settings.notifications.weatherNotificationsEnabled ? 'checked' : ''}
+                             style="accent-color: #4a9eff;">
+                      <span>🔊 Enable Weather Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Weather Events
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${['Snow', 'Rain', 'AmberMoon', 'Dawn']
+                        .map(
+                          (weather, idx) => `
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-${weather.toLowerCase().replace('ambermoon', 'amber-moon')}" class="mga-checkbox"
+                                   ${settings.notifications.watchedWeatherEvents.includes(weather) ? 'checked' : ''}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>${idx === 0 ? '❄️' : idx === 1 ? '🌧️' : idx === 2 ? '🌙' : '🌅'} ${weather === 'AmberMoon' ? 'Amber Moon' : weather}</span>
+                        </label>
+                    `
+                        )
+                        .join('')}
+                  </div>
+              </div>
+          </div>
+      `;
+}
+
+/**
+ * Setup notifications tab event handlers
+ * Configures all event listeners for notification settings controls
+ * Handles shop alerts, pet hunger, ability triggers, weather events, and custom sounds
+ *
+ * @param {Document|Element} context - DOM context to search for elements (default: document)
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @param {Function} [dependencies.MGA_saveJSON] - JSON save function
+ * @param {Function} [dependencies.productionLog] - Production logging function
+ * @param {Function} [dependencies.productionWarn] - Production warning function
+ * @param {Function} [dependencies.playSelectedNotification] - Play selected notification function
+ * @param {Function} [dependencies.queueNotification] - Queue notification function
+ * @param {Function} [dependencies.showVisualNotification] - Show visual notification function
+ * @param {Function} [dependencies.getTimeSinceLastSeen] - Get time since last seen function
+ * @param {Function} [dependencies.scanAndAlertHungryPets] - Scan and alert hungry pets function
+ * @param {Array} [dependencies.DECOR_ITEMS] - Decor items constant
+ * @param {Function} [dependencies.GM_getValue] - GM getValue function
+ * @param {Function} [dependencies.GM_setValue] - GM setValue function
+ * @param {Function} [dependencies.GM_deleteValue] - GM deleteValue function
+ */
+export function setupNotificationsTabHandlers(context = document, dependencies = {}) {
+  const {
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    MGA_saveJSON = typeof window !== 'undefined' && window.MGA_saveJSON,
+    productionLog = console.log,
+    productionWarn = console.warn,
+    playSelectedNotification: playSelectedFn = playSelectedNotification,
+    queueNotification: queueNotificationFn = queueNotification,
+    showVisualNotification: showVisualFn = showVisualNotification,
+    getTimeSinceLastSeen: getTimeSinceFn = getTimeSinceLastSeen,
+    scanAndAlertHungryPets = typeof window !== 'undefined' && window.scanAndAlertHungryPets,
+    DECOR_ITEMS = typeof window !== 'undefined' && window.DECOR_ITEMS ? window.DECOR_ITEMS : [],
+    GM_getValue = typeof window !== 'undefined' && window.GM_getValue,
+    GM_setValue = typeof window !== 'undefined' && window.GM_setValue,
+    GM_deleteValue = typeof window !== 'undefined' && window.GM_deleteValue
+  } = dependencies;
+
+  // Notification enabled checkbox
+  const notificationEnabledCheckbox = context.querySelector('#notifications-enabled-checkbox');
+  if (notificationEnabledCheckbox && !notificationEnabledCheckbox.hasAttribute('data-handler-setup')) {
+    notificationEnabledCheckbox.setAttribute('data-handler-setup', 'true');
+    notificationEnabledCheckbox.addEventListener('change', e => {
+      UnifiedState.data.settings.notifications.enabled = e.target.checked;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`🔔 [NOTIFICATIONS] ${e.target.checked ? 'Enabled' : 'Disabled'} notifications`);
+    });
+  }
+
+  // Volume slider
+  const volumeSlider = context.querySelector('#notification-volume-slider');
+  if (volumeSlider && !volumeSlider.hasAttribute('data-handler-setup')) {
+    volumeSlider.setAttribute('data-handler-setup', 'true');
+    volumeSlider.addEventListener('input', e => {
+      const volume = parseInt(e.target.value) / 100;
+      UnifiedState.data.settings.notifications.volume = volume;
+      // Update label
+      const label = volumeSlider.previousElementSibling;
+      label.textContent = `Volume: ${Math.round(volume * 100)}%`;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+    });
+  }
+
+  // Enable Continuous Mode checkbox
+  const continuousCheckbox = context.querySelector('#notification-continuous-checkbox');
+  if (continuousCheckbox && !continuousCheckbox.hasAttribute('data-handler-setup')) {
+    continuousCheckbox.setAttribute('data-handler-setup', 'true');
+
+    // On load: if continuous is already enabled, lock acknowledgment checkbox
+    if (UnifiedState.data.settings.notifications.continuousEnabled) {
+      const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+      if (acknowledgmentCheckbox) {
+        acknowledgmentCheckbox.checked = true;
+        acknowledgmentCheckbox.disabled = true;
+        UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+      }
+
+      // CRITICAL: Also ensure dropdown is set to continuous if checkbox is checked
+      const notificationTypeSelect = context.querySelector('#notification-type-select');
+      if (notificationTypeSelect) {
+        notificationTypeSelect.value = 'continuous';
+        UnifiedState.data.settings.notifications.notificationType = 'continuous';
+        productionLog('🔊 [NOTIFICATIONS] Auto-selected continuous in dropdown (checkbox was checked on load)');
+      }
+    }
+
+    continuousCheckbox.addEventListener('change', e => {
+      UnifiedState.data.settings.notifications.continuousEnabled = e.target.checked;
+
+      // When enabling continuous mode, force acknowledgment to be enabled AND disabled (locked)
+      const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+      if (acknowledgmentCheckbox) {
+        if (e.target.checked) {
+          acknowledgmentCheckbox.checked = true;
+          acknowledgmentCheckbox.disabled = true; // Lock it on
+          UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+          productionLog(`🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+        } else {
+          acknowledgmentCheckbox.disabled = false; // Unlock when continuous is off
+        }
+      }
+
+      // Update dropdown state
+      const notificationTypeSelect = context.querySelector('#notification-type-select');
+      if (notificationTypeSelect) {
+        const continuousOption = notificationTypeSelect.querySelector('option[value="continuous"]');
+        if (continuousOption) {
+          continuousOption.disabled = !e.target.checked;
+
+          if (e.target.checked) {
+            // When checking: Save current selection and auto-select continuous
+            if (notificationTypeSelect.value !== 'continuous') {
+              UnifiedState.data.settings.notifications.previousNotificationType = notificationTypeSelect.value;
+              notificationTypeSelect.value = 'continuous';
+              UnifiedState.data.settings.notifications.notificationType = 'continuous';
+              productionLog(
+                `🔊 [NOTIFICATIONS] Saved previous type (${UnifiedState.data.settings.notifications.previousNotificationType}), auto-selected continuous`
+              );
+            }
+          } else {
+            // When unchecking: Restore previous selection (or default to epic)
+            if (notificationTypeSelect.value === 'continuous') {
+              const previousType = UnifiedState.data.settings.notifications.previousNotificationType || 'epic';
+              notificationTypeSelect.value = previousType;
+              UnifiedState.data.settings.notifications.notificationType = previousType;
+              productionLog(`🔊 [NOTIFICATIONS] Continuous mode disabled, reverted to ${previousType}`);
+            }
+          }
+        }
+      }
+
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`⚠️ [NOTIFICATIONS] Continuous mode enabled: ${e.target.checked}`);
+    });
+  }
+
+  // Notification type selector
+  const notificationTypeSelect = context.querySelector('#notification-type-select');
+  if (notificationTypeSelect && !notificationTypeSelect.hasAttribute('data-handler-setup')) {
+    notificationTypeSelect.setAttribute('data-handler-setup', 'true');
+
+    // Explicitly restore saved value (defensive - ensures dropdown matches saved state)
+    const savedNotificationType = UnifiedState.data.settings.notifications.notificationType || 'epic';
+    notificationTypeSelect.value = savedNotificationType;
+    productionLog(`🔊 [NOTIFICATIONS] Restored notification type to: ${savedNotificationType}`);
+
+    // On load: if continuous type is selected, lock acknowledgment checkbox
+    if (UnifiedState.data.settings.notifications.notificationType === 'continuous') {
+      const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+      if (acknowledgmentCheckbox) {
+        acknowledgmentCheckbox.checked = true;
+        acknowledgmentCheckbox.disabled = true;
+        UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+      }
+    }
+
+    notificationTypeSelect.addEventListener('change', e => {
+      // Prevent selecting continuous if not enabled
+      if (e.target.value === 'continuous' && !UnifiedState.data.settings.notifications.continuousEnabled) {
+        e.target.value = UnifiedState.data.settings.notifications.notificationType || 'epic';
+        productionWarn(`⚠️ [NOTIFICATIONS] Cannot select continuous mode - please enable it first`);
+        showVisualFn('⚠️ Please enable Continuous Mode checkbox first', false, dependencies);
+        return;
+      }
+
+      UnifiedState.data.settings.notifications.notificationType = e.target.value;
+
+      // When selecting continuous, force acknowledgment to be enabled AND locked
+      const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+      if (acknowledgmentCheckbox) {
+        if (e.target.value === 'continuous') {
+          acknowledgmentCheckbox.checked = true;
+          acknowledgmentCheckbox.disabled = true; // Lock it on
+          UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
+          productionLog(
+            `🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`
+          );
+        } else {
+          // When changing away from continuous, unlock the acknowledgment checkbox
+          // (unless continuous mode checkbox is still enabled)
+          if (!UnifiedState.data.settings.notifications.continuousEnabled) {
+            acknowledgmentCheckbox.disabled = false;
+          }
+        }
+      }
+
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`🔊 [NOTIFICATIONS] Sound type changed to: ${e.target.value}`);
+    });
+  }
+
+  // Acknowledgment required checkbox
+  const acknowledgmentCheckbox = context.querySelector('#notification-acknowledgment-checkbox');
+  if (acknowledgmentCheckbox && !acknowledgmentCheckbox.hasAttribute('data-handler-setup')) {
+    acknowledgmentCheckbox.setAttribute('data-handler-setup', 'true');
+
+    // Explicitly restore saved value
+    acknowledgmentCheckbox.checked = UnifiedState.data.settings.notifications.requiresAcknowledgment || false;
+    productionLog(`🚨 [NOTIFICATIONS] Restored acknowledgment checkbox to: ${acknowledgmentCheckbox.checked}`);
+
+    acknowledgmentCheckbox.addEventListener('change', e => {
+      UnifiedState.data.settings.notifications.requiresAcknowledgment = e.target.checked;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`🚨 [NOTIFICATIONS] Require acknowledgment: ${e.target.checked}`);
+    });
+  }
+
+  // Test notification button
+  const testNotificationBtn = context.querySelector('#test-notification-btn');
+  if (testNotificationBtn && !testNotificationBtn.hasAttribute('data-handler-setup')) {
+    testNotificationBtn.setAttribute('data-handler-setup', 'true');
+    testNotificationBtn.addEventListener('click', () => {
+      const notifications = UnifiedState.data.settings.notifications;
+      playSelectedFn(dependencies);
+      queueNotificationFn(
+        '🔔 Test notification - This is how alerts will look!',
+        notifications.requiresAcknowledgment,
+        dependencies
+      );
+      productionLog(
+        `🔔 [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`
+      );
+    });
+  }
+
+  // Seed watch checkboxes
+  const seedWatchMap = {
+    'watch-carrot': 'Carrot',
+    'watch-strawberry': 'Strawberry',
+    'watch-aloe': 'Aloe',
+    'watch-blueberry': 'Blueberry',
+    'watch-apple': 'Apple',
+    'watch-tulip': 'Tulip',
+    'watch-tomato': 'Tomato',
+    'watch-daffodil': 'Daffodil',
+    'watch-corn': 'Corn',
+    'watch-watermelon': 'Watermelon',
+    'watch-pumpkin': 'Pumpkin',
+    'watch-echeveria': 'Echeveria',
+    'watch-coconut': 'Coconut',
+    'watch-banana': 'Banana',
+    'watch-lily': 'Lily',
+    'watch-burrostail': 'BurrosTail',
+    'watch-mushroom': 'Mushroom',
+    'watch-cactus': 'Cactus',
+    'watch-bamboo': 'Bamboo',
+    'watch-grape': 'Grape',
+    'watch-pepper': 'Pepper',
+    'watch-lemon': 'Lemon',
+    'watch-passionfruit': 'PassionFruit',
+    'watch-dragonfruit': 'DragonFruit',
+    'watch-lychee': 'Lychee',
+    'watch-sunflower': 'Sunflower',
+    'watch-starweaver': 'Starweaver',
+    'watch-dawnbinder': 'Dawnbinder',
+    'watch-moonbinder': 'Moonbinder'
+  };
+
+  Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
+    const checkbox = context.querySelector(`#${checkboxId}`);
+    if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+      checkbox.setAttribute('data-handler-setup', 'true');
+      checkbox.addEventListener('change', e => {
+        const notifications = UnifiedState.data.settings.notifications;
+        if (e.target.checked) {
+          if (!notifications.watchedSeeds.includes(seedId)) {
+            notifications.watchedSeeds.push(seedId);
+          }
+        } else {
+          notifications.watchedSeeds = notifications.watchedSeeds.filter(id => id !== seedId);
+        }
+        MGA_saveJSON('MGA_data', UnifiedState.data);
+        productionLog(`🌱 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${seedId} to/from watch list`);
+        updateLastSeenDisplay();
+      });
+    }
+  });
+
+  // Egg watch checkboxes
+  const eggWatchMap = {
+    'watch-common-egg': 'CommonEgg',
+    'watch-uncommon-egg': 'UncommonEgg',
+    'watch-rare-egg': 'RareEgg',
+    'watch-legendary-egg': 'LegendaryEgg',
+    'watch-mythical-egg': 'MythicalEgg'
+  };
+
+  Object.entries(eggWatchMap).forEach(([checkboxId, eggId]) => {
+    const checkbox = context.querySelector(`#${checkboxId}`);
+    if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+      checkbox.setAttribute('data-handler-setup', 'true');
+      checkbox.addEventListener('change', e => {
+        const notifications = UnifiedState.data.settings.notifications;
+        if (e.target.checked) {
+          if (!notifications.watchedEggs.includes(eggId)) {
+            notifications.watchedEggs.push(eggId);
+          }
+        } else {
+          notifications.watchedEggs = notifications.watchedEggs.filter(id => id !== eggId);
+        }
+        MGA_saveJSON('MGA_data', UnifiedState.data);
+        productionLog(`🥚 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${eggId} to/from watch list`);
+        updateLastSeenDisplay();
+      });
+    }
+  });
+
+  // Decor watch checkboxes
+  DECOR_ITEMS.forEach(decor => {
+    const checkboxId = `watch-decor-${decor.id.toLowerCase()}`;
+    const checkbox = context.querySelector(`#${checkboxId}`);
+    if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+      checkbox.setAttribute('data-handler-setup', 'true');
+      checkbox.addEventListener('change', e => {
+        const notifications = UnifiedState.data.settings.notifications;
+        if (e.target.checked) {
+          if (!notifications.watchedDecor.includes(decor.id)) {
+            notifications.watchedDecor.push(decor.id);
+          }
+        } else {
+          notifications.watchedDecor = notifications.watchedDecor.filter(id => id !== decor.id);
+        }
+        MGA_saveJSON('MGA_data', UnifiedState.data);
+        productionLog(`🎨 [NOTIFICATIONS] ${e.target.checked ? 'Added' : 'Removed'} ${decor.id} to/from watch list`);
+        updateLastSeenDisplay();
+      });
+    }
+  });
+
+  // Update last seen display function
+  function updateLastSeenDisplay() {
+    const lastSeenDisplay = context.querySelector('#last-seen-display');
+    if (!lastSeenDisplay) return;
+
+    const notifications = UnifiedState.data.settings.notifications;
+    const allWatched = [...notifications.watchedSeeds, ...notifications.watchedEggs, ...notifications.watchedDecor];
+
+    if (allWatched.length === 0) {
+      lastSeenDisplay.innerHTML = 'No items being watched';
+      return;
+    }
+
+    let html = '';
+    allWatched.forEach(itemId => {
+      const timeSince = getTimeSinceFn(itemId, dependencies);
+      html += `<div>${itemId}: ${timeSince}</div>`;
+    });
+
+    lastSeenDisplay.innerHTML = html;
+  }
+
+  // Initial last seen update
+  updateLastSeenDisplay();
+
+  // Update last seen display every 30 seconds
+  setInterval(updateLastSeenDisplay, 30000);
+
+  // ==================== NEW NOTIFICATION HANDLERS ====================
+
+  // Pet hunger enabled checkbox
+  const petHungerCheckbox = context.querySelector('#pet-hunger-enabled');
+  if (petHungerCheckbox && !petHungerCheckbox.hasAttribute('data-handler-setup')) {
+    petHungerCheckbox.setAttribute('data-handler-setup', 'true');
+    petHungerCheckbox.addEventListener('change', e => {
+      UnifiedState.data.settings.notifications.petHungerEnabled = e.target.checked;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`🐾 [PET-HUNGER] ${e.target.checked ? 'Enabled' : 'Disabled'} pet hunger notifications`);
+
+      // BUGFIX: Scan for currently hungry pets when enabling alerts
+      if (e.target.checked && scanAndAlertHungryPets) {
+        // Delay slightly to ensure atoms are available
+        setTimeout(() => {
+          scanAndAlertHungryPets();
+        }, 500);
+      }
+    });
+  }
+
+  // Pet hunger threshold slider
+  const petHungerThreshold = context.querySelector('#pet-hunger-threshold');
+  if (petHungerThreshold && !petHungerThreshold.hasAttribute('data-handler-setup')) {
+    petHungerThreshold.setAttribute('data-handler-setup', 'true');
+    petHungerThreshold.addEventListener('input', e => {
+      const threshold = parseInt(e.target.value);
+      UnifiedState.data.settings.notifications.petHungerThreshold = threshold;
+      // Update label
+      const label = petHungerThreshold.previousElementSibling;
+      label.textContent = `Alert when hunger below: ${threshold}%`;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`🐾 [PET-HUNGER] Threshold set to ${threshold}%`);
+    });
+  }
+
+  // Ability notifications enabled checkbox
+  const abilityNotificationsCheckbox = context.querySelector('#ability-notifications-enabled');
+  if (abilityNotificationsCheckbox && !abilityNotificationsCheckbox.hasAttribute('data-handler-setup')) {
+    abilityNotificationsCheckbox.setAttribute('data-handler-setup', 'true');
+    abilityNotificationsCheckbox.addEventListener('change', e => {
+      UnifiedState.data.settings.notifications.abilityNotificationsEnabled = e.target.checked;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`✨ [ABILITY-NOTIFY] ${e.target.checked ? 'Enabled' : 'Disabled'} ability notifications`);
+    });
+  }
+
+  // Ability notification sound type selector
+  const abilityNotificationSoundSelect = context.querySelector('#ability-notification-sound-select');
+  if (abilityNotificationSoundSelect && !abilityNotificationSoundSelect.hasAttribute('data-handler-setup')) {
+    abilityNotificationSoundSelect.setAttribute('data-handler-setup', 'true');
+    abilityNotificationSoundSelect.addEventListener('change', e => {
+      UnifiedState.data.settings.notifications.abilityNotificationSound = e.target.value;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`✨ [ABILITY-NOTIFY] Sound type changed to: ${e.target.value}`);
+    });
+  }
+
+  // Ability notification volume slider
+  const abilityVolumeSlider = context.querySelector('#ability-notification-volume-slider');
+  if (abilityVolumeSlider && !abilityVolumeSlider.hasAttribute('data-handler-setup')) {
+    abilityVolumeSlider.setAttribute('data-handler-setup', 'true');
+    abilityVolumeSlider.addEventListener('input', e => {
+      const volume = parseInt(e.target.value) / 100;
+      UnifiedState.data.settings.notifications.abilityNotificationVolume = volume;
+      // Update label
+      const label = abilityVolumeSlider.previousElementSibling;
+      label.textContent = `Ability Alert Volume: ${Math.round(volume * 100)}%`;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+    });
+  }
+
+  // Individual ability checkboxes
+  const individualAbilityCheckboxes = context.querySelectorAll('.individual-ability-checkbox');
+  individualAbilityCheckboxes.forEach(checkbox => {
+    if (!checkbox.hasAttribute('data-handler-setup')) {
+      checkbox.setAttribute('data-handler-setup', 'true');
+      checkbox.addEventListener('change', e => {
+        const abilityName = e.target.dataset.abilityName;
+        if (!UnifiedState.data.settings.notifications.watchedAbilities) {
+          UnifiedState.data.settings.notifications.watchedAbilities = [];
+        }
+
+        if (e.target.checked) {
+          // Add to watched list
+          if (!UnifiedState.data.settings.notifications.watchedAbilities.includes(abilityName)) {
+            UnifiedState.data.settings.notifications.watchedAbilities.push(abilityName);
+          }
+        } else {
+          // Remove from watched list
+          const index = UnifiedState.data.settings.notifications.watchedAbilities.indexOf(abilityName);
+          if (index > -1) {
+            UnifiedState.data.settings.notifications.watchedAbilities.splice(index, 1);
+          }
+        }
+
+        MGA_saveJSON('MGA_data', UnifiedState.data);
+        productionLog(`✨ [ABILITY-NOTIFY] ${abilityName}: ${e.target.checked ? 'Enabled' : 'Disabled'}`);
+      });
+    }
+  });
+
+  // Ability search box
+  const abilitySearchBox = context.querySelector('#ability-search-box');
+  if (abilitySearchBox && !abilitySearchBox.hasAttribute('data-handler-setup')) {
+    abilitySearchBox.setAttribute('data-handler-setup', 'true');
+    abilitySearchBox.addEventListener('input', e => {
+      const query = e.target.value.toLowerCase();
+      const items = context.querySelectorAll('.ability-checkbox-item');
+      items.forEach(item => {
+        const abilityName = item.dataset.ability.toLowerCase();
+        item.style.display = abilityName.includes(query) ? 'flex' : 'none';
+      });
+    });
+  }
+
+  // Select All individual abilities button
+  const selectAllIndividualAbilities = context.querySelector('#select-all-individual-abilities');
+  if (selectAllIndividualAbilities && !selectAllIndividualAbilities.hasAttribute('data-handler-setup')) {
+    selectAllIndividualAbilities.setAttribute('data-handler-setup', 'true');
+    selectAllIndividualAbilities.addEventListener('click', () => {
+      // Empty array means all abilities enabled (backward compatibility)
+      UnifiedState.data.settings.notifications.watchedAbilities = [];
+
+      // Update all checkboxes
+      context.querySelectorAll('.individual-ability-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+      });
+
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog('✨ [ABILITY-NOTIFY] Enabled all abilities');
+    });
+  }
+
+  // Select None individual abilities button
+  const selectNoneIndividualAbilities = context.querySelector('#select-none-individual-abilities');
+  if (selectNoneIndividualAbilities && !selectNoneIndividualAbilities.hasAttribute('data-handler-setup')) {
+    selectNoneIndividualAbilities.setAttribute('data-handler-setup', 'true');
+    selectNoneIndividualAbilities.addEventListener('click', () => {
+      // Get all ability names
+      const allAbilities = [];
+      context.querySelectorAll('.individual-ability-checkbox').forEach(checkbox => {
+        allAbilities.push(checkbox.dataset.abilityName);
+      });
+
+      // Set watchedAbilities to opposite - if we want none, we list all then check against not-in-list
+      // Actually, better approach: use a special flag or empty means all, populated means only those
+      // For "none", we need a way to indicate "empty set of abilities"
+      // Let's use: populated array with abilities = only those; empty array = all; null = none
+      UnifiedState.data.settings.notifications.watchedAbilities = ['__NONE__']; // Special marker
+
+      // Update all checkboxes
+      context.querySelectorAll('.individual-ability-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog('✨ [ABILITY-NOTIFY] Disabled all abilities');
+    });
+  }
+
+  // Weather notifications enabled checkbox
+  const weatherNotificationsCheckbox = context.querySelector('#weather-notifications-enabled');
+  if (weatherNotificationsCheckbox && !weatherNotificationsCheckbox.hasAttribute('data-handler-setup')) {
+    weatherNotificationsCheckbox.setAttribute('data-handler-setup', 'true');
+    weatherNotificationsCheckbox.addEventListener('change', e => {
+      UnifiedState.data.settings.notifications.weatherNotificationsEnabled = e.target.checked;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+      productionLog(`🌤️ [WEATHER] ${e.target.checked ? 'Enabled' : 'Disabled'} weather notifications`);
+    });
+  }
+
+  // Weather event checkboxes
+  const weatherEventMap = {
+    'watch-snow': 'Snow',
+    'watch-rain': 'Rain',
+    'watch-amber-moon': 'AmberMoon',
+    'watch-dawn': 'Dawn'
+  };
+
+  Object.entries(weatherEventMap).forEach(([checkboxId, eventName]) => {
+    const checkbox = context.querySelector(`#${checkboxId}`);
+    if (checkbox && !checkbox.hasAttribute('data-handler-setup')) {
+      checkbox.setAttribute('data-handler-setup', 'true');
+      checkbox.addEventListener('change', e => {
+        const watchedEvents = UnifiedState.data.settings.notifications.watchedWeatherEvents;
+        if (e.target.checked) {
+          if (!watchedEvents.includes(eventName)) {
+            watchedEvents.push(eventName);
+          }
+        } else {
+          const idx = watchedEvents.indexOf(eventName);
+          if (idx > -1) watchedEvents.splice(idx, 1);
+        }
+        MGA_saveJSON('MGA_data', UnifiedState.data);
+        productionLog(`🌤️ [WEATHER] ${e.target.checked ? 'Added' : 'Removed'} ${eventName} to/from watch list`);
+      });
+    }
+  });
+
+  // ========== CUSTOM NOTIFICATION SOUNDS ==========
+  const customSoundsContainer = context.querySelector('#custom-sounds-container');
+  if (customSoundsContainer && !customSoundsContainer.hasAttribute('data-handler-setup')) {
+    customSoundsContainer.setAttribute('data-handler-setup', 'true');
+
+    const soundTypes = [
+      { id: 'shop', label: '🛒 Shop Alerts' },
+      { id: 'pet', label: '🐾 Pet Hunger' },
+      { id: 'ability', label: '⚡ Ability Triggers' },
+      { id: 'weather', label: '🌤️ Weather Events' }
+    ];
+
+    soundTypes.forEach(type => {
+      const hasCustom = GM_getValue(`mgtools_custom_sound_${type.id}`, null) !== null;
+
+      const controlDiv = document.createElement('div');
+      controlDiv.style.cssText =
+        'border: 1px solid rgba(255, 255, 255, 0.57); padding: 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.48);';
+      controlDiv.innerHTML = `
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label class="mga-label" style="margin: 0;">${type.label}</label>
+                      <span id="custom-sound-status-${type.id}" style="font-size: 10px; color: ${hasCustom ? '#10b981' : '#666'};">
+                          ${hasCustom ? '✓ Custom' : '○ Default'}
+                      </span>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                      <input type="file" accept="audio/*" id="upload-sound-${type.id}" style="display: none;">
+                      <button class="mga-btn mga-btn-sm" id="upload-btn-${type.id}" style="flex: 1; background: #4a9eff; font-size: 11px; padding: 6px;">📁 Upload</button>
+                      <button class="mga-btn mga-btn-sm" id="test-btn-${type.id}" style="flex: 0.6; background: #10b981; font-size: 11px; padding: 6px;">▶️ Test</button>
+                      <button class="mga-btn mga-btn-sm" id="delete-btn-${type.id}" style="flex: 0.6; background: ${hasCustom ? '#ef4444' : '#666'}; font-size: 11px; padding: 6px;" ${!hasCustom ? 'disabled' : ''}>🗑️</button>
+                  </div>
+              `;
+      customSoundsContainer.appendChild(controlDiv);
+
+      const uploadBtn = controlDiv.querySelector(`#upload-btn-${type.id}`);
+      const fileInput = controlDiv.querySelector(`#upload-sound-${type.id}`);
+      uploadBtn.addEventListener('click', () => fileInput.click());
+
+      fileInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+          alert('❌ File too large! Max 2MB');
+          return;
+        }
+        if (!file.type.startsWith('audio/')) {
+          alert('❌ Please upload an audio file');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = event => {
+          GM_setValue(`mgtools_custom_sound_${type.id}`, event.target.result);
+          controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = '✓ Custom';
+          controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = '#10b981';
+          const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
+          delBtn.disabled = false;
+          delBtn.style.background = '#ef4444';
+          productionLog(`🎵 [CUSTOM-SOUND] Uploaded: ${type.id}`);
+          alert(`✅ Custom sound uploaded!`);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      controlDiv.querySelector(`#test-btn-${type.id}`).addEventListener('click', () => {
+        const customSound = GM_getValue(`mgtools_custom_sound_${type.id}`, null);
+        const volume = UnifiedState.data.settings.notifications.volume || 0.3;
+        if (customSound) {
+          const audio = new Audio(customSound);
+          audio.volume = volume;
+          audio.play();
+        } else {
+          playSelectedFn(dependencies);
+        }
+      });
+
+      controlDiv.querySelector(`#delete-btn-${type.id}`).addEventListener('click', () => {
+        if (confirm(`Delete custom sound for ${type.label}?`)) {
+          GM_deleteValue(`mgtools_custom_sound_${type.id}`);
+          controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = '○ Default';
+          controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = '#666';
+          const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
+          delBtn.disabled = true;
+          delBtn.style.background = '#666';
+          alert(`✅ Reverted to default sound`);
+        }
+      });
+    });
   }
 }
 
