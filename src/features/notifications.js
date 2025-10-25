@@ -1279,7 +1279,37 @@ export function getNotificationsTabContent(dependencies = {}) {
                       Watched Seeds
                   </label>
                   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
-                      ${['Carrot', 'Strawberry', 'Aloe', 'Blueberry', 'Apple', 'Tulip', 'Tomato', 'Daffodil', 'Corn', 'Watermelon', 'Pumpkin', 'Echeveria', 'Coconut', 'Banana', 'Lily', 'BurrosTail', 'Mushroom', 'Cactus', 'Bamboo', 'Grape', 'Pepper', 'Lemon', 'PassionFruit', 'DragonFruit', 'Lychee', 'Sunflower', 'Starweaver', 'Dawnbinder', 'Moonbinder']
+                      ${[
+                        'Carrot',
+                        'Strawberry',
+                        'Aloe',
+                        'Blueberry',
+                        'Apple',
+                        'Tulip',
+                        'Tomato',
+                        'Daffodil',
+                        'Corn',
+                        'Watermelon',
+                        'Pumpkin',
+                        'Echeveria',
+                        'Coconut',
+                        'Banana',
+                        'Lily',
+                        'BurrosTail',
+                        'Mushroom',
+                        'Cactus',
+                        'Bamboo',
+                        'Grape',
+                        'Pepper',
+                        'Lemon',
+                        'PassionFruit',
+                        'DragonFruit',
+                        'Lychee',
+                        'Sunflower',
+                        'Starweaver',
+                        'Dawnbinder',
+                        'Moonbinder'
+                      ]
                         .map(
                           seed => `
                         <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
@@ -1643,9 +1673,7 @@ export function setupNotificationsTabHandlers(context = document, dependencies =
           acknowledgmentCheckbox.checked = true;
           acknowledgmentCheckbox.disabled = true; // Lock it on
           UnifiedState.data.settings.notifications.requiresAcknowledgment = true;
-          productionLog(
-            `🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`
-          );
+          productionLog(`🚨 [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
         } else {
           // When changing away from continuous, unlock the acknowledgment checkbox
           // (unless continuous mode checkbox is still enabled)
