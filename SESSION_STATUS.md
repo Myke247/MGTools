@@ -10,7 +10,7 @@
 
 **Phase 5 - Notification System Extraction**
 
-**Progress:** 35% complete (~320 of ~800-1000 lines extracted)
+**Progress:** 75% complete (~700 of ~800-1000 lines extracted)
 
 ---
 
@@ -18,15 +18,27 @@
 
 ### Session: 2025-10-24 (Day 2 - Notification System Extraction)
 
-**Latest Work (Session 11):**
+**Latest Work (Session 12):**
+- ✅ Extracted Visual Notifications (~380 lines)
+  - `queueNotification()` - Queue system with 2-second batching
+  - `updateNotificationModal()` - Update existing modal
+  - `generateNotificationListHTML()` - Generate queue HTML
+  - `showBatchedNotificationModal()` - Batched modal display
+  - `dismissAllNotifications()` - Dismiss and cleanup
+  - `showVisualNotification()` - Toast/modal with animations
+  - Module-level state management (queue, modal tracking, timer)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+
+**Progress:** 35% → 75% (+40%)
+
+**Earlier Work (Session 11):**
 - ✅ Extracted Custom Sound Wrappers (~120 lines)
   - `playCustomOrDefaultSound()` - Core wrapper utility (GM storage integration)
   - `playGeneralNotificationSound()` - General notification wrapper
   - `playShopNotificationSound()` - Shop-specific wrapper
   - `playWeatherNotificationSound()` - Weather-specific wrapper
   - NOTE: Pet/ability wrappers already in pets.js
-- ✅ All code passes ESLint + Prettier
-- ✅ Both builds verified (mirror + modular)
 
 **Progress:** 20% → 35% (+15%)
 
@@ -348,7 +360,7 @@
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
 ### Notification Extraction Work (Current Session)
-- `src/features/notifications.js` - Notification module (506 lines, 35% complete)
+- `src/features/notifications.js` - Notification module (977 lines, 75% complete)
 
 ### Pet Extraction Work (Previous Session - COMPLETE)
 - `src/features/pets.js` - **Pet module (5,225 lines, 100% COMPLETE!)** ✅
@@ -400,9 +412,9 @@ All systems operational:
 
 **Notification extraction in progress:**
 - File: `src/features/notifications.js`
-- Status: 35% complete - Core sound system + custom sound wrappers extracted
-- Progress: ~320 of ~800-1000 lines extracted
-- Next: Extract visual notifications (toasts, modals), UI components
+- Status: 75% complete - Sounds + visual notifications extracted
+- Progress: ~700 of ~800-1000 lines extracted
+- Next: Extract UI tab content and settings handlers (final phase)
 
 **Pet extraction complete!** (Previous session)
 - File: `src/features/pets.js`
