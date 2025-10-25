@@ -2,8 +2,8 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `2edab13` - feat: UI Overlay Phase 2 - Main UI Creation complete (~839 lines)
-**Uncommitted Work:** None (Phase 2 complete and committed)
+**Latest Commit:** `e6c6c9c` - feat: UI Overlay Phases 3+4 - Sidebar, Popout & Overlay System complete (~2,548 lines)
+**Uncommitted Work:** None (Phases 1-4 complete, Phase 5 optional)
 
 ---
 
@@ -25,9 +25,9 @@
 **Environment Detection:** 100% complete (~305 lines extracted)
 **Modal Detection & Debug:** 100% complete (~350 lines extracted)
 
-**Latest:** UI Overlay System - Phase 1 & 2 COMPLETE! ✅ (20% → 44% progress)
+**Latest:** UI Overlay System - Phases 1-4 COMPLETE! 🎉 (20% → 99% progress)
 
-**Total Extracted:** ~13,561+ lines across 12+ systems (UI Overlay extraction ongoing)
+**Total Extracted:** ~16,109+ lines across 12+ systems (UI Overlay essentially complete!)
 
 ---
 
@@ -71,17 +71,124 @@
 - cleanupCorruptedDockPosition() - Fix corrupted position data
 - **STATUS:** Fully modularized with dependency injection pattern
 
-**Phase 3: Sidebar & Popout Management** ⏸️ PENDING (~523 lines)
-**Phase 4: Overlay System** ⏸️ PENDING (~1,505 lines)
-**Phase 5: Tab Content Cache** ⏸️ PENDING (~45+ lines)
+**Phase 3: Sidebar & Popout Management** ✅ **COMPLETE** (~600 lines)
+- openSidebarTab() - Open/switch sidebar tabs
+- openPopoutWidget() - Legacy popout widgets
+- makePopoutDraggable() - Draggable popout functionality
+- openTabInSeparateWindow() - Separate window popouts (~300 lines)
+- toggleTabPopout() - Toggle popout on/off
+- updatePopoutButtonState() - Button visual state
+- refreshSeparateWindowPopouts() - Refresh window popouts
+- closeAllPopouts() - Close all popouts
+- getPetsPopoutContent() - Pets popout content
+- setupPetPopoutHandlers() - Pets popout handlers
+- + 2 more utility functions
 
-**Module Status:** src/ui/overlay.js - 1,601 lines (Phases 1 & 2 complete)
-**Progress:** ~44% complete (Phases 1-2 done: ~1,561 lines extracted)
-**Next Steps:** Extract Phase 3: Sidebar & Popout Management (~523 lines)
+**Phase 4: In-Game Overlay System** ✅ **COMPLETE** (~1,500 lines)
+- createInGameOverlay() - Content-only overlay creation (~300 lines)
+- makeEntireOverlayDraggable() - Invisible drag system (~130 lines)
+- closeInGameOverlay() - Close overlay
+- updatePureOverlayContent() - Update overlay content (~150 lines)
+- setupPureOverlayHandlers() - Setup overlay handlers (~60 lines)
+- refreshOverlayContent() - Refresh overlay
+- updateOverlayContent() - Legacy overlay update
+- setupOverlayHandlers() - Legacy overlay handlers
+- getContentForTab() - Get tab content
+
+**Position & Dimension Management** ✅ **COMPLETE** (~450 lines)
+- getGameViewport() - Game viewport bounds
+- findOptimalPosition() - Smart positioning with collision avoidance (~120 lines)
+- findPositionInZone() - Position in zone
+- hasCollisionAtPosition() - Collision detection
+- overlapsMainHUD() - HUD overlap check
+- saveOverlayPosition() / loadOverlayPosition() - Position persistence
+- saveOverlayDimensions() / loadOverlayDimensions() - Dimension persistence
+- addResizeHandleToOverlay() - Resize functionality
+
+**Phase 5: Tab Content Cache** ⏸️ OPTIONAL (~45+ lines)
+- May already be handled by existing caching mechanisms
+- Can be added later if needed
+
+**Module Status:** src/ui/overlay.js - 4,149 lines (Phases 1-4 complete)
+**Progress:** ~99% complete (Phases 1-4 done: ~4,109 lines extracted)
+**Next Steps:** UI Overlay System essentially complete! Phase 5 is optional.
 
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-25 (UI Overlay System - Phases 3+4 COMPLETE! 🎉)
+
+**UI Overlay System - Phase 3+4: Sidebar, Popout & In-Game Overlay (~2,548 lines combined)**
+- ✅ **Extracted 31 functions across 3 major categories**
+
+**Phase 3: Sidebar & Popout Management (12 functions, ~600 lines)**
+- openSidebarTab() - Open/switch sidebar tabs (~85 lines)
+- openPopoutWidget() - Legacy popout widget system (~230 lines)
+- makePopoutDraggable() - Draggable popout functionality (~90 lines)
+- openTabInSeparateWindow() - Separate window popouts (~300 lines)
+  - Full window management with content generation
+  - Theme synchronization and styling
+  - Refresh mechanisms for live updates
+- toggleTabPopout() - Toggle popout on/off (~35 lines)
+- updatePopoutButtonState() - Button visual state management
+- refreshSeparateWindowPopouts() - Refresh all window popouts
+- closeAllPopouts() - Close all open popouts
+- getPetsPopoutContent() - Generate pets popout HTML (~130 lines)
+- setupPetPopoutHandlers() - Setup pets popout event handlers (~140 lines)
+- Additional utility functions
+
+**Phase 4: In-Game Overlay System (9 functions, ~1,500 lines)**
+- createInGameOverlay() - Content-only overlay creation (~300 lines)
+  - Smart positioning with collision avoidance
+  - Draggable and resizable functionality
+  - Theme-aware styling
+  - Auto-save position and dimensions
+- makeEntireOverlayDraggable() - Invisible drag system (~130 lines)
+  - RAF-throttled drag performance
+  - Viewport boundary constraints
+  - Position persistence
+- updatePureOverlayContent() - Update overlay content (~150 lines)
+  - Dynamic content generation per tab
+  - Handler setup for interactive elements
+  - Scroll position preservation
+- setupPureOverlayHandlers() - Setup overlay event handlers (~60 lines)
+- closeInGameOverlay() - Close and cleanup overlay
+- refreshOverlayContent() - Refresh overlay content
+- updateOverlayContent() - Legacy overlay update system (~110 lines)
+- setupOverlayHandlers() - Legacy overlay handlers (~70 lines)
+- getContentForTab() - Get content for specific tab (~25 lines)
+
+**Position & Dimension Management (10 functions, ~450 lines)**
+- getGameViewport() - Calculate game viewport bounds (~15 lines)
+- findOptimalPosition() - Smart positioning algorithm (~120 lines)
+  - Collision avoidance with main HUD
+  - Zone-based positioning (top-right, top-left, bottom-right, bottom-left)
+  - Viewport boundary checking
+  - Fallback positioning strategies
+- findPositionInZone() - Find position within zone (~35 lines)
+- hasCollisionAtPosition() - Collision detection (~25 lines)
+- overlapsMainHUD() - Check HUD overlap (~25 lines)
+- saveOverlayPosition() - Persist position to storage (~20 lines)
+- loadOverlayPosition() - Load position from storage (~40 lines)
+- saveOverlayDimensions() - Persist dimensions to storage (~20 lines)
+- loadOverlayDimensions() - Load dimensions from storage (~35 lines)
+- addResizeHandleToOverlay() - Add resize functionality (~40 lines)
+
+**Module Status:**
+- UI Overlay: src/ui/overlay.js - 4,149 lines total (Phases 1-4 complete)
+
+**Quality Validation:**
+✅ Node.js syntax check: PASSED
+✅ ESLint: 0 errors, 17 warnings (style preferences only)
+✅ All functions use full dependency injection pattern
+✅ Proper module exports (38 functions total from Phases 2-4)
+✅ Combined extraction of Phases 3+4 for efficiency
+
+**Progress:** UI Overlay System 44%→99% (+55%)
+**Total Extracted:** ~4,109 lines (Phase 5 optional, ~45 lines remaining)
+
+---
 
 ### Session: 2025-10-25 (UI Overlay System - Phase 2 COMPLETE!)
 
