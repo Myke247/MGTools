@@ -2,13 +2,13 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `605b3d4` - feat: extract Atom/State Management System (630 lines, 6 components)
+**Latest Commit:** `ac7dcf5` - feat: extract Draggable & Resizable Utilities (494 lines, 8 functions)
 
 ---
 
 ## 🎯 Current Task
 
-**MAJOR MILESTONE: 8 COMPLETE SYSTEMS EXTRACTED!** 🎉
+**MAJOR MILESTONE: 9 COMPLETE SYSTEMS EXTRACTED!** 🎉
 
 **Shop System:** 100% complete (All 6 phases - ~3,037 lines extracted)
 **Notification System:** 100% complete (All 5 phases - ~2,118 lines extracted)
@@ -17,12 +17,65 @@
 **Crop Highlighting:** 100% complete (All 3 phases - ~515 lines extracted)
 **Crop Value & Turtle Timer:** 100% complete (All 3 phases - ~916 lines extracted)
 **Atom/State Management:** 100% complete (Core infrastructure - ~630 lines extracted)
+**Draggable/Resizable Utilities:** 100% complete (UI infrastructure - ~494 lines extracted)
 
-**Latest:** Atom/State Management System - 100% COMPLETE ✅
+**Latest:** Draggable/Resizable Utilities - 100% COMPLETE ✅
 
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-25 (Draggable/Resizable Utilities 100% COMPLETE!)
+
+**Draggable & Resizable Utilities - COMPLETE:**
+- ✅ **Core UI Infrastructure Module (~494 lines, 8 functions)**
+  - makeDraggable() - Main HUD dragging (~170 lines)
+    - Mouse and touch event support
+    - 15px snap zones with visual feedback (blue borders)
+    - Viewport boundary constraints
+    - Professional drag effects (scale 1.01, shadow, z-index 999999)
+    - Performance: will-change optimization
+    - Position saving on drag end
+  - saveMainHUDPosition() / loadMainHUDPosition() - Position persistence (~33 lines)
+    - GM storage integration
+    - Viewport bounds validation (reject if outside window)
+    - Fallback to defaults if invalid
+  - makeElementResizable() - Unified resize system (~99 lines)
+    - Configurable min/max dimensions (300x250 min, 90% viewport max)
+    - Visual resize handle in bottom-right corner
+    - RAF-throttled resize for smooth performance
+    - Duplicate handle prevention
+    - Hover effects on handle
+  - makeResizable() - Legacy backward compatibility wrapper (~7 lines)
+  - makeToggleButtonDraggable() - Toggle button with click/drag detection (~135 lines)
+    - Pointer events with capture
+    - 3px movement threshold (click vs drag detection)
+    - Click: Toggle panel visibility
+    - Drag: Reposition button
+    - Panel visibility state persistence
+  - saveToggleButtonPosition() / loadToggleButtonPosition() - Toggle persistence (~37 lines)
+
+**Module Status:**
+- Draggable: src/ui/draggable.js - 680 lines total (100% complete)
+- Atoms: src/core/atoms.js - 653 lines total (100% complete)
+- Shop: src/features/shop.js - 3,597 lines total (100% complete)
+- Notifications: src/features/notifications.js - 2,118 lines total (100% complete)
+- Hotkeys: src/features/hotkeys.js - 975 lines total (100% complete)
+- Protection: src/features/protection.js - 907 lines total (100% complete)
+- Crop Highlighting: src/features/crop-highlighting.js - 515 lines total (100% complete)
+- Crop Value: src/features/crop-value.js - 916 lines total (100% complete)
+
+**Quality Validation:**
+✅ ESLint: 0 errors, 209 warnings (style preferences only)
+✅ Mirror build: 1420.91 KB (stable)
+✅ Modular build: 275.2 KB (stable)
+✅ All tests passing
+✅ All commits successful with hooks
+✅ All functions use full dependency injection pattern
+
+**Progress:** Draggable 0%→100% (+100%)
+
+---
 
 ### Session: 2025-10-25 (Atom/State Management System 100% COMPLETE!)
 
