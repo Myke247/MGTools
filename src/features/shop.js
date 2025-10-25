@@ -24,7 +24,7 @@
  *   • flashPurchaseFeedback() - Visual purchase feedback (~75 lines)
  *   • showFloatingMsg() - Floating message helper (~8 lines)
  *
- * Phase 2 (Current):
+ * Phase 2 (Complete):
  * - Inventory & Stock Management - ~363 lines
  *   • localPurchaseTrackerState - Module-level state (~4 lines)
  *   • loadPurchaseTracker() - Load tracker from storage (~27 lines)
@@ -38,8 +38,12 @@
  *   • flashInventoryFullFeedback() - Red flash animation (~33 lines)
  *   • getItemStock() - Get current shop stock (~53 lines)
  *
- * Phase 3 (Planned):
- * - Shop Item Elements & Purchase Logic
+ * Phase 3 (Current):
+ * - Shop Item Elements & Purchase Logic - ~405 lines
+ *   • isShopDataReady() - Check if shop data loaded (~3 lines)
+ *   • waitForShopData() - Polling wait for shop data (~26 lines)
+ *   • createShopItemElement() - Create shop item UI element (~112 lines)
+ *   • buyItem() - Purchase item with validation (~189 lines)
  *
  * Phase 4 (Planned):
  * - Shop Windows & Overlays
@@ -50,9 +54,9 @@
  * Phase 6 (Planned):
  * - Shop Monitoring & Restock Detection
  *
- * Total Extracted (Current): ~609 lines (Phase 1-2)
+ * Total Extracted (Current): ~1,014 lines (Phase 1-3)
  * Estimated Total: ~2,000-2,500 lines (shop is a major feature comparable to pets)
- * Progress: ~24% complete (2/6 phases)
+ * Progress: ~41% complete (3/6 phases)
  *
  * @module features/shop
  */
@@ -793,13 +797,410 @@ export function getItemStock(id, type, dependencies = {}) {
 }
 
 // ============================================================================
-// PHASE 3: SHOP ITEM ELEMENTS & PURCHASE LOGIC (PLANNED)
+// PHASE 3: SHOP ITEM ELEMENTS & PURCHASE LOGIC
 // ============================================================================
-// - createShopItemElement()
-// - buyItem() (shop window version)
-// - buyItem() (settings tab version)
-// - isShopDataReady()
-// - waitForShopData()
+
+/**
+ * Check if shop data is ready/loaded
+ * Simple availability check for globalShop.shops
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Window} [dependencies.targetWindow] - Target window (default: window)
+ * @returns {boolean} True if shop data is available
+ */
+export function isShopDataReady(dependencies = {}) {
+  const { targetWindow = typeof window !== 'undefined' ? window : null } = dependencies;
+  return !!targetWindow?.globalShop?.shops;
+}
+
+/**
+ * Wait for shop data to be available (polling-based)
+ * Polls every 100ms up to timeout, calls callback with success/failure
+ *
+ * @param {Function} callback - Callback(success: boolean)
+ * @param {number} [timeout=5000] - Timeout in milliseconds
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.isShopDataReady] - Shop ready check function
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.productionWarn] - Production warn logger
+ */
+export function waitForShopData(callback, timeout = 5000, dependencies = {}) {
+  const {
+    isShopDataReady: isReadyFn = isShopDataReady,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    productionWarn = typeof window !== 'undefined' && window.productionWarn
+  } = dependencies;
+
+  const startTime = Date.now();
+  const pollInterval = 100; // Check every 100ms
+
+  const poller = setInterval(() => {
+    if (isReadyFn(dependencies)) {
+      clearInterval(poller);
+      if (productionLog) {
+        productionLog(`✅ [SHOP] Shop data ready after ${Date.now() - startTime}ms`);
+      }
+      callback(true);
+    } else if (Date.now() - startTime >= timeout) {
+      clearInterval(poller);
+      if (productionWarn) {
+        productionWarn(`⚠️ [SHOP] Shop data timeout after ${timeout}ms`);
+      }
+      callback(false);
+    }
+  }, pollInterval);
+}
+
+/**
+ * Create shop item UI element with buy buttons, stock display, owned quantity
+ * Includes rarity coloring, sprite images, hover effects
+ *
+ * @param {string} id - Item identifier
+ * @param {string} type - Item type ('seed', 'egg', 'tool')
+ * @param {number} stock - Current shop stock
+ * @param {number} value - Item value (unused, for future)
+ * @param {Object} [options={}] - Additional options
+ * @param {boolean} [options.owned=false] - Whether item is owned (e.g., Shovel)
+ * @param {boolean} [options.unlimited=false] - Whether stock is unlimited
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Document} [dependencies.targetDocument] - Target document
+ * @param {Object} [dependencies.SHOP_DISPLAY_NAMES] - Display name overrides
+ * @param {Object} [dependencies.SHOP_IMAGE_MAP] - Sprite image map
+ * @param {Object} [dependencies.SHOP_PRICES] - Price data
+ * @param {Function} [dependencies.getShopItemColorClass] - Get color class function
+ * @param {Function} [dependencies.formatShopPrice] - Price formatter
+ * @param {Function} [dependencies.getInventoryItemCount] - Get inventory count
+ * @param {Function} [dependencies.getItemStackCap] - Get stack cap
+ * @param {Function} [dependencies.buyItem] - Buy item function
+ * @returns {HTMLElement} Shop item div element with event listeners
+ */
+export function createShopItemElement(id, type, stock, value, options = {}, dependencies = {}) {
+  const { owned = false, unlimited = false } = options;
+  const {
+    targetDocument = typeof window !== 'undefined' ? window.document : null,
+    SHOP_DISPLAY_NAMES: displayNames = SHOP_DISPLAY_NAMES,
+    SHOP_IMAGE_MAP: imageMap = SHOP_IMAGE_MAP,
+    SHOP_PRICES: prices = SHOP_PRICES,
+    getShopItemColorClass: getColorClassFn = getShopItemColorClass,
+    formatShopPrice: formatPriceFn = formatShopPrice,
+    getInventoryItemCount: getInventoryCountFn = getInventoryItemCount,
+    getItemStackCap: getStackCapFn = getItemStackCap,
+    buyItem: buyItemFn = buyItem
+  } = dependencies;
+
+  if (!targetDocument) return null;
+
+  const div = targetDocument.createElement('div');
+  div.className = 'shop-item';
+  // Only add 'in-stock' class if actually in stock (not owned)
+  if (stock > 0 && !owned) div.classList.add('in-stock');
+
+  div.style.cssText = `
+    padding: 8px;
+    background: ${stock > 0 && !owned ? 'rgba(76, 255, 106, 0.40)' : 'rgba(255,255,255,0.03)'};
+    border: 1px solid ${stock > 0 && !owned ? 'rgba(9, 255, 0, 0.48)' : 'rgba(255, 255, 255, 0.57)'};
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    transition: all 0.2s ease;
+  `;
+
+  const displayName = displayNames[id] || id.replace(/([A-Z])/g, ' $1').trim();
+  const spriteUrl = imageMap[id] || '';
+  const colorClass = getColorClassFn(id);
+  const price = prices[id] || 0;
+  const priceData = formatPriceFn(price);
+
+  // Determine stock display text
+  let stockDisplay;
+  if (owned || unlimited) {
+    // For owned items (like Shovel), just show "OWNED" in neutral color
+    stockDisplay = '<span style="color: #888; font-weight: 600;">OWNED</span>';
+  } else {
+    stockDisplay = `Stock: ${stock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span>`;
+  }
+
+  // Get current owned quantity for display
+  const ownedCount = getInventoryCountFn(id, type, dependencies);
+  const stackCap = getStackCapFn(id, type);
+  let quantityDisplay = '';
+
+  if (stackCap < Infinity && ownedCount > 0) {
+    const percentFull = (ownedCount / stackCap) * 100;
+    let color = 'rgba(255, 255, 255, 0.7)';
+
+    // Color code based on capacity
+    if (percentFull >= 100) {
+      color = '#ff4444'; // Red at max
+    } else if (percentFull >= 80) {
+      color = '#ffaa44'; // Orange at 80%+
+    } else if (percentFull >= 50) {
+      color = '#ffff44'; // Yellow at 50%+
+    }
+
+    quantityDisplay = `<div class="quantity-display" style="font-size: 11px; color: ${color}; margin-top: 2px; font-weight: bold;">Owned: ${ownedCount}/${stackCap}</div>`;
+  } else if (ownedCount > 0 && !owned && !unlimited) {
+    quantityDisplay = `<div class="quantity-display" style="font-size: 11px; color: rgba(255, 255, 255, 0.7); margin-top: 2px;">Owned: ${ownedCount}</div>`;
+  }
+
+  div.innerHTML = `
+    <div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;">
+      ${spriteUrl ? `<img src="${spriteUrl}" alt="${displayName}" class="shop-sprite" loading="lazy">` : ''}
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 2px;" class="${colorClass}">${displayName}</div>
+        <div class="stock-display" style="font-size: 10px; color: #888;">${stockDisplay}</div>
+        ${quantityDisplay}
+      </div>
+    </div>
+    <div style="display: ${owned || unlimited ? 'none' : 'flex'}; gap: 4px;">
+      <button class="buy-btn" data-amount="1" ${stock === 0 ? 'disabled' : ''}
+        style="padding: 4px 8px; font-size: 11px; background: rgba(74, 158, 255, 0.3); border: 1px solid rgba(74, 158, 255, 0.5); border-radius: 3px; color: #fff; cursor: ${stock > 0 ? 'pointer' : 'not-allowed'}; transition: all 0.15s ease;">1</button>
+      <button class="buy-btn" data-amount="all" ${stock === 0 ? 'disabled' : ''}
+        style="padding: 4px 8px; font-size: 11px; background: rgba(76, 175, 80, 0.3); border: 1px solid rgba(76, 175, 80, 0.5); border-radius: 3px; color: #fff; cursor: ${stock > 0 ? 'pointer' : 'not-allowed'}; transition: all 0.15s ease;">All</button>
+    </div>
+  `;
+
+  div.querySelectorAll('.buy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const amount = btn.dataset.amount === 'all' ? stock : 1;
+      buyItemFn(id, type, amount, div, dependencies);
+    });
+
+    // Add hover effects (NO TRANSFORM - prevents flickering)
+    if (stock > 0) {
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = 'rgba(9, 255, 0, 0.5)';
+        btn.style.borderColor = 'rgba(9, 255, 0, 0.8)';
+        btn.style.boxShadow = '0 0 8px rgba(9, 255, 0, 0.4)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        const isAllButton = btn.dataset.amount === 'all';
+        btn.style.background = isAllButton ? 'rgba(76, 175, 80, 0.3)' : 'rgba(74, 158, 255, 0.3)';
+        btn.style.borderColor = isAllButton ? 'rgba(76, 175, 80, 0.5)' : 'rgba(74, 158, 255, 0.5)';
+        btn.style.boxShadow = '';
+      });
+    }
+  });
+
+  return div;
+}
+
+/**
+ * Buy item from shop with comprehensive validation
+ * Handles inventory checks, stack cap validation, purchase messages, UI updates
+ *
+ * @param {string} id - Item identifier
+ * @param {string} type - Item type ('seed', 'egg', 'tool')
+ * @param {number} amount - Quantity to purchase
+ * @param {HTMLElement} itemEl - Item element for visual feedback
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Window} [dependencies.targetWindow] - Target window
+ * @param {Object} [dependencies.UnifiedState] - Unified state
+ * @param {Object} [dependencies.SHOP_DISPLAY_NAMES] - Display name overrides
+ * @param {Object} [dependencies.SHOP_PRICES] - Price data
+ * @param {Function} [dependencies.isInventoryFull] - Inventory full check
+ * @param {Function} [dependencies.flashInventoryFullFeedback] - Visual feedback
+ * @param {Function} [dependencies.getInventoryItemCount] - Get inventory count
+ * @param {Function} [dependencies.getItemStackCap] - Get stack cap
+ * @param {Function} [dependencies.getItemStock] - Get shop stock
+ * @param {Function} [dependencies.formatShopPrice] - Price formatter
+ * @param {Function} [dependencies.flashPurchaseFeedback] - Purchase feedback
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.alert] - Alert function (default: window.alert)
+ * @param {Console} [dependencies.console] - Console for logging
+ */
+export function buyItem(id, type, amount, itemEl, dependencies = {}) {
+  const {
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    SHOP_DISPLAY_NAMES: displayNames = SHOP_DISPLAY_NAMES,
+    SHOP_PRICES: prices = SHOP_PRICES,
+    isInventoryFull: isInvFullFn = isInventoryFull,
+    flashInventoryFullFeedback: flashInvFullFn = flashInventoryFullFeedback,
+    getInventoryItemCount: getInvCountFn = getInventoryItemCount,
+    getItemStackCap: getStackCapFn = getItemStackCap,
+    getItemStock: getStockFn = getItemStock,
+    formatShopPrice: formatPriceFn = formatShopPrice,
+    flashPurchaseFeedback: flashPurchaseFn = flashPurchaseFeedback,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    alert: alertFn = typeof window !== 'undefined' ? window.alert : console.log,
+    console: consoleObj = console
+  } = dependencies;
+
+  const conn = targetWindow?.MagicCircle_RoomConnection;
+  if (!conn?.sendMessage) {
+    alertFn('Connection not available');
+    return;
+  }
+
+  // SMART INVENTORY CHECK: Only block if truly full
+  // For stackable items, check if we already have the item (can stack more)
+  // For non-stackable items (Produce, Pets), check if inventory is full
+  const inventory = UnifiedState?.atoms?.inventory;
+  const hasExistingStack = inventory?.items?.some(item => {
+    if (type === 'seed') return item.species === id && item.itemType !== 'Produce';
+    if (type === 'egg') return item.eggId === id;
+    if (type === 'tool') return item.toolId === id || item.name === id;
+    return false;
+  });
+
+  // If inventory is full AND we don't have an existing stack, block purchase
+  if (isInvFullFn(dependencies) && !hasExistingStack) {
+    flashInvFullFn(itemEl, `Inventory Full! (100/100) - Cannot purchase new items`, dependencies);
+    if (UnifiedState?.data?.settings?.debugMode) {
+      consoleObj.log(`[SHOP] Purchase blocked: Inventory full and no existing stack for ${id}`);
+    }
+    return;
+  }
+
+  // If we have an existing stack, the quantity cap check will handle it
+  if (hasExistingStack && UnifiedState?.data?.settings?.debugMode) {
+    consoleObj.log(`[SHOP] ✅ Inventory full but ${id} can stack on existing item`);
+  }
+
+  // Check if at item stack cap before purchase
+  const currentCount = getInvCountFn(id, type, dependencies);
+  const stackCap = getStackCapFn(id, type);
+
+  if (currentCount >= stackCap) {
+    const displayName = displayNames[id] || id.replace(/([A-Z])/g, ' $1').trim();
+
+    // Special visual feedback for items at max quantity
+    if (stackCap < Infinity) {
+      flashInvFullFn(
+        itemEl,
+        `${displayName} at MAX! (${currentCount}/${stackCap}) - Cannot purchase more`,
+        dependencies
+      );
+
+      // Update the item display to show current quantity persistently
+      const quantityDisplay = itemEl.querySelector('.quantity-display');
+      if (quantityDisplay) {
+        quantityDisplay.textContent = `Owned: ${currentCount}/${stackCap}`;
+        quantityDisplay.style.color = '#ff4444';
+        quantityDisplay.style.fontWeight = 'bold';
+      }
+    } else {
+      flashInvFullFn(itemEl, `${displayName} at max capacity! (${currentCount}/${stackCap})`, dependencies);
+    }
+
+    if (UnifiedState?.data?.settings?.debugMode) {
+      consoleObj.log(`[SHOP] ❌ Purchase blocked: ${id} at cap (${currentCount}/${stackCap})`);
+    }
+    return;
+  }
+
+  // Check if purchasing would exceed cap
+  if (currentCount + amount > stackCap) {
+    const displayName = displayNames[id] || id.replace(/([A-Z])/g, ' $1').trim();
+    const canPurchase = stackCap - currentCount;
+    flashInvFullFn(
+      itemEl,
+      `Can only purchase ${canPurchase} more ${displayName} (currently ${currentCount}/${stackCap})`,
+      dependencies
+    );
+    if (UnifiedState?.data?.settings?.debugMode) {
+      consoleObj.log(`[SHOP] ❌ Purchase blocked: would exceed cap (${currentCount} + ${amount} > ${stackCap})`);
+    }
+    return;
+  }
+
+  if (UnifiedState?.data?.settings?.debugMode) {
+    consoleObj.log(`[SHOP] ✅ Purchase allowed: ${id} (${currentCount} + ${amount} <= ${stackCap})`);
+  }
+
+  try {
+    for (let i = 0; i < amount; i += 1) {
+      let messageType;
+      let itemKey;
+
+      if (type === 'seed') {
+        messageType = 'PurchaseSeed';
+        itemKey = 'species';
+      } else if (type === 'egg') {
+        messageType = 'PurchaseEgg';
+        itemKey = 'eggId';
+      } else if (type === 'tool') {
+        messageType = 'PurchaseTool';
+        itemKey = 'toolId';
+      }
+
+      conn.sendMessage({
+        scopePath: ['Room', 'Quinoa'],
+        type: messageType,
+        [itemKey]: id
+      });
+    }
+
+    // Purchase tracking happens automatically in sendMessage intercept
+    const displayName = id.replace(/([A-Z])/g, ' $1').trim();
+    flashPurchaseFn(itemEl, `Purchased x${amount} ${displayName}`, 1500, dependencies);
+    if (productionLog) {
+      productionLog(`✅ Purchased ${amount}x ${id}`);
+    }
+
+    // Update stock display - game automatically updates window.bought.shopPurchases
+    setTimeout(() => {
+      const newStock = getStockFn(id, type, dependencies);
+      const stockSpan = itemEl.querySelector('.stock-display');
+      if (stockSpan) {
+        const priceData = formatPriceFn(prices[id] || 0);
+        stockSpan.innerHTML = `Stock: ${newStock} | <span style="color: ${priceData.color};">💰${priceData.formatted}</span>`;
+      }
+
+      // Update quantity display
+      const quantityDiv = itemEl.querySelector('.quantity-display');
+      if (quantityDiv) {
+        const ownedCount = getInvCountFn(id, type, dependencies);
+        const itemStackCap = getStackCapFn(id, type);
+
+        if (itemStackCap < Infinity && ownedCount > 0) {
+          const percentFull = (ownedCount / itemStackCap) * 100;
+          let color = 'rgba(255, 255, 255, 0.7)';
+
+          if (percentFull >= 100) {
+            color = '#ff4444';
+          } else if (percentFull >= 80) {
+            color = '#ffaa44';
+          } else if (percentFull >= 50) {
+            color = '#ffff44';
+          }
+
+          quantityDiv.style.color = color;
+          quantityDiv.style.fontWeight = percentFull >= 100 ? 'bold' : 'normal';
+          quantityDiv.textContent = `Owned: ${ownedCount}/${itemStackCap}`;
+        } else if (ownedCount > 0) {
+          quantityDiv.textContent = `Owned: ${ownedCount}`;
+        }
+      }
+
+      if (UnifiedState?.data?.settings?.debugMode) {
+        consoleObj.log(`[SHOP DEBUG] Stock updated for ${id}: ${newStock} (using game's purchase data)`);
+      }
+
+      // Update in-stock styling
+      if (newStock === 0) {
+        itemEl.classList.remove('in-stock');
+        itemEl.style.background = 'rgba(255,255,255,0.03)';
+        itemEl.style.borderColor = 'rgba(255, 255, 255, 0.57)';
+        // Disable buttons
+        itemEl.querySelectorAll('.buy-btn').forEach(btn => {
+          btn.disabled = true;
+          btn.style.cursor = 'not-allowed';
+        });
+      } else {
+        itemEl.classList.add('in-stock');
+        itemEl.style.background = 'rgba(76, 255, 106, 0.40)';
+        itemEl.style.borderColor = 'rgba(9, 255, 0, 0.48)';
+      }
+    }, 100);
+  } catch (e) {
+    consoleObj.error('Purchase error:', e);
+    alertFn('Purchase failed');
+  }
+}
 
 // ============================================================================
 // PHASE 4: SHOP WINDOWS & OVERLAYS (PLANNED)
@@ -855,6 +1256,11 @@ export default {
   getInventoryItemCount,
   getItemStackCap,
   flashInventoryFullFeedback,
-  getItemStock
-  // Phase 3-6: To be added
+  getItemStock,
+  // Phase 3: Shop Item Elements & Purchase Logic
+  isShopDataReady,
+  waitForShopData,
+  createShopItemElement,
+  buyItem
+  // Phase 4-6: To be added
 };
