@@ -2791,7 +2791,8 @@ function getGameViewport(deps) {
   const { targetDocument } = deps;
 
   // Try to find the game container or use window as fallback
-  const gameContainer = targetDocument.querySelector('#game-container, #app, .game-wrapper, main') || targetDocument.body;
+  const gameContainer =
+    targetDocument.querySelector('#game-container, #app, .game-wrapper, main') || targetDocument.body;
   const rect = gameContainer.getBoundingClientRect();
 
   return {
@@ -3305,7 +3306,8 @@ function updatePopoutButtonStateByTab(deps, tabName, isActive) {
  * @param {string} tabName - Name of the tab
  */
 function updatePureOverlayContent(deps, overlay, tabName) {
-  const { productionLog, debugLog, debugError, contentGetters, setupPureOverlayHandlers, addResizeHandleToOverlay } = deps;
+  const { productionLog, debugLog, debugError, contentGetters, setupPureOverlayHandlers, addResizeHandleToOverlay } =
+    deps;
 
   try {
     debugLog('OVERLAY_LIFECYCLE', `Updating pure overlay content for ${tabName}`, {
