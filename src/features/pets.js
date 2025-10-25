@@ -87,8 +87,15 @@
  *   • injectInstantFeedButtons() - Container-based button injection (~133 lines)
  *   • initializeInstantFeedButtons() - Polling-based initialization with auto-reinjection (~154 lines)
  *
- * Total Extracted: ~4,363 lines (of ~5,000 estimated)
- * Progress: 87.3%
+ * Phase 11 (Complete):
+ * - Additional Pet Management Functions - ~415 lines ✅
+ *   • presetHasCropEater() - Detect Crop Eater ability in presets (~26 lines)
+ *   • cycleToNextPreset() - Cycle through presets, skip Crop Eater (~41 lines)
+ *   • playAbilityNotificationSound() - Ability notification sound playback (~51 lines)
+ *   • setupAbilitiesTabHandlers() - Ability log tab event handlers (~297 lines)
+ *
+ * Total Extracted: ~4,778 lines (of ~5,000 estimated)
+ * Progress: 95.6%
  *
  * Dependencies:
  * - Core: storage, logging
@@ -4563,6 +4570,542 @@ export function initializeInstantFeedButtons(
 }
 
 /* ====================================================================================
+ * ADDITIONAL PET MANAGEMENT FUNCTIONS (Phase 11)
+ * ====================================================================================
+ */
+
+/**
+ * Check if preset contains Worm with Crop Eater ability
+ * Uses same detection pattern as turtle timer (checks abilities array)
+ *
+ * @param {Array} preset - Array of pet objects
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Function} [dependencies.productionLog] - Production logging function
+ * @returns {boolean} - True if preset contains Worm with Crop Eater
+ */
+export function presetHasCropEater(preset, dependencies = {}) {
+  const { productionLog = console.log } = dependencies;
+
+  if (!preset || !Array.isArray(preset)) {
+    return false;
+  }
+
+  // Filter for Worms with Crop Eater ability (same pattern as turtle timer)
+  const wormsWithCropEater = preset.filter(
+    p =>
+      p &&
+      p.petSpecies === 'Worm' &&
+      p.abilities?.some(
+        a =>
+          a === 'Crop Eater' ||
+          a === 'CropEater' ||
+          (typeof a === 'string' && a.toLowerCase().includes('crop') && a.toLowerCase().includes('eater'))
+      )
+  );
+
+  if (wormsWithCropEater.length > 0) {
+    productionLog(`[Crop Eater Check] Preset contains ${wormsWithCropEater.length} Worm(s) with Crop Eater - skipping`);
+  }
+
+  return wormsWithCropEater.length > 0;
+}
+
+/**
+ * Cycle to next preset in the order list
+ * Auto-skips presets with Crop Eater pets
+ *
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Object} dependencies.UnifiedState - Global unified state
+ * @param {Function} dependencies.ensurePresetOrder - Ensure preset order function
+ * @param {Function} dependencies.placePetPreset - Place preset function
+ * @param {Function} dependencies.presetHasCropEater - Crop eater detection function
+ * @param {Function} dependencies.productionLog - Production logging function
+ */
+export function cycleToNextPreset(dependencies) {
+  const { UnifiedState, ensurePresetOrder, placePetPreset, presetHasCropEater, productionLog } = dependencies;
+
+  ensurePresetOrder(); // Ensure order array is up to date
+
+  if (UnifiedState.data.petPresetsOrder.length === 0) {
+    productionLog('[Cycle Presets] No presets available');
+    return;
+  }
+
+  const startIndex = UnifiedState.data.currentPresetIndex;
+  let attempts = 0;
+  const maxAttempts = UnifiedState.data.petPresetsOrder.length;
+
+  do {
+    // Move to next preset
+    UnifiedState.data.currentPresetIndex++;
+
+    // Loop back to start if at end
+    if (UnifiedState.data.currentPresetIndex >= UnifiedState.data.petPresetsOrder.length) {
+      UnifiedState.data.currentPresetIndex = 0;
+    }
+
+    const presetName = UnifiedState.data.petPresetsOrder[UnifiedState.data.currentPresetIndex];
+    const preset = UnifiedState.data.petPresets[presetName];
+
+    attempts++;
+
+    // Check if preset has Crop Eater
+    if (preset && !presetHasCropEater(preset, { productionLog })) {
+      productionLog(
+        `[Cycle Presets] Loading: ${presetName} (${UnifiedState.data.currentPresetIndex + 1}/${UnifiedState.data.petPresetsOrder.length})`
+      );
+      placePetPreset(presetName);
+      return; // Found valid preset
+    } else if (preset && presetHasCropEater(preset, { productionLog })) {
+      productionLog(`[Cycle Presets] Skipping ${presetName} - contains Crop Eater`);
+    }
+  } while (attempts < maxAttempts);
+
+  // All presets have Crop Eater
+  productionLog('[Cycle Presets] All presets contain Crop Eater - cannot cycle');
+}
+
+/**
+ * Play ability notification sound
+ * Supports custom sounds and various default sound options
+ *
+ * @param {number} volume - Volume level (0-1)
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Function} [dependencies.GM_getValue] - GM getValue function
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @param {Function} [dependencies.playSingleBeepNotification] - Single beep function
+ * @param {Function} [dependencies.playDoubleBeepNotification] - Double beep function
+ * @param {Function} [dependencies.playTripleBeepNotification] - Triple beep function
+ * @param {Function} [dependencies.playChimeNotification] - Chime function
+ * @param {Function} [dependencies.playAlertNotification] - Alert function
+ * @param {Function} [dependencies.playBuzzNotification] - Buzz function
+ * @param {Function} [dependencies.playDingNotification] - Ding function
+ * @param {Function} [dependencies.playChirpNotification] - Chirp function
+ * @param {Function} [dependencies.playEpicNotification] - Epic function
+ * @param {Function} [dependencies.productionLog] - Production logging function
+ */
+export function playAbilityNotificationSound(volume, dependencies = {}) {
+  const {
+    GM_getValue = typeof window !== 'undefined' && window.GM_getValue,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    playSingleBeepNotification,
+    playDoubleBeepNotification,
+    playTripleBeepNotification,
+    playChimeNotification,
+    playAlertNotification,
+    playBuzzNotification,
+    playDingNotification,
+    playChirpNotification,
+    playEpicNotification,
+    productionLog = console.log
+  } = dependencies;
+
+  const customSound = GM_getValue?.('mgtools_custom_sound_ability', null);
+  if (customSound) {
+    try {
+      const audio = new Audio(customSound);
+      audio.volume = volume || 0.2;
+      audio.play();
+      productionLog('🎵 [CUSTOM-SOUND] Playing custom ability sound');
+      return; // Exit early if custom sound played
+    } catch (err) {
+      console.error('Failed to play custom ability sound:', err);
+      // Fall through to default sound logic
+    }
+  }
+
+  // If no custom sound or custom sound failed, use user's selected default
+  if (!customSound) {
+    const abilitySound = UnifiedState?.data?.settings?.notifications?.abilityNotificationSound || 'single';
+
+    switch (abilitySound) {
+      case 'single':
+        playSingleBeepNotification?.(volume);
+        break;
+      case 'double':
+        playDoubleBeepNotification?.(volume);
+        break;
+      case 'triple':
+        playTripleBeepNotification?.(volume);
+        break;
+      case 'chime':
+        playChimeNotification?.(volume);
+        break;
+      case 'alert':
+        playAlertNotification?.(volume);
+        break;
+      case 'buzz':
+        playBuzzNotification?.(volume);
+        break;
+      case 'ding':
+        playDingNotification?.(volume);
+        break;
+      case 'chirp':
+        playChirpNotification?.(volume);
+        break;
+      case 'epic':
+        playEpicNotification?.(volume);
+        break;
+      default:
+        playSingleBeepNotification?.(volume);
+    }
+  }
+}
+
+/**
+ * Setup abilities tab event handlers
+ * Manages filter modes, clear/export buttons, and ability log interactions
+ *
+ * @param {Document} context - Document or container element
+ * @param {Object} dependencies - Injected dependencies
+ * @param {Function} dependencies.debugLog - Debug logging function
+ * @param {Function} dependencies.switchFilterMode - Switch filter mode function
+ * @param {Function} dependencies.selectAllFilters - Select all filters function
+ * @param {Function} dependencies.selectNoneFilters - Select none filters function
+ * @param {Function} dependencies.updateAllLogVisibility - Update log visibility function
+ * @param {Object} dependencies.UnifiedState - Global unified state
+ * @param {Function} dependencies.MGA_saveJSON - Save JSON to storage function
+ * @param {Function} dependencies.logDebug - Log debug function
+ * @param {Function} dependencies.GM_getValue - GM getValue function
+ * @param {Function} dependencies.logWarn - Log warn function
+ * @param {Function} dependencies.MGA_loadJSON - Load JSON from storage function
+ * @param {Function} dependencies.productionWarn - Production warn function
+ * @param {Function} dependencies.productionLog - Production log function
+ * @param {Function} dependencies.updateTabContent - Update tab content function
+ * @param {Function} dependencies.updateAllAbilityLogDisplays - Update all displays function
+ * @param {Function} dependencies.exportAbilityLogs - Export logs function
+ * @param {Function} dependencies.MGA_diagnoseAbilityLogStorage - Diagnostic function
+ * @param {Function} dependencies.showNotificationToast - Show toast function
+ * @param {Function} dependencies.updateAbilityLogDisplay - Update log display function
+ * @param {Function} dependencies.populateFilterModeContent - Populate filter content function
+ * @param {Object} dependencies.MGA_AbilityCache - Ability cache object
+ * @param {Object} [options] - Optional configuration
+ * @param {number} [options.lastLogCount] - Last log count tracker
+ */
+export function setupAbilitiesTabHandlers(context = document, dependencies, options = {}) {
+  const {
+    debugLog,
+    switchFilterMode,
+    selectAllFilters,
+    selectNoneFilters,
+    updateAllLogVisibility,
+    UnifiedState,
+    MGA_saveJSON,
+    logDebug,
+    GM_getValue,
+    logWarn,
+    MGA_loadJSON,
+    productionWarn,
+    productionLog,
+    updateTabContent,
+    updateAllAbilityLogDisplays,
+    exportAbilityLogs,
+    MGA_diagnoseAbilityLogStorage,
+    showNotificationToast,
+    updateAbilityLogDisplay,
+    populateFilterModeContent,
+    MGA_AbilityCache
+  } = dependencies;
+
+  let { lastLogCount } = options;
+
+  debugLog('ABILITY_LOGS', 'Setting up abilities tab handlers with context', {
+    isDocument: context === document,
+    className: context.className || 'document'
+  });
+
+  // Filter mode switching
+  const categoriesBtn = context.querySelector('#filter-mode-categories');
+  const byPetBtn = context.querySelector('#filter-mode-bypet');
+  const customBtn = context.querySelector('#filter-mode-custom');
+
+  if (categoriesBtn && !categoriesBtn.hasAttribute('data-handler-setup')) {
+    categoriesBtn.setAttribute('data-handler-setup', 'true');
+    categoriesBtn.addEventListener('click', () => switchFilterMode('categories'));
+  }
+  if (byPetBtn && !byPetBtn.hasAttribute('data-handler-setup')) {
+    byPetBtn.setAttribute('data-handler-setup', 'true');
+    byPetBtn.addEventListener('click', () => switchFilterMode('byPet'));
+  }
+  if (customBtn && !customBtn.hasAttribute('data-handler-setup')) {
+    customBtn.setAttribute('data-handler-setup', 'true');
+    customBtn.addEventListener('click', () => switchFilterMode('custom'));
+  }
+
+  // All/None filter buttons (context-aware)
+  const selectAllBtn = context.querySelector('#select-all-filters');
+  const selectNoneBtn = context.querySelector('#select-none-filters');
+
+  if (selectAllBtn && !selectAllBtn.hasAttribute('data-handler-setup')) {
+    selectAllBtn.setAttribute('data-handler-setup', 'true');
+    selectAllBtn.addEventListener('click', () => {
+      const mode = UnifiedState.data.filterMode || 'categories';
+      selectAllFilters(mode);
+    });
+  }
+
+  if (selectNoneBtn && !selectNoneBtn.hasAttribute('data-handler-setup')) {
+    selectNoneBtn.setAttribute('data-handler-setup', 'true');
+    selectNoneBtn.addEventListener('click', () => {
+      const mode = UnifiedState.data.filterMode || 'categories';
+      selectNoneFilters(mode);
+    });
+  }
+
+  // Category filter checkboxes - USE CONTEXT-AWARE SELECTORS
+  context.querySelectorAll('#category-filters .mga-checkbox[data-filter]').forEach(checkbox => {
+    if (!checkbox.hasAttribute('data-handler-setup')) {
+      checkbox.setAttribute('data-handler-setup', 'true');
+      checkbox.addEventListener('change', e => {
+        const filterKey = e.target.dataset.filter;
+        UnifiedState.data.abilityFilters[filterKey] = e.target.checked;
+        MGA_saveJSON('MGA_abilityFilters', UnifiedState.data.abilityFilters);
+
+        // PERFORMANCE: Use CSS visibility toggle instead of DOM rebuild
+        updateAllLogVisibility();
+        debugLog('ABILITY_LOGS', `Filter ${filterKey} changed to ${e.target.checked}, updated visibility via CSS`);
+      });
+    }
+  });
+
+  // Basic action buttons
+  const clearLogsBtn = context.querySelector('#clear-logs-btn');
+  if (clearLogsBtn && !clearLogsBtn.hasAttribute('data-handler-setup')) {
+    clearLogsBtn.setAttribute('data-handler-setup', 'true');
+    clearLogsBtn.addEventListener('click', () => {
+      logDebug('ABILITY-LOGS', 'Starting comprehensive ability log clear...');
+
+      // BEFORE CLEAR: Show what exists in each storage
+      const beforeClear = {
+        memory: UnifiedState.data.petAbilityLogs?.length || 0,
+        gmMain: (() => {
+          try {
+            const v = GM_getValue('MGA_petAbilityLogs', null);
+            return v ? JSON.parse(v).length : 0;
+          } catch (e) {
+            return 0;
+          }
+        })(),
+        gmArchive: (() => {
+          try {
+            const v = GM_getValue('MGA_petAbilityLogs_archive', null);
+            return v ? JSON.parse(v).length : 0;
+          } catch (e) {
+            return 0;
+          }
+        })(),
+        lsMain: (() => {
+          try {
+            const v = window.localStorage?.getItem('MGA_petAbilityLogs');
+            return v ? JSON.parse(v).length : 0;
+          } catch (e) {
+            return 0;
+          }
+        })(),
+        lsArchive: (() => {
+          try {
+            const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive');
+            return v ? JSON.parse(v).length : 0;
+          } catch (e) {
+            return 0;
+          }
+        })()
+      };
+
+      logDebug('ABILITY-LOGS', '📊 BEFORE CLEAR - Log counts:', beforeClear);
+
+      // Show individual logs from memory (to identify which one won't delete)
+      if (UnifiedState.data.petAbilityLogs?.length > 0) {
+        logDebug('ABILITY-LOGS', '📋 Current logs in memory:');
+        UnifiedState.data.petAbilityLogs.forEach((log, i) => {
+          logDebug(
+            'ABILITY-LOGS',
+            `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`
+          );
+        });
+      }
+
+      // 1. Clear memory
+      UnifiedState.data.petAbilityLogs = [];
+      logDebug('ABILITY-LOGS', '  ✓ Cleared UnifiedState memory');
+
+      // 2. Clear GM storage (Tampermonkey)
+      MGA_saveJSON('MGA_petAbilityLogs', []);
+      MGA_saveJSON('MGA_petAbilityLogs_archive', []);
+      logDebug('ABILITY-LOGS', '  ✓ Cleared GM storage (main + archive)');
+
+      // 3. Clear window.localStorage directly (bypass sync logic)
+      try {
+        window.localStorage?.removeItem('MGA_petAbilityLogs');
+        window.localStorage?.removeItem('MGA_petAbilityLogs_archive');
+        logDebug('ABILITY-LOGS', '  ✓ Cleared window.localStorage');
+      } catch (e) {
+        logWarn('ABILITY-LOGS', '  ⚠️ Could not clear window.localStorage:', e.message);
+      }
+
+      // 4. Clear targetWindow.localStorage (if different from window)
+      try {
+        if (typeof targetWindow !== 'undefined' && targetWindow && targetWindow !== window) {
+          targetWindow.localStorage?.removeItem('MGA_petAbilityLogs');
+          targetWindow.localStorage?.removeItem('MGA_petAbilityLogs_archive');
+          logDebug('ABILITY-LOGS', '  ✓ Cleared targetWindow.localStorage');
+        }
+      } catch (e) {
+        logWarn('ABILITY-LOGS', '  ⚠️ Could not clear targetWindow.localStorage:', e.message);
+      }
+
+      // 5. Clear compatibility array
+      try {
+        if (typeof window.petAbilityLogs !== 'undefined') {
+          window.petAbilityLogs = [];
+          logDebug('ABILITY-LOGS', '  ✓ Cleared window.petAbilityLogs compatibility array');
+        }
+      } catch (e) {
+        logWarn('ABILITY-LOGS', '  ⚠️ Could not clear compatibility array:', e.message);
+      }
+
+      // 6. Set comprehensive clear flags with timestamp-based session lock
+      const clearTimestamp = Date.now();
+      localStorage.setItem('MGA_logs_manually_cleared', clearTimestamp.toString());
+      localStorage.setItem('MGA_logs_clear_session', clearTimestamp.toString());
+      try {
+        GM_setValue('MGA_logs_manually_cleared', clearTimestamp.toString());
+      } catch (e) {
+        logWarn('ABILITY-LOGS', '  ⚠️ Could not set GM clear flag:', e.message);
+      }
+      logDebug('ABILITY-LOGS', '  ✓ Set manual clear flags (session + GM + timestamp)');
+
+      // 7. AFTER CLEAR: Comprehensive verification
+      const verifyMain = MGA_loadJSON('MGA_petAbilityLogs', null);
+      const verifyArchive = MGA_loadJSON('MGA_petAbilityLogs_archive', null);
+      const verifyLS = window.localStorage?.getItem('MGA_petAbilityLogs');
+      const verifyCompat = typeof window.petAbilityLogs !== 'undefined' ? window.petAbilityLogs?.length : 'N/A';
+
+      // Recount all sources after clear
+      const afterClear = {
+        memory: UnifiedState.data.petAbilityLogs?.length || 0,
+        gmMain: verifyMain?.length || 0,
+        gmArchive: verifyArchive?.length || 0,
+        lsMain: verifyLS
+          ? (() => {
+              try {
+                return JSON.parse(verifyLS).length;
+              } catch (e) {
+                return 'parse-error';
+              }
+            })()
+          : 0,
+        lsArchive: (() => {
+          try {
+            const v = window.localStorage?.getItem('MGA_petAbilityLogs_archive');
+            return v ? JSON.parse(v).length : 0;
+          } catch (e) {
+            return 0;
+          }
+        })(),
+        compatArray: verifyCompat
+      };
+
+      logDebug('ABILITY-LOGS', '📊 AFTER CLEAR - Log counts:', afterClear);
+      logDebug('ABILITY-LOGS', '📊 COMPARISON:', {
+        before: beforeClear,
+        after: afterClear,
+        clearedFlag: localStorage.getItem('MGA_logs_manually_cleared')
+      });
+
+      // If ANY logs remain, show which ones
+      const totalRemaining = Object.values(afterClear).reduce(
+        (sum, val) => sum + (typeof val === 'number' ? val : 0),
+        0
+      );
+
+      if (totalRemaining > 0) {
+        productionWarn(`⚠️ [ABILITIES] ${totalRemaining} log(s) persist after clear!`);
+        logDebug('ABILITY-LOGS', '🔍 Logs that persisted - check these sources:', afterClear);
+
+        // Show which specific logs remain (if any)
+        if (verifyMain && verifyMain.length > 0) {
+          logDebug('ABILITY-LOGS', '❌ PERSISTENT LOGS IN GM STORAGE:');
+          verifyMain.forEach((log, i) => {
+            logDebug(
+              'ABILITY-LOGS',
+              `  ${i + 1}. ${log.abilityType} - ${log.petName} - ${new Date(log.timestamp).toLocaleString()}`
+            );
+          });
+        }
+      } else {
+        productionLog('✅ [ABILITIES] Successfully cleared all ability logs from all storage locations');
+      }
+
+      lastLogCount = 0; // Reset log count tracker
+      updateTabContent();
+      updateAllAbilityLogDisplays();
+    });
+  }
+
+  const exportLogsBtn = context.querySelector('#export-logs-btn');
+  if (exportLogsBtn && !exportLogsBtn.hasAttribute('data-handler-setup')) {
+    exportLogsBtn.setAttribute('data-handler-setup', 'true');
+    exportLogsBtn.addEventListener('click', () => {
+      exportAbilityLogs();
+    });
+  }
+
+  // Diagnose logs button (only visible when debug mode is enabled)
+  const diagnoseLogsBtn = context.querySelector('#diagnose-logs-btn');
+  if (diagnoseLogsBtn && !diagnoseLogsBtn.hasAttribute('data-handler-setup')) {
+    diagnoseLogsBtn.setAttribute('data-handler-setup', 'true');
+    diagnoseLogsBtn.addEventListener('click', () => {
+      console.log('🔍 Running ability logs storage diagnostic...');
+      const report = MGA_diagnoseAbilityLogStorage();
+
+      // Show a user-friendly notification
+      const totalWithLogs = report.summary.totalLocationsWithLogs;
+      if (totalWithLogs === 0) {
+        showNotificationToast('✅ No ability logs found in any storage location', 'success');
+      } else {
+        showNotificationToast(
+          `📊 Found logs in ${totalWithLogs} storage location(s). Check console for details.`,
+          'info'
+        );
+      }
+    });
+  }
+
+  // Detailed timestamps checkbox
+  const detailedTimestampsCheckbox = context.querySelector('#detailed-timestamps-checkbox');
+  if (detailedTimestampsCheckbox && !detailedTimestampsCheckbox.hasAttribute('data-handler-setup')) {
+    detailedTimestampsCheckbox.setAttribute('data-handler-setup', 'true');
+    detailedTimestampsCheckbox.addEventListener('change', e => {
+      UnifiedState.data.settings.detailedTimestamps = e.target.checked;
+      MGA_saveJSON('MGA_data', UnifiedState.data);
+
+      // Clear timestamp cache and force full rebuild for timestamp format change
+      MGA_AbilityCache.timestamps.clear();
+
+      // BUGFIX: Force overlay refresh to show new timestamp format
+      // Update all overlays first to ensure they show the new format
+      UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
+        if (tabName === 'abilities' && overlay && overlay.offsetParent !== null) {
+          updateAbilityLogDisplay(overlay);
+          debugLog('ABILITY_LOGS', 'Updated overlay with new timestamp format');
+        }
+      });
+
+      // Then update main displays
+      updateAllAbilityLogDisplays(true);
+      productionLog(`🕐 [ABILITIES] Detailed timestamps: ${e.target.checked ? 'enabled' : 'disabled'}`);
+    });
+  }
+
+  // Test Abilities button removed - function kept for potential debugging use
+
+  // Initialize the current filter mode display
+  const currentMode = UnifiedState.data.filterMode || 'categories';
+  setTimeout(() => populateFilterModeContent(currentMode), 100);
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -4668,5 +5211,11 @@ export default {
 
   // Instant Feed Initialization & Polling (Phase 10)
   injectInstantFeedButtons,
-  initializeInstantFeedButtons
+  initializeInstantFeedButtons,
+
+  // Additional Pet Management Functions (Phase 11)
+  presetHasCropEater,
+  cycleToNextPreset,
+  playAbilityNotificationSound,
+  setupAbilitiesTabHandlers
 };
