@@ -160,10 +160,7 @@ export function clearCropHighlighting(dependencies = {}) {
  * @param {Function} [dependencies.productionLog] - Production logging function
  */
 export function debugCropHighlighting(dependencies = {}) {
-  const {
-    targetWindow = typeof window !== 'undefined' ? window : null,
-    productionLog = console.log
-  } = dependencies;
+  const { targetWindow = typeof window !== 'undefined' ? window : null, productionLog = console.log } = dependencies;
 
   productionLog('🔍 CROP HIGHLIGHTING DEBUG:');
   productionLog('  window.gardenInfo:', !!targetWindow.gardenInfo);
@@ -320,10 +317,7 @@ export function applyCropHighlighting(dependencies = {}) {
  * @param {Function} [dependencies.productionLog] - Production logging function
  */
 export function setupAutomaticCropHighlighting(dependencies = {}) {
-  const {
-    targetWindow = typeof window !== 'undefined' ? window : null,
-    productionLog = console.log
-  } = dependencies;
+  const { targetWindow = typeof window !== 'undefined' ? window : null, productionLog = console.log } = dependencies;
 
   targetWindow.addEventListener('keydown', function (e) {
     // Ignore when typing in input fields

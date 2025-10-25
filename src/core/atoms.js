@@ -67,14 +67,11 @@ const atomReferences = new Map();
  * @returns {*} Atom value or null
  */
 export function readAtom(atomName, dependencies = {}) {
-  const {
-    window: win = typeof window !== 'undefined' ? window : null,
-    unsafeWindow: unsafeWin = null
-  } = dependencies;
+  const { window: win = typeof window !== 'undefined' ? window : null, unsafeWindow: unsafeWin = null } = dependencies;
 
   // Check for global unsafeWindow (userscript context)
   const globalUnsafeWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : null;
-  const gw = (unsafeWin || globalUnsafeWindow) || win;
+  const gw = unsafeWin || globalUnsafeWindow || win;
 
   try {
     if (gw?.MGTools?.store?.getAtomValue) {
@@ -170,8 +167,17 @@ export function hookAtom(atomPath, windowKey, callback = null, retryCount = 0, d
 
   // DIAGNOSTIC: Check multiple possible locations for jotaiAtomCache
   if (retryCount === 0) {
-    consoleObj?.log('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
-    consoleObj?.log('  - isUserscript:', typeof unsafeWindow !== 'undefined', '(using unsafeWindow:', typeof unsafeWindow !== 'undefined' ? 'YES' : 'NO)');
+    consoleObj?.log(
+      '  - targetWindow.jotaiAtomCache:',
+      typeof targetWindow.jotaiAtomCache,
+      targetWindow.jotaiAtomCache
+    );
+    consoleObj?.log(
+      '  - isUserscript:',
+      typeof unsafeWindow !== 'undefined',
+      '(using unsafeWindow:',
+      typeof unsafeWindow !== 'undefined' ? 'YES' : 'NO)'
+    );
     const jotaiKeys = Object.keys(targetWindow).filter(k => k.toLowerCase().includes('jotai'));
     consoleObj?.log('  - Keys with "jotai" on targetWindow:', jotaiKeys);
   }
@@ -532,8 +538,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
       if (direction === 'forward') {
         targetWindow._mgtools_currentSlotIndex = (targetWindow._mgtools_currentSlotIndex + 1) % maxIndex;
       } else if (direction === 'backward') {
-        targetWindow._mgtools_currentSlotIndex =
-          (targetWindow._mgtools_currentSlotIndex - 1 + maxIndex) % maxIndex;
+        targetWindow._mgtools_currentSlotIndex = (targetWindow._mgtools_currentSlotIndex - 1 + maxIndex) % maxIndex;
       }
 
       consoleObj?.log(

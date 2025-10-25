@@ -625,7 +625,9 @@ export function initializeProtectionHooks(dependencies = {}) {
 
         // Check sell blocking
         if (isSellMessage && friendBonus < targetWindow.sellBlockThreshold) {
-          console.warn(`[SellBlock] Blocked ${msgType} (friendBonus=${friendBonus} < ${targetWindow.sellBlockThreshold})`);
+          console.warn(
+            `[SellBlock] Blocked ${msgType} (friendBonus=${friendBonus} < ${targetWindow.sellBlockThreshold})`
+          );
           return;
         }
 

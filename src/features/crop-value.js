@@ -306,14 +306,17 @@ export function calculateCurrentSlotValue(currentCrop, dependencies = {}) {
   const value = Math.round(multiplier * speciesVal * scale * friendBonus);
 
   // Always log for debugging
-  console.log(`💰 [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`, {
-    species: slot.species,
-    speciesVal,
-    multiplier,
-    scale,
-    friendBonus,
-    value
-  });
+  console.log(
+    `💰 [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`,
+    {
+      species: slot.species,
+      speciesVal,
+      multiplier,
+      scale,
+      friendBonus,
+      value
+    }
+  );
 
   return value;
 }
@@ -615,12 +618,7 @@ export function insertTurtleEstimate(dependencies = {}) {
     const sortedIndices = UnifiedState.atoms.sortedSlotIndices || window.sortedSlotIndices;
     let actualSlotIndex = slotIndex;
 
-    if (
-      sortedIndices &&
-      Array.isArray(sortedIndices) &&
-      sortedIndices.length > 0 &&
-      slotIndex < sortedIndices.length
-    ) {
+    if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0 && slotIndex < sortedIndices.length) {
       actualSlotIndex = sortedIndices[slotIndex];
     }
 
@@ -871,9 +869,7 @@ export function initializeTurtleTimer(dependencies = {}) {
 
     // If player is standing on something (has crop/egg data OR tooltip is visible), ensure estimate is shown
     if (currentCrop || currentEgg || tooltipVisible) {
-      const hasExisting = doc.querySelector(
-        '[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]'
-      );
+      const hasExisting = doc.querySelector('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]');
       if (!hasExisting) {
         insertEstimate(dependencies);
       }
