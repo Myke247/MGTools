@@ -2,13 +2,16 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `dadeaf5` - chore: apply prettier formatting to new modules
+**Latest Commit:** `2edab13` - feat: UI Overlay Phase 2 - Main UI Creation complete (~839 lines)
+**Uncommitted Work:** None (Phase 2 complete and committed)
 
 ---
 
 ## 🎯 Current Task
 
 **MAJOR MILESTONE: 12 COMPLETE SYSTEMS EXTRACTED!** 🎉
+
+**NEW EXTRACTION STARTED: UI Overlay System** 🚀 (~3,687 lines total)
 
 **Shop System:** 100% complete (All 6 phases - ~3,037 lines extracted)
 **Notification System:** 100% complete (All 5 phases - ~2,118 lines extracted)
@@ -22,13 +25,108 @@
 **Environment Detection:** 100% complete (~305 lines extracted)
 **Modal Detection & Debug:** 100% complete (~350 lines extracted)
 
-**Latest:** Modal Detection & Debug System - 100% COMPLETE ✅
+**Latest:** UI Overlay System - Phase 1 & 2 COMPLETE! ✅ (20% → 44% progress)
 
-**Total Extracted:** ~12,000+ lines across 12 systems
+**Total Extracted:** ~13,561+ lines across 12+ systems (UI Overlay extraction ongoing)
+
+---
+
+## 🚧 Currently Extracting
+
+### UI Overlay System (~3,687 lines total)
+
+**Phase 1: UNIFIED_STYLES CSS** ✅ **COMPLETE** (~722 lines)
+- Google Fonts import constant
+- UNIFIED_STYLES CSS template literal
+  - Hybrid dock styles (horizontal/vertical)
+  - Dock size variants (micro, mini, tiny, small, medium, large)
+  - Sidebar styles (main + shop)
+  - Popout widget styles
+  - Original MGA styles (buttons, inputs, overlays)
+  - Pet management styles
+  - Shop item styles (rainbow text, sprite sizing)
+  - Texture animations
+  - Scrollbar customization
+
+**Phase 2: Main UI Creation** ✅ **COMPLETE** (~839 lines)
+- createUnifiedUI() - Main UI initialization (~640 lines)
+  - Hybrid dock creation (horizontal/vertical orientation)
+  - 6 size variants (micro, mini, tiny, small, medium, large)
+  - Sidebar creation and integration
+  - Event listeners and interaction handlers
+  - DOM structure and element management
+- ensureUIHealthy() - UI health checks (~82 lines)
+  - Connection state validation
+  - UI element existence checks
+  - Health status monitoring
+- setupToolbarToggle() - Alt+M visibility toggle (~77 lines)
+  - Keyboard event handling for Alt+M
+  - Dock visibility state management
+- setupDockSizeControl() - Alt+=/- size adjustment (~107 lines)
+  - Keyboard event handling for Alt+= and Alt+-
+  - Size variant cycling (6 sizes)
+  - Size state persistence
+- saveDockPosition() - Persist dock position to localStorage
+- resetDockPosition() - Reset dock to default position
+- cleanupCorruptedDockPosition() - Fix corrupted position data
+- **STATUS:** Fully modularized with dependency injection pattern
+
+**Phase 3: Sidebar & Popout Management** ⏸️ PENDING (~523 lines)
+**Phase 4: Overlay System** ⏸️ PENDING (~1,505 lines)
+**Phase 5: Tab Content Cache** ⏸️ PENDING (~45+ lines)
+
+**Module Status:** src/ui/overlay.js - 1,601 lines (Phases 1 & 2 complete)
+**Progress:** ~44% complete (Phases 1-2 done: ~1,561 lines extracted)
+**Next Steps:** Extract Phase 3: Sidebar & Popout Management (~523 lines)
 
 ---
 
 ## ✅ Recently Completed
+
+### Session: 2025-10-25 (UI Overlay System - Phase 2 COMPLETE!)
+
+**UI Overlay System - Phase 2: Main UI Creation:**
+- ✅ **Main UI Creation & Management Module (~839 lines, 7 functions)**
+  - createUnifiedUI() - Main hybrid dock and sidebar creation (~640 lines)
+    - Creates hybrid dock UI with horizontal/vertical orientation support
+    - Implements 6 size variants (micro, mini, tiny, small, medium, large)
+    - Generates complete sidebar navigation structure
+    - Sets up event listeners for all interactive elements
+    - Handles dock positioning and dragging initialization
+    - Integrates with all tab systems (settings, protection, hotkeys, etc.)
+    - Full dependency injection pattern for modularity
+  - ensureUIHealthy() - UI health checks and validation (~82 lines)
+    - Connection state validation
+    - UI element existence checks
+    - Health status monitoring and recovery
+    - Automatic UI reinitialization on failures
+  - setupToolbarToggle() - Alt+M visibility toggle (~77 lines)
+    - Keyboard event handling for Alt+M hotkey
+    - Dock visibility state management
+    - State persistence to localStorage
+    - Visual feedback for visibility changes
+  - setupDockSizeControl() - Alt+=/- size adjustment (~107 lines)
+    - Keyboard event handling for Alt+= and Alt+- hotkeys
+    - Size variant cycling through 6 sizes
+    - Size state persistence to localStorage
+    - Dynamic size application with smooth transitions
+  - saveDockPosition() - Persist dock position to localStorage (~15 lines)
+  - resetDockPosition() - Reset dock to default position (~20 lines)
+  - cleanupCorruptedDockPosition() - Fix corrupted position data (~15 lines)
+
+**Module Status:**
+- UI Overlay: src/ui/overlay.js - 1,601 lines total (Phases 1-2 complete)
+
+**Quality Validation:**
+✅ Node.js syntax check: PASSED
+✅ ESLint: 0 errors, 4 warnings (style preferences only)
+✅ All functions use full dependency injection pattern
+✅ Proper module exports
+✅ Both builds verified (mirror + modular)
+
+**Progress:** UI Overlay System 20%→44% (+24%)
+
+---
 
 ### Session: 2025-10-25 (Modal Detection & Debug System 100% COMPLETE!)
 
