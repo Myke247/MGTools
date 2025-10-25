@@ -4116,15 +4116,147 @@ function setupPetPopoutHandlers(deps, context = document) {
 
 // ==================== EXPORTS ====================
 
+/**
+ * Tab content cache storage
+ * Maps tab names to cached content with timestamps
+ */
+const tabContentCache = new Map();
+
+/**
+ * Cache duration for static tabs (30 seconds)
+ */
+const TAB_CACHE_DURATION = 30000;
+
+/**
+ * Dynamic tabs that should never be cached (always show real-time data)
+ */
+const DYNAMIC_TABS = [
+  'pets',
+  'abilities',
+  'seeds',
+  'shop',
+  'values',
+  'timers',
+  'rooms',
+  'hotkeys',
+  'settings',
+  'notifications',
+  'protect'
+];
+
+/**
+ * getCachedTabContent - Get cached tab content or generate new content
+ *
+ * This function implements an intelligent caching strategy:
+ * - Dynamic tabs are never cached (always generate fresh content)
+ * - Static tabs are cached for TAB_CACHE_DURATION
+ * - Expired cache entries are automatically regenerated
+ *
+ * @param {Object} deps - Dependencies (currently unused, for future expansion)
+ * @param {string} tabName - Name of the tab to get content for
+ * @param {Function} generator - Function to generate tab content if not cached
+ * @returns {HTMLElement|string} The tab content (from cache or freshly generated)
+ *
+ * @example
+ * const content = getCachedTabContent(deps, 'info', () => generateInfoTab());
+ */
+function getCachedTabContent(deps, tabName, generator) {
+  // Never cache dynamic tabs (they need real-time data)
+  if (DYNAMIC_TABS.includes(tabName)) {
+    return generator();
+  }
+
+  // Check cache for static tabs
+  const cached = tabContentCache.get(tabName);
+  const now = Date.now();
+
+  if (cached && now - cached.timestamp < TAB_CACHE_DURATION) {
+    return cached.content;
+  }
+
+  // Generate and cache
+  const content = generator();
+  tabContentCache.set(tabName, { content, timestamp: now });
+  return content;
+}
+
+/**
+ * invalidateTabCache - Invalidate tab cache entries
+ *
+ * Call this function when settings change or when you need to force
+ * regeneration of cached tab content.
+ *
+ * @param {Object} deps - Dependencies (currently unused, for future expansion)
+ * @param {string|null} tabName - Specific tab to invalidate, or null to clear all
+ *
+ * @example
+ * // Invalidate a specific tab
+ * invalidateTabCache(deps, 'info');
+ *
+ * // Clear all cached tabs
+ * invalidateTabCache(deps, null);
+ */
+function invalidateTabCache(deps, tabName = null) {
+  if (tabName) {
+    tabContentCache.delete(tabName);
+  } else {
+    tabContentCache.clear();
+  }
+}
+
+/**
+ * getTabCacheStats - Get cache statistics (utility function)
+ *
+ * @param {Object} deps - Dependencies (currently unused)
+ * @returns {Object} Cache statistics including size and entries
+ */
+function getTabCacheStats(deps) {
+  return {
+    size: tabContentCache.size,
+    entries: Array.from(tabContentCache.keys()),
+    duration: TAB_CACHE_DURATION
+  };
+}
+
+// ==================== EXPORTS ====================
+// All UI Overlay functions (Phases 2-5)
+
 export {
+  // Phase 2: Main UI Creation (7 functions)
+  createUnifiedUI,
+  ensureUIHealthy,
+  setupToolbarToggle,
+  setupDockSizeControl,
+  saveDockPosition,
+  resetDockPosition,
+  cleanupCorruptedDockPosition,
+
+  // Phase 3: Sidebar & Popout Management (12 functions)
   openSidebarTab,
   openPopoutWidget,
   makePopoutDraggable,
   openTabInSeparateWindow,
-  getContentForTab,
-  setupOverlayHandlers,
+  toggleTabPopout,
+  updatePopoutButtonState,
+  updatePopoutButtonStateByTab,
+  openTabInPopout,
+  refreshSeparateWindowPopouts,
+  closeAllPopouts,
+  getPetsPopoutContent,
+  setupPetPopoutHandlers,
+
+  // Phase 4: In-Game Overlay System (9 functions)
   createInGameOverlay,
   makeEntireOverlayDraggable,
+  closeInGameOverlay,
+  updatePureOverlayContent,
+  setupPureOverlayHandlers,
+  refreshOverlayContent,
+  updateOverlayContent,
+  setupOverlayHandlers,
+  getContentForTab,
+
+  // Position & Dimension Management (10 functions)
   getGameViewport,
   addResizeHandleToOverlay,
   saveOverlayDimensions,
@@ -4135,17 +4267,11 @@ export {
   hasCollisionAtPosition,
   saveOverlayPosition,
   loadOverlayPosition,
-  closeInGameOverlay,
-  updatePopoutButtonStateByTab,
-  updatePureOverlayContent,
-  setupPureOverlayHandlers,
-  refreshOverlayContent,
-  updateOverlayContent,
-  toggleTabPopout,
-  updatePopoutButtonState,
-  openTabInPopout,
-  refreshSeparateWindowPopouts,
-  closeAllPopouts,
-  getPetsPopoutContent,
-  setupPetPopoutHandlers
+
+  // Phase 5: Tab Content Cache (5 exports)
+  getCachedTabContent,
+  invalidateTabCache,
+  getTabCacheStats,
+  DYNAMIC_TABS,
+  TAB_CACHE_DURATION
 };
