@@ -10,9 +10,9 @@
 
 **Phase 6 - Shop System Extraction**
 
-**Progress:** ~24% complete (Phase 2 of 6 - ~609 lines extracted)
+**Progress:** ~41% complete (Phase 3 of 6 - ~1,014 lines extracted)
 
-**Latest:** Phase 2 - Inventory & Stock Management COMPLETE ✅
+**Latest:** Phase 3 - Shop Item Elements & Purchase Logic COMPLETE ✅
 
 ---
 
@@ -20,7 +20,33 @@
 
 ### Session: 2025-10-24 (Day 2 - Shop System Extraction)
 
-**Latest Work (Session 15):**
+**Latest Work (Session 16):**
+- ✅ **Phase 3: Shop Item Elements & Purchase Logic COMPLETE!**
+- ✅ Extracted Item Creation & Purchase Functions (~405 lines)
+  - `isShopDataReady()` - Check if shop data loaded (~3 lines)
+  - `waitForShopData()` - Polling wait for shop data (~26 lines)
+  - `createShopItemElement()` - Create shop item UI element (~112 lines)
+    - Rarity-based color coding (white/green/blue/yellow/purple/orange/rainbow)
+    - Sprite image loading from Discord CDN
+    - Stock and price display with color formatting
+    - Quantity tracking with color-coded warnings (red at 100%, orange at 80%, yellow at 50%)
+    - Buy buttons (1 and All) with hover effects (no transform - prevents flickering)
+    - Event listener setup with proper dependency injection
+  - `buyItem()` - Purchase item with comprehensive validation (~189 lines)
+    - Connection validation
+    - Smart inventory checking (allows stacking on existing items even when full)
+    - Stack capacity validation (WateringCan: 99 cap, others: unlimited)
+    - Visual feedback (red flash for errors, green tooltip for success)
+    - Purchase message sending to game server
+    - UI updates after purchase (stock, quantity, styling)
+- ✅ All code passes ESLint + Prettier
+- ✅ Both builds verified (mirror + modular)
+- ✅ Modular build stable at 275.2 KB
+- ✅ `shop.js` now 1,267 lines total (Phase 1-3 complete)
+
+**Progress:** 24% → 41% (+17%)
+
+**Earlier Work (Session 15):**
 - ✅ **Phase 2: Inventory & Stock Management COMPLETE!**
 - ✅ Extracted Inventory Management Functions (~363 lines)
   - `localPurchaseTrackerState` - Module-level purchase tracking state (~4 lines)
@@ -65,8 +91,8 @@
 **Shop Extraction Roadmap:**
 - Phase 1: Constants & Utilities - ~246 lines ✅ COMPLETE
 - Phase 2: Inventory & Stock Management - ~363 lines ✅ COMPLETE
-- Phase 3: Shop Item Elements & Purchase Logic - ~500 lines (NEXT)
-- Phase 4: Shop Windows & Overlays - ~700 lines
+- Phase 3: Shop Item Elements & Purchase Logic - ~405 lines ✅ COMPLETE
+- Phase 4: Shop Windows & Overlays - ~700 lines (NEXT)
 - Phase 5: Shop Tab Content - ~300 lines
 - Phase 6: Shop Monitoring & Restock Detection - ~500 lines
 - **Total Estimated:** ~2,500 lines (major feature comparable to pets!)
@@ -431,7 +457,7 @@
 - **Removed from git:** REALISTIC_STATUS.md, MODULARIZATION_STATUS.md, .eslintrc.json, .claude/settings*.json
 
 ### Shop Extraction Work (Current Session)
-- `src/features/shop.js` - Shop module (852 lines total, Phase 1-2 complete)
+- `src/features/shop.js` - Shop module (1,267 lines total, Phase 1-3 complete)
 - `SHOP_EXTRACTION_PLAN.md` - Complete 6-phase extraction roadmap
 
 ### Notification Extraction Work (Previous Session)
@@ -487,10 +513,10 @@ All systems operational:
 
 **Shop extraction in progress:** (Current session)
 - File: `src/features/shop.js`
-- Status: ~10% complete - Phase 1 of 6 complete!
-- Progress: ~246 lines extracted (constants & utilities)
+- Status: ~41% complete - Phase 3 of 6 complete!
+- Progress: ~1,014 lines extracted (constants, inventory, purchase logic)
 - Roadmap: `SHOP_EXTRACTION_PLAN.md`
-- Phases remaining: 5 (Inventory, Purchase Logic, UI Windows, Tab Content, Monitoring)
+- Phases remaining: 3 (UI Windows, Tab Content, Monitoring)
 
 **Notification extraction status:** (Previous session)
 - File: `src/features/notifications.js`
