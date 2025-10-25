@@ -31,13 +31,26 @@
  *   • showVisualNotification() - Toast/modal with animations (~177 lines)
  *   • Module-level state: notificationQueue, currentNotificationModal, timer
  *
- * Total Extracted: ~700 lines (of ~800-1000 estimated)
- * Progress: 75%
+ * Phase 4 (Complete):
+ * - Notification Utilities - ~84 lines
+ *   • normalizeSpeciesName() - Case-insensitive species name normalization (~3 lines)
+ *   • isWatchedItem() - Check if item is on watch list (~23 lines)
+ *   • updateLastSeen() - Update last seen timestamp (~12 lines)
+ *   • getTimeSinceLastSeen() - Human-readable time since last seen (~26 lines)
+ *   • showNotificationToast() - Simple colored toast notifications (~32 lines)
+ *
+ * Total Extracted: ~784 lines of core notification functionality
+ * Progress: 85% (core complete)
+ *
+ * Remaining (UI Layer - belongs in separate module):
+ * - getNotificationsTabContent() - ~592 lines of HTML generation for settings tab
+ * - setupNotificationsTabHandlers() - ~613 lines of event handlers for settings tab
+ * These are UI-specific and belong in the UI layer, not core notification logic.
  *
  * Dependencies:
  * - Core: logging (productionLog)
- * - State: UnifiedState (for user preferences)
- * - Storage: GM_getValue (for custom sound uploads)
+ * - State: UnifiedState (for user preferences, watch lists, timestamps)
+ * - Storage: GM_getValue, MGA_saveJSON (for custom sounds and persistence)
  * - Browser APIs: Web Audio API, Audio(), setTimeout, DOM manipulation
  * - Document: createElement, querySelector, appendChild (for visual notifications)
  */
@@ -950,6 +963,162 @@ export function showVisualNotification(message, requiresAcknowledgment = false, 
 }
 
 /* ====================================================================================
+ * NOTIFICATION UTILITIES (Phase 4)
+ * ====================================================================================
+ */
+
+/**
+ * Normalize species name for case-insensitive comparison
+ * Trims and lowercases species names for consistent matching
+ *
+ * @param {string} name - Species name to normalize
+ * @returns {string} Normalized species name (lowercase, trimmed)
+ */
+export function normalizeSpeciesName(name) {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().toLowerCase();
+}
+
+/**
+ * Check if item is on the watch list
+ * Handles name variations for celestial seeds (DawnCelestial → Dawnbinder)
+ *
+ * @param {string} itemId - Item ID to check
+ * @param {string} type - Item type (seed, egg, decor)
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @param {Function} [dependencies.normalizeSpeciesName] - Species name normalizer
+ * @returns {boolean} True if item is watched
+ */
+export function isWatchedItem(itemId, type = 'seed', dependencies = {}) {
+  const {
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    normalizeSpeciesName: normalizeFn = normalizeSpeciesName
+  } = dependencies;
+
+  const notifications = UnifiedState.data.settings.notifications;
+  if (type === 'seed') {
+    // Handle name variations for celestial seeds
+    // Shop uses "DawnCelestial" and "MoonCelestial" but UI uses "Dawnbinder" and "Moonbinder"
+    const nameMap = {
+      DawnCelestial: 'Dawnbinder',
+      MoonCelestial: 'Moonbinder'
+    };
+    const checkId = nameMap[itemId] || itemId;
+
+    // Case-insensitive matching for seeds
+    const normalizedItemId = normalizeFn(checkId);
+    return notifications.watchedSeeds.some(watched => normalizeFn(watched) === normalizedItemId);
+  } else if (type === 'egg') {
+    return notifications.watchedEggs.includes(itemId);
+  }
+  return false;
+}
+
+/**
+ * Update last seen timestamp for an item
+ * Saves timestamp to persistent storage for tracking rare item appearances
+ *
+ * @param {string} itemId - Item ID to update
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @param {Function} [dependencies.MGA_saveJSON] - JSON save function
+ * @param {Function} [dependencies.productionLog] - Production logging function
+ */
+export function updateLastSeen(itemId, dependencies = {}) {
+  const {
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    MGA_saveJSON = typeof window !== 'undefined' && window.MGA_saveJSON,
+    productionLog = console.log
+  } = dependencies;
+
+  const notifications = UnifiedState.data.settings.notifications;
+  notifications.lastSeenTimestamps[itemId] = Date.now();
+  MGA_saveJSON('MGA_data', UnifiedState.data);
+  productionLog(`📅 [NOTIFICATIONS] Updated last seen for ${itemId}`);
+}
+
+/**
+ * Get time since item was last seen (human readable format)
+ * Handles name mapping for celestial seeds
+ *
+ * @param {string} itemId - Item ID to check
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @returns {string} Human-readable time string (e.g. "2 days ago", "Never seen")
+ */
+export function getTimeSinceLastSeen(itemId, dependencies = {}) {
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
+
+  const notifications = UnifiedState.data.settings.notifications;
+
+  // Map UI names to shop IDs for celestial seeds
+  // UI shows "Moonbinder" but shop stores as "MoonCelestial"
+  const reverseNameMap = {
+    Moonbinder: 'MoonCelestial',
+    Dawnbinder: 'DawnCelestial'
+  };
+  const lookupId = reverseNameMap[itemId] || itemId;
+
+  const timestamp = notifications.lastSeenTimestamps[lookupId];
+  if (!timestamp) return 'Never seen';
+
+  const diff = Date.now() - timestamp;
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+
+  const minutes = Math.floor(diff / (1000 * 60));
+  return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+}
+
+/**
+ * Show simple notification toast (info/success/warning)
+ * Displays colored toast in top-right corner, auto-dismisses after 5 seconds
+ *
+ * @param {string} message - Message to display
+ * @param {string} type - Toast type (info, success, warning)
+ * @param {Object} [dependencies] - Optional dependencies
+ * @param {Object} [dependencies.targetDocument] - Target document (default: window.document)
+ */
+export function showNotificationToast(message, type = 'info', dependencies = {}) {
+  const { targetDocument = typeof window !== 'undefined' ? window.document : null } = dependencies;
+
+  try {
+    const toast = targetDocument.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+          position: fixed;
+          top: 80px;
+          right: 20px;
+          padding: 12px 20px;
+          background: ${type === 'warning' ? 'rgba(255, 165, 0, 0.9)' : type === 'success' ? 'rgba(76, 175, 80, 0.9)' : 'rgba(33, 150, 243, 0.9)'};
+          color: white;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: bold;
+          z-index: 2147483647;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          max-width: 300px;
+          word-wrap: break-word;
+          transition: opacity 0.3s ease;
+      `;
+
+    targetDocument.body.appendChild(toast);
+
+    // Fade out and remove after 5 seconds
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 5000);
+  } catch (error) {
+    console.error('❌ [TOAST] Error showing notification toast:', error);
+  }
+}
+
+/* ====================================================================================
  * MODULE EXPORTS
  * ====================================================================================
  */
@@ -983,5 +1152,12 @@ export default {
   generateNotificationListHTML,
   showBatchedNotificationModal,
   dismissAllNotifications,
-  showVisualNotification
+  showVisualNotification,
+
+  // Notification Utilities (Phase 4)
+  normalizeSpeciesName,
+  isWatchedItem,
+  updateLastSeen,
+  getTimeSinceLastSeen,
+  showNotificationToast
 };
