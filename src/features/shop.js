@@ -10,7 +10,7 @@
  *
  * This module is extracted incrementally across 6 phases:
  *
- * Phase 1 (Current):
+ * Phase 1 (Complete):
  * - Shop Constants & Utilities - ~246 lines
  *   • SHOP_IMAGE_MAP - Discord CDN URLs for item sprites (~45 lines)
  *   • SHOP_COLOR_GROUPS - Rarity color groupings (~7 lines)
@@ -24,8 +24,19 @@
  *   • flashPurchaseFeedback() - Visual purchase feedback (~75 lines)
  *   • showFloatingMsg() - Floating message helper (~8 lines)
  *
- * Phase 2 (Planned):
- * - Inventory & Stock Management
+ * Phase 2 (Current):
+ * - Inventory & Stock Management - ~363 lines
+ *   • localPurchaseTrackerState - Module-level state (~4 lines)
+ *   • loadPurchaseTracker() - Load tracker from storage (~27 lines)
+ *   • savePurchaseTracker() - Save tracker to storage (~15 lines)
+ *   • trackLocalPurchase() - Track item purchase (~20 lines)
+ *   • getLocalPurchaseCount() - Get purchase count (~23 lines)
+ *   • resetLocalPurchases() - Reset on restock (~24 lines)
+ *   • isInventoryFull() - Check 100-slot cap (~10 lines)
+ *   • getInventoryItemCount() - Count items in inventory (~18 lines)
+ *   • getItemStackCap() - Get stack capacity limits (~13 lines)
+ *   • flashInventoryFullFeedback() - Red flash animation (~33 lines)
+ *   • getItemStock() - Get current shop stock (~53 lines)
  *
  * Phase 3 (Planned):
  * - Shop Item Elements & Purchase Logic
@@ -39,8 +50,9 @@
  * Phase 6 (Planned):
  * - Shop Monitoring & Restock Detection
  *
- * Total Extracted (Current): ~246 lines
+ * Total Extracted (Current): ~609 lines (Phase 1-2)
  * Estimated Total: ~2,000-2,500 lines (shop is a major feature comparable to pets)
+ * Progress: ~24% complete (2/6 phases)
  *
  * @module features/shop
  */
@@ -419,15 +431,366 @@ export function showFloatingMsg(msg, dur = 900, dependencies = {}) {
 }
 
 // ============================================================================
-// PHASE 2: INVENTORY & STOCK MANAGEMENT (PLANNED)
+// PHASE 2: INVENTORY & STOCK MANAGEMENT
 // ============================================================================
-// - isInventoryFull()
-// - getInventoryItemCount()
-// - getItemStackCap()
-// - getItemStock()
-// - flashInventoryFullFeedback()
-// - resetLocalPurchases()
-// - checkForWatchedItems()
+
+/**
+ * Module-level state: Purchase tracking across restocks
+ * Tracks local purchases to calculate accurate stock counts
+ * Persisted to localStorage via MGA_saveJSON/MGA_loadJSON
+ */
+let localPurchaseTrackerState = {
+  seed: {},
+  egg: {},
+  tool: {}
+};
+
+/**
+ * Load persisted purchase tracker from storage
+ * Called automatically on module initialization
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.MGA_loadJSON] - Load JSON from GM storage
+ * @param {Console} [dependencies.console] - Console for logging
+ */
+export function loadPurchaseTracker(dependencies = {}) {
+  const { MGA_loadJSON = typeof window !== 'undefined' && window.MGA_loadJSON, console: consoleObj = console } =
+    dependencies;
+
+  if (!MGA_loadJSON) return;
+
+  try {
+    const saved = MGA_loadJSON('MGA_purchaseTracker');
+    if (saved && typeof saved === 'object') {
+      localPurchaseTrackerState = {
+        seed: saved.seed || {},
+        egg: saved.egg || {},
+        tool: saved.tool || {}
+      };
+      consoleObj.log('📦 [LOCAL-TRACK] Loaded purchase tracker:', {
+        seeds: Object.keys(localPurchaseTrackerState.seed).length,
+        eggs: Object.keys(localPurchaseTrackerState.egg).length,
+        tools: Object.keys(localPurchaseTrackerState.tool).length,
+        toolData: localPurchaseTrackerState.tool
+      });
+    }
+  } catch (e) {
+    consoleObj.error('[LOCAL-TRACK] Error loading purchase tracker:', e);
+  }
+}
+
+/**
+ * Save purchase tracker to storage
+ * Persists current state to GM storage for cross-session persistence
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.MGA_saveJSON] - Save JSON to GM storage
+ * @param {Object} [dependencies.localPurchaseTracker] - Tracker state (default: module state)
+ * @param {Console} [dependencies.console] - Console for logging
+ */
+export function savePurchaseTracker(dependencies = {}) {
+  const {
+    MGA_saveJSON = typeof window !== 'undefined' && window.MGA_saveJSON,
+    localPurchaseTracker = localPurchaseTrackerState,
+    console: consoleObj = console
+  } = dependencies;
+
+  if (!MGA_saveJSON) return;
+
+  try {
+    MGA_saveJSON('MGA_purchaseTracker', localPurchaseTracker);
+  } catch (e) {
+    consoleObj.error('[LOCAL-TRACK] Error saving purchase tracker:', e);
+  }
+}
+
+/**
+ * Track a local purchase
+ * Increments purchase count for item and persists to storage
+ *
+ * @param {string} id - Item identifier
+ * @param {string} type - Item type ('seed', 'egg', 'tool')
+ * @param {number} [amount=1] - Quantity purchased
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.localPurchaseTracker] - Tracker state
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.savePurchaseTracker] - Save function
+ */
+export function trackLocalPurchase(id, type, amount = 1, dependencies = {}) {
+  const {
+    localPurchaseTracker = localPurchaseTrackerState,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    savePurchaseTracker: saveFn = savePurchaseTracker
+  } = dependencies;
+
+  if (!localPurchaseTracker[type][id]) {
+    localPurchaseTracker[type][id] = 0;
+  }
+  localPurchaseTracker[type][id] += amount;
+
+  if (productionLog) {
+    productionLog(
+      `📝 [LOCAL-TRACK] Recorded ${amount}x ${id} (${type}). Total local: ${localPurchaseTracker[type][id]}`
+    );
+  }
+
+  // Persist to storage
+  saveFn({ localPurchaseTracker });
+}
+
+/**
+ * Get local purchase count for an item
+ * Handles tool name variations (with/without spaces)
+ *
+ * @param {string} id - Item identifier
+ * @param {string} type - Item type ('seed', 'egg', 'tool')
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.localPurchaseTracker] - Tracker state
+ * @returns {number} Purchase count
+ */
+export function getLocalPurchaseCount(id, type, dependencies = {}) {
+  const { localPurchaseTracker = localPurchaseTrackerState } = dependencies;
+
+  // Check exact match first
+  if (localPurchaseTracker[type][id]) {
+    return localPurchaseTracker[type][id];
+  }
+
+  // For tools, also check with/without spaces for compatibility
+  if (type === 'tool') {
+    const idNoSpaces = id.replace(/\s+/g, '');
+    const typeKeys = Object.keys(localPurchaseTracker[type]);
+    for (let i = 0; i < typeKeys.length; i += 1) {
+      const key = typeKeys[i];
+      const keyNoSpaces = key.replace(/\s+/g, '');
+      if (keyNoSpaces === idNoSpaces) {
+        return localPurchaseTracker[type][key];
+      }
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Reset local purchases when shop restocks
+ * Clears purchase tracking for specific type or all types
+ *
+ * @param {string|null} [type=null] - Item type to reset, or null for all
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.localPurchaseTracker] - Tracker state
+ * @param {Function} [dependencies.productionLog] - Production logger
+ * @param {Function} [dependencies.savePurchaseTracker] - Save function
+ */
+export function resetLocalPurchases(type = null, dependencies = {}) {
+  const {
+    localPurchaseTracker = localPurchaseTrackerState,
+    productionLog = typeof window !== 'undefined' && window.productionLog,
+    savePurchaseTracker: saveFn = savePurchaseTracker
+  } = dependencies;
+
+  if (type) {
+    localPurchaseTracker[type] = {};
+    if (productionLog) {
+      productionLog(`🔄 [LOCAL-TRACK] Reset ${type} purchases for restock`);
+    }
+  } else {
+    localPurchaseTracker.seed = {};
+    localPurchaseTracker.egg = {};
+    localPurchaseTracker.tool = {};
+    if (productionLog) {
+      productionLog(`🔄 [LOCAL-TRACK] Reset all purchases for restock`);
+    }
+  }
+
+  // Persist to storage
+  saveFn({ localPurchaseTracker });
+}
+
+/**
+ * Check if inventory is full (100-slot cap)
+ * Magic Garden inventory: 91 bag slots + 9 hotbar slots = 100 total
+ *
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @returns {boolean} True if inventory is at 100-slot capacity
+ */
+export function isInventoryFull(dependencies = {}) {
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
+
+  const inventory = UnifiedState?.atoms?.inventory;
+  if (!inventory || !inventory.items) return false;
+
+  const MAX_INVENTORY = 100;
+  const currentCount = inventory.items.length;
+
+  return currentCount >= MAX_INVENTORY;
+}
+
+/**
+ * Count how many of a specific item type are in inventory
+ * Handles seeds, eggs, and tools with quantity stacking
+ *
+ * @param {string} itemId - Item identifier
+ * @param {string} itemType - Item type ('seed', 'egg', 'tool')
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Object} [dependencies.UnifiedState] - Unified state object
+ * @returns {number} Total quantity in inventory
+ */
+export function getInventoryItemCount(itemId, itemType, dependencies = {}) {
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
+
+  const inventory = UnifiedState?.atoms?.inventory;
+  if (!inventory || !inventory.items) return 0;
+
+  let count = 0;
+  for (const item of inventory.items) {
+    if (itemType === 'seed' && item.species === itemId) {
+      count += item.quantity || 1;
+    } else if (itemType === 'egg' && item.eggId === itemId) {
+      count += item.quantity || 1;
+    } else if (itemType === 'tool' && item.toolId === itemId) {
+      count += item.quantity || 1;
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Get stack capacity limit for specific items
+ * Different items have different capacity limits
+ *
+ * @param {string} itemId - Item identifier
+ * @param {string} itemType - Item type ('seed', 'egg', 'tool')
+ * @returns {number} Stack capacity (Infinity = no limit, 99 = WateringCan cap)
+ */
+export function getItemStackCap(itemId, itemType) {
+  // Shovel: unlimited uses (can buy 1 at a time, restocks)
+  if (itemType === 'tool' && (itemId === 'Shovel' || itemId === 'GardenShovel')) {
+    return Infinity; // No cap for Shovel
+  }
+
+  // WateringCan: Only item with a cap of 99 (cannot stack in inventory)
+  if (itemType === 'tool' && itemId === 'WateringCan') {
+    return 99;
+  }
+
+  // All other items (PlanterPot, seeds, eggs, etc.): No purchase limit
+  return Infinity;
+}
+
+/**
+ * Visual feedback for full inventory (red flash animation)
+ * Flashes element red 3 times with 200ms intervals
+ *
+ * @param {HTMLElement} element - Element to flash
+ * @param {string} message - Message to log
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Function} [dependencies.productionLog] - Production logger
+ */
+export function flashInventoryFullFeedback(element, message, dependencies = {}) {
+  const { productionLog = typeof window !== 'undefined' && window.productionLog } = dependencies;
+
+  // Flash red 3 times
+  let flashes = 0;
+  const flashInterval = setInterval(() => {
+    if (flashes >= 6) {
+      // 3 full cycles (on/off)
+      clearInterval(flashInterval);
+      element.style.background = '';
+      element.style.borderColor = '';
+      element.style.boxShadow = '';
+      return;
+    }
+
+    // Alternate between red and normal
+    if (flashes % 2 === 0) {
+      element.style.background = 'rgba(255, 0, 0, 0.3)';
+      element.style.borderColor = 'rgba(255, 0, 0, 0.8)';
+      element.style.boxShadow = '0 0 15px rgba(255, 0, 0, 0.5)';
+    } else {
+      element.style.background = '';
+      element.style.borderColor = '';
+      element.style.boxShadow = '';
+    }
+
+    flashes += 1;
+  }, 200); // Flash every 200ms
+
+  // Show message
+  if (productionLog) {
+    productionLog(`❌ [SHOP] ${message}`);
+  }
+}
+
+/**
+ * Get current shop stock for an item
+ * Calculates actual stock by subtracting local purchases from initialStock
+ * Handles seeds, eggs, and tools with name/ID variations
+ *
+ * @param {string} id - Item identifier
+ * @param {string} type - Item type ('seed', 'egg', 'tool')
+ * @param {Object} dependencies - Injectable dependencies
+ * @param {Window} [dependencies.targetWindow] - Target window (default: window)
+ * @param {Function} [dependencies.getLocalPurchaseCount] - Get purchase count function
+ * @param {Function} [dependencies.productionError] - Error logger
+ * @returns {number} Current stock (0 if not available)
+ */
+export function getItemStock(id, type, dependencies = {}) {
+  const {
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    getLocalPurchaseCount: getPurchasesFn = getLocalPurchaseCount,
+    productionError = console.error
+  } = dependencies;
+
+  try {
+    const shop = targetWindow?.globalShop?.shops;
+    if (!shop) return 0;
+
+    let inventory;
+    let item;
+
+    if (type === 'seed') {
+      inventory = shop.seed?.inventory;
+      if (!inventory) return 0;
+      item = inventory.find(i => i.species === id);
+    } else if (type === 'egg') {
+      inventory = shop.egg?.inventory;
+      if (!inventory) return 0;
+      item = inventory.find(i => i.eggId === id);
+    } else if (type === 'tool') {
+      inventory = shop.tool?.inventory;
+      if (!inventory) return 0;
+      // Tools use toolId property - also check with/without spaces for compatibility
+      const idNoSpaces = id.replace(/\s+/g, '');
+      item = inventory.find(
+        i =>
+          i.toolId === id ||
+          i.name === id ||
+          i.toolId?.replace(/\s+/g, '') === idNoSpaces ||
+          i.name?.replace(/\s+/g, '') === idNoSpaces
+      );
+    } else {
+      return 0;
+    }
+
+    if (!item) return 0;
+
+    // initialStock is a snapshot that only updates on restock
+    // We must subtract local purchases to get current stock
+    const initial = item.initialStock || item.stock || 0;
+    // Cap purchased count to initial - can't have purchased more than what was available
+    // This prevents stale localStorage data from showing incorrect stock
+    const purchased = Math.min(getPurchasesFn(id, type), initial);
+
+    const stock = Math.max(0, initial - purchased);
+    return stock;
+  } catch (e) {
+    productionError('[SHOP] getItemStock error:', e);
+    return 0;
+  }
+}
 
 // ============================================================================
 // PHASE 3: SHOP ITEM ELEMENTS & PURCHASE LOGIC (PLANNED)
@@ -481,6 +844,17 @@ export default {
   getShopItemColorClass,
   preloadShopImages,
   flashPurchaseFeedback,
-  showFloatingMsg
-  // Phase 2-6: To be added
+  showFloatingMsg,
+  // Phase 2: Inventory & Stock Management
+  loadPurchaseTracker,
+  savePurchaseTracker,
+  trackLocalPurchase,
+  getLocalPurchaseCount,
+  resetLocalPurchases,
+  isInventoryFull,
+  getInventoryItemCount,
+  getItemStackCap,
+  flashInventoryFullFeedback,
+  getItemStock
+  // Phase 3-6: To be added
 };
