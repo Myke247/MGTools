@@ -2,24 +2,88 @@
 
 **Last Updated:** 2025-10-25
 **Branch:** Live-Beta
-**Latest Commit:** `a3e10e1` - feat: notifications Phase 5 - UI Tab Content COMPLETE (100%)
+**Latest Commit:** `b218e39` - feat: complete hotkey system extraction - Phases 2-4 (~440 lines)
 
 ---
 
 ## 🎯 Current Task
 
-**MAJOR MILESTONE: Shop & Notification Systems 100% COMPLETE!** 🎉
+**MAJOR MILESTONE: Shop, Notification & Hotkey Systems 100% COMPLETE!** 🎉
 
 **Shop System:** 100% complete (All 6 phases - ~3,037 lines extracted)
 **Notification System:** 100% complete (All 5 phases - ~2,118 lines extracted)
+**Hotkey System:** 100% complete (All 4 phases - ~975 lines extracted)
 
-**Latest:** Notification Phase 5 - UI Tab Content COMPLETE ✅
+**Latest:** Hotkey System - ALL 4 PHASES COMPLETE ✅
 
 ---
 
 ## ✅ Recently Completed
 
-### Session: 2025-10-25 (MAJOR MILESTONE - Shop & Notifications 100% COMPLETE!)
+### Session: 2025-10-25 (MAJOR MILESTONE - Shop, Notifications & Hotkeys 100% COMPLETE!)
+
+**Hotkey System - ALL 4 Phases COMPLETE:**
+- ✅ **Phase 1: Hotkey Recording & Utilities (~276 lines)** - COMMITTED SEPARATELY
+  - Module-level state: `currentlyRecordingHotkey` - tracks recording state
+  - Recording Functions:
+    - startRecordingHotkey() - Record game key bindings with conflict detection (~63 lines)
+    - stopRecordingHotkey() - Stop recording and reset UI (~8 lines)
+    - startRecordingHotkeyMGTools() - Record MGTools key bindings (~66 lines)
+  - Input Detection:
+    - shouldBlockHotkey() - Comprehensive input field detection (~114 lines)
+      - Basic input elements (input, textarea, select)
+      - Chakra UI chat input detection
+      - Contenteditable elements
+      - ARIA role="textbox"
+      - Shadow DOM traversal
+      - Discord chat detection
+      - In-game chat pattern matching
+    - isTypingInInput() - Legacy alias for shouldBlockHotkey
+  - Key Parsing Utilities:
+    - parseKeyCombo() - Parse key combination strings (~10 lines)
+    - getProperKeyCode() - Get KeyboardEvent code for simulation (~55 lines)
+- ✅ **Phase 2: Key Simulation & Matching (~103 lines)** - COMMITTED WITH PHASES 3-4
+  - heldRemappedKeys Map - Track held remapped keys for proper release
+  - matchesKeyCombo() - Check if KeyboardEvent matches key combo (~15 lines)
+  - simulateKeyDown() - Simulate key press with proper keyCode (~19 lines)
+  - simulateKeyUp() - Simulate key release with proper keyCode (~17 lines)
+- ✅ **Phase 3: Event Handlers (~164 lines)** - COMMITTED WITH PHASE 2 & 4
+  - handleHotkeyPress() - Global keydown/keyup handler (~140 lines)
+    - ESC closes sidebar (always active)
+    - Block hotkeys when typing in inputs
+    - Remap custom keys to original game keys
+    - Trigger script functions (toggleQuickShop)
+    - Suppress original keys that have been remapped
+    - Three-step processing: custom key check, script function check, suppression
+  - handleHotkeyRelease() - Global keyup handler (~6 lines)
+  - initializeHotkeySystem() - Initialize global event listeners (~6 lines)
+- ✅ **Phase 4: Hotkey Tab UI (~112 lines)** - COMMITTED WITH PHASES 2-3
+  - setupHotkeysTabHandlers() - Setup hotkey settings tab (~84 lines)
+    - Enable/disable checkbox
+    - Game hotkey rebind buttons (water, harvest, feed, etc.)
+    - MGTools hotkey rebind buttons (toggleUI, cyclePreset, etc.)
+    - Reset individual hotkeys
+    - Reset all hotkeys button
+    - Export hotkey configuration to JSON
+
+**Module Status:**
+- Shop: src/features/shop.js - 3,597 lines total (100% complete, all 6 phases)
+- Notifications: src/features/notifications.js - 2,118 lines total (100% complete, all 5 phases)
+- Hotkeys: src/features/hotkeys.js - 975 lines total (100% complete, all 4 phases)
+
+**Quality Validation:**
+✅ ESLint: 0 errors, 204 warnings (style preferences only)
+✅ Mirror build: 1420.91 KB (stable)
+✅ Modular build: 275.2 KB (stable)
+✅ All tests passing
+✅ All commits successful with hooks
+✅ All functions use full dependency injection pattern
+
+**Progress:** Hotkeys 0%→100% (+100%)
+
+---
+
+### Session: 2025-10-25 (Shop & Notifications 100% COMPLETE!)
 
 **Shop System - Phases 4-6 COMPLETE:**
 - ✅ **Phase 4: Shop Windows & Overlays (~722 lines)**
