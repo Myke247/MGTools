@@ -19,7 +19,15 @@ import { CONFIG } from '../utils/constants.js';
 import { targetDocument } from '../core/compat.js';
 
 // UI Functions
-import { createUnifiedUI, UNIFIED_STYLES, saveDockPosition, openSidebarTab, openPopoutWidget } from '../ui/overlay.js';
+import {
+  createUnifiedUI,
+  UNIFIED_STYLES,
+  saveDockPosition,
+  getContentForTab,
+  getPetsPopoutContent,
+  openSidebarTab as openSidebarTabFn,
+  openPopoutWidget as openPopoutWidgetFn
+} from '../ui/overlay.js';
 import { makeDraggable } from '../ui/draggable.js';
 import {
   generateThemeStyles,
@@ -28,6 +36,23 @@ import {
   applyAccentToDock,
   applyAccentToSidebar
 } from '../ui/theme-system.js';
+
+// Tab Content Getters
+import { getPetsTabContent } from '../features/pets.js';
+import { getAbilitiesTabContent } from '../features/abilities/abilities-ui.js';
+import { getSettingsTabContent } from '../features/settings-ui.js';
+import { getNotificationsTabContent } from '../features/notifications.js';
+import { getShopTabContent } from '../features/shop.js';
+import {
+  getSeedsTabContent,
+  getValuesTabContent,
+  getTimersTabContent,
+  getRoomStatusTabContent,
+  getToolsTabContent,
+  getProtectTabContent,
+  getHelpTabContent,
+  getHotkeysTabContent
+} from '../ui/tab-content.js';
 
 /**
  * Initialize MGTools with simplified modular approach
@@ -56,16 +81,40 @@ export function initializeModular({ targetDocument, targetWindow }) {
     // Step 2: Create UI (MINIMAL VERSION - just get UI to appear)
     productionLog('[MGTools] Step 2: Creating UI...');
 
-    // For now, we'll call createUnifiedUI with MINIMAL dependencies
-    // This is Phase 4.1: Just get the UI to appear
-    // We'll wire more features incrementally after this works
+    // Content getters object for updateTabContent
+    const contentGetters = {
+      getPetsTabContent: () => getPetsTabContent({ UnifiedState, targetDocument }),
+      getPetsPopoutContent: () => getPetsPopoutContent(),
+      getAbilitiesTabContent: () => getAbilitiesTabContent({ UnifiedState, targetDocument }),
+      getSeedsTabContent: () => getSeedsTabContent({ UnifiedState, targetDocument }),
+      getShopTabContent: () => getShopTabContent({ UnifiedState, targetDocument }),
+      getValuesTabContent: () => getValuesTabContent({ UnifiedState, targetDocument }),
+      getTimersTabContent: () => getTimersTabContent(),
+      getRoomStatusTabContent: () => getRoomStatusTabContent({ UnifiedState, targetDocument }),
+      getToolsTabContent: () => getToolsTabContent(),
+      getSettingsTabContent: () => getSettingsTabContent({ UnifiedState, targetDocument }),
+      getHotkeysTabContent: () => getHotkeysTabContent({ UnifiedState, targetDocument }),
+      getNotificationsTabContent: () => getNotificationsTabContent({ UnifiedState, targetDocument }),
+      getProtectTabContent: () => getProtectTabContent({ UnifiedState, targetDocument }),
+      getHelpTabContent: () => getHelpTabContent()
+    };
 
-    // TODO: createUnifiedUI needs many dependencies
-    // For minimal version, we'll need to either:
-    // A) Pass stub functions, OR
-    // B) Modify createUnifiedUI to accept optional dependencies
-    //
-    // Let's try approach A first - minimal stubs to make UI appear
+    // updateTabContent - updates the active tab's content
+    const updateTabContent = () => {
+      const contentEl = targetDocument.querySelector('#mga-tab-content');
+      if (!contentEl) return;
+
+      const tabName = UnifiedState.activeTab;
+      if (!tabName) return;
+
+      try {
+        const content = getContentForTab({ contentGetters }, tabName, false);
+        contentEl.innerHTML = content;
+      } catch (error) {
+        debugError('[MGTools] Failed to update tab content:', error);
+        contentEl.innerHTML = '<div style="padding: 20px; color: #ff6b6b;">Error loading content</div>';
+      }
+    };
 
     const minimalUIConfig = {
       targetDocument,
@@ -81,10 +130,9 @@ export function initializeModular({ targetDocument, targetWindow }) {
         });
       },
 
-      // STUBBED: openSidebarTab - needs updateTabContent which doesn't exist yet
+      // WIRED: openSidebarTab - now functional with updateTabContent
       openSidebarTab: tabName => {
-        productionLog(`[MGTools] ⚠️ openSidebarTab('${tabName}') called but not fully wired yet`);
-        // TODO: Wire this properly when updateTabContent is extracted
+        openSidebarTabFn({ targetDocument, UnifiedState, updateTabContent }, tabName);
       },
 
       // STUBBED: Shop windows toggle
