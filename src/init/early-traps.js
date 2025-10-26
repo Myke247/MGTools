@@ -247,9 +247,7 @@ export function installCSPGuard(dependencies = {}) {
 
   try {
     const isDiscord =
-      /discord|overlay|electron/i.test(win.navigator?.userAgent || '') ||
-      win.DiscordNative ||
-      win.__discordApp;
+      /discord|overlay|electron/i.test(win.navigator?.userAgent || '') || win.DiscordNative || win.__discordApp;
 
     if (isDiscord) {
       consoleFn.log('🛡️ [CSP] External font loads disabled in Discord context.');

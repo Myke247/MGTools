@@ -72,8 +72,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
   // ---------- Slot/Estimate Overlay ----------
   const rootHost = d.createElement('div');
   rootHost.id = 'mgtp-overlay-root';
-  rootHost.style.cssText =
-    'position:fixed;left:0;top:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
+  rootHost.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;z-index:2147483646;pointer-events:none;';
   const shadow = rootHost.attachShadow({ mode: 'open' });
   const style = d.createElement('style');
   style.textContent = `
@@ -311,9 +310,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
       }
 
       // Find any active rooms tab content areas (main or overlays)
-      const candidates = targetDocument.querySelectorAll(
-        '[data-tab="rooms"], .mga-tab-content, .mga-overlay-content'
-      );
+      const candidates = targetDocument.querySelectorAll('[data-tab="rooms"], .mga-tab-content, .mga-overlay-content');
       let updated = false;
 
       candidates.forEach((c, idx) => {
@@ -350,8 +347,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
     const getApiBase = globalScope.getGameApiBaseUrl || (() => location.origin);
     const apiBase = getApiBase();
     const API_V1 = name => `${apiBase}/api/rooms/${encodeURIComponent(name)}/info`;
-    const TRACKED =
-      correctWindow.UnifiedState?.data?.customRooms ||
+    const TRACKED = correctWindow.UnifiedState?.data?.customRooms ||
       correctWindow.TRACKED_ROOMS || ['MG1', 'MG2', 'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'MG8', 'MG9', 'MG10', 'SLAY'];
     let extra = new Set();
     const counts = {};
@@ -640,9 +636,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
               const code = (row.getAttribute('data-room') || '').toUpperCase();
               const span = row.querySelector('.room-count');
               if (span && code) {
-                span.textContent = String(
-                  counts[code] ?? targetWindow.UnifiedState.data.roomStatus.counts[code] ?? 0
-                );
+                span.textContent = String(counts[code] ?? targetWindow.UnifiedState.data.roomStatus.counts[code] ?? 0);
               }
             });
           }
@@ -697,8 +691,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
     // Wait for UnifiedState and RoomRegistry to be ready before starting polling
     function startPollingWhenReady() {
       const hasUnifiedState = typeof correctWindow.UnifiedState !== 'undefined' && correctWindow.UnifiedState?.data;
-      const hasRoomRegistry =
-        typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord;
+      const hasRoomRegistry = typeof correctWindow.RoomRegistry !== 'undefined' && correctWindow.RoomRegistry?.discord;
 
       if (hasUnifiedState && hasRoomRegistry) {
         // PERFORMANCE OPTIMIZATION: Increased interval from 5s to 10s

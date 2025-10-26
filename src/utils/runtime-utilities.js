@@ -33,10 +33,7 @@
  * setManagedInterval('autoSave', () => save(), 30000, { UnifiedState });
  */
 export function setManagedInterval(name, callback, delay, dependencies = {}) {
-  const {
-    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
-    debugLog = console.log
-  } = dependencies;
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState, debugLog = console.log } = dependencies;
 
   // Clear existing interval if it exists
   if (UnifiedState?.intervals?.[name]) {
@@ -64,10 +61,7 @@ export function setManagedInterval(name, callback, delay, dependencies = {}) {
  * clearManagedInterval('autoSave', { UnifiedState });
  */
 export function clearManagedInterval(name, dependencies = {}) {
-  const {
-    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
-    debugLog = console.log
-  } = dependencies;
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState, debugLog = console.log } = dependencies;
 
   if (UnifiedState?.intervals?.[name]) {
     clearInterval(UnifiedState.intervals[name]);
@@ -87,10 +81,7 @@ export function clearManagedInterval(name, dependencies = {}) {
  * clearAllManagedIntervals({ UnifiedState });
  */
 export function clearAllManagedIntervals(dependencies = {}) {
-  const {
-    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
-    debugLog = console.log
-  } = dependencies;
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState, debugLog = console.log } = dependencies;
 
   if (UnifiedState && UnifiedState.intervals) {
     Object.keys(UnifiedState.intervals).forEach(name => {
@@ -115,9 +106,7 @@ export function clearAllManagedIntervals(dependencies = {}) {
  * trackPopoutWindow(newWindow, { UnifiedState });
  */
 export function trackPopoutWindow(popoutWindow, dependencies = {}) {
-  const {
-    UnifiedState = typeof window !== 'undefined' && window.UnifiedState
-  } = dependencies;
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
 
   if (UnifiedState && UnifiedState.popoutWindows) {
     UnifiedState.popoutWindows.add(popoutWindow);
@@ -140,10 +129,8 @@ export function trackPopoutWindow(popoutWindow, dependencies = {}) {
  * closeAllPopoutWindows({ UnifiedState });
  */
 export function closeAllPopoutWindows(dependencies = {}) {
-  const {
-    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
-    debugError = console.error
-  } = dependencies;
+  const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState, debugError = console.error } =
+    dependencies;
 
   if (UnifiedState && UnifiedState.popoutWindows) {
     UnifiedState.popoutWindows.forEach(window => {
@@ -250,10 +237,7 @@ export function invalidateCache(context = document) {
  * safeSendMessage({ type: 'test' }, { targetWindow: window });
  */
 export function safeSendMessage(message, dependencies = {}) {
-  const {
-    targetWindow = typeof window !== 'undefined' ? window : null,
-    productionWarn = console.warn
-  } = dependencies;
+  const { targetWindow = typeof window !== 'undefined' ? window : null, productionWarn = console.warn } = dependencies;
 
   try {
     // Check for connection availability
@@ -383,11 +367,7 @@ export function hookAtom(atomPath, windowKey, callback, retryCount = 0, dependen
 
   // DIAGNOSTIC: Check multiple possible locations for jotaiAtomCache
   if (retryCount === 0) {
-    console.log(
-      '  - targetWindow.jotaiAtomCache:',
-      typeof targetWindow.jotaiAtomCache,
-      targetWindow.jotaiAtomCache
-    );
+    console.log('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
     console.log('  - isUserscript:', isUserscript, '(using unsafeWindow:', isUserscript ? 'YES' : 'NO)');
     const jotaiKeys = Object.keys(targetWindow).filter(k => k.toLowerCase().includes('jotai'));
     console.log('  - Keys with "jotai" on targetWindow:', jotaiKeys);
@@ -595,9 +575,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
     productionLog('🔍 [SLOT-ATOM] Slot-related atoms found:', slotAtoms);
 
     // Try to find it in the list
-    const slotIndexAtom = slotAtoms.find(
-      key => key.includes('GrowSlotIndex') || key.includes('CurrentGrowSlotIndex')
-    );
+    const slotIndexAtom = slotAtoms.find(key => key.includes('GrowSlotIndex') || key.includes('CurrentGrowSlotIndex'));
 
     if (slotIndexAtom) {
       productionLog(`🎯 [SLOT-ATOM] Found potential slot atom: ${slotIndexAtom}`);

@@ -53,7 +53,8 @@ export function setupAutoSave(dependencies = {}) {
       MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
 
       // Only save ability logs if not in clear session
-      const clearSession = (typeof localStorage !== 'undefined' && localStorage.getItem('MGA_logs_clear_session')) || null;
+      const clearSession =
+        (typeof localStorage !== 'undefined' && localStorage.getItem('MGA_logs_clear_session')) || null;
       if (!clearSession || Date.now() - parseInt(clearSession, 10) > 86400000) {
         MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
       }
@@ -110,7 +111,8 @@ export function setupCleanupHandler(dependencies = {}) {
       MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
 
       // Only save ability logs if not in clear session
-      const clearSession = (typeof localStorage !== 'undefined' && localStorage.getItem('MGA_logs_clear_session')) || null;
+      const clearSession =
+        (typeof localStorage !== 'undefined' && localStorage.getItem('MGA_logs_clear_session')) || null;
       if (!clearSession || Date.now() - parseInt(clearSession, 10) > 86400000) {
         MGA_saveJSON('MGA_petAbilityLogs', UnifiedState.data.petAbilityLogs);
       }
