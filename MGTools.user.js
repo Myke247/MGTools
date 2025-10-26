@@ -14804,53 +14804,72 @@ ${title}:`);
         targetDocument: targetDocument2,
         productionLog: productionLog2,
         UnifiedState: UnifiedState2,
-        // Wired features
+        // Simple wrapper for drag functionality
         makeDockDraggable: (dock) => {
           makeDraggable(dock, dock, {
             targetDocument: targetDocument2,
             debugLog: debugLog2,
-            saveMainHUDPosition: (pos) => saveDockPosition(pos, { MGA_saveJSON, debugLog: debugLog2, debugError })
+            saveMainHUDPosition: (pos) => saveDockPosition(pos)
           });
         },
-        openSidebarTab: (tabName) => openSidebarTab({ UnifiedState: UnifiedState2, targetDocument: targetDocument2, productionLog: productionLog2, debugLog: debugLog2 }, tabName),
+        // STUBBED: openSidebarTab - needs updateTabContent which doesn't exist yet
+        openSidebarTab: (tabName) => {
+          productionLog2(`[MGTools] \u26A0\uFE0F openSidebarTab('${tabName}') called but not fully wired yet`);
+        },
+        // STUBBED: Shop windows toggle
         toggleShopWindows: () => {
+          productionLog2("[MGTools] \u26A0\uFE0F toggleShopWindows() called but not wired yet");
         },
-        openPopoutWidget: (tabName) => openPopoutWidget({ targetDocument: targetDocument2, UnifiedState: UnifiedState2 }, tabName),
+        // STUBBED: openPopoutWidget - needs many dependencies
+        openPopoutWidget: (tabName) => {
+          productionLog2(`[MGTools] \u26A0\uFE0F openPopoutWidget('${tabName}') called but not fully wired yet`);
+        },
+        // STUBBED: Version checker
         checkVersion: () => {
+          productionLog2("[MGTools] \u26A0\uFE0F checkVersion() called but not wired yet");
         },
+        // Dock orientation management - uses localStorage to match overlay.js expectations
         saveDockOrientation: (orientation) => {
           try {
-            MGA_saveJSON("MGA_dockOrientation", orientation);
+            localStorage.setItem("mgh_dock_orientation", orientation);
           } catch (e) {
             debugError("[MGTools] Failed to save dock orientation:", e);
           }
         },
         loadDockOrientation: () => {
           try {
-            return MGA_loadJSON("MGA_dockOrientation", "horizontal");
+            return localStorage.getItem("mgh_dock_orientation") || "horizontal";
           } catch (e) {
             return "horizontal";
           }
         },
-        loadDockPosition: (dock) => {
+        // Dock position loading - uses localStorage and returns {left, top} object
+        // Note: saving is handled by saveDockPosition from overlay.js (called via makeDraggable)
+        loadDockPosition: () => {
           try {
-            const saved = MGA_loadJSON("MGA_dockPosition", null);
-            if (saved && saved.bottom && saved.right) {
-              dock.style.bottom = saved.bottom;
-              dock.style.right = saved.right;
+            const saved = localStorage.getItem("mgh_dock_position");
+            if (saved) {
+              const position = JSON.parse(saved);
+              if (position && typeof position.left === "number" && typeof position.top === "number") {
+                return position;
+              }
             }
+            return null;
           } catch (e) {
             debugError("[MGTools] Failed to load dock position:", e);
+            return null;
           }
         },
+        // Theme system (wired)
         generateThemeStyles: (theme) => generateThemeStyles(theme),
         applyAccentToDock: (gradient) => applyAccentToDock(gradient, { targetDocument: targetDocument2 }),
         applyAccentToSidebar: (gradient) => applyAccentToSidebar(gradient, { targetDocument: targetDocument2 }),
         applyThemeToDock: (theme) => applyThemeToDock(theme, { targetDocument: targetDocument2 }),
         applyThemeToSidebar: (theme) => applyThemeToSidebar(theme, { targetDocument: targetDocument2 }),
+        // Environment detection
         isDiscordEnv: targetWindow3.location.href?.includes("discordsays.com") || false,
+        // Constants
         UNIFIED_STYLES,
-        // Imported from overlay.js
         CURRENT_VERSION: CONFIG.CURRENT_VERSION || "2.1.0",
         IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
       };

@@ -19,13 +19,7 @@ import { CONFIG } from '../utils/constants.js';
 import { targetDocument } from '../core/compat.js';
 
 // UI Functions
-import {
-  createUnifiedUI,
-  UNIFIED_STYLES,
-  saveDockPosition,
-  openSidebarTab,
-  openPopoutWidget
-} from '../ui/overlay.js';
+import { createUnifiedUI, UNIFIED_STYLES, saveDockPosition, openSidebarTab, openPopoutWidget } from '../ui/overlay.js';
 import { makeDraggable } from '../ui/draggable.js';
 import {
   generateThemeStyles,
@@ -78,52 +72,83 @@ export function initializeModular({ targetDocument, targetWindow }) {
       productionLog,
       UnifiedState,
 
-      // Wired features
+      // Simple wrapper for drag functionality
       makeDockDraggable: dock => {
-        // Dock is draggable by itself (element is also the handle)
         makeDraggable(dock, dock, {
           targetDocument,
           debugLog,
-          saveMainHUDPosition: pos => saveDockPosition(pos, { MGA_saveJSON, debugLog, debugError })
+          saveMainHUDPosition: pos => saveDockPosition(pos)
         });
       },
-      openSidebarTab: (tabName) =>
-        openSidebarTab({ UnifiedState, targetDocument, productionLog, debugLog }, tabName),
-      toggleShopWindows: () => {},
-      openPopoutWidget: (tabName) => openPopoutWidget({ targetDocument, UnifiedState }, tabName),
-      checkVersion: () => {},
-      saveDockOrientation: (orientation) => {
+
+      // STUBBED: openSidebarTab - needs updateTabContent which doesn't exist yet
+      openSidebarTab: tabName => {
+        productionLog(`[MGTools] ⚠️ openSidebarTab('${tabName}') called but not fully wired yet`);
+        // TODO: Wire this properly when updateTabContent is extracted
+      },
+
+      // STUBBED: Shop windows toggle
+      toggleShopWindows: () => {
+        productionLog('[MGTools] ⚠️ toggleShopWindows() called but not wired yet');
+      },
+
+      // STUBBED: openPopoutWidget - needs many dependencies
+      openPopoutWidget: tabName => {
+        productionLog(`[MGTools] ⚠️ openPopoutWidget('${tabName}') called but not fully wired yet`);
+        // TODO: Wire this when all content getters and handlers are extracted
+      },
+
+      // STUBBED: Version checker
+      checkVersion: () => {
+        productionLog('[MGTools] ⚠️ checkVersion() called but not wired yet');
+      },
+
+      // Dock orientation management - uses localStorage to match overlay.js expectations
+      saveDockOrientation: orientation => {
         try {
-          MGA_saveJSON('MGA_dockOrientation', orientation);
+          localStorage.setItem('mgh_dock_orientation', orientation);
         } catch (e) {
           debugError('[MGTools] Failed to save dock orientation:', e);
         }
       },
       loadDockOrientation: () => {
         try {
-          return MGA_loadJSON('MGA_dockOrientation', 'horizontal');
+          return localStorage.getItem('mgh_dock_orientation') || 'horizontal';
         } catch (e) {
           return 'horizontal';
         }
       },
-      loadDockPosition: (dock) => {
+      // Dock position loading - uses localStorage and returns {left, top} object
+      // Note: saving is handled by saveDockPosition from overlay.js (called via makeDraggable)
+      loadDockPosition: () => {
         try {
-          const saved = MGA_loadJSON('MGA_dockPosition', null);
-          if (saved && saved.bottom && saved.right) {
-            dock.style.bottom = saved.bottom;
-            dock.style.right = saved.right;
+          const saved = localStorage.getItem('mgh_dock_position');
+          if (saved) {
+            const position = JSON.parse(saved);
+            // Position should have {left, top} properties as numbers
+            if (position && typeof position.left === 'number' && typeof position.top === 'number') {
+              return position;
+            }
           }
+          return null;
         } catch (e) {
           debugError('[MGTools] Failed to load dock position:', e);
+          return null;
         }
       },
-      generateThemeStyles: (theme) => generateThemeStyles(theme),
-      applyAccentToDock: (gradient) => applyAccentToDock(gradient, { targetDocument }),
-      applyAccentToSidebar: (gradient) => applyAccentToSidebar(gradient, { targetDocument }),
-      applyThemeToDock: (theme) => applyThemeToDock(theme, { targetDocument }),
-      applyThemeToSidebar: (theme) => applyThemeToSidebar(theme, { targetDocument }),
+
+      // Theme system (wired)
+      generateThemeStyles: theme => generateThemeStyles(theme),
+      applyAccentToDock: gradient => applyAccentToDock(gradient, { targetDocument }),
+      applyAccentToSidebar: gradient => applyAccentToSidebar(gradient, { targetDocument }),
+      applyThemeToDock: theme => applyThemeToDock(theme, { targetDocument }),
+      applyThemeToSidebar: theme => applyThemeToSidebar(theme, { targetDocument }),
+
+      // Environment detection
       isDiscordEnv: targetWindow.location.href?.includes('discordsays.com') || false,
-      UNIFIED_STYLES, // Imported from overlay.js
+
+      // Constants
+      UNIFIED_STYLES,
       CURRENT_VERSION: CONFIG.CURRENT_VERSION || '2.1.0',
       IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
     };
