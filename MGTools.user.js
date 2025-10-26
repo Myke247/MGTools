@@ -990,18 +990,18 @@ Fix:
     };
     const CURRENT_LOG_LEVEL = PRODUCTION ? LogLevel.WARN : LogLevel.DEBUG;
     const tooltipContainer = null;
-    function log(level, category, message, data) {
+    function log(level, category, message, data2) {
       if (level > CURRENT_LOG_LEVEL) return;
       const prefix = `[${category}]`;
-      const args = data !== void 0 ? [prefix, message, data] : [prefix, message];
+      const args = data2 !== void 0 ? [prefix, message, data2] : [prefix, message];
       if (level === LogLevel.ERROR) console.error(...args);
       else if (level === LogLevel.WARN) console.warn(...args);
       else console.log(...args);
     }
-    function debugLog3(flag, message, data = null) {
+    function debugLog3(flag, message, data2 = null) {
       if (!PRODUCTION && DEBUG_FLAGS[flag]) {
         const timestamp = (/* @__PURE__ */ new Date()).toLocaleTimeString();
-        log(LogLevel.DEBUG, `DEBUG-${flag}`, `${timestamp} ${message}`, data);
+        log(LogLevel.DEBUG, `DEBUG-${flag}`, `${timestamp} ${message}`, data2);
       }
     }
     function debugError2(flag, message, error, context = {}) {
@@ -1016,10 +1016,10 @@ Fix:
     }
     const api = {
       // Core logging methods
-      error: (cat, msg, data) => log(LogLevel.ERROR, cat, msg, data),
-      warn: (cat, msg, data) => log(LogLevel.WARN, cat, msg, data),
-      info: (cat, msg, data) => log(LogLevel.INFO, cat, msg, data),
-      debug: (cat, msg, data) => log(LogLevel.DEBUG, cat, msg, data),
+      error: (cat, msg, data2) => log(LogLevel.ERROR, cat, msg, data2),
+      warn: (cat, msg, data2) => log(LogLevel.WARN, cat, msg, data2),
+      info: (cat, msg, data2) => log(LogLevel.INFO, cat, msg, data2),
+      debug: (cat, msg, data2) => log(LogLevel.DEBUG, cat, msg, data2),
       // Debug logging methods
       debugLog: debugLog3,
       debugError: debugError2,
@@ -1337,9 +1337,9 @@ Fix:
       clearTimeout(timeout);
     }
   }
-  function parsePlayerCount(data) {
-    if (!data) return 0;
-    const count = data?.numPlayers ?? data?.players?.online ?? data?.players?.count ?? data?.online ?? data?.count ?? data?.playerCount ?? 0;
+  function parsePlayerCount(data2) {
+    if (!data2) return 0;
+    const count = data2?.numPlayers ?? data2?.players?.online ?? data2?.players?.count ?? data2?.online ?? data2?.count ?? data2?.playerCount ?? 0;
     return Math.max(0, Number(count) || 0);
   }
   async function fetchLatestVersionMeta() {
@@ -1405,11 +1405,11 @@ Fix:
       const index = Math.min(attempt, BACKOFF_MS.length - 1);
       return BACKOFF_MS[index];
     }
-    function emit3(event, data) {
+    function emit3(event, data2) {
       if (eventHandlers5[event]) {
         eventHandlers5[event].forEach((handler) => {
           try {
-            handler(data);
+            handler(data2);
           } catch (e) {
             Logger.error("WEBSOCKET", `Event handler error for ${event}`, e);
           }
@@ -1489,12 +1489,12 @@ Fix:
        * Send data via WebSocket
        * @param {*} data - Data to send
        */
-      send(data) {
+      send(data2) {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
           Logger.warn("WEBSOCKET", "Cannot send - socket not open");
           return false;
         }
-        socket.send(data);
+        socket.send(data2);
         return true;
       },
       /**
@@ -3895,14 +3895,14 @@ ${title}:`);
         console.error("\u274C [MEMORY] MGA cleanup failed:", error);
       }
     }
-    function MGA_debouncedSave(key, data) {
+    function MGA_debouncedSave(key, data2) {
       if (saveTimeouts.has(key)) {
         clearTimeout(saveTimeouts.get(key));
       }
       const timeout = setTimeout(() => {
         try {
           if (MGA_saveJSON2) {
-            MGA_saveJSON2(key, data);
+            MGA_saveJSON2(key, data2);
             productionLog3(`\u{1F4BE} [MEMORY] Debounced save completed for ${key}`);
           }
         } catch (error) {
@@ -11927,11 +11927,11 @@ ${title}:`);
   };
   var isRunning = false;
   var hasOpenedOnce = false;
-  function emit2(event, data) {
+  function emit2(event, data2) {
     if (eventHandlers2[event]) {
       eventHandlers2[event].forEach((handler) => {
         try {
-          handler(data);
+          handler(data2);
         } catch (e) {
           Logger.error("ROOM_POLL", `Event handler error for ${event}`, e);
         }
@@ -11962,14 +11962,14 @@ ${title}:`);
         throw new Error(`Room API returned status ${result.status}`);
       }
       const players = parsePlayerCount(result.parsed);
-      const data = result.parsed;
+      const data2 = result.parsed;
       const ts = Date.now();
       if (!hasOpenedOnce) {
         hasOpenedOnce = true;
-        emit2("open", { ts, players, data });
+        emit2("open", { ts, players, data: data2 });
         Logger.info("ROOM_POLL", `Opened connection for room: ${config.roomIdOrCode}`);
       }
-      emit2("update", { players, data, ts });
+      emit2("update", { players, data: data2, ts });
       Logger.debug("ROOM_POLL", `Update received: ${players} players`);
       resetBackoff();
       const nextInterval = applyJitter(config.intervalMs, config.jitterMs);
@@ -12084,21 +12084,21 @@ ${title}:`);
   var shortcutsController = null;
   function wireRoomPollEvents() {
     const handlers = [];
-    const onOpen = (data) => {
+    const onOpen = (data2) => {
       Logger.debug("APP_CORE", "Room poll opened, forwarding to UI");
-      emit("conn:open", data);
+      emit("conn:open", data2);
     };
-    const onUpdate = (data) => {
-      Logger.debug("APP_CORE", `Room poll update: ${data.players} players`);
-      emit("conn:update", data);
+    const onUpdate = (data2) => {
+      Logger.debug("APP_CORE", `Room poll update: ${data2.players} players`);
+      emit("conn:update", data2);
     };
-    const onError = (data) => {
-      Logger.warn("APP_CORE", `Room poll error: ${data.err.message}`);
-      emit("conn:error", data);
+    const onError = (data2) => {
+      Logger.warn("APP_CORE", `Room poll error: ${data2.err.message}`);
+      emit("conn:error", data2);
     };
-    const onClose = (data) => {
+    const onClose = (data2) => {
       Logger.debug("APP_CORE", "Room poll closed");
-      emit("conn:close", data);
+      emit("conn:close", data2);
     };
     RoomPollController.on("open", onOpen);
     RoomPollController.on("update", onUpdate);
@@ -12114,11 +12114,11 @@ ${title}:`);
   }
   function wireShortcutEvents() {
     const handlers = [];
-    const onShortcutHelp = (data) => {
-      Logger.debug("APP_CORE", `Shortcut help requested: ${data.description}`);
+    const onShortcutHelp = (data2) => {
+      Logger.debug("APP_CORE", `Shortcut help requested: ${data2.description}`);
     };
-    const onShortcutAction = (data) => {
-      Logger.debug("APP_CORE", `Shortcut action: ${data.name}`);
+    const onShortcutAction = (data2) => {
+      Logger.debug("APP_CORE", `Shortcut action: ${data2.name}`);
     };
     on("shortcut:show-help", onShortcutHelp);
     on("shortcut:*", onShortcutAction);
@@ -13951,8 +13951,8 @@ ${title}:`);
          * // Downloads: MGA_PetPresets.json
          */
         petPresets: () => {
-          const data = JSON.stringify(UnifiedState3.data.petPresets, null, 2);
-          const blob = new Blob([data], { type: "application/json" });
+          const data2 = JSON.stringify(UnifiedState3.data.petPresets, null, 2);
+          const blob = new Blob([data2], { type: "application/json" });
           const link = targetDocument2.createElement("a");
           link.href = URL.createObjectURL(blob);
           link.download = "MGA_PetPresets.json";
@@ -13974,7 +13974,7 @@ ${title}:`);
          * // Downloads: MGA_AllData_YYYY-MM-DD.json
          */
         allData: () => {
-          const data = JSON.stringify(
+          const data2 = JSON.stringify(
             {
               petPresets: UnifiedState3.data.petPresets,
               petAbilityLogs: UnifiedState3.data.petAbilityLogs,
@@ -13986,7 +13986,7 @@ ${title}:`);
             null,
             2
           );
-          const blob = new Blob([data], { type: "application/json" });
+          const blob = new Blob([data2], { type: "application/json" });
           const link = targetDocument2.createElement("a");
           link.href = URL.createObjectURL(blob);
           link.download = `MGA_AllData_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.json`;
@@ -14009,9 +14009,9 @@ ${title}:`);
          */
         petPresets: (jsonString) => {
           try {
-            const data = JSON.parse(jsonString);
-            UnifiedState3.data.petPresets = data;
-            MGA_saveJSON2("MGA_petPresets", data);
+            const data2 = JSON.parse(jsonString);
+            UnifiedState3.data.petPresets = data2;
+            MGA_saveJSON2("MGA_petPresets", data2);
             if (UnifiedState3.activeTab === "pets") {
               const context = targetDocument2.getElementById("mga-tab-content");
               if (context) {
@@ -14034,21 +14034,21 @@ ${title}:`);
          */
         allData: (jsonString) => {
           try {
-            const data = JSON.parse(jsonString);
-            if (data.petPresets) {
-              UnifiedState3.data.petPresets = data.petPresets;
-              MGA_saveJSON2("MGA_petPresets", data.petPresets);
+            const data2 = JSON.parse(jsonString);
+            if (data2.petPresets) {
+              UnifiedState3.data.petPresets = data2.petPresets;
+              MGA_saveJSON2("MGA_petPresets", data2.petPresets);
             }
-            if (data.petAbilityLogs) {
-              UnifiedState3.data.petAbilityLogs = data.petAbilityLogs;
-              MGA_saveJSON2("MGA_petAbilityLogs", data.petAbilityLogs);
+            if (data2.petAbilityLogs) {
+              UnifiedState3.data.petAbilityLogs = data2.petAbilityLogs;
+              MGA_saveJSON2("MGA_petAbilityLogs", data2.petAbilityLogs);
             }
-            if (data.settings) {
-              if (data.settings.seedsToDelete) {
-                UnifiedState3.data.seedsToDelete = data.settings.seedsToDelete;
+            if (data2.settings) {
+              if (data2.settings.seedsToDelete) {
+                UnifiedState3.data.seedsToDelete = data2.settings.seedsToDelete;
               }
-              if (typeof data.settings.autoDeleteEnabled === "boolean") {
-                UnifiedState3.data.autoDeleteEnabled = data.settings.autoDeleteEnabled;
+              if (typeof data2.settings.autoDeleteEnabled === "boolean") {
+                UnifiedState3.data.autoDeleteEnabled = data2.settings.autoDeleteEnabled;
               }
             }
             updateTabContent();
@@ -14678,11 +14678,11 @@ ${title}:`);
     };
   }
   function wireTopLevelEvents() {
-    const onToastCreated = (data) => {
-      Logger.debug("BOOTSTRAP", `Toast created: ${data.type} - "${data.message}"`);
+    const onToastCreated = (data2) => {
+      Logger.debug("BOOTSTRAP", `Toast created: ${data2.type} - "${data2.message}"`);
     };
-    const onShortcutTriggered = (data) => {
-      Logger.debug("BOOTSTRAP", `Shortcut triggered: ${data.name}`);
+    const onShortcutTriggered = (data2) => {
+      Logger.debug("BOOTSTRAP", `Shortcut triggered: ${data2.name}`);
     };
     on("toast:created", onToastCreated);
     on("shortcut:*", onShortcutTriggered);
@@ -17062,9 +17062,9 @@ Error: ${error.message}`);
     if (cleanType.includes("rainbow") || cleanType.includes("gold")) return "special-mutations";
     return "other";
   }
-  function formatLogData(data) {
-    if (!data || typeof data !== "object") return "";
-    const formatted = Object.entries(data).filter(([key, value]) => value !== null && value !== void 0).map(([key, value]) => `${key}: ${value}`).join(", ");
+  function formatLogData(data2) {
+    if (!data2 || typeof data2 !== "object") return "";
+    const formatted = Object.entries(data2).filter(([key, value]) => value !== null && value !== void 0).map(([key, value]) => `${key}: ${value}`).join(", ");
     return formatted.length > 60 ? formatted.substring(0, 60) + "..." : formatted;
   }
   function formatRelativeTime(timestamp) {
@@ -26894,8 +26894,8 @@ Error: ${error.message}`);
     const exportBtn = context.querySelector("#export-settings-btn");
     if (exportBtn) {
       exportBtn.addEventListener("click", () => {
-        const data = JSON.stringify(UnifiedState3.data, null, 2);
-        const blob = new BlobClass([data], { type: "application/json" });
+        const data2 = JSON.stringify(UnifiedState3.data, null, 2);
+        const blob = new BlobClass([data2], { type: "application/json" });
         const link = targetDocument2.createElement("a");
         link.href = URLClass.createObjectURL(blob);
         link.download = "MGA_Settings.json";
@@ -27462,9 +27462,9 @@ Error: ${error.message}`);
       let extra = /* @__PURE__ */ new Set();
       const counts = {};
       const roomIdToName = {};
-      function parsePlayerCount2(data) {
-        if (!data) return 0;
-        const count = data?.numPlayers ?? data?.players?.online ?? data?.players?.count ?? data?.online ?? data?.count ?? data?.playerCount ?? 0;
+      function parsePlayerCount2(data2) {
+        if (!data2) return 0;
+        const count = data2?.numPlayers ?? data2?.players?.online ?? data2?.players?.count ?? data2?.online ?? data2?.count ?? data2?.playerCount ?? 0;
         return Math.max(0, Number(count) || 0);
       }
       async function fetchWithFetch(url, name) {
@@ -27477,8 +27477,8 @@ Error: ${error.message}`);
         if (!r.ok) {
           throw new Error(`HTTP ${r.status}`);
         }
-        const data = await r.json();
-        return data;
+        const data2 = await r.json();
+        return data2;
       }
       async function fetchWithGM(url, name) {
         return new Promise((resolve, reject) => {
@@ -27494,8 +27494,8 @@ Error: ${error.message}`);
             onload: (response) => {
               if (response.status >= 200 && response.status < 300) {
                 try {
-                  const data = JSON.parse(response.responseText);
-                  resolve(data);
+                  const data2 = JSON.parse(response.responseText);
+                  resolve(data2);
                 } catch (e) {
                   reject(new Error(`Parse error: ${e.message}`));
                 }
@@ -27512,12 +27512,12 @@ Error: ${error.message}`);
         const roomDebugMode = correctWindow.UnifiedState?.data?.settings?.roomDebugMode;
         const isDiscordRoom = roomIdOrName.includes("i-") && roomIdOrName.includes("-gc-");
         try {
-          let data = null;
+          let data2 = null;
           try {
             const url1 = API_V1(roomIdOrName);
-            data = await fetchWithFetch(url1, roomIdOrName);
+            data2 = await fetchWithFetch(url1, roomIdOrName);
             if (roomDebugMode) {
-              console.log(`[ROOMS] \u2705 Fetch succeeded for ${roomIdOrName}:`, data);
+              console.log(`[ROOMS] \u2705 Fetch succeeded for ${roomIdOrName}:`, data2);
             }
           } catch (e1) {
             try {
@@ -27525,9 +27525,9 @@ Error: ${error.message}`);
               if (roomDebugMode) {
                 console.log(`[ROOMS] \u{1F504} Retrying ${roomIdOrName} with GM_xmlhttpRequest`);
               }
-              data = await fetchWithGM(url1, roomIdOrName);
+              data2 = await fetchWithGM(url1, roomIdOrName);
               if (roomDebugMode) {
-                console.log(`[ROOMS] \u2705 GM fetch succeeded for ${roomIdOrName}:`, data);
+                console.log(`[ROOMS] \u2705 GM fetch succeeded for ${roomIdOrName}:`, data2);
               }
             } catch (e2) {
               if (roomDebugMode) {
@@ -27536,7 +27536,7 @@ Error: ${error.message}`);
               throw new Error(`All methods failed for ${roomIdOrName}`);
             }
           }
-          const online = parsePlayerCount2(data);
+          const online = parsePlayerCount2(data2);
           let storageKey;
           if (isDiscordRoom && roomIdToName[roomIdOrName]) {
             storageKey = roomIdToName[roomIdOrName].toUpperCase();
@@ -27723,8 +27723,8 @@ Error: ${error.message}`);
             console.error("[ROOMS TEST] \u274C HTTP", response.status, "-", text);
             return;
           }
-          const data = await response.json();
-          console.log("[ROOMS TEST] \u2705 Success! Players:", data.numPlayers ?? "NOT FOUND", "| Full data:", data);
+          const data2 = await response.json();
+          console.log("[ROOMS TEST] \u2705 Success! Players:", data2.numPlayers ?? "NOT FOUND", "| Full data:", data2);
         } catch (e) {
           console.error("[ROOMS TEST] \u274C Fetch failed:", e);
         }
@@ -28241,9 +28241,9 @@ Error: ${error.message}`);
       return new DateClass(timestamp).toLocaleDateString();
     }
   }
-  function formatLogData2(data) {
-    if (!data || typeof data !== "object") return "";
-    const formatted = Object.entries(data).filter(([_key, value]) => value !== null && value !== void 0).map(([key, value]) => `${key}: ${value}`).join(", ");
+  function formatLogData2(data2) {
+    if (!data2 || typeof data2 !== "object") return "";
+    const formatted = Object.entries(data2).filter(([_key, value]) => value !== null && value !== void 0).map(([key, value]) => `${key}: ${value}`).join(", ");
     return formatted.length > 60 ? formatted.substring(0, 60) + "..." : formatted;
   }
   function getAllUniquePets2(dependencies = {}) {
@@ -29572,14 +29572,31 @@ ${title}:`);
               productionWarn: productionWarn2,
               debugLog: debugLog2,
               debugError,
-              // Wired functions - Batch 1: Easy exports
+              // Wired functions - Batch 1: Easy exports (3 functions)
               cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition2({ localStorage, console }),
               setManagedInterval: (name, callback, delay) => setManagedInterval(name, callback, delay, { UnifiedState: unified_state_exports, debugLog: debugLog2 }),
               clearManagedInterval: (name) => clearManagedInterval(name, { UnifiedState: unified_state_exports, debugLog: debugLog2 }),
-              // Simplified stubs for functions we don't have yet
-              loadSavedData: () => console.log("[MGTools] loadSavedData stub"),
-              createUnifiedUI: () => console.log("[MGTools] \u274C createUnifiedUI not yet wired"),
+              // Wired functions - Batch 2: Storage + UI imports (4 functions)
+              loadSavedData: () => {
+                try {
+                  const savedData = MGA_loadJSON("MGA_data", null);
+                  if (savedData && typeof savedData === "object") {
+                    Object.assign(void 0, savedData);
+                    productionLog2("[MGTools] \u2705 Loaded saved data from storage");
+                  } else {
+                    productionLog2("[MGTools] No saved data found, using defaults");
+                  }
+                } catch (error) {
+                  debugError("[MGTools] Failed to load saved data:", error);
+                }
+              },
+              // UI functions - import from Overlay module (stub wrappers for now)
+              // Note: These will need their own dependencies wired in next session
+              createUnifiedUI: () => {
+                console.log("[MGTools] \u26A0\uFE0F createUnifiedUI stub - needs dependency wiring");
+              },
               ensureUIHealthy: () => {
+                console.log("[MGTools] \u26A0\uFE0F ensureUIHealthy stub");
               },
               setupToolbarToggle: () => {
               },

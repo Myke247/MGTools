@@ -36,10 +36,11 @@ import * as ModalDetection from './core/modal-detection.js';
 import * as WebSocketManager from './core/websocket-manager.js';
 import * as StorageRecovery from './core/storage-recovery.js';
 
-// ===== Utilities (4 modules) =====
+// ===== Utilities (3 modules) =====
 import * as RuntimeUtilities from './utils/runtime-utilities.js';
 import * as MemoryManagement from './utils/memory-management.js';
 import * as PlatformDetection from './utils/platform-detection.js';
+import { MGA_loadJSON } from './core/storage.js'; // For loadSavedData
 
 // ===== State Management (2 modules) =====
 import * as UnifiedState from './state/unified-state.js';
@@ -272,14 +273,37 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
             productionWarn,
             debugLog,
             debugError,
-            // Wired functions - Batch 1: Easy exports
+            // Wired functions - Batch 1: Easy exports (3 functions)
             cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition({ localStorage, console }),
-            setManagedInterval: (name, callback, delay) => setManagedInterval(name, callback, delay, { UnifiedState, debugLog }),
-            clearManagedInterval: (name) => clearManagedInterval(name, { UnifiedState, debugLog }),
-            // Simplified stubs for functions we don't have yet
-            loadSavedData: () => console.log('[MGTools] loadSavedData stub'),
-            createUnifiedUI: () => console.log('[MGTools] ❌ createUnifiedUI not yet wired'),
-            ensureUIHealthy: () => {},
+            setManagedInterval: (name, callback, delay) =>
+              setManagedInterval(name, callback, delay, { UnifiedState, debugLog }),
+            clearManagedInterval: name => clearManagedInterval(name, { UnifiedState, debugLog }),
+
+            // Wired functions - Batch 2: Storage + UI imports (4 functions)
+            loadSavedData: () => {
+              try {
+                const savedData = MGA_loadJSON('MGA_data', null);
+                if (savedData && typeof savedData === 'object') {
+                  Object.assign(UnifiedState.data, savedData);
+                  productionLog('[MGTools] ✅ Loaded saved data from storage');
+                } else {
+                  productionLog('[MGTools] No saved data found, using defaults');
+                }
+              } catch (error) {
+                debugError('[MGTools] Failed to load saved data:', error);
+              }
+            },
+
+            // UI functions - import from Overlay module (stub wrappers for now)
+            // Note: These will need their own dependencies wired in next session
+            createUnifiedUI: () => {
+              console.log('[MGTools] ⚠️ createUnifiedUI stub - needs dependency wiring');
+              // TODO: Wire Overlay.createUnifiedUI with all its dependencies
+            },
+            ensureUIHealthy: () => {
+              console.log('[MGTools] ⚠️ ensureUIHealthy stub');
+              // TODO: Import from Overlay module
+            },
             setupToolbarToggle: () => {},
             setupDockSizeControl: () => {},
             initializeSortInventoryButton: () => {},
