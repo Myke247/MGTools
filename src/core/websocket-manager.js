@@ -52,11 +52,7 @@ export function initializeWebSocketReconnect(dependencies = {}, config = {}) {
     logWarn = console.warn.bind(console)
   } = dependencies;
 
-  const {
-    maxAttempts = 6,
-    enableToasts = true,
-    enableNetworkListeners = true
-  } = config;
+  const { maxAttempts = 6, enableToasts = true, enableNetworkListeners = true } = config;
 
   if (!win || !doc || !nav) {
     productionWarn('[WebSocket] Missing required dependencies - skipping initialization');

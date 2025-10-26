@@ -168,7 +168,11 @@ export function createRoomRegistry(dependencies = {}) {
       { id: 'i-1426956652857069662-gc-808935495543160852-1413631297003737108', name: 'play-🇻🇳', category: 'discord' },
 
       // Magic Circle Special Rooms
-      { id: 'i-1424646014697267220-gc-808935495543160852-1417643699050270741', name: 'play-québec', category: 'discord' },
+      {
+        id: 'i-1424646014697267220-gc-808935495543160852-1417643699050270741',
+        name: 'play-québec',
+        category: 'discord'
+      },
       { id: 'i-1424646193404747847-gc-808935495543160852-1389442193931571271', name: 'play', category: 'discord' }
     ],
 
@@ -234,7 +238,8 @@ export function isDiscordEnvironment(dependencies = {}) {
   try {
     // Check if in Discord iframe or Discord-hosted URL
     const isIframe = win.location !== win.parent.location;
-    const isDiscordHost = win.location.host.includes('discordsays.com') || win.location.host.endsWith('.discordsays.com');
+    const isDiscordHost =
+      win.location.host.includes('discordsays.com') || win.location.host.endsWith('.discordsays.com');
     const isDiscordActivity = isIframe || isDiscordHost;
 
     if (UnifiedState?.data?.settings?.debugMode) {
@@ -314,10 +319,7 @@ export function getActualPlayerCount(dependencies = {}) {
  * @returns {string} Reporter ID
  */
 export function getReporterId(dependencies = {}) {
-  const {
-    UnifiedState,
-    crypto: cryptoApi = typeof crypto !== 'undefined' ? crypto : null
-  } = dependencies;
+  const { UnifiedState, crypto: cryptoApi = typeof crypto !== 'undefined' ? crypto : null } = dependencies;
 
   if (!UnifiedState.data.roomStatus.reporterId) {
     if (cryptoApi && cryptoApi.randomUUID) {
