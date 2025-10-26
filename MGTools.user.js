@@ -6926,7 +6926,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         function (e) {
           // Check if clicked element looks like a feed button
           const elem = e.target;
-          if (elem && (elem.textContent?.includes('Feed') || elem.className?.includes('feed'))) {
+          if (elem && (elem.textContent?.includes('Feed') || (typeof elem.className === 'string' && elem.className?.includes('feed')))) {
             console.log('[NATIVE-FEED] Possible native feed button clicked:', elem);
 
             // Set flag to capture next FeedPet message
