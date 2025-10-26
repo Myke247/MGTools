@@ -65,9 +65,11 @@ import * as AppCoreController from './controller/app-core.js';
 // ===== Initialization (5 modules) =====
 import * as EarlyTraps from './init/early-traps.js';
 import * as LegacyBootstrap from './init/legacy-bootstrap.js';
+import { cleanupCorruptedDockPosition } from './init/legacy-bootstrap.js'; // Individual function
 import * as PublicAPI from './init/public-api.js';
 import * as Bootstrap from './init/bootstrap.js';
 import * as EventHandlers from './init/event-handlers.js';
+import { setManagedInterval, clearManagedInterval } from './utils/runtime-utilities.js'; // Individual functions
 
 // ===== Feature Modules - Core Features (15 modules) =====
 import * as Pets from './features/pets.js';
@@ -270,9 +272,12 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
             productionWarn,
             debugLog,
             debugError,
+            // Wired functions - Batch 1: Easy exports
+            cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition({ localStorage, console }),
+            setManagedInterval: (name, callback, delay) => setManagedInterval(name, callback, delay, { UnifiedState, debugLog }),
+            clearManagedInterval: (name) => clearManagedInterval(name, { UnifiedState, debugLog }),
             // Simplified stubs for functions we don't have yet
             loadSavedData: () => console.log('[MGTools] loadSavedData stub'),
-            cleanupCorruptedDockPosition: () => console.log('[MGTools] cleanupCorruptedDockPosition stub'),
             createUnifiedUI: () => console.log('[MGTools] ❌ createUnifiedUI not yet wired'),
             ensureUIHealthy: () => {},
             setupToolbarToggle: () => {},
@@ -292,9 +297,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
             setupPetsTabHandlers: () => {},
             initializeTeleportSystem: () => {},
             setupCropHighlightingSystem: () => {},
-            initializeHotkeySystem: () => {},
-            setManagedInterval: () => {},
-            clearManagedInterval: () => {}
+            initializeHotkeySystem: () => {}
           };
 
           try {
@@ -302,7 +305,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
           } catch (error) {
             console.error('[MGTools] ❌ Legacy Bootstrap failed:', error);
             console.error('[MGTools] Stack:', error.stack);
-            console.log('[MGTools] 💡 The modular architecture loaded successfully, but initialization needs more work');
+            console.log(
+              '[MGTools] 💡 The modular architecture loaded successfully, but initialization needs more work'
+            );
           }
 
           return true;

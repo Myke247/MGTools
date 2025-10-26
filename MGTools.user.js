@@ -29572,9 +29572,12 @@ ${title}:`);
               productionWarn: productionWarn2,
               debugLog: debugLog2,
               debugError,
+              // Wired functions - Batch 1: Easy exports
+              cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition2({ localStorage, console }),
+              setManagedInterval: (name, callback, delay) => setManagedInterval(name, callback, delay, { UnifiedState: unified_state_exports, debugLog: debugLog2 }),
+              clearManagedInterval: (name) => clearManagedInterval(name, { UnifiedState: unified_state_exports, debugLog: debugLog2 }),
               // Simplified stubs for functions we don't have yet
               loadSavedData: () => console.log("[MGTools] loadSavedData stub"),
-              cleanupCorruptedDockPosition: () => console.log("[MGTools] cleanupCorruptedDockPosition stub"),
               createUnifiedUI: () => console.log("[MGTools] \u274C createUnifiedUI not yet wired"),
               ensureUIHealthy: () => {
               },
@@ -29612,10 +29615,6 @@ ${title}:`);
               setupCropHighlightingSystem: () => {
               },
               initializeHotkeySystem: () => {
-              },
-              setManagedInterval: () => {
-              },
-              clearManagedInterval: () => {
               }
             };
             try {
@@ -29623,7 +29622,9 @@ ${title}:`);
             } catch (error) {
               console.error("[MGTools] \u274C Legacy Bootstrap failed:", error);
               console.error("[MGTools] Stack:", error.stack);
-              console.log("[MGTools] \u{1F4A1} The modular architecture loaded successfully, but initialization needs more work");
+              console.log(
+                "[MGTools] \u{1F4A1} The modular architecture loaded successfully, but initialization needs more work"
+              );
             }
             return true;
           }
