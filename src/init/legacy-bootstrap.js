@@ -46,9 +46,12 @@ export function cleanupCorruptedDockPosition({ localStorage, console }) {
       try {
         const parsed = JSON.parse(dockPos);
         // Check for invalid position data
-        if (typeof parsed !== 'object' || parsed === null ||
-            (parsed.x !== undefined && typeof parsed.x !== 'number') ||
-            (parsed.y !== undefined && typeof parsed.y !== 'number')) {
+        if (
+          typeof parsed !== 'object' ||
+          parsed === null ||
+          (parsed.x !== undefined && typeof parsed.x !== 'number') ||
+          (parsed.y !== undefined && typeof parsed.y !== 'number')
+        ) {
           console.warn('⚠️ Corrupted dock position detected, clearing...');
           localStorage.removeItem('mgh_dock_position');
         }
@@ -173,12 +176,18 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
   function groupRank(item) {
     if (!item) return 6;
     switch (item.itemType) {
-      case 'Seed': return 0;
-      case 'Produce': return 1;
-      case 'Pet': return 2;
-      case 'Egg': return 3;
-      case 'Decor': return 4;
-      default: return 5;
+      case 'Seed':
+        return 0;
+      case 'Produce':
+        return 1;
+      case 'Pet':
+        return 2;
+      case 'Egg':
+        return 3;
+      case 'Decor':
+        return 4;
+      default:
+        return 5;
     }
   }
 
@@ -199,9 +208,7 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
     return toStr(it.decorId).toLowerCase();
   }
   function fallbackKey(it) {
-    return (it && (it.species || it.decorId || it.toolId || it.eggId || it.id || ''))
-      .toString()
-      .toLowerCase();
+    return (it && (it.species || it.decorId || it.toolId || it.eggId || it.id || '')).toString().toLowerCase();
   }
 
   /**
@@ -349,8 +356,12 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
       }
 
       // pets without id: match by petSpecies and prefer higher xp
-      if (desiredItem.itemType === 'Pet' && desiredItem.petSpecies &&
-          it.itemType === 'Pet' && it.petSpecies === desiredItem.petSpecies) {
+      if (
+        desiredItem.itemType === 'Pet' &&
+        desiredItem.petSpecies &&
+        it.itemType === 'Pet' &&
+        it.petSpecies === desiredItem.petSpecies
+      ) {
         candidates.push({ idx: i, score: toNum(it.xp) });
         continue;
       }
@@ -363,11 +374,13 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
       for (let i = 0; i < working.length; i++) {
         const it = working[i];
         if (!it) continue;
-        if ((it.id && it.id === want) ||
-            (it.species && it.species === want) ||
-            (it.toolId && it.toolId === want) ||
-            (it.eggId && it.eggId === want) ||
-            (it.decorId && it.decorId === want)) {
+        if (
+          (it.id && it.id === want) ||
+          (it.species && it.species === want) ||
+          (it.toolId && it.toolId === want) ||
+          (it.eggId && it.eggId === want) ||
+          (it.decorId && it.decorId === want)
+        ) {
           return i;
         }
       }
@@ -406,9 +419,11 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
 
     const desiredKey = getMoveItemId(desiredItem);
     const workingKey = getMoveItemId(workingItem);
-    const alreadySame = desiredKey && workingKey &&
+    const alreadySame =
+      desiredKey &&
+      workingKey &&
       (desiredKey === workingKey ||
-       (desiredItem.species && workingItem.species && desiredItem.species === workingItem.species));
+        (desiredItem.species && workingItem.species && desiredItem.species === workingItem.species));
     if (alreadySame) continue;
 
     const curIndex = findIndexInWorking(desiredItem);
@@ -725,8 +740,7 @@ export function initializeScript(deps) {
 
   // CRITICAL FIX: If game is already ready, don't delay! Only delay if we need to retry
   const gameAlreadyReady =
-    (targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache) &&
-    targetWindow.MagicCircle_RoomConnection;
+    (targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache) && targetWindow.MagicCircle_RoomConnection;
   const initialDelay = gameAlreadyReady ? 0 : 2000;
 
   const attemptInit = () => {
@@ -761,8 +775,8 @@ export function initializeScript(deps) {
       retryCount++;
       productionLog(
         `⏳ Game not ready (jotaiAtomCache: ${!!targetWindow.jotaiAtomCache}, ` +
-        `RoomConnection: ${!!targetWindow.MagicCircle_RoomConnection}), ` +
-        `retry ${retryCount}/${maxRetries} in 1s...`
+          `RoomConnection: ${!!targetWindow.MagicCircle_RoomConnection}), ` +
+          `retry ${retryCount}/${maxRetries} in 1s...`
       );
       if (MGA_DEBUG) {
         MGA_DEBUG.logStage('GAME_NOT_READY_RETRYING', { retryCount, gameReadiness });
@@ -863,10 +877,7 @@ export function continueInitialization(deps) {
   } = deps;
 
   productionLog('🌱 Magic Garden Unified Assistant initializing...');
-  productionLog(
-    '📊 Connection Status:',
-    targetWindow.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found'
-  );
+  productionLog('📊 Connection Status:', targetWindow.MagicCircle_RoomConnection ? '✅ Available' : '❌ Not found');
 
   if (MGA_DEBUG) {
     MGA_DEBUG.logStage('CONTINUE_INITIALIZATION', {
@@ -1250,14 +1261,7 @@ export function continueInitialization(deps) {
  * });
  */
 export function initializeBasedOnEnvironment(deps) {
-  const {
-    detectEnvironment,
-    initializeScript,
-    waitForGameReady,
-    initializeStandalone,
-    console,
-    productionLog
-  } = deps;
+  const { detectEnvironment, initializeScript, waitForGameReady, initializeStandalone, console, productionLog } = deps;
 
   console.log('🔍🔍🔍 [EXECUTION] ENTERED initializeBasedOnEnvironment()');
   console.log('🔍 [EXECUTION] About to call detectEnvironment()');
@@ -1353,8 +1357,7 @@ export function waitForGameReady(deps) {
     const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
     const hasAtoms = atomCache && typeof atomCache === 'object';
     const hasConnection =
-      targetWindow.MagicCircle_RoomConnection &&
-      typeof targetWindow.MagicCircle_RoomConnection === 'object';
+      targetWindow.MagicCircle_RoomConnection && typeof targetWindow.MagicCircle_RoomConnection === 'object';
     const hasBasicDom = document.body && document.readyState === 'complete';
 
     // Check for alternative game indicators if primary ones fail (use regular document for game detection)
@@ -1368,8 +1371,7 @@ export function waitForGameReady(deps) {
     const atomsReady = hasAtoms && atomCache.size > 0;
 
     // Be more lenient - initialize if we have DOM ready and some game indicators
-    if ((atomsReady && hasConnection && hasBasicDom) ||
-        (hasBasicDom && hasGameElements && attempts >= 10)) {
+    if ((atomsReady && hasConnection && hasBasicDom) || (hasBasicDom && hasGameElements && attempts >= 10)) {
       if (atomsReady && hasConnection) {
         productionLog('✅ Game atoms and connection fully ready - switching to full mode');
         productionLog('📊 [GAME-READY] Atoms count:', atomCache.size);

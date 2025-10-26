@@ -201,8 +201,7 @@ export function createPlatformDetection(dependencies = {}) {
       /discord|overlay|electron/i.test(nav.userAgent) || !!(targetWindow.DiscordNative || targetWindow.__discordApp),
 
     isMobile:
-      /Mobile|Android|iPhone|iPad|iPod/i.test(nav.userAgent) ||
-      targetWindow.matchMedia?.('(max-width: 768px)').matches,
+      /Mobile|Android|iPhone|iPad|iPod/i.test(nav.userAgent) || targetWindow.matchMedia?.('(max-width: 768px)').matches,
 
     isIframe: targetWindow !== targetWindow.top,
 
@@ -282,9 +281,7 @@ export function createPlatformDetection(dependencies = {}) {
  * const browser = getBrowserInfo({ navigator });
  */
 export function getBrowserInfo(dependencies = {}) {
-  const {
-    navigator: nav = typeof navigator !== 'undefined' ? navigator : null
-  } = dependencies;
+  const { navigator: nav = typeof navigator !== 'undefined' ? navigator : null } = dependencies;
 
   if (!nav) {
     return { name: 'unknown', version: 'unknown', userAgent: '' };
@@ -327,9 +324,7 @@ export function getBrowserInfo(dependencies = {}) {
  * const features = checkBrowserFeatures({ targetWindow: window });
  */
 export function checkBrowserFeatures(dependencies = {}) {
-  const {
-    targetWindow = typeof window !== 'undefined' ? window : null
-  } = dependencies;
+  const { targetWindow = typeof window !== 'undefined' ? window : null } = dependencies;
 
   if (!targetWindow) {
     return {
