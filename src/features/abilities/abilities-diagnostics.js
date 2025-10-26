@@ -125,10 +125,7 @@ export function MGA_diagnoseAbilityLogStorage(dependencies = {}) {
 
   // 1. GM Storage (Tampermonkey)
   const gmMain = safeGet(() => (GM_getValue ? GM_getValue('MGA_petAbilityLogs', null) : null), 'GM Main');
-  const gmArchive = safeGet(
-    () => (GM_getValue ? GM_getValue('MGA_petAbilityLogs_archive', null) : null),
-    'GM Archive'
-  );
+  const gmArchive = safeGet(() => (GM_getValue ? GM_getValue('MGA_petAbilityLogs_archive', null) : null), 'GM Archive');
   report.sources.gmStorage = {
     main: parseAndCount(gmMain, 'GM Main'),
     archive: parseAndCount(gmArchive, 'GM Archive')

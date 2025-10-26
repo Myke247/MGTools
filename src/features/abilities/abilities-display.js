@@ -207,8 +207,7 @@ export function updateAbilityLogDisplay(context = null, dependencies = {}) {
 
   if (htmlParts.length === 0) {
     const mode = UnifiedState?.data?.filterMode || 'categories';
-    const modeText =
-      mode === 'categories' ? 'category filters' : mode === 'byPet' ? 'pet filters' : 'custom filters';
+    const modeText = mode === 'categories' ? 'category filters' : mode === 'byPet' ? 'pet filters' : 'custom filters';
     tempContainer.innerHTML = `<div class="mga-log-empty">
               <div style="color: #888; text-align: center; padding: 20px;">
                   <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
@@ -625,8 +624,7 @@ export function populateIndividualAbilities(dependencies = {}) {
   container.innerHTML = '';
 
   if (abilities.length === 0) {
-    container.innerHTML =
-      '<div style="color: #888; text-align: center;">No individual abilities found in logs</div>';
+    container.innerHTML = '<div style="color: #888; text-align: center;">No individual abilities found in logs</div>';
     return;
   }
 
