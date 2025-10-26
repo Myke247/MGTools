@@ -15,6 +15,9 @@
  * @version 2.0.0
  */
 
+// CRITICAL DEBUG: Verify script loads AT ALL
+console.log('[MGTools DEBUG] *** index.js IIFE executing! ***');
+
 /* ============================================================================
  * PHASE F: COMPLETE MODULE IMPORTS (55 modules)
  * ============================================================================
@@ -24,6 +27,7 @@
 import * as Storage from './core/storage.js';
 import { CONFIG } from './utils/constants.js';
 import * as Logging from './core/logging.js';
+import { productionLog, productionWarn, debugLog, debugError } from './core/logging.js'; // Individual functions
 import * as Compat from './core/compat.js';
 import * as Network from './core/network.js';
 import * as Atoms from './core/atoms.js';
@@ -248,23 +252,57 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
           // Game is ready (or we've waited long enough) - initialize!
           console.log('[MGTools] ✅ Game ready, initializing UI...');
 
-          // Create the unified UI
-          if (Overlay?.createUnifiedUI) {
-            const ui = Overlay.createUnifiedUI({
-              targetDocument: document,
-              targetWindow: window,
-              unsafeWindow: typeof unsafeWindow !== 'undefined' ? unsafeWindow : window,
-              UnifiedState,
-              Storage,
-              Logging,
-              Compat,
-              ThemeSystem,
-              TooltipSystem,
-              TabContent
-            });
-            console.log('[MGTools] ✅ UI created successfully');
-          } else {
-            console.error('[MGTools] ❌ Overlay.createUnifiedUI not found!');
+          // Initialize with the proper bootstrap system
+          console.log('[MGTools] 🎯 Calling LegacyBootstrap.continueInitialization...');
+
+          // Note: This is a simplified initialization. Full dependency wiring
+          // would require passing ALL functions that Legacy Bootstrap expects.
+          // For now, we'll create a minimal deps object.
+
+          const minimalDeps = {
+            UnifiedState,
+            targetWindow: window,
+            document,
+            setTimeout,
+            performanceNow: () => performance.now(),
+            console,
+            productionLog,
+            productionWarn,
+            debugLog,
+            debugError,
+            // Simplified stubs for functions we don't have yet
+            loadSavedData: () => console.log('[MGTools] loadSavedData stub'),
+            cleanupCorruptedDockPosition: () => console.log('[MGTools] cleanupCorruptedDockPosition stub'),
+            createUnifiedUI: () => console.log('[MGTools] ❌ createUnifiedUI not yet wired'),
+            ensureUIHealthy: () => {},
+            setupToolbarToggle: () => {},
+            setupDockSizeControl: () => {},
+            initializeSortInventoryButton: () => {},
+            initializeInstantFeedButtons: () => {},
+            initializeAtoms: () => {},
+            initializeTurtleTimer: () => {},
+            startIntervals: () => {},
+            applyTheme: () => {},
+            applyUltraCompactMode: () => {},
+            applyWeatherSetting: () => {},
+            initializeKeyboardShortcuts: () => {},
+            updateTabContent: () => {},
+            getContentForTab: () => '',
+            setupSeedsTabHandlers: () => {},
+            setupPetsTabHandlers: () => {},
+            initializeTeleportSystem: () => {},
+            setupCropHighlightingSystem: () => {},
+            initializeHotkeySystem: () => {},
+            setManagedInterval: () => {},
+            clearManagedInterval: () => {}
+          };
+
+          try {
+            LegacyBootstrap.continueInitialization(minimalDeps);
+          } catch (error) {
+            console.error('[MGTools] ❌ Legacy Bootstrap failed:', error);
+            console.error('[MGTools] Stack:', error.stack);
+            console.log('[MGTools] 💡 The modular architecture loaded successfully, but initialization needs more work');
           }
 
           return true;

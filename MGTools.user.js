@@ -29439,6 +29439,7 @@ ${title}:`);
   }
 
   // src/index.js
+  console.log("[MGTools DEBUG] *** index.js IIFE executing! ***");
   var MGTools = {
     // Core Infrastructure
     Core: {
@@ -29559,22 +29560,70 @@ ${title}:`);
           const hasBasicDom = document.body && document.readyState === "complete";
           if (hasAtoms && hasConnection || attempts >= maxAttempts) {
             console.log("[MGTools] \u2705 Game ready, initializing UI...");
-            if (overlay_exports?.createUnifiedUI) {
-              const ui = createUnifiedUI({
-                targetDocument: document,
-                targetWindow: window,
-                unsafeWindow: typeof unsafeWindow !== "undefined" ? unsafeWindow : window,
-                UnifiedState: unified_state_exports,
-                Storage: storage_exports,
-                Logging: logging_exports,
-                Compat: compat_exports,
-                ThemeSystem: theme_system_exports,
-                TooltipSystem: tooltip_system_exports,
-                TabContent: tab_content_exports
-              });
-              console.log("[MGTools] \u2705 UI created successfully");
-            } else {
-              console.error("[MGTools] \u274C Overlay.createUnifiedUI not found!");
+            console.log("[MGTools] \u{1F3AF} Calling LegacyBootstrap.continueInitialization...");
+            const minimalDeps = {
+              UnifiedState: unified_state_exports,
+              targetWindow: window,
+              document,
+              setTimeout,
+              performanceNow: () => performance.now(),
+              console,
+              productionLog: productionLog2,
+              productionWarn: productionWarn2,
+              debugLog: debugLog2,
+              debugError,
+              // Simplified stubs for functions we don't have yet
+              loadSavedData: () => console.log("[MGTools] loadSavedData stub"),
+              cleanupCorruptedDockPosition: () => console.log("[MGTools] cleanupCorruptedDockPosition stub"),
+              createUnifiedUI: () => console.log("[MGTools] \u274C createUnifiedUI not yet wired"),
+              ensureUIHealthy: () => {
+              },
+              setupToolbarToggle: () => {
+              },
+              setupDockSizeControl: () => {
+              },
+              initializeSortInventoryButton: () => {
+              },
+              initializeInstantFeedButtons: () => {
+              },
+              initializeAtoms: () => {
+              },
+              initializeTurtleTimer: () => {
+              },
+              startIntervals: () => {
+              },
+              applyTheme: () => {
+              },
+              applyUltraCompactMode: () => {
+              },
+              applyWeatherSetting: () => {
+              },
+              initializeKeyboardShortcuts: () => {
+              },
+              updateTabContent: () => {
+              },
+              getContentForTab: () => "",
+              setupSeedsTabHandlers: () => {
+              },
+              setupPetsTabHandlers: () => {
+              },
+              initializeTeleportSystem: () => {
+              },
+              setupCropHighlightingSystem: () => {
+              },
+              initializeHotkeySystem: () => {
+              },
+              setManagedInterval: () => {
+              },
+              clearManagedInterval: () => {
+              }
+            };
+            try {
+              continueInitialization(minimalDeps);
+            } catch (error) {
+              console.error("[MGTools] \u274C Legacy Bootstrap failed:", error);
+              console.error("[MGTools] Stack:", error.stack);
+              console.log("[MGTools] \u{1F4A1} The modular architecture loaded successfully, but initialization needs more work");
             }
             return true;
           }
