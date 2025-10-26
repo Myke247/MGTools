@@ -219,9 +219,7 @@ export function categorizeAbility(abilityType) {
  * categorizeAbilityToFilterKey('Crop Size Boost II'); // Returns: 'cropSizeBoost'
  */
 export function categorizeAbilityToFilterKey(abilityType, dependencies = {}) {
-  const {
-    MGA_AbilityCache = typeof window !== 'undefined' && window.MGA_AbilityCache
-  } = dependencies;
+  const { MGA_AbilityCache = typeof window !== 'undefined' && window.MGA_AbilityCache } = dependencies;
 
   // PERFORMANCE: Check cache first
   if (MGA_AbilityCache && MGA_AbilityCache.categories.has(abilityType)) {

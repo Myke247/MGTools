@@ -99,7 +99,7 @@ export function getAllUniquePets(dependencies = {}) {
   const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
 
   const pets = new Set();
-  (UnifiedState?.data?.petAbilityLogs || []).forEach((log) => {
+  (UnifiedState?.data?.petAbilityLogs || []).forEach(log => {
     if (log.petName && log.petName !== 'Test Pet') {
       pets.add(log.petName);
     }
@@ -123,7 +123,7 @@ export function getAllUniqueAbilities(dependencies = {}) {
   const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
 
   const abilities = new Set();
-  (UnifiedState?.data?.petAbilityLogs || []).forEach((log) => {
+  (UnifiedState?.data?.petAbilityLogs || []).forEach(log => {
     if (log.abilityType) {
       abilities.add(log.abilityType);
     }
@@ -154,10 +154,7 @@ export function shouldLogAbility(abilityType, petName = null, dependencies = {})
   const { UnifiedState = typeof window !== 'undefined' && window.UnifiedState } = dependencies;
 
   // Filter out ProduceMutationBoost abilities - user doesn't want these logged
-  if (
-    abilityType &&
-    (abilityType.includes('ProduceMutationBoost') || abilityType.includes('PetMutationBoost'))
-  ) {
+  if (abilityType && (abilityType.includes('ProduceMutationBoost') || abilityType.includes('PetMutationBoost'))) {
     return false;
   }
 
@@ -203,32 +200,20 @@ export function shouldLogAbility(abilityType, petName = null, dependencies = {})
  * getAbilityExpectations(pets, 'PlantGrowthBoostII', 5, 0.27);
  * // Returns: { expectedMinutesRemoved: 2.35 }
  */
-export function getAbilityExpectations(
-  activePets,
-  abilityName,
-  minutesPerBase = 5,
-  odds = 0.27,
-  dependencies = {}
-) {
+export function getAbilityExpectations(activePets, abilityName, minutesPerBase = 5, odds = 0.27, dependencies = {}) {
   const { Math: MathClass = typeof Math !== 'undefined' ? Math : null } = dependencies;
 
-  const pets = (activePets || []).filter(
-    (p) => p && p.hunger > 0 && p.abilities?.some((a) => a === abilityName)
-  );
+  const pets = (activePets || []).filter(p => p && p.hunger > 0 && p.abilities?.some(a => a === abilityName));
 
   let expectedMinutesRemoved = 0;
 
-  pets.forEach((p) => {
+  pets.forEach(p => {
     const base =
       MathClass.min(MathClass.floor(((p.xp || 0) / (100 * 3600)) * 30), 30) +
       MathClass.floor((((p.targetScale || 1) - 1) / (2.5 - 1)) * 20 + 80) -
       30;
 
-    expectedMinutesRemoved +=
-      (base / 100) *
-      minutesPerBase *
-      60 *
-      (1 - MathClass.pow(1 - (odds * base) / 100, 1 / 60));
+    expectedMinutesRemoved += (base / 100) * minutesPerBase * 60 * (1 - MathClass.pow(1 - (odds * base) / 100, 1 / 60));
   });
 
   return {
