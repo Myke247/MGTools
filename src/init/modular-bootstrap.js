@@ -12,7 +12,7 @@
  */
 
 // Core Infrastructure
-import * as UnifiedState from '../state/unified-state.js';
+import { UnifiedState } from '../state/unified-state.js';
 import { MGA_loadJSON, MGA_saveJSON } from '../core/storage.js';
 import { productionLog, debugLog, debugError, productionWarn } from '../core/logging.js';
 import { CONFIG } from '../utils/constants.js';
@@ -92,7 +92,6 @@ export function initializeModular({ targetDocument, targetWindow }) {
     productionLog('[MGTools] ⚠️ Note: Many features are stubbed - will wire incrementally');
 
     return true;
-
   } catch (error) {
     debugError('[MGTools] ❌ Initialization failed:', error);
     debugError('[MGTools] Stack:', error.stack);
