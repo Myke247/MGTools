@@ -94,9 +94,9 @@ try {
     banner: { js: banner },
     legalComments: 'none',
     sourcemap: false, // Could enable for debugging: 'inline'
-    minify: false,     // Keep readable for debugging
+    minify: false, // Keep readable for debugging
     logLevel: 'warning',
-    treeShaking: true  // Remove unused code
+    treeShaking: true // Remove unused code
   });
 
   console.log('✅ [STEP 3/4] Bundle created successfully');
@@ -139,7 +139,6 @@ try {
   console.log('3. Commit src/ changes (MGTools.user.js will be regenerated)');
   console.log('');
   console.log('═══════════════════════════════════════════════════════════');
-
 } catch (error) {
   console.error('❌ [ERROR] Verification failed:', error);
   process.exit(1);
