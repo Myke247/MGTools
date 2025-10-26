@@ -1,25 +1,47 @@
 # MGTools Modular Implementation - Session Handoff
 **Date:** 2025-10-26
 **Branch:** `develop`
-**Status:** Phase 4.2 COMPLETE - UI IS VISIBLE! 🎉
+**Status:** Phase 4.4 - Dragging & Sidebar Tabs WORKING! 🎉
 
 ---
 
 ## IMMEDIATE CONTEXT - START HERE
 
-### What Just Happened (Phase 4.2)
-- ✅ **UI IS SHOWING IN BROWSER** - modular architecture works!
-- ✅ Fixed critical bug: `import { UnifiedState }` not `import * as UnifiedState`
-- ✅ Fixed UNIFIED_STYLES export/import for CSS styling
-- ✅ No crashes, initialization successful
+### What Just Happened (Phase 4.3-4.4)
+- ✅ **DRAGGING FIXED** - Corrected left/top vs bottom/right positioning bug
+- ✅ **SIDEBAR TABS WORKING** - All 12 tabs now functional with updateTabContent
+- ✅ **THEME ACCESS** - Settings tab opens, users can change themes!
+- ✅ Built: 29,739 lines
 
-### What's Next (Phase 4.3) - START HERE
-**Wire essential features to make UI functional:**
+### What's Next (Phase 4.5) - OPTIONAL ENHANCEMENTS
+**Remaining features to wire (non-critical):**
 
-1. **makeDockDraggable** - Import from `ui/draggable.js`, call in modular-bootstrap.js
-2. **openSidebarTab** - Wire tab click handlers
-3. **Theme functions** - Wire theme system for colors
-4. **Test each incrementally** - Build → Copy to Tampermonkey → Test → Repeat
+1. **openPopoutWidget** - Shift+click popout windows
+2. **toggleShopWindows** - Shop slide-out panels
+3. **checkVersion** - Version update checker
+4. **Test all features** - Verify everything works end-to-end
+
+---
+
+## RECENT FIXES (This Session)
+
+### Fix 1: Dragging Position Bug (Commit 8b0b91c)
+**Problem**: Dock stuck at bottom, dragging broken
+**Root Cause**: Using bottom/right positioning while makeDraggable uses left/top
+**Fix**:
+- Changed loadDockPosition to use localStorage (not GM storage)
+- Returns {left, top} object (not {bottom, right})
+- Changed saveDockOrientation/loadDockOrientation to use localStorage
+**Result**: Dragging works perfectly now
+
+### Fix 2: Sidebar Tabs (Commit 08cf140)
+**Problem**: Tabs didn't open, no content displayed
+**Root Cause**: updateTabContent function didn't exist
+**Fix**:
+- Imported all 12 tab content getters
+- Created updateTabContent using getContentForTab
+- Wired openSidebarTab to call real implementation
+**Result**: All tabs now open and display content, including settings for themes
 
 ---
 
