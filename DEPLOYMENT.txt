@@ -52,7 +52,28 @@ Tooltip format:
 - "Other Branch (Stable/Beta): vX.X.X"
 
 ==============================================
-4. CODE QUALITY CHECKS
+4. BUILD SYSTEM (PHASE 3B)
+==============================================
+
+As of 2025-10-24, we have TWO build systems:
+
+A. Mirror Build (PRIMARY - Production):
+   npm run build
+   → Copies MGTools.user.js to dist/mgtools.user.js
+   → This is what users get (1.5MB)
+   → Always test this before deploying
+
+B. Modular Build (PARALLEL - Opt-in testing):
+   npm run build:esbuild
+   → Compiles from src/ modules to dist/mgtools.esbuild.user.js
+   → Opt-in only (localStorage.MGTOOLS_ESBUILD_ENABLE = "1")
+   → Infrastructure test artifact (121KB)
+   → Features still in monolith (being extracted)
+
+IMPORTANT: Mirror build is still PRIMARY. Modular build is for testing.
+
+==============================================
+5. CODE QUALITY CHECKS
 ==============================================
 
 Run these commands BEFORE committing:
@@ -65,8 +86,12 @@ B. Check for issues:
 
 Expected: 0 errors, ~158 warnings (style preferences only)
 
+C. Test both builds:
+   npm run build           # Mirror (production)
+   npm run build:esbuild   # Modular (test artifact)
+
 ==============================================
-5. GIT COMMIT PROCESS
+6. GIT COMMIT PROCESS
 ==============================================
 
 CRITICAL: Use this EXACT commit message format:
@@ -91,7 +116,7 @@ IMPORTANT: Do NOT use --no-verify flag
 IMPORTANT: Ensure pre-commit hooks run successfully
 
 ==============================================
-6. DEPLOYMENT STEPS (Live-Beta)
+7. DEPLOYMENT STEPS (Live-Beta)
 ==============================================
 
 1. Verify current branch:
@@ -100,22 +125,26 @@ IMPORTANT: Ensure pre-commit hooks run successfully
 
 2. Update all version numbers (see Section 1)
 
-3. Run code quality checks (see Section 4)
+3. Run code quality checks (see Section 5)
 
-4. Stage all changes:
+4. Test both builds (see Section 4):
+   npm run build           # Test mirror (primary)
+   npm run build:esbuild   # Test modular (parallel)
+
+5. Stage all changes:
    git add MGTools.user.js CHANGELOG.md README.md
 
-5. Commit with proper message (see Section 5)
+6. Commit with proper message (see Section 6)
 
-6. Push to remote:
+7. Push to remote:
    git push origin Live-Beta
 
-7. Verify on GitHub:
+8. Verify on GitHub:
    - Check https://github.com/Myke247/MGTools/tree/Live-Beta
    - Verify version numbers match everywhere
 
 ==============================================
-7. COMMON MISTAKES TO AVOID
+8. COMMON MISTAKES TO AVOID
 ==============================================
 
 ❌ Forgetting to update @updateURL/@downloadURL
@@ -128,7 +157,7 @@ IMPORTANT: Ensure pre-commit hooks run successfully
 ❌ Not verifying version checker displays correctly
 
 ==============================================
-8. VERSION NUMBER GUIDELINES
+9. VERSION NUMBER GUIDELINES
 ==============================================
 
 Format: MAJOR.MINOR.PATCH
@@ -143,7 +172,7 @@ Examples:
 - 1.9.9 → 2.0.0 (breaking change)
 
 ==============================================
-9. EMERGENCY ROLLBACK
+10. EMERGENCY ROLLBACK
 ==============================================
 
 If a version breaks:
@@ -160,7 +189,7 @@ If a version breaks:
 4. Notify users via GitHub release notes
 
 ==============================================
-10. TESTING CHECKLIST
+11. TESTING CHECKLIST
 ==============================================
 
 Before pushing to Live-Beta:
@@ -173,6 +202,10 @@ Before pushing to Live-Beta:
 □ No console spam from debug logs
 □ ESLint passes (0 errors)
 □ Prettier formatting applied
+□ Mirror build completes (npm run build)
+□ Modular build completes (npm run build:esbuild)
+□ dist/mgtools.user.js size ~1.5MB
+□ dist/mgtools.esbuild.user.js size ~120KB
 
 ==============================================
 END OF DEPLOYMENT INSTRUCTIONS

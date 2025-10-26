@@ -1,17 +1,24 @@
 {
   "name": "mgtools",
   "version": "1.0.0",
-  "description": "MGTools - All-in-one assistant for Magic Garden with beautiful unified UI",
+  "description": "MGTools - All-in-one assistant for Magic Garden with beautiful unified UI (Architectural 100% - Modular Build System)",
   "main": "MGTools.user.js",
   "scripts": {
-    "lint": "eslint MGTools.user.js",
-    "lint:fix": "eslint MGTools.user.js --fix",
-    "format": "prettier --write MGTools.user.js",
-    "format:check": "prettier --check MGTools.user.js",
-    "syntax": "node -c MGTools.user.js",
+    "lint": "eslint \"src/**/*.js\" \"scripts/**/*.mjs\"",
+    "lint:fix": "eslint \"src/**/*.js\" \"scripts/**/*.mjs\" --fix",
+    "format": "prettier --write \"src/**/*.js\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"scripts/**/*.mjs\"",
     "style": "npm run lint:fix && npm run format",
-    "build": "node build.js",
-    "build:check": "node build.js && echo 'Build complete'"
+    "precommit": "npm run style && npm run build:production",
+    "build": "node scripts/build-production.mjs",
+    "build:production": "node scripts/build-production.mjs",
+    "build:dev": "node scripts/build-esbuild.mjs",
+    "build:legacy": "node build.js",
+    "build:check": "node build.js && echo 'Build complete'",
+    "build:esbuild": "node scripts/build-esbuild.mjs",
+    "clean": "rm -f dist/*.js",
+    "hash": "node scripts/hash-compare.mjs",
+    "prepare": "husky"
   },
   "keywords": [
     "magic-garden",
@@ -29,11 +36,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^8.57.1",
+    "esbuild": "^0.25.11",
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "husky": "^9.1.7",
     "prettier": "^3.6.2"
   }
 }

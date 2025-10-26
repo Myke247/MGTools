@@ -45,12 +45,7 @@ export function renderVersionBadge(container, meta = {}) {
     return null;
   }
 
-  const {
-    currentVersion = 'Unknown',
-    availableVersion = null,
-    branch = 'Unknown',
-    isOutdated = false
-  } = meta;
+  const { currentVersion = 'Unknown', availableVersion = null, branch = 'Unknown', isOutdated = false } = meta;
 
   // Clear existing badge
   const existingBadge = qs('.mgtools-version-badge', container);
@@ -94,27 +89,39 @@ export function renderVersionBadge(container, meta = {}) {
   }
 
   // Version icon
-  const icon = el('span', {
-    style: { fontSize: '16px', lineHeight: '1' }
-  }, isOutdated ? '⚠️' : '✓');
+  const icon = el(
+    'span',
+    {
+      style: { fontSize: '16px', lineHeight: '1' }
+    },
+    isOutdated ? '⚠️' : '✓'
+  );
 
   // Version text
-  const versionText = el('span', {
-    style: { fontWeight: '500' }
-  }, `v${currentVersion}`);
+  const versionText = el(
+    'span',
+    {
+      style: { fontWeight: '500' }
+    },
+    `v${currentVersion}`
+  );
 
   // Branch badge
-  const branchBadge = el('span', {
-    style: {
-      padding: '2px 6px',
-      borderRadius: '4px',
-      fontSize: '11px',
-      fontWeight: '600',
-      background: 'rgba(255, 255, 255, 0.25)',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px'
-    }
-  }, branch);
+  const branchBadge = el(
+    'span',
+    {
+      style: {
+        padding: '2px 6px',
+        borderRadius: '4px',
+        fontSize: '11px',
+        fontWeight: '600',
+        background: 'rgba(255, 255, 255, 0.25)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+      }
+    },
+    branch
+  );
 
   // Assemble badge
   badge.appendChild(icon);
@@ -123,21 +130,28 @@ export function renderVersionBadge(container, meta = {}) {
 
   // Add update indicator if outdated
   if (isOutdated && availableVersion) {
-    const updateIndicator = el('span', {
-      style: {
-        padding: '2px 6px',
-        borderRadius: '4px',
-        fontSize: '11px',
-        fontWeight: '600',
-        background: 'rgba(255, 255, 255, 0.4)',
-        animation: 'mgtools-pulse 2s infinite'
-      }
-    }, `→ v${availableVersion}`);
+    const updateIndicator = el(
+      'span',
+      {
+        style: {
+          padding: '2px 6px',
+          borderRadius: '4px',
+          fontSize: '11px',
+          fontWeight: '600',
+          background: 'rgba(255, 255, 255, 0.4)',
+          animation: 'mgtools-pulse 2s infinite'
+        }
+      },
+      `→ v${availableVersion}`
+    );
     badge.appendChild(updateIndicator);
   }
 
   container.appendChild(badge);
-  Logger.debug('VERSION_UI', `Version badge rendered: v${currentVersion} (${branch})${isOutdated ? ' [OUTDATED]' : ''}`);
+  Logger.debug(
+    'VERSION_UI',
+    `Version badge rendered: v${currentVersion} (${branch})${isOutdated ? ' [OUTDATED]' : ''}`
+  );
 
   return badge;
 }
@@ -183,7 +197,7 @@ export function wireVersionSwitchHandlers(container, callbacks = {}) {
   }
 
   // Click handler for switching branches
-  const handleClick = (event) => {
+  const handleClick = event => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -291,12 +305,7 @@ export function teardownVersionUI(container) {
  * @returns {HTMLElement} - Modal element
  */
 export function renderBranchSwitcherModal(options = {}) {
-  const {
-    currentBranch = 'Unknown',
-    targetBranch = 'Unknown',
-    onConfirm = () => {},
-    onCancel = () => {}
-  } = options;
+  const { currentBranch = 'Unknown', targetBranch = 'Unknown', onConfirm = () => {}, onCancel = () => {} } = options;
 
   // Modal overlay
   const overlay = el('div', {
@@ -330,24 +339,32 @@ export function renderBranchSwitcherModal(options = {}) {
   });
 
   // Title
-  const title = el('h2', {
-    style: {
-      margin: '0 0 16px 0',
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#333'
-    }
-  }, 'Switch Branch?');
+  const title = el(
+    'h2',
+    {
+      style: {
+        margin: '0 0 16px 0',
+        fontSize: '20px',
+        fontWeight: '600',
+        color: '#333'
+      }
+    },
+    'Switch Branch?'
+  );
 
   // Description
-  const description = el('p', {
-    style: {
-      margin: '0 0 24px 0',
-      fontSize: '14px',
-      lineHeight: '1.6',
-      color: '#666'
-    }
-  }, `You are currently on ${currentBranch}. Switch to ${targetBranch} to get the latest version?`);
+  const description = el(
+    'p',
+    {
+      style: {
+        margin: '0 0 24px 0',
+        fontSize: '14px',
+        lineHeight: '1.6',
+        color: '#666'
+      }
+    },
+    `You are currently on ${currentBranch}. Switch to ${targetBranch} to get the latest version?`
+  );
 
   // Button container
   const buttonContainer = el('div', {
@@ -359,19 +376,23 @@ export function renderBranchSwitcherModal(options = {}) {
   });
 
   // Cancel button
-  const cancelBtn = el('button', {
-    style: {
-      padding: '10px 20px',
-      border: '1px solid #ddd',
-      borderRadius: '6px',
-      background: 'white',
-      color: '#666',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'all 0.2s'
-    }
-  }, 'Cancel');
+  const cancelBtn = el(
+    'button',
+    {
+      style: {
+        padding: '10px 20px',
+        border: '1px solid #ddd',
+        borderRadius: '6px',
+        background: 'white',
+        color: '#666',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'all 0.2s'
+      }
+    },
+    'Cancel'
+  );
 
   cancelBtn.addEventListener('click', () => {
     overlay.remove();
@@ -379,20 +400,24 @@ export function renderBranchSwitcherModal(options = {}) {
   });
 
   // Confirm button
-  const confirmBtn = el('button', {
-    style: {
-      padding: '10px 20px',
-      border: 'none',
-      borderRadius: '6px',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      color: 'white',
-      fontSize: '14px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
-    }
-  }, 'Switch Branch');
+  const confirmBtn = el(
+    'button',
+    {
+      style: {
+        padding: '10px 20px',
+        border: 'none',
+        borderRadius: '6px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+      }
+    },
+    'Switch Branch'
+  );
 
   confirmBtn.addEventListener('click', () => {
     overlay.remove();
@@ -408,7 +433,7 @@ export function renderBranchSwitcherModal(options = {}) {
   overlay.appendChild(modal);
 
   // Close on overlay click
-  overlay.addEventListener('click', (e) => {
+  overlay.addEventListener('click', e => {
     if (e.target === overlay) {
       overlay.remove();
       onCancel();
