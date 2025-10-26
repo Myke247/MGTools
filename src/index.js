@@ -240,7 +240,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         // Check if game environment is ready
         const atomCache = window.jotaiAtomCache?.cache || window.jotaiAtomCache;
         const hasAtoms = atomCache && typeof atomCache === 'object';
-        const hasConnection = window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === 'object';
+        const hasConnection =
+          window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === 'object';
         const hasBasicDom = document.body && document.readyState === 'complete';
 
         if ((hasAtoms && hasConnection) || attempts >= maxAttempts) {
@@ -289,7 +290,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       console.error('[MGTools] ❌ Initialization failed:', error);
       console.error('[MGTools] Stack:', error.stack);
     }
-  }
+  };
 
   // Determine initialization delay based on environment
   const isDiscordEnv = window.location.href?.includes('discordsays.com');
