@@ -63,7 +63,7 @@ import * as ShortcutsController from './controller/shortcuts.js';
 import * as RoomPollController from './controller/room-poll.js';
 import * as AppCoreController from './controller/app-core.js';
 
-// ===== Initialization (5 modules) =====
+// ===== Initialization (6 modules) =====
 import * as EarlyTraps from './init/early-traps.js';
 import * as LegacyBootstrap from './init/legacy-bootstrap.js';
 import { cleanupCorruptedDockPosition } from './init/legacy-bootstrap.js'; // Individual function
@@ -71,6 +71,7 @@ import * as PublicAPI from './init/public-api.js';
 import * as Bootstrap from './init/bootstrap.js';
 import * as EventHandlers from './init/event-handlers.js';
 import { setManagedInterval, clearManagedInterval } from './utils/runtime-utilities.js'; // Individual functions
+import { initializeModular } from './init/modular-bootstrap.js'; // NEW: Simplified modular bootstrap
 
 // ===== Feature Modules - Core Features (15 modules) =====
 import * as Pets from './features/pets.js';
@@ -253,85 +254,16 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
         if ((hasAtoms && hasConnection) || attempts >= maxAttempts) {
           // Game is ready (or we've waited long enough) - initialize!
-          console.log('[MGTools] ✅ Game ready, initializing UI...');
+          console.log('[MGTools] ✅ Game ready, initializing with modular bootstrap...');
 
-          // Initialize with the proper bootstrap system
-          console.log('[MGTools] 🎯 Calling LegacyBootstrap.continueInitialization...');
+          // Use NEW simplified modular bootstrap (v2.1)
+          const success = initializeModular({
+            targetDocument: document,
+            targetWindow: window
+          });
 
-          // Note: This is a simplified initialization. Full dependency wiring
-          // would require passing ALL functions that Legacy Bootstrap expects.
-          // For now, we'll create a minimal deps object.
-
-          const minimalDeps = {
-            UnifiedState,
-            targetWindow: window,
-            document,
-            setTimeout,
-            performanceNow: () => performance.now(),
-            console,
-            productionLog,
-            productionWarn,
-            debugLog,
-            debugError,
-            // Wired functions - Batch 1: Easy exports (3 functions)
-            cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition({ localStorage, console }),
-            setManagedInterval: (name, callback, delay) =>
-              setManagedInterval(name, callback, delay, { UnifiedState, debugLog }),
-            clearManagedInterval: name => clearManagedInterval(name, { UnifiedState, debugLog }),
-
-            // Wired functions - Batch 2: Storage + UI imports (4 functions)
-            loadSavedData: () => {
-              try {
-                const savedData = MGA_loadJSON('MGA_data', null);
-                if (savedData && typeof savedData === 'object') {
-                  Object.assign(UnifiedState.data, savedData);
-                  productionLog('[MGTools] ✅ Loaded saved data from storage');
-                } else {
-                  productionLog('[MGTools] No saved data found, using defaults');
-                }
-              } catch (error) {
-                debugError('[MGTools] Failed to load saved data:', error);
-              }
-            },
-
-            // UI functions - import from Overlay module (stub wrappers for now)
-            // Note: These will need their own dependencies wired in next session
-            createUnifiedUI: () => {
-              console.log('[MGTools] ⚠️ createUnifiedUI stub - needs dependency wiring');
-              // TODO: Wire Overlay.createUnifiedUI with all its dependencies
-            },
-            ensureUIHealthy: () => {
-              console.log('[MGTools] ⚠️ ensureUIHealthy stub');
-              // TODO: Import from Overlay module
-            },
-            setupToolbarToggle: () => {},
-            setupDockSizeControl: () => {},
-            initializeSortInventoryButton: () => {},
-            initializeInstantFeedButtons: () => {},
-            initializeAtoms: () => {},
-            initializeTurtleTimer: () => {},
-            startIntervals: () => {},
-            applyTheme: () => {},
-            applyUltraCompactMode: () => {},
-            applyWeatherSetting: () => {},
-            initializeKeyboardShortcuts: () => {},
-            updateTabContent: () => {},
-            getContentForTab: () => '',
-            setupSeedsTabHandlers: () => {},
-            setupPetsTabHandlers: () => {},
-            initializeTeleportSystem: () => {},
-            setupCropHighlightingSystem: () => {},
-            initializeHotkeySystem: () => {}
-          };
-
-          try {
-            LegacyBootstrap.continueInitialization(minimalDeps);
-          } catch (error) {
-            console.error('[MGTools] ❌ Legacy Bootstrap failed:', error);
-            console.error('[MGTools] Stack:', error.stack);
-            console.log(
-              '[MGTools] 💡 The modular architecture loaded successfully, but initialization needs more work'
-            );
+          if (!success) {
+            console.error('[MGTools] ❌ Initialization failed, see errors above');
           }
 
           return true;
