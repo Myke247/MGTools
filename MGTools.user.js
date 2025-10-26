@@ -14812,29 +14812,42 @@ ${title}:`);
             saveMainHUDPosition: (pos) => saveDockPosition(pos, { MGA_saveJSON, debugLog: debugLog2, debugError })
           });
         },
-        openSidebarTab: () => productionLog2("[MGTools] TODO: Wire openSidebarTab"),
+        openSidebarTab: (tabName) => openSidebarTab({ UnifiedState: UnifiedState2, targetDocument: targetDocument2, productionLog: productionLog2, debugLog: debugLog2 }, tabName),
         toggleShopWindows: () => {
         },
-        openPopoutWidget: () => {
-        },
+        openPopoutWidget: (tabName) => openPopoutWidget({ targetDocument: targetDocument2, UnifiedState: UnifiedState2 }, tabName),
         checkVersion: () => {
         },
-        saveDockOrientation: () => {
+        saveDockOrientation: (orientation) => {
+          try {
+            MGA_saveJSON("MGA_dockOrientation", orientation);
+          } catch (e) {
+            debugError("[MGTools] Failed to save dock orientation:", e);
+          }
         },
-        loadDockOrientation: () => "horizontal",
-        // Return default
-        loadDockPosition: () => ({ bottom: "10px", right: "10px" }),
-        // Return default
-        generateThemeStyles: () => "",
-        // Return empty for now
-        applyAccentToDock: () => {
+        loadDockOrientation: () => {
+          try {
+            return MGA_loadJSON("MGA_dockOrientation", "horizontal");
+          } catch (e) {
+            return "horizontal";
+          }
         },
-        applyAccentToSidebar: () => {
+        loadDockPosition: (dock) => {
+          try {
+            const saved = MGA_loadJSON("MGA_dockPosition", null);
+            if (saved && saved.bottom && saved.right) {
+              dock.style.bottom = saved.bottom;
+              dock.style.right = saved.right;
+            }
+          } catch (e) {
+            debugError("[MGTools] Failed to load dock position:", e);
+          }
         },
-        applyThemeToDock: () => {
-        },
-        applyThemeToSidebar: () => {
-        },
+        generateThemeStyles: (theme) => generateThemeStyles(theme),
+        applyAccentToDock: (gradient) => applyAccentToDock(gradient, { targetDocument: targetDocument2 }),
+        applyAccentToSidebar: (gradient) => applyAccentToSidebar(gradient, { targetDocument: targetDocument2 }),
+        applyThemeToDock: (theme) => applyThemeToDock(theme, { targetDocument: targetDocument2 }),
+        applyThemeToSidebar: (theme) => applyThemeToSidebar(theme, { targetDocument: targetDocument2 }),
         isDiscordEnv: targetWindow3.location.href?.includes("discordsays.com") || false,
         UNIFIED_STYLES,
         // Imported from overlay.js

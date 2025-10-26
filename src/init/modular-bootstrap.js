@@ -14,13 +14,26 @@
 // Core Infrastructure
 import { UnifiedState } from '../state/unified-state.js';
 import { MGA_loadJSON, MGA_saveJSON } from '../core/storage.js';
-import { productionLog, debugLog, debugError, productionWarn } from '../core/logging.js';
+import { productionLog, debugLog, debugError } from '../core/logging.js';
 import { CONFIG } from '../utils/constants.js';
 import { targetDocument } from '../core/compat.js';
 
-// UI Functions - will import as we wire them
-import { createUnifiedUI, UNIFIED_STYLES, saveDockPosition } from '../ui/overlay.js';
+// UI Functions
+import {
+  createUnifiedUI,
+  UNIFIED_STYLES,
+  saveDockPosition,
+  openSidebarTab,
+  openPopoutWidget
+} from '../ui/overlay.js';
 import { makeDraggable } from '../ui/draggable.js';
+import {
+  generateThemeStyles,
+  applyThemeToDock,
+  applyThemeToSidebar,
+  applyAccentToDock,
+  applyAccentToSidebar
+} from '../ui/theme-system.js';
 
 /**
  * Initialize MGTools with simplified modular approach
@@ -66,26 +79,49 @@ export function initializeModular({ targetDocument, targetWindow }) {
       UnifiedState,
 
       // Wired features
-      makeDockDraggable: (dock) => {
+      makeDockDraggable: dock => {
         // Dock is draggable by itself (element is also the handle)
         makeDraggable(dock, dock, {
           targetDocument,
           debugLog,
-          saveMainHUDPosition: (pos) => saveDockPosition(pos, { MGA_saveJSON, debugLog, debugError })
+          saveMainHUDPosition: pos => saveDockPosition(pos, { MGA_saveJSON, debugLog, debugError })
         });
       },
-      openSidebarTab: () => productionLog('[MGTools] TODO: Wire openSidebarTab'),
+      openSidebarTab: (tabName) =>
+        openSidebarTab({ UnifiedState, targetDocument, productionLog, debugLog }, tabName),
       toggleShopWindows: () => {},
-      openPopoutWidget: () => {},
+      openPopoutWidget: (tabName) => openPopoutWidget({ targetDocument, UnifiedState }, tabName),
       checkVersion: () => {},
-      saveDockOrientation: () => {},
-      loadDockOrientation: () => 'horizontal', // Return default
-      loadDockPosition: () => ({ bottom: '10px', right: '10px' }), // Return default
-      generateThemeStyles: () => '', // Return empty for now
-      applyAccentToDock: () => {},
-      applyAccentToSidebar: () => {},
-      applyThemeToDock: () => {},
-      applyThemeToSidebar: () => {},
+      saveDockOrientation: (orientation) => {
+        try {
+          MGA_saveJSON('MGA_dockOrientation', orientation);
+        } catch (e) {
+          debugError('[MGTools] Failed to save dock orientation:', e);
+        }
+      },
+      loadDockOrientation: () => {
+        try {
+          return MGA_loadJSON('MGA_dockOrientation', 'horizontal');
+        } catch (e) {
+          return 'horizontal';
+        }
+      },
+      loadDockPosition: (dock) => {
+        try {
+          const saved = MGA_loadJSON('MGA_dockPosition', null);
+          if (saved && saved.bottom && saved.right) {
+            dock.style.bottom = saved.bottom;
+            dock.style.right = saved.right;
+          }
+        } catch (e) {
+          debugError('[MGTools] Failed to load dock position:', e);
+        }
+      },
+      generateThemeStyles: (theme) => generateThemeStyles(theme),
+      applyAccentToDock: (gradient) => applyAccentToDock(gradient, { targetDocument }),
+      applyAccentToSidebar: (gradient) => applyAccentToSidebar(gradient, { targetDocument }),
+      applyThemeToDock: (theme) => applyThemeToDock(theme, { targetDocument }),
+      applyThemeToSidebar: (theme) => applyThemeToSidebar(theme, { targetDocument }),
       isDiscordEnv: targetWindow.location.href?.includes('discordsays.com') || false,
       UNIFIED_STYLES, // Imported from overlay.js
       CURRENT_VERSION: CONFIG.CURRENT_VERSION || '2.1.0',
