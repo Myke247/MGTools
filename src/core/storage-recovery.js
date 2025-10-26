@@ -552,10 +552,7 @@ export function diagnoseAbilityLogStorage(dependencies = {}) {
 
   // 1. GM Storage (Tampermonkey)
   const gmMain = safeGet(() => (GM_getValue ? GM_getValue('MGA_petAbilityLogs', null) : null), 'GM Main');
-  const gmArchive = safeGet(
-    () => (GM_getValue ? GM_getValue('MGA_petAbilityLogs_archive', null) : null),
-    'GM Archive'
-  );
+  const gmArchive = safeGet(() => (GM_getValue ? GM_getValue('MGA_petAbilityLogs_archive', null) : null), 'GM Archive');
   report.sources.gmStorage = {
     main: parseAndCount(gmMain, 'GM Main'),
     archive: parseAndCount(gmArchive, 'GM Archive')
@@ -729,9 +726,7 @@ export function diagnoseAbilityLogStorage(dependencies = {}) {
   console.log('  • Look for logs with identical fingerprints across multiple storage locations');
   console.log('  • If a log persists after clear, check which storage still contains it');
   if (totalMalformed > 0) {
-    console.log(
-      `  • ⚠️ Found ${totalMalformed} MALFORMED ability name(s) - missing spaces before roman numerals`
-    );
+    console.log(`  • ⚠️ Found ${totalMalformed} MALFORMED ability name(s) - missing spaces before roman numerals`);
     console.log('  • Malformed logs may not clear properly. Enable Debug Mode and click "Clear Logs".');
   }
   if (totalUnknown > 0) {
