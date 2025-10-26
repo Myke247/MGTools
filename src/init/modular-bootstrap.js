@@ -19,7 +19,7 @@ import { CONFIG } from '../utils/constants.js';
 import { targetDocument } from '../core/compat.js';
 
 // UI Functions - will import as we wire them
-import { createUnifiedUI } from '../ui/overlay.js';
+import { createUnifiedUI, UNIFIED_STYLES } from '../ui/overlay.js';
 
 /**
  * Initialize MGTools with simplified modular approach
@@ -79,7 +79,7 @@ export function initializeModular({ targetDocument, targetWindow }) {
       applyThemeToDock: () => {},
       applyThemeToSidebar: () => {},
       isDiscordEnv: targetWindow.location.href?.includes('discordsays.com') || false,
-      UNIFIED_STYLES: '', // Will wire in Phase 4.2
+      UNIFIED_STYLES, // Imported from overlay.js
       CURRENT_VERSION: CONFIG.CURRENT_VERSION || '2.1.0',
       IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
     };

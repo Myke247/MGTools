@@ -4273,5 +4273,8 @@ export {
   invalidateTabCache,
   getTabCacheStats,
   DYNAMIC_TABS,
-  TAB_CACHE_DURATION
+  TAB_CACHE_DURATION,
+
+  // CSS Styles
+  UNIFIED_STYLES
 };

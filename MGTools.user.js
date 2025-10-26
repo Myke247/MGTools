@@ -5976,6 +5976,7 @@ ${title}:`);
   __export(overlay_exports, {
     DYNAMIC_TABS: () => DYNAMIC_TABS,
     TAB_CACHE_DURATION: () => TAB_CACHE_DURATION,
+    UNIFIED_STYLES: () => UNIFIED_STYLES,
     addResizeHandleToOverlay: () => addResizeHandleToOverlay,
     cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition,
     closeAllPopouts: () => closeAllPopouts,
@@ -14785,6 +14786,66 @@ ${title}:`);
     setupCleanupHandler,
     setupEventHandlers
   };
+
+  // src/init/modular-bootstrap.js
+  function initializeModular({ targetDocument: targetDocument2, targetWindow: targetWindow3 }) {
+    productionLog2("[MGTools v2.1] \u{1F680} Starting Simplified Modular Bootstrap...");
+    try {
+      productionLog2("[MGTools] Step 1: Loading saved data...");
+      const savedData = MGA_loadJSON("MGA_data", null);
+      if (savedData && typeof savedData === "object") {
+        Object.assign(void 0, savedData);
+        productionLog2("[MGTools] \u2705 Loaded saved data from storage");
+      } else {
+        productionLog2("[MGTools] Using default settings (no saved data found)");
+      }
+      productionLog2("[MGTools] Step 2: Creating UI...");
+      const minimalUIConfig = {
+        targetDocument: targetDocument2,
+        productionLog: productionLog2,
+        UnifiedState: unified_state_exports,
+        // Stubs for now - will wire these in Phase 4.2+
+        makeDockDraggable: () => productionLog2("[MGTools] TODO: Wire makeDockDraggable"),
+        openSidebarTab: () => productionLog2("[MGTools] TODO: Wire openSidebarTab"),
+        toggleShopWindows: () => {
+        },
+        openPopoutWidget: () => {
+        },
+        checkVersion: () => {
+        },
+        saveDockOrientation: () => {
+        },
+        loadDockOrientation: () => "horizontal",
+        // Return default
+        loadDockPosition: () => ({ bottom: "10px", right: "10px" }),
+        // Return default
+        generateThemeStyles: () => "",
+        // Return empty for now
+        applyAccentToDock: () => {
+        },
+        applyAccentToSidebar: () => {
+        },
+        applyThemeToDock: () => {
+        },
+        applyThemeToSidebar: () => {
+        },
+        isDiscordEnv: targetWindow3.location.href?.includes("discordsays.com") || false,
+        UNIFIED_STYLES,
+        // Imported from overlay.js
+        CURRENT_VERSION: CONFIG.CURRENT_VERSION || "2.1.0",
+        IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
+      };
+      createUnifiedUI(minimalUIConfig);
+      productionLog2("[MGTools] \u2705 UI created (minimal version)");
+      productionLog2("[MGTools] \u2705 Initialization complete (minimal)");
+      productionLog2("[MGTools] \u26A0\uFE0F Note: Many features are stubbed - will wire incrementally");
+      return true;
+    } catch (error) {
+      debugError("[MGTools] \u274C Initialization failed:", error);
+      debugError("[MGTools] Stack:", error.stack);
+      return false;
+    }
+  }
 
   // src/features/pets.js
   var pets_exports = {};
@@ -29559,89 +29620,13 @@ ${title}:`);
           const hasConnection = window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === "object";
           const hasBasicDom = document.body && document.readyState === "complete";
           if (hasAtoms && hasConnection || attempts >= maxAttempts) {
-            console.log("[MGTools] \u2705 Game ready, initializing UI...");
-            console.log("[MGTools] \u{1F3AF} Calling LegacyBootstrap.continueInitialization...");
-            const minimalDeps = {
-              UnifiedState: unified_state_exports,
-              targetWindow: window,
-              document,
-              setTimeout,
-              performanceNow: () => performance.now(),
-              console,
-              productionLog: productionLog2,
-              productionWarn: productionWarn2,
-              debugLog: debugLog2,
-              debugError,
-              // Wired functions - Batch 1: Easy exports (3 functions)
-              cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition2({ localStorage, console }),
-              setManagedInterval: (name, callback, delay) => setManagedInterval(name, callback, delay, { UnifiedState: unified_state_exports, debugLog: debugLog2 }),
-              clearManagedInterval: (name) => clearManagedInterval(name, { UnifiedState: unified_state_exports, debugLog: debugLog2 }),
-              // Wired functions - Batch 2: Storage + UI imports (4 functions)
-              loadSavedData: () => {
-                try {
-                  const savedData = MGA_loadJSON("MGA_data", null);
-                  if (savedData && typeof savedData === "object") {
-                    Object.assign(void 0, savedData);
-                    productionLog2("[MGTools] \u2705 Loaded saved data from storage");
-                  } else {
-                    productionLog2("[MGTools] No saved data found, using defaults");
-                  }
-                } catch (error) {
-                  debugError("[MGTools] Failed to load saved data:", error);
-                }
-              },
-              // UI functions - import from Overlay module (stub wrappers for now)
-              // Note: These will need their own dependencies wired in next session
-              createUnifiedUI: () => {
-                console.log("[MGTools] \u26A0\uFE0F createUnifiedUI stub - needs dependency wiring");
-              },
-              ensureUIHealthy: () => {
-                console.log("[MGTools] \u26A0\uFE0F ensureUIHealthy stub");
-              },
-              setupToolbarToggle: () => {
-              },
-              setupDockSizeControl: () => {
-              },
-              initializeSortInventoryButton: () => {
-              },
-              initializeInstantFeedButtons: () => {
-              },
-              initializeAtoms: () => {
-              },
-              initializeTurtleTimer: () => {
-              },
-              startIntervals: () => {
-              },
-              applyTheme: () => {
-              },
-              applyUltraCompactMode: () => {
-              },
-              applyWeatherSetting: () => {
-              },
-              initializeKeyboardShortcuts: () => {
-              },
-              updateTabContent: () => {
-              },
-              getContentForTab: () => "",
-              setupSeedsTabHandlers: () => {
-              },
-              setupPetsTabHandlers: () => {
-              },
-              initializeTeleportSystem: () => {
-              },
-              setupCropHighlightingSystem: () => {
-              },
-              initializeHotkeySystem: () => {
-              }
-            };
-            try {
-              continueInitialization(minimalDeps);
-            } catch (error) {
-              console.error("[MGTools] \u274C Legacy Bootstrap failed:", error);
-              console.error("[MGTools] Stack:", error.stack);
-              console.log(
-                "[MGTools] \u{1F4A1} The modular architecture loaded successfully, but initialization needs more work"
-              );
+            console.log("[MGTools] \u2705 Game ready, initializing with modular bootstrap...");
+            const success = initializeModular({
+              targetDocument: document,
+              targetWindow: window
+            });
+            if (!success) {
+              console.error("[MGTools] \u274C Initialization failed, see errors above");
             }
             return true;
           }
