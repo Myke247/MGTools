@@ -12,6 +12,7 @@ consolelogs2.txt
 consolelogs*.txt
 backup_*.patch
 MGTools.user.js.backup-*
+MGTools.user.js.original
 
 # Media files (screenshots)
 *.png
