@@ -1,7 +1,7 @@
 {
   "name": "mgtools",
   "version": "1.0.0",
-  "description": "MGTools - All-in-one assistant for Magic Garden with beautiful unified UI",
+  "description": "MGTools - All-in-one assistant for Magic Garden with beautiful unified UI (Architectural 100% - Modular Build System)",
   "main": "MGTools.user.js",
   "scripts": {
     "lint": "eslint \"src/**/*.js\" \"scripts/**/*.mjs\"",
