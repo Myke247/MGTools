@@ -14804,8 +14804,14 @@ ${title}:`);
         targetDocument: targetDocument2,
         productionLog: productionLog2,
         UnifiedState: UnifiedState2,
-        // Stubs for now - will wire these in Phase 4.2+
-        makeDockDraggable: () => productionLog2("[MGTools] TODO: Wire makeDockDraggable"),
+        // Wired features
+        makeDockDraggable: (dock) => {
+          makeDraggable(dock, dock, {
+            targetDocument: targetDocument2,
+            debugLog: debugLog2,
+            saveMainHUDPosition: (pos) => saveDockPosition(pos, { MGA_saveJSON, debugLog: debugLog2, debugError })
+          });
+        },
         openSidebarTab: () => productionLog2("[MGTools] TODO: Wire openSidebarTab"),
         toggleShopWindows: () => {
         },

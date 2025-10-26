@@ -19,7 +19,8 @@ import { CONFIG } from '../utils/constants.js';
 import { targetDocument } from '../core/compat.js';
 
 // UI Functions - will import as we wire them
-import { createUnifiedUI, UNIFIED_STYLES } from '../ui/overlay.js';
+import { createUnifiedUI, UNIFIED_STYLES, saveDockPosition } from '../ui/overlay.js';
+import { makeDraggable } from '../ui/draggable.js';
 
 /**
  * Initialize MGTools with simplified modular approach
@@ -64,8 +65,15 @@ export function initializeModular({ targetDocument, targetWindow }) {
       productionLog,
       UnifiedState,
 
-      // Stubs for now - will wire these in Phase 4.2+
-      makeDockDraggable: () => productionLog('[MGTools] TODO: Wire makeDockDraggable'),
+      // Wired features
+      makeDockDraggable: (dock) => {
+        // Dock is draggable by itself (element is also the handle)
+        makeDraggable(dock, dock, {
+          targetDocument,
+          debugLog,
+          saveMainHUDPosition: (pos) => saveDockPosition(pos, { MGA_saveJSON, debugLog, debugError })
+        });
+      },
       openSidebarTab: () => productionLog('[MGTools] TODO: Wire openSidebarTab'),
       toggleShopWindows: () => {},
       openPopoutWidget: () => {},
