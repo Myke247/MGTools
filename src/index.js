@@ -195,72 +195,129 @@ export const MGTools = {
 };
 
 /* ============================================================================
- * OPT-IN BOOTSTRAP (esbuild artifact only)
+ * AUTOMATIC INITIALIZATION (Architectural 100%)
  * ============================================================================
- * Enable by setting localStorage.MGTOOLS_ESBUILD_ENABLE = "1"
- * This allows testing the modular build without interfering with the shipping monolith
+ * The modular build now auto-initializes on page load.
+ * This is the PRODUCTION entry point for MGTools v2.0.0+
  */
 
-try {
-  if (typeof window !== 'undefined' && window.localStorage?.getItem('MGTOOLS_ESBUILD_ENABLE') === '1') {
-    // Install early traps first (CRITICAL for RoomConnection capture)
-    if (EarlyTraps?.installAllEarlyTraps) {
-      EarlyTraps.installAllEarlyTraps({
-        unsafeWindow: typeof unsafeWindow !== 'undefined' ? unsafeWindow : null,
-        window,
-        document,
-        console
-      });
-      console.log('[MGTools Modular] Early traps installed');
+// Expose MGTools namespace to window immediately for debugging
+if (typeof window !== 'undefined') {
+  window.MGTools = MGTools;
+}
+
+// Initialize the application when DOM is ready
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  let initializationStarted = false;
+
+  const initializeWhenReady = () => {
+    if (initializationStarted) {
+      return;
     }
+    initializationStarted = true;
 
-    // Initialize compatibility mode
-    if (Compat?.CompatibilityMode?.detect) {
-      Compat.CompatibilityMode.detect();
-      console.log('[MGTools Modular] Compatibility mode detected');
+    try {
+      console.log('[MGTools] 🚀 Starting v2.0.0 (Modular Architecture)');
+
+      // Install early traps first (CRITICAL for RoomConnection capture)
+      if (EarlyTraps?.installAllEarlyTraps) {
+        EarlyTraps.installAllEarlyTraps({
+          unsafeWindow: typeof unsafeWindow !== 'undefined' ? unsafeWindow : null,
+          window,
+          document,
+          console
+        });
+        console.log('[MGTools] ✅ Early traps installed');
+      }
+
+      // Wait for game to be ready, then initialize
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      const checkGameReady = () => {
+        attempts++;
+
+        // Check if game environment is ready
+        const atomCache = window.jotaiAtomCache?.cache || window.jotaiAtomCache;
+        const hasAtoms = atomCache && typeof atomCache === 'object';
+        const hasConnection = window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === 'object';
+        const hasBasicDom = document.body && document.readyState === 'complete';
+
+        if ((hasAtoms && hasConnection) || attempts >= maxAttempts) {
+          // Game is ready (or we've waited long enough) - initialize!
+          console.log('[MGTools] ✅ Game ready, initializing UI...');
+
+          // Create the unified UI
+          if (Overlay?.createUnifiedUI) {
+            const ui = Overlay.createUnifiedUI({
+              targetDocument: document,
+              targetWindow: window,
+              unsafeWindow: typeof unsafeWindow !== 'undefined' ? unsafeWindow : window,
+              UnifiedState,
+              Storage,
+              Logging,
+              Compat,
+              ThemeSystem,
+              TooltipSystem,
+              TabContent
+            });
+            console.log('[MGTools] ✅ UI created successfully');
+          } else {
+            console.error('[MGTools] ❌ Overlay.createUnifiedUI not found!');
+          }
+
+          return true;
+        }
+
+        // Still waiting for game
+        if (attempts % 4 === 0) {
+          console.log(`[MGTools] ⏳ Waiting for game... (attempt ${attempts}/${maxAttempts})`);
+        }
+        return false;
+      };
+
+      // Try immediately first
+      if (!checkGameReady()) {
+        // Keep checking every 500ms
+        const interval = setInterval(() => {
+          if (checkGameReady()) {
+            clearInterval(interval);
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error('[MGTools] ❌ Initialization failed:', error);
+      console.error('[MGTools] Stack:', error.stack);
     }
-
-    // Initialize asset manager
-    if (AssetManager?.initializeAssetManager) {
-      const assetManager = AssetManager.initializeAssetManager({
-        CompatibilityMode: Compat?.CompatibilityMode,
-        Logger: Logging?.Logger
-      });
-      console.log('[MGTools Modular] AssetManager initialized');
-
-      // Expose globally for access
-      window.MGToolsAssetManager = assetManager;
-    }
-
-    // Initialize MGTP Overlay
-    if (MGTPOverlay?.initializeMGTPOverlay) {
-      MGTPOverlay.initializeMGTPOverlay({
-        targetDocument: document,
-        targetWindow: window,
-        unsafeWindow: typeof unsafeWindow !== 'undefined' ? unsafeWindow : null,
-        CompatibilityMode: Compat?.CompatibilityMode,
-        logInfo: Logging?.Logger?.info,
-        logWarn: Logging?.Logger?.warn,
-        logDebug: Logging?.Logger?.debug,
-        productionLog: Logging?.Logger?.productionLog,
-        productionWarn: Logging?.Logger?.productionWarn,
-        productionError: Logging?.Logger?.productionError
-      });
-      console.log('[MGTools Modular] MGTP Overlay initialized');
-    }
-
-    // Log successful module load
-    console.log('[MGTools Modular] ✅ All 55 modules loaded successfully');
-    console.log('[MGTools Modular] Phase F: 95% TARGET ACHIEVED! (95.1% progress) 🎉');
-    console.log('[MGTools Modular] To bootstrap the application, call MGTools.Init.Bootstrap functions');
-    console.log('[MGTools Modular] Available in window.MGTools');
-
-    // Expose to window for debugging
-    window.MGTools = MGTools;
   }
-} catch (e) {
-  // Never throw from entry; log only
-  console && console.warn && console.warn('[MGTools Modular] Bootstrap toggle check failed:', e);
+
+  // Determine initialization delay based on environment
+  const isDiscordEnv = window.location.href?.includes('discordsays.com');
+  const initDelay = isDiscordEnv ? 2000 : 500;
+
+  // Initialize based on current document state
+  try {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      // Page is already loaded or DOM is ready
+      console.log(`[MGTools] Page ready (${document.readyState}), initializing in ${initDelay}ms...`);
+      setTimeout(initializeWhenReady, initDelay);
+    } else {
+      // Page still loading - wait for load event
+      console.log('[MGTools] Waiting for page load...');
+      window.addEventListener('load', () => {
+        setTimeout(initializeWhenReady, initDelay);
+      });
+
+      // Backup: also listen for DOMContentLoaded
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('[MGTools] DOM ready, waiting for complete load...');
+      });
+    }
+  } catch (error) {
+    console.error('[MGTools] ❌ Initialization setup failed:', error);
+    // Try to initialize anyway as fallback
+    setTimeout(initializeWhenReady, 1000);
+  }
 }
 
 /* ============================================================================
