@@ -26146,11 +26146,12 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             let shouldUpdate = false;
             mutations.forEach(mutation => {
               // Check if changes are related to inventory or game state
+              const className = mutation.target.className;
               if (
-                mutation.target.className &&
-                (mutation.target.className.includes('inventory') ||
-                  mutation.target.className.includes('garden') ||
-                  mutation.target.className.includes('crop'))
+                typeof className === 'string' &&
+                (className.includes('inventory') ||
+                  className.includes('garden') ||
+                  className.includes('crop'))
               ) {
                 shouldUpdate = true;
               }
