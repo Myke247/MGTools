@@ -141,11 +141,11 @@ export function getBootstrapStatus() {
  */
 function wireTopLevelEvents() {
   // Example: Log important UI events for debugging
-  const onToastCreated = (data) => {
+  const onToastCreated = data => {
     Logger.debug('BOOTSTRAP', `Toast created: ${data.type} - "${data.message}"`);
   };
 
-  const onShortcutTriggered = (data) => {
+  const onShortcutTriggered = data => {
     Logger.debug('BOOTSTRAP', `Shortcut triggered: ${data.name}`);
   };
 

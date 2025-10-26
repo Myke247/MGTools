@@ -39,13 +39,23 @@ const SHORTCUTS = {
 
   // Tab Switching
   TAB_PETS: { key: '1', modifiers: { alt: true }, action: 'switch-tab-pets', description: 'Switch to Pets tab' },
-  TAB_ABILITIES: { key: '2', modifiers: { alt: true }, action: 'switch-tab-abilities', description: 'Switch to Abilities tab' },
+  TAB_ABILITIES: {
+    key: '2',
+    modifiers: { alt: true },
+    action: 'switch-tab-abilities',
+    description: 'Switch to Abilities tab'
+  },
   TAB_SEEDS: { key: '3', modifiers: { alt: true }, action: 'switch-tab-seeds', description: 'Switch to Seeds tab' },
   TAB_VALUES: { key: '4', modifiers: { alt: true }, action: 'switch-tab-values', description: 'Switch to Values tab' },
   TAB_TIMERS: { key: '5', modifiers: { alt: true }, action: 'switch-tab-timers', description: 'Switch to Timers tab' },
   TAB_ROOMS: { key: '6', modifiers: { alt: true }, action: 'switch-tab-rooms', description: 'Switch to Rooms tab' },
   TAB_SHOP: { key: '7', modifiers: { alt: true }, action: 'switch-tab-shop', description: 'Switch to Shop tab' },
-  TAB_SETTINGS: { key: '8', modifiers: { alt: true }, action: 'switch-tab-settings', description: 'Switch to Settings tab' },
+  TAB_SETTINGS: {
+    key: '8',
+    modifiers: { alt: true },
+    action: 'switch-tab-settings',
+    description: 'Switch to Settings tab'
+  },
 
   // Quick Actions
   REFRESH_DATA: { key: 'r', modifiers: { ctrl: true }, action: 'refresh-data', description: 'Refresh data' },
@@ -83,12 +93,7 @@ export class ShortcutsController {
     const shift = modifiers.shift || false;
     const meta = modifiers.meta || false;
 
-    return (
-      event.ctrlKey === ctrl &&
-      event.altKey === alt &&
-      event.shiftKey === shift &&
-      event.metaKey === meta
-    );
+    return event.ctrlKey === ctrl && event.altKey === alt && event.shiftKey === shift && event.metaKey === meta;
   }
 
   /**
@@ -100,11 +105,10 @@ export class ShortcutsController {
 
     // Don't intercept if user is typing in input/textarea
     const activeElement = document.activeElement;
-    if (activeElement && (
-      activeElement.tagName === 'INPUT' ||
-      activeElement.tagName === 'TEXTAREA' ||
-      activeElement.isContentEditable
-    )) {
+    if (
+      activeElement &&
+      (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)
+    ) {
       // Allow escape key even in inputs
       if (event.key !== 'Escape') {
         return;
@@ -253,13 +257,8 @@ export function formatShortcut(shortcut) {
  */
 export function getShortcutsByCategory() {
   return {
-    'Help & Info': [
-      SHORTCUTS.SHOW_HELP
-    ],
-    'Panel Navigation': [
-      SHORTCUTS.TOGGLE_MAIN_PANEL,
-      SHORTCUTS.FOCUS_SEARCH
-    ],
+    'Help & Info': [SHORTCUTS.SHOW_HELP],
+    'Panel Navigation': [SHORTCUTS.TOGGLE_MAIN_PANEL, SHORTCUTS.FOCUS_SEARCH],
     'Tab Switching': [
       SHORTCUTS.TAB_PETS,
       SHORTCUTS.TAB_ABILITIES,
@@ -270,13 +269,8 @@ export function getShortcutsByCategory() {
       SHORTCUTS.TAB_SHOP,
       SHORTCUTS.TAB_SETTINGS
     ],
-    'Quick Actions': [
-      SHORTCUTS.REFRESH_DATA,
-      SHORTCUTS.TOGGLE_COMPACT
-    ],
-    'Navigation': [
-      SHORTCUTS.CLOSE_MODAL
-    ]
+    'Quick Actions': [SHORTCUTS.REFRESH_DATA, SHORTCUTS.TOGGLE_COMPACT],
+    Navigation: [SHORTCUTS.CLOSE_MODAL]
   };
 }
 

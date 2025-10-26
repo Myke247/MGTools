@@ -12,6 +12,7 @@ consolelogs2.txt
 consolelogs*.txt
 backup_*.patch
 MGTools.user.js.backup-*
+MGTools.user.js.original
 
 # Media files (screenshots)
 *.png
@@ -44,8 +45,10 @@ handoff.md
 message*.txt
 
 # Handoff/Session documents (AI collaboration - keep local only)
+# EXCEPTION: SESSION_STATUS.md is committed (tracks current state)
 *HANDOFF*.md
-*SESSION*.md
+*_SESSION*.md
+NEXT_SESSION*.txt
 *CRITICAL*.md
 *STRATEGIC*.md
 *PHASE*.md
@@ -60,8 +63,28 @@ message*.txt
 *Issue*.md
 *MODULARIZATION_PROGRESS*.md
 
-# Test versions
+# Analysis and temporary files (never commit)
+*AUDIT*.md
+*_SUMMARY.md
+*OVERNIGHT*.md
+*_FINDINGS.md
+*_STATUS.md
+*STATUS.md
+!SESSION_STATUS.md
+FINAL_*.md
+INFRASTRUCTURE_*.md
+MODULE_*.md
+V1.*.md
+REALISTIC*.md
+MODULARIZATION_STATUS.md
+
+# Test versions and temp scripts
 test-versions/
+*-TEST.user.js
+*NoAutoRefresh*.user.js
+build-modular.js
+find-*.js
+test-*.js
 
 # Python scripts
 *.py
@@ -71,4 +94,9 @@ complete-*.json
 
 # Internal directories
 .ops/
-.claude/
+
+# Claude Code directory (local AI collaboration files)
+.claude/*
+!.claude/PROJECT_CONTEXT.md
+# Note: Only PROJECT_CONTEXT.md is committed (technical project docs)
+# Everything else in .claude/ stays local (AI conversations, session notes, etc.)
