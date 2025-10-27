@@ -23264,9 +23264,49 @@ Error: ${error.message}`);
         toggleShopWindows: () => {
           toggleShopWindows({ targetDocument: targetDocument2, UnifiedState: UnifiedState2, createShopSidebars });
         },
-        // STUBBED: openPopoutWidget - needs many dependencies
+        // WIRED: openPopoutWidget - shift+click popout windows
         openPopoutWidget: (tabName) => {
-          productionLog2(`[MGTools] \u26A0\uFE0F openPopoutWidget('${tabName}') called but not fully wired yet`);
+          const handlerSetups = {
+            setupPetsTabHandlers: () => {
+            },
+            setupAbilitiesTabHandlers: () => {
+            },
+            updateAbilityLogDisplay: () => {
+            },
+            setupSeedsTabHandlers: () => {
+            },
+            setupShopTabHandlers: () => {
+            },
+            setupValuesTabHandlers: () => {
+            },
+            setupRoomJoinButtons: () => {
+            },
+            setupSettingsTabHandlers: () => {
+            },
+            setupHotkeysTabHandlers: () => {
+            },
+            setupNotificationsTabHandlers: () => {
+            },
+            setupProtectTabHandlers: () => {
+            },
+            setupPetPopoutHandlers: () => {
+            }
+          };
+          openPopoutWidget(
+            {
+              targetDocument: targetDocument2,
+              UnifiedState: UnifiedState2,
+              makePopoutDraggable,
+              makeElementResizable,
+              generateThemeStyles: (theme) => generateThemeStyles(theme),
+              applyThemeToPopoutWidget: (popout, themeStyles) => applyThemeToPopoutWidget({ targetDocument: targetDocument2 }, popout, themeStyles),
+              stopInventoryCounter: () => stopInventoryCounter({ targetDocument: targetDocument2, UnifiedState: UnifiedState2 }),
+              getCachedTabContent,
+              contentGetters,
+              handlerSetups
+            },
+            tabName
+          );
         },
         // WIRED: Version checker
         checkVersion: (indicatorElement) => {

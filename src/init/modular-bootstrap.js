@@ -26,15 +26,18 @@ import {
   getContentForTab,
   getPetsPopoutContent,
   openSidebarTab as openSidebarTabFn,
-  openPopoutWidget as openPopoutWidgetFn
+  openPopoutWidget as openPopoutWidgetFn,
+  makePopoutDraggable,
+  getCachedTabContent
 } from '../ui/overlay.js';
-import { makeDraggable } from '../ui/draggable.js';
+import { makeDraggable, makeElementResizable } from '../ui/draggable.js';
 import {
   generateThemeStyles,
   applyThemeToDock,
   applyThemeToSidebar,
   applyAccentToDock,
-  applyAccentToSidebar
+  applyAccentToSidebar,
+  applyThemeToPopoutWidget
 } from '../ui/theme-system.js';
 
 // Tab Content Getters
@@ -42,7 +45,7 @@ import { getPetsTabContent } from '../features/pets.js';
 import { getAbilitiesTabContent } from '../features/abilities/abilities-ui.js';
 import { getSettingsTabContent } from '../features/settings-ui.js';
 import { getNotificationsTabContent } from '../features/notifications.js';
-import { getShopTabContent, toggleShopWindows as toggleShopWindowsFn, createShopSidebars } from '../features/shop.js';
+import { getShopTabContent, toggleShopWindows as toggleShopWindowsFn, createShopSidebars, stopInventoryCounter } from '../features/shop.js';
 import { checkVersion as checkVersionFn } from '../features/version-checker.js';
 import {
   getSeedsTabContent,
@@ -141,10 +144,40 @@ export function initializeModular({ targetDocument, targetWindow }) {
         toggleShopWindowsFn({ targetDocument, UnifiedState, createShopSidebars });
       },
 
-      // STUBBED: openPopoutWidget - needs many dependencies
+      // WIRED: openPopoutWidget - shift+click popout windows
       openPopoutWidget: tabName => {
-        productionLog(`[MGTools] ⚠️ openPopoutWidget('${tabName}') called but not fully wired yet`);
-        // TODO: Wire this when all content getters and handlers are extracted
+        // Stub handler setups - popout will work but interactive handlers not wired yet
+        const handlerSetups = {
+          setupPetsTabHandlers: () => {},
+          setupAbilitiesTabHandlers: () => {},
+          updateAbilityLogDisplay: () => {},
+          setupSeedsTabHandlers: () => {},
+          setupShopTabHandlers: () => {},
+          setupValuesTabHandlers: () => {},
+          setupRoomJoinButtons: () => {},
+          setupSettingsTabHandlers: () => {},
+          setupHotkeysTabHandlers: () => {},
+          setupNotificationsTabHandlers: () => {},
+          setupProtectTabHandlers: () => {},
+          setupPetPopoutHandlers: () => {}
+        };
+
+        openPopoutWidgetFn(
+          {
+            targetDocument,
+            UnifiedState,
+            makePopoutDraggable,
+            makeElementResizable,
+            generateThemeStyles: theme => generateThemeStyles(theme),
+            applyThemeToPopoutWidget: (popout, themeStyles) =>
+              applyThemeToPopoutWidget({ targetDocument }, popout, themeStyles),
+            stopInventoryCounter: () => stopInventoryCounter({ targetDocument, UnifiedState }),
+            getCachedTabContent,
+            contentGetters,
+            handlerSetups
+          },
+          tabName
+        );
       },
 
       // WIRED: Version checker
