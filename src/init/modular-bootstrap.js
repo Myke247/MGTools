@@ -42,7 +42,7 @@ import { getPetsTabContent } from '../features/pets.js';
 import { getAbilitiesTabContent } from '../features/abilities/abilities-ui.js';
 import { getSettingsTabContent } from '../features/settings-ui.js';
 import { getNotificationsTabContent } from '../features/notifications.js';
-import { getShopTabContent } from '../features/shop.js';
+import { getShopTabContent, toggleShopWindows as toggleShopWindowsFn, createShopSidebars } from '../features/shop.js';
 import {
   getSeedsTabContent,
   getValuesTabContent,
@@ -135,9 +135,9 @@ export function initializeModular({ targetDocument, targetWindow }) {
         openSidebarTabFn({ targetDocument, UnifiedState, updateTabContent }, tabName);
       },
 
-      // STUBBED: Shop windows toggle
+      // WIRED: Shop windows toggle
       toggleShopWindows: () => {
-        productionLog('[MGTools] ⚠️ toggleShopWindows() called but not wired yet');
+        toggleShopWindowsFn({ targetDocument, UnifiedState, createShopSidebars });
       },
 
       // STUBBED: openPopoutWidget - needs many dependencies

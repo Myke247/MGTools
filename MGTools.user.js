@@ -4648,6 +4648,9 @@ ${title}:`);
       }
       element.style.left = `${newLeft}px`;
       element.style.top = `${newTop}px`;
+      element.style.transform = "none";
+      element.style.bottom = "auto";
+      element.style.right = "auto";
     };
     const endDrag = () => {
       if (isDragging) {
@@ -4663,9 +4666,10 @@ ${title}:`);
         element.style.willChange = "auto";
         handle.style.cursor = "grab";
         targetDocument2.body.style.userSelect = "";
+        const rect = element.getBoundingClientRect();
         const finalPosition = {
-          left: element.style.left,
-          top: element.style.top
+          left: rect.left,
+          top: rect.top
         };
         if (savePositionFn) {
           savePositionFn(finalPosition);
@@ -23060,9 +23064,9 @@ Error: ${error.message}`);
         openSidebarTab: (tabName) => {
           openSidebarTab({ targetDocument: targetDocument2, UnifiedState: UnifiedState2, updateTabContent }, tabName);
         },
-        // STUBBED: Shop windows toggle
+        // WIRED: Shop windows toggle
         toggleShopWindows: () => {
-          productionLog2("[MGTools] \u26A0\uFE0F toggleShopWindows() called but not wired yet");
+          toggleShopWindows({ targetDocument: targetDocument2, UnifiedState: UnifiedState2, createShopSidebars });
         },
         // STUBBED: openPopoutWidget - needs many dependencies
         openPopoutWidget: (tabName) => {

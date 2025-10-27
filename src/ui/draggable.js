@@ -148,6 +148,10 @@ export function makeDraggable(element, handle, dependencies = {}) {
     // Use direct positioning for more reliable movement
     element.style.left = `${newLeft}px`;
     element.style.top = `${newTop}px`;
+    // Clear conflicting properties during drag (matches Live-Beta behavior)
+    element.style.transform = 'none';
+    element.style.bottom = 'auto';
+    element.style.right = 'auto';
   };
 
   // Shared drag end logic
@@ -169,10 +173,11 @@ export function makeDraggable(element, handle, dependencies = {}) {
       handle.style.cursor = 'grab';
       targetDocument.body.style.userSelect = '';
 
-      // Save position
+      // Save position (use getBoundingClientRect for numeric values, not style strings)
+      const rect = element.getBoundingClientRect();
       const finalPosition = {
-        left: element.style.left,
-        top: element.style.top
+        left: rect.left,
+        top: rect.top
       };
 
       if (savePositionFn) {
