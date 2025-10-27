@@ -7346,6 +7346,10 @@ ${title}:`);
       contentGetters,
       handlerSetups
     } = deps;
+    if (!(UnifiedState3.data.popouts.widgets instanceof Map)) {
+      console.warn("[MGTools] widgets was not a Map, re-initializing");
+      UnifiedState3.data.popouts.widgets = /* @__PURE__ */ new Map();
+    }
     const existingPopout = targetDocument2.querySelector(`.mgh-popout[data-tab="${tabName}"]`);
     if (existingPopout) {
       UnifiedState3.data.popouts.widgets.delete(tabName);
@@ -7541,6 +7545,10 @@ ${title}:`);
       handlerSetups,
       UNIFIED_STYLES: UNIFIED_STYLES2
     } = deps;
+    if (!(UnifiedState3.data.popouts.windows instanceof Map)) {
+      console.warn("[MGTools] windows was not a Map, re-initializing");
+      UnifiedState3.data.popouts.windows = /* @__PURE__ */ new Map();
+    }
     productionLog3(`\u{1F517} Opening ${tabName} tab in pop-out window...`);
     const tabTitles = {
       pets: "\u{1F43E} Pet Loadouts",
@@ -7905,6 +7913,10 @@ ${title}:`);
       loadOverlayDimensions: loadOverlayDimensions2,
       closeInGameOverlay: closeInGameOverlay2
     } = deps;
+    if (!(UnifiedState3.data.popouts.overlays instanceof Map)) {
+      console.warn("[MGTools] overlays was not a Map, re-initializing");
+      UnifiedState3.data.popouts.overlays = /* @__PURE__ */ new Map();
+    }
     debugLog3("OVERLAY_LIFECYCLE", `Creating content-only overlay for ${tabName} tab`);
     if (UnifiedState3.data.popouts.overlays.has(tabName)) {
       const existingOverlay = UnifiedState3.data.popouts.overlays.get(tabName);

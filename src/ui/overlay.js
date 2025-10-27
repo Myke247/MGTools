@@ -1683,6 +1683,12 @@ function openPopoutWidget(deps, tabName) {
     handlerSetups
   } = deps;
 
+  // Ensure widgets is a Map (can become Object after save/load)
+  if (!(UnifiedState.data.popouts.widgets instanceof Map)) {
+    console.warn('[MGTools] widgets was not a Map, re-initializing');
+    UnifiedState.data.popouts.widgets = new Map();
+  }
+
   // Check if this widget is already open - if so, close it
   const existingPopout = targetDocument.querySelector(`.mgh-popout[data-tab="${tabName}"]`);
   if (existingPopout) {
@@ -1947,6 +1953,12 @@ function openTabInSeparateWindow(deps, tabName) {
     handlerSetups,
     UNIFIED_STYLES
   } = deps;
+
+  // Ensure windows is a Map (can become Object after save/load)
+  if (!(UnifiedState.data.popouts.windows instanceof Map)) {
+    console.warn('[MGTools] windows was not a Map, re-initializing');
+    UnifiedState.data.popouts.windows = new Map();
+  }
 
   productionLog(`🔗 Opening ${tabName} tab in pop-out window...`);
 
@@ -2383,6 +2395,12 @@ function createInGameOverlay(deps, tabName) {
     loadOverlayDimensions,
     closeInGameOverlay
   } = deps;
+
+  // Ensure overlays is a Map (can become Object after save/load)
+  if (!(UnifiedState.data.popouts.overlays instanceof Map)) {
+    console.warn('[MGTools] overlays was not a Map, re-initializing');
+    UnifiedState.data.popouts.overlays = new Map();
+  }
 
   debugLog('OVERLAY_LIFECYCLE', `Creating content-only overlay for ${tabName} tab`);
 
