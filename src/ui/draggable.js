@@ -85,6 +85,11 @@ export function makeDraggable(element, handle, dependencies = {}) {
     startLeft = rect.left;
     startTop = rect.top;
 
+    // Clear conflicting positioning properties before dragging
+    // This prevents stretching when element has both top/bottom or left/right set
+    element.style.bottom = '';
+    element.style.right = '';
+
     // Professional drag start effects with will-change for performance
     element.style.willChange = 'transform';
     element.style.transition = 'none';

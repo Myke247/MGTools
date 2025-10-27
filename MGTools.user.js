@@ -4603,6 +4603,8 @@ ${title}:`);
       const rect = element.getBoundingClientRect();
       startLeft = rect.left;
       startTop = rect.top;
+      element.style.bottom = "";
+      element.style.right = "";
       element.style.willChange = "transform";
       element.style.transition = "none";
       element.style.transform = "scale(1.01)";
