@@ -1683,15 +1683,23 @@ function openPopoutWidget(deps, tabName) {
         <span style="cursor: pointer; margin-left: auto; padding: 0 8px; font-size: 20px;">×</span>
     `;
 
-  const closeBtn = header.querySelector('span:last-child');
-  closeBtn.addEventListener('click', () => {
+  // Shared cleanup function for both X button and ESC key
+  let escHandler = null; // Will be defined later
+  const closePopout = () => {
     // Cleanup for shop popout
     if (tabName === 'shop') {
       stopInventoryCounter();
     }
-    UnifiedState.data.popouts.widgets.delete(tabName); // Clean up tracking
+    UnifiedState.data.popouts.widgets.delete(tabName);
     popout.remove();
-  });
+    // Remove ESC key listener if it was added
+    if (escHandler) {
+      targetDocument.removeEventListener('keydown', escHandler);
+    }
+  };
+
+  const closeBtn = header.querySelector('span:last-child');
+  closeBtn.addEventListener('click', closePopout);
 
   const body = targetDocument.createElement('div');
   body.className = 'mgh-popout-body';
@@ -1781,6 +1789,14 @@ function openPopoutWidget(deps, tabName) {
   if (popoutThemeStyles) {
     applyThemeToPopoutWidget(popout, popoutThemeStyles);
   }
+
+  // Add ESC key handler to close popout
+  escHandler = e => {
+    if (e.key === 'Escape') {
+      closePopout();
+    }
+  };
+  targetDocument.addEventListener('keydown', escHandler);
 
   // Make resizable LAST
   makeElementResizable(popout, {

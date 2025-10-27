@@ -7344,14 +7344,19 @@ ${title}:`);
         <span>${tabName.charAt(0).toUpperCase() + tabName.slice(1)}</span>
         <span style="cursor: pointer; margin-left: auto; padding: 0 8px; font-size: 20px;">\xD7</span>
     `;
-    const closeBtn = header.querySelector("span:last-child");
-    closeBtn.addEventListener("click", () => {
+    let escHandler = null;
+    const closePopout = () => {
       if (tabName === "shop") {
         stopInventoryCounter2();
       }
       UnifiedState3.data.popouts.widgets.delete(tabName);
       popout.remove();
-    });
+      if (escHandler) {
+        targetDocument2.removeEventListener("keydown", escHandler);
+      }
+    };
+    const closeBtn = header.querySelector("span:last-child");
+    closeBtn.addEventListener("click", closePopout);
     const body = targetDocument2.createElement("div");
     body.className = "mgh-popout-body";
     const contentEl = targetDocument2.createElement("div");
@@ -7423,6 +7428,12 @@ ${title}:`);
     if (popoutThemeStyles) {
       applyThemeToPopoutWidget2(popout, popoutThemeStyles);
     }
+    escHandler = (e) => {
+      if (e.key === "Escape") {
+        closePopout();
+      }
+    };
+    targetDocument2.addEventListener("keydown", escHandler);
     makeElementResizable2(popout, {
       minWidth: 320,
       minHeight: 200,
