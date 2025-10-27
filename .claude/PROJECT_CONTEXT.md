@@ -43,6 +43,14 @@
 - Wired openSidebarTab to call real implementation
 **Result**: All tabs now open and display content, including settings for themes
 
+### Fix 3: Drag Stretching Bug (Commit ab9e8f2) - CRITICAL
+**Problem**: "Big fat black area stays connected to the bottom and stretches"
+**Root Cause**: Dock's default CSS has `bottom: 16px`. makeDraggable sets `left/top` but didn't clear `bottom/right`, causing BOTH top AND bottom to be set = element stretches vertically!
+**Fix**:
+- Clear `bottom` and `right` properties at drag start in makeDraggable()
+- Prevents CSS conflicts between default bottom-positioned and drag top-positioned layout
+**Result**: Dragging now works perfectly without stretching
+
 ---
 
 ## CRITICAL FILES & LOCATIONS
