@@ -6041,6 +6041,7 @@ ${title}:`);
           padding: 8px 12px;
           z-index: 999999;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+          user-select: none;
           /* No transition for instant drag response */
       }
 
@@ -6963,11 +6964,29 @@ ${title}:`);
       if (dock.classList.contains("horizontal")) {
         dock.classList.remove("horizontal");
         dock.classList.add("vertical");
+        dock.style.top = "";
+        dock.style.bottom = "";
+        dock.style.left = "";
+        dock.style.right = "";
+        dock.style.transform = "";
+        try {
+          localStorage.removeItem("mgh_dock_position");
+        } catch (_) {
+        }
         dock.insertBefore(flipToggle, dock.firstChild);
         saveDockOrientation("vertical");
       } else {
         dock.classList.remove("vertical");
         dock.classList.add("horizontal");
+        dock.style.top = "";
+        dock.style.bottom = "";
+        dock.style.left = "";
+        dock.style.right = "";
+        dock.style.transform = "";
+        try {
+          localStorage.removeItem("mgh_dock_position");
+        } catch (_) {
+        }
         dock.appendChild(flipToggle);
         saveDockOrientation("horizontal");
       }
@@ -7429,11 +7448,14 @@ ${title}:`);
       applyThemeToPopoutWidget2(popout, popoutThemeStyles);
     }
     escHandler = (e) => {
+      console.log("[MGTools DEBUG] Popout keydown event:", e.key, "Target:", e.target.tagName);
       if (e.key === "Escape") {
+        console.log("[MGTools DEBUG] ESC detected, closing popout:", tabName);
         closePopout();
       }
     };
     targetDocument2.addEventListener("keydown", escHandler);
+    console.log("[MGTools DEBUG] ESC listener added for popout:", tabName);
     makeElementResizable2(popout, {
       minWidth: 320,
       minHeight: 200,
@@ -23293,6 +23315,17 @@ Error: ${error.message}`);
               // Stub
             });
             debugLog2("[MGTools] Settings tab handlers wired");
+          } else if (tabName === "shop") {
+            setupShopTabHandlers(contentEl, {
+              targetDocument: targetDocument2,
+              targetWindow: targetWindow3,
+              UnifiedState: UnifiedState2,
+              productionLog: productionLog2,
+              productionError: debugError,
+              alert: targetWindow3.alert,
+              console
+            });
+            debugLog2("[MGTools] Shop tab handlers wired");
           }
         } catch (error) {
           debugError("[MGTools] Failed to update tab content:", error);
@@ -23345,7 +23378,16 @@ Error: ${error.message}`);
             },
             setupSeedsTabHandlers: () => {
             },
-            setupShopTabHandlers: () => {
+            setupShopTabHandlers: (context) => {
+              setupShopTabHandlers(context, {
+                targetDocument: targetDocument2,
+                targetWindow: targetWindow3,
+                UnifiedState: UnifiedState2,
+                productionLog: productionLog2,
+                productionError: debugError,
+                alert: targetWindow3.alert,
+                console
+              });
             },
             setupValuesTabHandlers: () => {
             },

@@ -55,6 +55,7 @@ const UNIFIED_STYLES = `
           padding: 8px 12px;
           z-index: 999999;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+          user-select: none;
           /* No transition for instant drag response */
       }
 
@@ -1066,12 +1067,32 @@ function createUnifiedUI({
     if (dock.classList.contains('horizontal')) {
       dock.classList.remove('horizontal');
       dock.classList.add('vertical');
+      // Clear drag-based positioning so CSS class positioning takes over
+      dock.style.top = '';
+      dock.style.bottom = '';
+      dock.style.left = '';
+      dock.style.right = '';
+      dock.style.transform = '';
+      // Clear saved position since we're resetting to default
+      try {
+        localStorage.removeItem('mgh_dock_position');
+      } catch (_) {}
       // In vertical mode: flip toggle at top, then tabs, tail trigger at bottom
       dock.insertBefore(flipToggle, dock.firstChild);
       saveDockOrientation('vertical');
     } else {
       dock.classList.remove('vertical');
       dock.classList.add('horizontal');
+      // Clear drag-based positioning so CSS class positioning takes over
+      dock.style.top = '';
+      dock.style.bottom = '';
+      dock.style.left = '';
+      dock.style.right = '';
+      dock.style.transform = '';
+      // Clear saved position since we're resetting to default
+      try {
+        localStorage.removeItem('mgh_dock_position');
+      } catch (_) {}
       // In horizontal mode: tabs first, tail trigger, then flip toggle at end
       dock.appendChild(flipToggle);
       saveDockOrientation('horizontal');
@@ -1792,11 +1813,14 @@ function openPopoutWidget(deps, tabName) {
 
   // Add ESC key handler to close popout
   escHandler = e => {
+    console.log('[MGTools DEBUG] Popout keydown event:', e.key, 'Target:', e.target.tagName);
     if (e.key === 'Escape') {
+      console.log('[MGTools DEBUG] ESC detected, closing popout:', tabName);
       closePopout();
     }
   };
   targetDocument.addEventListener('keydown', escHandler);
+  console.log('[MGTools DEBUG] ESC listener added for popout:', tabName);
 
   // Make resizable LAST
   makeElementResizable(popout, {

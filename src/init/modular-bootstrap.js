@@ -52,7 +52,8 @@ import {
   getShopTabContent,
   toggleShopWindows as toggleShopWindowsFn,
   createShopSidebars,
-  stopInventoryCounter
+  stopInventoryCounter,
+  setupShopTabHandlers as setupShopTabHandlersFn
 } from '../features/shop.js';
 import { checkVersion as checkVersionFn } from '../features/version-checker.js';
 import {
@@ -161,6 +162,18 @@ export function initializeModular({ targetDocument, targetWindow }) {
             showNotificationToast: () => {} // Stub
           });
           debugLog('[MGTools] Settings tab handlers wired');
+        } else if (tabName === 'shop') {
+          // Wire shop tab handlers for stock display and purchases
+          setupShopTabHandlersFn(contentEl, {
+            targetDocument,
+            targetWindow,
+            UnifiedState,
+            productionLog,
+            productionError: debugError,
+            alert: targetWindow.alert,
+            console
+          });
+          debugLog('[MGTools] Shop tab handlers wired');
         }
       } catch (error) {
         debugError('[MGTools] Failed to update tab content:', error);
@@ -212,13 +225,23 @@ export function initializeModular({ targetDocument, targetWindow }) {
           }
         };
 
-        // Handler setups - now wiring setupSettingsTabHandlers for theme support!
+        // Handler setups - now wiring setupSettingsTabHandlers and setupShopTabHandlers!
         const handlerSetups = {
           setupPetsTabHandlers: () => {},
           setupAbilitiesTabHandlers: () => {},
           updateAbilityLogDisplay: () => {},
           setupSeedsTabHandlers: () => {},
-          setupShopTabHandlers: () => {},
+          setupShopTabHandlers: context => {
+            setupShopTabHandlersFn(context, {
+              targetDocument,
+              targetWindow,
+              UnifiedState,
+              productionLog,
+              productionError: debugError,
+              alert: targetWindow.alert,
+              console
+            });
+          },
           setupValuesTabHandlers: () => {},
           setupRoomJoinButtons: () => {},
           setupSettingsTabHandlers: context => {
