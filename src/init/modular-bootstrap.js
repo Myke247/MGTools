@@ -43,6 +43,7 @@ import { getAbilitiesTabContent } from '../features/abilities/abilities-ui.js';
 import { getSettingsTabContent } from '../features/settings-ui.js';
 import { getNotificationsTabContent } from '../features/notifications.js';
 import { getShopTabContent, toggleShopWindows as toggleShopWindowsFn, createShopSidebars } from '../features/shop.js';
+import { checkVersion as checkVersionFn } from '../features/version-checker.js';
 import {
   getSeedsTabContent,
   getValuesTabContent,
@@ -146,9 +147,15 @@ export function initializeModular({ targetDocument, targetWindow }) {
         // TODO: Wire this when all content getters and handlers are extracted
       },
 
-      // STUBBED: Version checker
-      checkVersion: () => {
-        productionLog('[MGTools] ⚠️ checkVersion() called but not wired yet');
+      // WIRED: Version checker
+      checkVersion: indicatorElement => {
+        checkVersionFn(indicatorElement, {
+          CURRENT_VERSION: CONFIG.CURRENT_VERSION,
+          IS_LIVE_BETA: CONFIG.IS_LIVE_BETA,
+          isDiscordPage: targetWindow.location.href?.includes('discordsays.com') || false,
+          window: targetWindow,
+          console: console
+        });
       },
 
       // Dock orientation management - uses localStorage to match overlay.js expectations

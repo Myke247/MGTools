@@ -23006,6 +23006,202 @@ Error: ${error.message}`);
     initializeShopWatcher
   };
 
+  // src/features/version-checker.js
+  var version_checker_exports = {};
+  __export(version_checker_exports, {
+    checkVersion: () => checkVersion,
+    compareVersions: () => compareVersions2
+  });
+  function compareVersions2(v1, v2, dependencies = {}) {
+    const parts1 = v1.split(".").map(Number);
+    const parts2 = v2.split(".").map(Number);
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+      const part1 = parts1[i] || 0;
+      const part2 = parts2[i] || 0;
+      if (part1 > part2) return 1;
+      if (part1 < part2) return -1;
+    }
+    return 0;
+  }
+  async function checkVersion(indicatorElement, dependencies = {}) {
+    const {
+      CURRENT_VERSION: CURRENT_VERSION2 = "1.0.0",
+      IS_LIVE_BETA: IS_LIVE_BETA2 = false,
+      STABLE_DOWNLOAD_URL: STABLE_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/main/MGTools.user.js",
+      BETA_DOWNLOAD_URL: BETA_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/Live-Beta/MGTools.user.js",
+      isDiscordPage = false,
+      window: win = typeof window !== "undefined" ? window : null,
+      console: con = typeof console !== "undefined" ? console : null
+    } = dependencies;
+    if (!win || !indicatorElement) return;
+    if (isDiscordPage) {
+      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#00ff00";
+      const tooltipLines = [
+        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
+        `STATUS: Version check disabled on Discord`,
+        "",
+        "Shift+Click: Install Stable",
+        "Shift+Alt+Click: Install Beta"
+      ];
+      indicatorElement.title = tooltipLines.join("\n");
+      indicatorElement.style.cursor = "pointer";
+      indicatorElement.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (e.shiftKey && e.altKey) {
+          win.open(BETA_DOWNLOAD_URL2, "_blank");
+        } else if (e.shiftKey) {
+          win.open(STABLE_DOWNLOAD_URL2, "_blank");
+        }
+      });
+      return;
+    }
+    const cacheBust = `?t=${Date.now()}`;
+    async function fetchVersion(branch) {
+      const urls = [
+        `https://raw.githubusercontent.com/Myke247/MGTools/${branch}/MGTools.user.js${cacheBust}`,
+        `https://api.github.com/repos/Myke247/MGTools/contents/MGTools.user.js`
+      ];
+      for (const url of urls) {
+        try {
+          const isGitHubAPI = url.includes("api.github.com");
+          const response = await win.fetch(url, {
+            method: "GET",
+            cache: "no-cache",
+            headers: isGitHubAPI ? { Accept: "application/vnd.github.v3.raw" } : {}
+          });
+          if (response.ok) {
+            const text = await response.text();
+            const match = text.match(/@version\s+([\d.]+)/);
+            if (match) return match[1];
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      return null;
+    }
+    try {
+      const [stableVersion, betaVersion] = await Promise.all([fetchVersion("main"), fetchVersion("Live-Beta")]);
+      if (!stableVersion && !betaVersion) {
+        const branchLabel2 = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+        indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
+        const tooltipLines2 = [
+          `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel2})`,
+          `STATUS: Version check failed`,
+          "",
+          "Click: Retry",
+          "Shift+Click: Install Stable",
+          "Shift+Alt+Click: Install Beta"
+        ];
+        indicatorElement.title = tooltipLines2.join("\n");
+        indicatorElement.style.cursor = "pointer";
+        const newIndicator2 = indicatorElement.cloneNode(true);
+        indicatorElement.parentNode.replaceChild(newIndicator2, indicatorElement);
+        newIndicator2.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (e.shiftKey && e.altKey) {
+            win.open(BETA_DOWNLOAD_URL2, "_blank");
+          } else if (e.shiftKey) {
+            win.open(STABLE_DOWNLOAD_URL2, "_blank");
+          } else {
+            newIndicator2.style.color = "#888";
+            newIndicator2.title = "Checking for updates...";
+            checkVersion(newIndicator2, dependencies);
+          }
+        });
+        return;
+      }
+      const relevantVersion = IS_LIVE_BETA2 ? betaVersion : stableVersion;
+      const versionComparison = compareVersions2(CURRENT_VERSION2, relevantVersion);
+      let color;
+      let statusMsg;
+      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+      if (IS_LIVE_BETA2) {
+        if (versionComparison === 0) {
+          color = "#ff9500";
+          statusMsg = "UP TO DATE";
+        } else if (versionComparison > 0) {
+          color = "#ffff00";
+          statusMsg = "DEV VERSION";
+        } else {
+          color = "#ff00ff";
+          statusMsg = "UPDATE AVAILABLE";
+        }
+      } else {
+        if (versionComparison === 0) {
+          color = "#00ff00";
+          statusMsg = "UP TO DATE";
+        } else if (versionComparison > 0) {
+          color = "#90ee90";
+          statusMsg = "DEV VERSION";
+        } else {
+          color = "#ff0000";
+          statusMsg = "UPDATE AVAILABLE";
+        }
+      }
+      const tooltipLines = [
+        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
+        `STATUS: ${statusMsg}`,
+        "",
+        `GitHub Versions:`,
+        IS_LIVE_BETA2 ? `  Your Branch (Beta): v${betaVersion || "Loading..."}` : `  Your Branch (Stable): v${stableVersion || "Loading..."}`,
+        IS_LIVE_BETA2 ? `  Other Branch (Stable): v${stableVersion || "Loading..."}` : `  Other Branch (Beta): v${betaVersion || "Loading..."}`,
+        "",
+        "Click: Recheck",
+        "Shift+Click: Install Stable",
+        "Shift+Alt+Click: Install Beta"
+      ];
+      indicatorElement.style.color = color;
+      indicatorElement.title = tooltipLines.join("\n");
+      indicatorElement.style.cursor = "pointer";
+      const newIndicator = indicatorElement.cloneNode(true);
+      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+      newIndicator.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (e.shiftKey && e.altKey) {
+          win.open(BETA_DOWNLOAD_URL2, "_blank");
+        } else if (e.shiftKey) {
+          win.open(STABLE_DOWNLOAD_URL2, "_blank");
+        } else {
+          newIndicator.style.color = "#888";
+          newIndicator.title = `v${CURRENT_VERSION2} - Checking for updates...`;
+          checkVersion(newIndicator, dependencies);
+        }
+      });
+    } catch (e) {
+      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
+      const tooltipLines = [
+        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
+        `STATUS: Version check failed`,
+        "",
+        "Click: Retry",
+        "Shift+Click: Install Stable",
+        "Shift+Alt+Click: Install Beta"
+      ];
+      indicatorElement.title = tooltipLines.join("\n");
+      indicatorElement.style.cursor = "pointer";
+      const newIndicator = indicatorElement.cloneNode(true);
+      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+      newIndicator.addEventListener("click", (e2) => {
+        e2.stopPropagation();
+        if (e2.shiftKey && e2.altKey) {
+          win.open(BETA_DOWNLOAD_URL2, "_blank");
+        } else if (e2.shiftKey) {
+          win.open(STABLE_DOWNLOAD_URL2, "_blank");
+        } else {
+          newIndicator.style.color = "#888";
+          newIndicator.title = "Checking for updates...";
+          checkVersion(newIndicator, dependencies);
+        }
+      });
+      if (con) {
+        con.log("[VERSION CHECK] Error:", e);
+      }
+    }
+  }
+
   // src/init/modular-bootstrap.js
   function initializeModular({ targetDocument: targetDocument2, targetWindow: targetWindow3 }) {
     productionLog2("[MGTools v2.1] \u{1F680} Starting Simplified Modular Bootstrap...");
@@ -23072,9 +23268,15 @@ Error: ${error.message}`);
         openPopoutWidget: (tabName) => {
           productionLog2(`[MGTools] \u26A0\uFE0F openPopoutWidget('${tabName}') called but not fully wired yet`);
         },
-        // STUBBED: Version checker
-        checkVersion: () => {
-          productionLog2("[MGTools] \u26A0\uFE0F checkVersion() called but not wired yet");
+        // WIRED: Version checker
+        checkVersion: (indicatorElement) => {
+          checkVersion(indicatorElement, {
+            CURRENT_VERSION: CONFIG.CURRENT_VERSION,
+            IS_LIVE_BETA: CONFIG.IS_LIVE_BETA,
+            isDiscordPage: targetWindow3.location.href?.includes("discordsays.com") || false,
+            window: targetWindow3,
+            console
+          });
         },
         // Dock orientation management - uses localStorage to match overlay.js expectations
         saveDockOrientation: (orientation) => {
@@ -27233,202 +27435,6 @@ Error: ${error.message}`);
     } catch (err) {
       console.error("\u274C initializeFirebase (/info) failed", err);
       return null;
-    }
-  }
-
-  // src/features/version-checker.js
-  var version_checker_exports = {};
-  __export(version_checker_exports, {
-    checkVersion: () => checkVersion,
-    compareVersions: () => compareVersions2
-  });
-  function compareVersions2(v1, v2, dependencies = {}) {
-    const parts1 = v1.split(".").map(Number);
-    const parts2 = v2.split(".").map(Number);
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-      const part1 = parts1[i] || 0;
-      const part2 = parts2[i] || 0;
-      if (part1 > part2) return 1;
-      if (part1 < part2) return -1;
-    }
-    return 0;
-  }
-  async function checkVersion(indicatorElement, dependencies = {}) {
-    const {
-      CURRENT_VERSION: CURRENT_VERSION2 = "1.0.0",
-      IS_LIVE_BETA: IS_LIVE_BETA2 = false,
-      STABLE_DOWNLOAD_URL: STABLE_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/main/MGTools.user.js",
-      BETA_DOWNLOAD_URL: BETA_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/Live-Beta/MGTools.user.js",
-      isDiscordPage = false,
-      window: win = typeof window !== "undefined" ? window : null,
-      console: con = typeof console !== "undefined" ? console : null
-    } = dependencies;
-    if (!win || !indicatorElement) return;
-    if (isDiscordPage) {
-      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#00ff00";
-      const tooltipLines = [
-        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
-        `STATUS: Version check disabled on Discord`,
-        "",
-        "Shift+Click: Install Stable",
-        "Shift+Alt+Click: Install Beta"
-      ];
-      indicatorElement.title = tooltipLines.join("\n");
-      indicatorElement.style.cursor = "pointer";
-      indicatorElement.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (e.shiftKey && e.altKey) {
-          win.open(BETA_DOWNLOAD_URL2, "_blank");
-        } else if (e.shiftKey) {
-          win.open(STABLE_DOWNLOAD_URL2, "_blank");
-        }
-      });
-      return;
-    }
-    const cacheBust = `?t=${Date.now()}`;
-    async function fetchVersion(branch) {
-      const urls = [
-        `https://raw.githubusercontent.com/Myke247/MGTools/${branch}/MGTools.user.js${cacheBust}`,
-        `https://api.github.com/repos/Myke247/MGTools/contents/MGTools.user.js`
-      ];
-      for (const url of urls) {
-        try {
-          const isGitHubAPI = url.includes("api.github.com");
-          const response = await win.fetch(url, {
-            method: "GET",
-            cache: "no-cache",
-            headers: isGitHubAPI ? { Accept: "application/vnd.github.v3.raw" } : {}
-          });
-          if (response.ok) {
-            const text = await response.text();
-            const match = text.match(/@version\s+([\d.]+)/);
-            if (match) return match[1];
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      return null;
-    }
-    try {
-      const [stableVersion, betaVersion] = await Promise.all([fetchVersion("main"), fetchVersion("Live-Beta")]);
-      if (!stableVersion && !betaVersion) {
-        const branchLabel2 = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-        indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
-        const tooltipLines2 = [
-          `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel2})`,
-          `STATUS: Version check failed`,
-          "",
-          "Click: Retry",
-          "Shift+Click: Install Stable",
-          "Shift+Alt+Click: Install Beta"
-        ];
-        indicatorElement.title = tooltipLines2.join("\n");
-        indicatorElement.style.cursor = "pointer";
-        const newIndicator2 = indicatorElement.cloneNode(true);
-        indicatorElement.parentNode.replaceChild(newIndicator2, indicatorElement);
-        newIndicator2.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (e.shiftKey && e.altKey) {
-            win.open(BETA_DOWNLOAD_URL2, "_blank");
-          } else if (e.shiftKey) {
-            win.open(STABLE_DOWNLOAD_URL2, "_blank");
-          } else {
-            newIndicator2.style.color = "#888";
-            newIndicator2.title = "Checking for updates...";
-            checkVersion(newIndicator2, dependencies);
-          }
-        });
-        return;
-      }
-      const relevantVersion = IS_LIVE_BETA2 ? betaVersion : stableVersion;
-      const versionComparison = compareVersions2(CURRENT_VERSION2, relevantVersion);
-      let color;
-      let statusMsg;
-      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-      if (IS_LIVE_BETA2) {
-        if (versionComparison === 0) {
-          color = "#ff9500";
-          statusMsg = "UP TO DATE";
-        } else if (versionComparison > 0) {
-          color = "#ffff00";
-          statusMsg = "DEV VERSION";
-        } else {
-          color = "#ff00ff";
-          statusMsg = "UPDATE AVAILABLE";
-        }
-      } else {
-        if (versionComparison === 0) {
-          color = "#00ff00";
-          statusMsg = "UP TO DATE";
-        } else if (versionComparison > 0) {
-          color = "#90ee90";
-          statusMsg = "DEV VERSION";
-        } else {
-          color = "#ff0000";
-          statusMsg = "UPDATE AVAILABLE";
-        }
-      }
-      const tooltipLines = [
-        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
-        `STATUS: ${statusMsg}`,
-        "",
-        `GitHub Versions:`,
-        IS_LIVE_BETA2 ? `  Your Branch (Beta): v${betaVersion || "Loading..."}` : `  Your Branch (Stable): v${stableVersion || "Loading..."}`,
-        IS_LIVE_BETA2 ? `  Other Branch (Stable): v${stableVersion || "Loading..."}` : `  Other Branch (Beta): v${betaVersion || "Loading..."}`,
-        "",
-        "Click: Recheck",
-        "Shift+Click: Install Stable",
-        "Shift+Alt+Click: Install Beta"
-      ];
-      indicatorElement.style.color = color;
-      indicatorElement.title = tooltipLines.join("\n");
-      indicatorElement.style.cursor = "pointer";
-      const newIndicator = indicatorElement.cloneNode(true);
-      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-      newIndicator.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (e.shiftKey && e.altKey) {
-          win.open(BETA_DOWNLOAD_URL2, "_blank");
-        } else if (e.shiftKey) {
-          win.open(STABLE_DOWNLOAD_URL2, "_blank");
-        } else {
-          newIndicator.style.color = "#888";
-          newIndicator.title = `v${CURRENT_VERSION2} - Checking for updates...`;
-          checkVersion(newIndicator, dependencies);
-        }
-      });
-    } catch (e) {
-      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
-      const tooltipLines = [
-        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
-        `STATUS: Version check failed`,
-        "",
-        "Click: Retry",
-        "Shift+Click: Install Stable",
-        "Shift+Alt+Click: Install Beta"
-      ];
-      indicatorElement.title = tooltipLines.join("\n");
-      indicatorElement.style.cursor = "pointer";
-      const newIndicator = indicatorElement.cloneNode(true);
-      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-      newIndicator.addEventListener("click", (e2) => {
-        e2.stopPropagation();
-        if (e2.shiftKey && e2.altKey) {
-          win.open(BETA_DOWNLOAD_URL2, "_blank");
-        } else if (e2.shiftKey) {
-          win.open(STABLE_DOWNLOAD_URL2, "_blank");
-        } else {
-          newIndicator.style.color = "#888";
-          newIndicator.title = "Checking for updates...";
-          checkVersion(newIndicator, dependencies);
-        }
-      });
-      if (con) {
-        con.log("[VERSION CHECK] Error:", e);
-      }
     }
   }
 
