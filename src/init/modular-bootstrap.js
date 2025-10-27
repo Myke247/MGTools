@@ -45,7 +45,12 @@ import { getPetsTabContent } from '../features/pets.js';
 import { getAbilitiesTabContent } from '../features/abilities/abilities-ui.js';
 import { getSettingsTabContent } from '../features/settings-ui.js';
 import { getNotificationsTabContent } from '../features/notifications.js';
-import { getShopTabContent, toggleShopWindows as toggleShopWindowsFn, createShopSidebars, stopInventoryCounter } from '../features/shop.js';
+import {
+  getShopTabContent,
+  toggleShopWindows as toggleShopWindowsFn,
+  createShopSidebars,
+  stopInventoryCounter
+} from '../features/shop.js';
 import { checkVersion as checkVersionFn } from '../features/version-checker.js';
 import {
   getSeedsTabContent,
@@ -168,7 +173,7 @@ export function initializeModular({ targetDocument, targetWindow }) {
             UnifiedState,
             makePopoutDraggable,
             makeElementResizable,
-            generateThemeStyles: theme => generateThemeStyles(theme),
+            generateThemeStyles: (settings, isPopout) => generateThemeStyles({}, settings, isPopout),
             applyThemeToPopoutWidget: (popout, themeStyles) =>
               applyThemeToPopoutWidget({ targetDocument }, popout, themeStyles),
             stopInventoryCounter: () => stopInventoryCounter({ targetDocument, UnifiedState }),
@@ -225,12 +230,12 @@ export function initializeModular({ targetDocument, targetWindow }) {
         }
       },
 
-      // Theme system (wired)
-      generateThemeStyles: theme => generateThemeStyles(theme),
-      applyAccentToDock: gradient => applyAccentToDock(gradient, { targetDocument }),
-      applyAccentToSidebar: gradient => applyAccentToSidebar(gradient, { targetDocument }),
-      applyThemeToDock: theme => applyThemeToDock(theme, { targetDocument }),
-      applyThemeToSidebar: theme => applyThemeToSidebar(theme, { targetDocument }),
+      // Theme system (wired correctly with deps first)
+      generateThemeStyles: (settings, isPopout = false) => generateThemeStyles({}, settings, isPopout),
+      applyAccentToDock: themeStyles => applyAccentToDock({ document: targetDocument }, themeStyles),
+      applyAccentToSidebar: themeStyles => applyAccentToSidebar({ document: targetDocument }, themeStyles),
+      applyThemeToDock: themeStyles => applyThemeToDock({ document: targetDocument }, themeStyles),
+      applyThemeToSidebar: themeStyles => applyThemeToSidebar({ document: targetDocument }, themeStyles),
 
       // Environment detection
       isDiscordEnv: targetWindow.location.href?.includes('discordsays.com') || false,

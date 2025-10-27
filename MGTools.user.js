@@ -23298,7 +23298,7 @@ Error: ${error.message}`);
               UnifiedState: UnifiedState2,
               makePopoutDraggable,
               makeElementResizable,
-              generateThemeStyles: (theme) => generateThemeStyles(theme),
+              generateThemeStyles: (settings, isPopout) => generateThemeStyles({}, settings, isPopout),
               applyThemeToPopoutWidget: (popout, themeStyles) => applyThemeToPopoutWidget({ targetDocument: targetDocument2 }, popout, themeStyles),
               stopInventoryCounter: () => stopInventoryCounter({ targetDocument: targetDocument2, UnifiedState: UnifiedState2 }),
               getCachedTabContent,
@@ -23350,12 +23350,12 @@ Error: ${error.message}`);
             return null;
           }
         },
-        // Theme system (wired)
-        generateThemeStyles: (theme) => generateThemeStyles(theme),
-        applyAccentToDock: (gradient) => applyAccentToDock(gradient, { targetDocument: targetDocument2 }),
-        applyAccentToSidebar: (gradient) => applyAccentToSidebar(gradient, { targetDocument: targetDocument2 }),
-        applyThemeToDock: (theme) => applyThemeToDock(theme, { targetDocument: targetDocument2 }),
-        applyThemeToSidebar: (theme) => applyThemeToSidebar(theme, { targetDocument: targetDocument2 }),
+        // Theme system (wired correctly with deps first)
+        generateThemeStyles: (settings, isPopout = false) => generateThemeStyles({}, settings, isPopout),
+        applyAccentToDock: (themeStyles) => applyAccentToDock({ document: targetDocument2 }, themeStyles),
+        applyAccentToSidebar: (themeStyles) => applyAccentToSidebar({ document: targetDocument2 }, themeStyles),
+        applyThemeToDock: (themeStyles) => applyThemeToDock({ document: targetDocument2 }, themeStyles),
+        applyThemeToSidebar: (themeStyles) => applyThemeToSidebar({ document: targetDocument2 }, themeStyles),
         // Environment detection
         isDiscordEnv: targetWindow3.location.href?.includes("discordsays.com") || false,
         // Constants
