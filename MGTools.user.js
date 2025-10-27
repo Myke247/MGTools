@@ -23242,6 +23242,21 @@ Error: ${error.message}`);
         getProtectTabContent: () => getProtectTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
         getHelpTabContent: () => getHelpTabContent()
       };
+      const applyTheme = () => {
+        const settings = UnifiedState2.data.settings;
+        const themeStyles = generateThemeStyles({}, settings, false);
+        if (themeStyles) {
+          const isBlackTheme = settings.theme === "Black";
+          if (isBlackTheme && settings.gradientStyle) {
+            applyAccentToDock({ document: targetDocument2 }, themeStyles);
+            applyAccentToSidebar({ document: targetDocument2 }, themeStyles);
+          } else {
+            applyThemeToDock({ document: targetDocument2 }, themeStyles);
+            applyThemeToSidebar({ document: targetDocument2 }, themeStyles);
+          }
+          debugLog2("[MGTools] Theme applied:", settings.theme);
+        }
+      };
       const updateTabContent = () => {
         const contentEl = targetDocument2.querySelector("#mga-tab-content");
         if (!contentEl) return;
@@ -23250,6 +23265,35 @@ Error: ${error.message}`);
         try {
           const content = getContentForTab({ contentGetters }, tabName, false);
           contentEl.innerHTML = content;
+          if (tabName === "settings") {
+            setupSettingsTabHandlers({
+              context: contentEl,
+              UnifiedState: UnifiedState2,
+              CompatibilityMode,
+              applyTheme,
+              syncThemeToAllWindows: () => {
+              },
+              // Stub
+              applyPreset: () => {
+              },
+              // Stub
+              applyUltraCompactMode: () => {
+              },
+              // Stub
+              applyWeatherSetting: () => {
+              },
+              // Stub
+              MGA_saveJSON,
+              productionLog: productionLog2,
+              logInfo: debugLog2,
+              targetDocument: targetDocument2,
+              updateTabContent,
+              showNotificationToast: () => {
+              }
+              // Stub
+            });
+            debugLog2("[MGTools] Settings tab handlers wired");
+          }
         } catch (error) {
           debugError("[MGTools] Failed to update tab content:", error);
           contentEl.innerHTML = '<div style="padding: 20px; color: #ff6b6b;">Error loading content</div>';
@@ -23277,6 +23321,21 @@ Error: ${error.message}`);
         },
         // WIRED: openPopoutWidget - shift+click popout windows
         openPopoutWidget: (tabName) => {
+          const applyTheme2 = () => {
+            const settings = UnifiedState2.data.settings;
+            const themeStyles = generateThemeStyles({}, settings, false);
+            if (themeStyles) {
+              const isBlackTheme = settings.theme === "Black";
+              if (isBlackTheme && settings.gradientStyle) {
+                applyAccentToDock({ document: targetDocument2 }, themeStyles);
+                applyAccentToSidebar({ document: targetDocument2 }, themeStyles);
+              } else {
+                applyThemeToDock({ document: targetDocument2 }, themeStyles);
+                applyThemeToSidebar({ document: targetDocument2 }, themeStyles);
+              }
+              debugLog2("[MGTools] Theme applied from popout:", settings.theme);
+            }
+          };
           const handlerSetups = {
             setupPetsTabHandlers: () => {
             },
@@ -23292,7 +23351,33 @@ Error: ${error.message}`);
             },
             setupRoomJoinButtons: () => {
             },
-            setupSettingsTabHandlers: () => {
+            setupSettingsTabHandlers: (context) => {
+              setupSettingsTabHandlers({
+                context,
+                UnifiedState: UnifiedState2,
+                CompatibilityMode,
+                applyTheme: applyTheme2,
+                syncThemeToAllWindows: () => {
+                },
+                // Stub for now
+                applyPreset: () => {
+                },
+                // Stub for now
+                applyUltraCompactMode: () => {
+                },
+                // Stub for now
+                applyWeatherSetting: () => {
+                },
+                // Stub for now
+                MGA_saveJSON,
+                productionLog: productionLog2,
+                logInfo: debugLog2,
+                targetDocument: targetDocument2,
+                updateTabContent,
+                showNotificationToast: () => {
+                }
+                // Stub for now
+              });
             },
             setupHotkeysTabHandlers: () => {
             },

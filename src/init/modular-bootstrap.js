@@ -16,7 +16,7 @@ import { UnifiedState } from '../state/unified-state.js';
 import { MGA_loadJSON, MGA_saveJSON } from '../core/storage.js';
 import { productionLog, debugLog, debugError } from '../core/logging.js';
 import { CONFIG } from '../utils/constants.js';
-import { targetDocument } from '../core/compat.js';
+import { targetDocument, CompatibilityMode } from '../core/compat.js';
 
 // UI Functions
 import {
@@ -43,7 +43,10 @@ import {
 // Tab Content Getters
 import { getPetsTabContent } from '../features/pets.js';
 import { getAbilitiesTabContent } from '../features/abilities/abilities-ui.js';
-import { getSettingsTabContent } from '../features/settings-ui.js';
+import {
+  getSettingsTabContent,
+  setupSettingsTabHandlers as setupSettingsTabHandlersFn
+} from '../features/settings-ui.js';
 import { getNotificationsTabContent } from '../features/notifications.js';
 import {
   getShopTabContent,
@@ -108,6 +111,24 @@ export function initializeModular({ targetDocument, targetWindow }) {
       getHelpTabContent: () => getHelpTabContent()
     };
 
+    // Helper: applyTheme for settings tab
+    const applyTheme = () => {
+      const settings = UnifiedState.data.settings;
+      const themeStyles = generateThemeStyles({}, settings, false);
+
+      if (themeStyles) {
+        const isBlackTheme = settings.theme === 'Black';
+        if (isBlackTheme && settings.gradientStyle) {
+          applyAccentToDock({ document: targetDocument }, themeStyles);
+          applyAccentToSidebar({ document: targetDocument }, themeStyles);
+        } else {
+          applyThemeToDock({ document: targetDocument }, themeStyles);
+          applyThemeToSidebar({ document: targetDocument }, themeStyles);
+        }
+        debugLog('[MGTools] Theme applied:', settings.theme);
+      }
+    };
+
     // updateTabContent - updates the active tab's content
     const updateTabContent = () => {
       const contentEl = targetDocument.querySelector('#mga-tab-content');
@@ -119,6 +140,28 @@ export function initializeModular({ targetDocument, targetWindow }) {
       try {
         const content = getContentForTab({ contentGetters }, tabName, false);
         contentEl.innerHTML = content;
+
+        // Set up handlers after content is rendered
+        if (tabName === 'settings') {
+          // Wire settings tab handlers for theme changes
+          setupSettingsTabHandlersFn({
+            context: contentEl,
+            UnifiedState,
+            CompatibilityMode,
+            applyTheme,
+            syncThemeToAllWindows: () => {}, // Stub
+            applyPreset: () => {}, // Stub
+            applyUltraCompactMode: () => {}, // Stub
+            applyWeatherSetting: () => {}, // Stub
+            MGA_saveJSON,
+            productionLog,
+            logInfo: debugLog,
+            targetDocument,
+            updateTabContent,
+            showNotificationToast: () => {} // Stub
+          });
+          debugLog('[MGTools] Settings tab handlers wired');
+        }
       } catch (error) {
         debugError('[MGTools] Failed to update tab content:', error);
         contentEl.innerHTML = '<div style="padding: 20px; color: #ff6b6b;">Error loading content</div>';
@@ -151,7 +194,25 @@ export function initializeModular({ targetDocument, targetWindow }) {
 
       // WIRED: openPopoutWidget - shift+click popout windows
       openPopoutWidget: tabName => {
-        // Stub handler setups - popout will work but interactive handlers not wired yet
+        // applyTheme function for settings handlers
+        const applyTheme = () => {
+          const settings = UnifiedState.data.settings;
+          const themeStyles = generateThemeStyles({}, settings, false);
+
+          if (themeStyles) {
+            const isBlackTheme = settings.theme === 'Black';
+            if (isBlackTheme && settings.gradientStyle) {
+              applyAccentToDock({ document: targetDocument }, themeStyles);
+              applyAccentToSidebar({ document: targetDocument }, themeStyles);
+            } else {
+              applyThemeToDock({ document: targetDocument }, themeStyles);
+              applyThemeToSidebar({ document: targetDocument }, themeStyles);
+            }
+            debugLog('[MGTools] Theme applied from popout:', settings.theme);
+          }
+        };
+
+        // Handler setups - now wiring setupSettingsTabHandlers for theme support!
         const handlerSetups = {
           setupPetsTabHandlers: () => {},
           setupAbilitiesTabHandlers: () => {},
@@ -160,7 +221,24 @@ export function initializeModular({ targetDocument, targetWindow }) {
           setupShopTabHandlers: () => {},
           setupValuesTabHandlers: () => {},
           setupRoomJoinButtons: () => {},
-          setupSettingsTabHandlers: () => {},
+          setupSettingsTabHandlers: context => {
+            setupSettingsTabHandlersFn({
+              context,
+              UnifiedState,
+              CompatibilityMode,
+              applyTheme,
+              syncThemeToAllWindows: () => {}, // Stub for now
+              applyPreset: () => {}, // Stub for now
+              applyUltraCompactMode: () => {}, // Stub for now
+              applyWeatherSetting: () => {}, // Stub for now
+              MGA_saveJSON,
+              productionLog,
+              logInfo: debugLog,
+              targetDocument,
+              updateTabContent,
+              showNotificationToast: () => {} // Stub for now
+            });
+          },
           setupHotkeysTabHandlers: () => {},
           setupNotificationsTabHandlers: () => {},
           setupProtectTabHandlers: () => {},
