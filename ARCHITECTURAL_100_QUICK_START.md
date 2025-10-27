@@ -169,10 +169,9 @@ export function myFunction(dependencies = {}) {
 ## 📚 Full Documentation
 
 **Read in this order:**
-1. `.claude/PROJECT_CONTEXT.md` ⭐ Full architecture & rules
-2. `SESSION_STATUS.md` - Current state
-3. This file - Quick reference
-4. `README.md` - User documentation
+1. `SESSION_STATUS.md` - Current state
+2. This file - Quick reference
+3. `README.md` - User documentation
 
 ---
 
@@ -187,8 +186,8 @@ npm run build:production
 
 ### Confused about workflow?
 ```bash
-# Read the full context
-cat .claude/PROJECT_CONTEXT.md
+# Read the session status
+cat SESSION_STATUS.md
 ```
 
 ### Made a mistake?

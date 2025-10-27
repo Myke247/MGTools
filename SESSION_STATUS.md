@@ -237,11 +237,10 @@ Every commit automatically:
 ## 📂 Key Files & Documentation
 
 **Essential Reading (in order):**
-1. `.claude/PROJECT_CONTEXT.md` - ⭐ START HERE - Architecture & rules
-2. `SESSION_STATUS.md` - This file - Current state
-3. `ARCHITECTURAL_100_QUICK_START.md` - Quick reference guide
-4. `README.md` - User documentation
-5. `DEVELOPMENT_WORKFLOW.md` - Detailed workflow
+1. `SESSION_STATUS.md` - This file - Current state
+2. `ARCHITECTURAL_100_QUICK_START.md` - Quick reference guide
+3. `README.md` - User documentation
+4. `DEVELOPMENT_WORKFLOW.md` - Detailed workflow
 
 **Build Scripts:**
 - `scripts/build-production.mjs` - Production build (generates MGTools.user.js)
@@ -291,10 +290,9 @@ Architectural 100% is fully implemented and production-ready!
 
 ### Start Every Session With:
 
-1. Read `.claude/PROJECT_CONTEXT.md` (project rules)
-2. Read `SESSION_STATUS.md` (this file - current state)
-3. Check `git log --oneline -5` (recent commits)
-4. Verify `npm run build:production` works
+1. Read `SESSION_STATUS.md` (this file - current state)
+2. Check `git log --oneline -5` (recent commits)
+3. Verify `npm run build:production` works
 
 ### Common Pitfalls to Avoid:
 

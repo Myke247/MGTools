@@ -127,10 +127,6 @@ npm run format
 npm run style
 ```
 
-### Integration with Claude Code
-
-ESLint and Prettier are configured to work automatically when Claude Code edits files. However, you should still run checks before committing.
-
 ### Common Issues
 
 #### "ESLint errors after formatting with Prettier"

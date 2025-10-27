@@ -1,5 +1,5 @@
 ==============================================
-MGTools Deployment Instructions for Claude
+MGTools Deployment Instructions
 ==============================================
 
 IMPORTANT: Follow these steps EXACTLY when deploying new versions.
@@ -106,12 +106,8 @@ v[VERSION]: [Brief description]
 - Change 3
 
 [Optional: Why this matters section]
-
-🤖 Generated with Claude Code
 EOF
 )"
-
-IMPORTANT: Do NOT add "Co-Authored-By: Claude" trailer
 IMPORTANT: Do NOT use --no-verify flag
 IMPORTANT: Ensure pre-commit hooks run successfully
 

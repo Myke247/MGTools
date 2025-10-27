@@ -159,4 +159,4 @@ git checkout main  # or Live-Beta
 See:
 - **For modular progress:** `feat/modular-v2-wip` branch, check commit history
 - **For production issues:** Open issue on GitHub
-- **For context:** See `.claude/PROJECT_CONTEXT.md`
+- **For context:** See `SESSION_STATUS.md`

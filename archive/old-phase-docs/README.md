@@ -21,7 +21,6 @@ These docs served their purpose during development but are now outdated. They've
 ## Current Documentation
 
 **For current project information, see:**
-- `.claude/PROJECT_CONTEXT.md` - Project rules & architecture
 - `SESSION_STATUS.md` - Current state (Phase G COMPLETE)
 - `ARCHITECTURAL_100_QUICK_START.md` - Quick reference
 - `README.md` - User documentation
