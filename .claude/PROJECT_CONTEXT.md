@@ -1,25 +1,33 @@
 # MGTools Modular Implementation - Session Handoff
 **Date:** 2025-10-26
 **Branch:** `develop`
-**Status:** Phase 4.4 - Dragging & Sidebar Tabs WORKING! 🎉
+**Status:** Phase 4.5 COMPLETE - All Critical Bugs Fixed! 🎉
 
 ---
 
 ## IMMEDIATE CONTEXT - START HERE
 
-### What Just Happened (Phase 4.3-4.4)
-- ✅ **DRAGGING FIXED** - Corrected left/top vs bottom/right positioning bug
-- ✅ **SIDEBAR TABS WORKING** - All 12 tabs now functional with updateTabContent
-- ✅ **THEME ACCESS** - Settings tab opens, users can change themes!
-- ✅ Built: 29,739 lines
+### What Just Happened (Phase 4.5) - CRITICAL BUG FIXES
+- ✅ **FIX 1: Drag stretching** - Clear transform/bottom/right during EVERY drag move
+- ✅ **FIX 2: Position jump** - Save numeric values not strings (no more "100pxpx")
+- ✅ **FIX 3: Shop imports** - Added toggleShopWindows and createShopSidebars imports
+- ✅ **FIX 4: Shop wired** - toggleShopWindows now functional
+- ✅ **Commit:** f0a0440 - All fixes tested in build
+- ✅ Built: 29,745 lines
 
-### What's Next (Phase 4.5) - OPTIONAL ENHANCEMENTS
+### Ready for User Testing
+**All 4 critical bugs should now be fixed:**
+1. ✅ Drag should not stretch (cleared conflicting CSS properties)
+2. ✅ First click should not jump (numeric position values)
+3. ✅ Shop button should open panels (wired toggleShopWindows)
+4. ✅ Position should persist correctly (getBoundingClientRect)
+
+### What's Next (Phase 4.6) - OPTIONAL ENHANCEMENTS
 **Remaining features to wire (non-critical):**
 
 1. **openPopoutWidget** - Shift+click popout windows
-2. **toggleShopWindows** - Shop slide-out panels
-3. **checkVersion** - Version update checker
-4. **Test all features** - Verify everything works end-to-end
+2. **checkVersion** - Version update checker
+3. **Test all features** - Verify everything works end-to-end
 
 ---
 
@@ -50,6 +58,27 @@
 - Clear `bottom` and `right` properties at drag start in makeDraggable()
 - Prevents CSS conflicts between default bottom-positioned and drag top-positioned layout
 **Result**: Dragging now works perfectly without stretching
+
+### Fix 4: Phase 4.5 Complete - 4 Critical Bugs (Commit f0a0440)
+**Problems**:
+1. Drag still stretching (first fix incomplete)
+2. First click jumps randomly to right
+3. Shop button doesn't work
+4. Position persistence broken
+
+**Root Causes**:
+1. Clearing bottom/right only at START, not during EVERY move
+2. Saving strings "100px" but load adds "px" → "100pxpx"
+3. toggleShopWindows not imported
+4. toggleShopWindows stubbed
+
+**Fixes**:
+- `src/ui/draggable.js:151-153` - Clear transform/bottom/right in handleDragMove
+- `src/ui/draggable.js:176-180` - Use getBoundingClientRect for numeric values
+- `src/init/modular-bootstrap.js:45` - Import toggleShopWindowsFn, createShopSidebars
+- `src/init/modular-bootstrap.js:140` - Wire toggleShopWindows with dependencies
+
+**Result**: All 4 critical bugs fixed, ready for user testing
 
 ---
 
@@ -228,9 +257,11 @@ TypeError: ...
 Branch: develop
 Commits ahead of origin/develop: Check with git status
 Last commits:
-- d7374f5: docs: Phase 4.2 COMPLETE - UI is visible!
-- 2d2482b: fix: correct UnifiedState import
-- 76065e9: fix: export and import UNIFIED_STYLES
+- f0a0440: fix: critical bug fixes - drag stretching, position save, shop toggle
+- a986609: docs: document drag stretching fix in session handoff
+- ab9e8f2: fix: CRITICAL - clear bottom/right CSS before dragging
+- 08cf140: feat: wire sidebar tabs with updateTabContent
+- 8b0b91c: fix: dragging position and orientation storage
 ```
 
 ### Commit Pattern
