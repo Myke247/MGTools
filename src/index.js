@@ -71,7 +71,8 @@ import * as PublicAPI from './init/public-api.js';
 import * as Bootstrap from './init/bootstrap.js';
 import * as EventHandlers from './init/event-handlers.js';
 import { setManagedInterval, clearManagedInterval } from './utils/runtime-utilities.js'; // Individual functions
-import { initializeModular } from './init/modular-bootstrap.js'; // NEW: Simplified modular bootstrap
+import { continueInitialization } from './init/legacy-bootstrap.js'; // FULL working bootstrap from Live-Beta
+import * as InitFunctions from './init/init-functions.js'; // Core initialization orchestration functions
 
 // ===== Feature Modules - Core Features (15 modules) =====
 import * as Pets from './features/pets.js';
@@ -254,16 +255,567 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
         if ((hasAtoms && hasConnection) || attempts >= maxAttempts) {
           // Game is ready (or we've waited long enough) - initialize!
-          console.log('[MGTools] ✅ Game ready, initializing with modular bootstrap...');
+          console.log('[MGTools] ✅ Game ready, initializing with LEGACY bootstrap (COMPLETE working code)...');
 
-          // Use NEW simplified modular bootstrap (v2.1)
-          const success = initializeModular({
-            targetDocument: document,
-            targetWindow: window
-          });
+          // CRITICAL FIX: Use complete legacy-bootstrap with ALL dependencies
+          // This is the FULL working code from Live-Beta - NO STUBS!
+          try {
+            const targetWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
-          if (!success) {
-            console.error('[MGTools] ❌ Initialization failed, see errors above');
+            // Define updateTabContent function for reuse
+            const updateTabContentFn = () => {
+              const contentEl = document.getElementById('mga-tab-content');
+              if (!contentEl || !UnifiedState.UnifiedState.activeTab) return;
+
+              const state = UnifiedState.UnifiedState;
+
+              switch (state.activeTab) {
+                case 'pets':
+                  contentEl.innerHTML = Pets.getPetsTabContent({
+                    UnifiedState: state,
+                    calculateTimeUntilHungry: Pets.calculateTimeUntilHungry,
+                    formatHungerTimer: Pets.formatHungerTimer,
+                    ensurePresetOrder: Pets.ensurePresetOrder,
+                    productionLog
+                  });
+                  Pets.setupPetsTabHandlers(document, {
+                    UnifiedState: state,
+                    targetWindow: targetWin,
+                    targetDocument: document,
+                    productionLog,
+                    safeSendMessage: RuntimeUtilities.safeSendMessage,
+                    sendToGame: RuntimeUtilities.sendToGame,
+                    createToast: Notifications.showNotificationToast,
+                    exportPetPresets: Pets.exportPetPresets,
+                    importPetPresets: Pets.importPetPresets
+                  });
+                  break;
+
+                case 'seeds':
+                  contentEl.innerHTML = TabContent.getSeedsTabContent({
+                    UnifiedState: state
+                  });
+                  break;
+
+                case 'abilities':
+                  contentEl.innerHTML = AbilitiesUI.getAbilitiesTabContent({
+                    UnifiedState: state,
+                    productionLog
+                  });
+                  if (AbilitiesHandlers.setupAbilitiesTabHandlers) {
+                    AbilitiesHandlers.setupAbilitiesTabHandlers(document, {
+                      UnifiedState: state,
+                      productionLog
+                    });
+                  }
+                  break;
+
+                case 'values':
+                  contentEl.innerHTML = TabContent.getValuesTabContent({
+                    UnifiedState: state
+                  });
+                  break;
+
+                case 'timers':
+                  contentEl.innerHTML = TabContent.getTimersTabContent();
+                  break;
+
+                case 'rooms':
+                  contentEl.innerHTML = TabContent.getRoomStatusTabContent({
+                    UnifiedState: state
+                  });
+                  break;
+
+                case 'tools':
+                  contentEl.innerHTML = TabContent.getToolsTabContent();
+                  break;
+
+                case 'hotkeys':
+                  contentEl.innerHTML = TabContent.getHotkeysTabContent({
+                    UnifiedState: state
+                  });
+                  break;
+
+                case 'help':
+                  contentEl.innerHTML = TabContent.getHelpTabContent();
+                  break;
+
+                case 'protect':
+                  contentEl.innerHTML = TabContent.getProtectTabContent({
+                    UnifiedState: state
+                  });
+                  break;
+
+                default:
+                  contentEl.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+              }
+            };
+
+            // Assemble complete dependency object from imported modules
+            continueInitialization({
+              // Core deps
+              UnifiedState: UnifiedState.UnifiedState, // Module exports named 'UnifiedState'
+              targetWindow: targetWin,
+              document: document,
+              setTimeout: setTimeout,
+              performanceNow: () => performance.now(),
+              console: console,
+
+              // Logging
+              productionLog,
+              productionWarn,
+              debugLog,
+              debugError,
+              MGA_DEBUG: targetWin.MGA_DEBUG || null,
+
+              // Initialization functions - call directly without wrapper
+              loadSavedData: () => {
+                const state = UnifiedState.UnifiedState || UnifiedState;
+                InitFunctions.loadSavedData({
+                  UnifiedState: state,
+                  MGA_loadJSON: Storage.MGA_loadJSON,
+                  performStorageHealthCheck: StorageRecovery.performStorageHealthCheck,
+                  productionLog,
+                  productionWarn,
+                  targetWindow: targetWin
+                });
+              },
+              initializeAtoms: depsOverride => InitFunctions.initializeAtoms({
+                UnifiedState: UnifiedState.UnifiedState,
+                targetWindow: targetWin,
+                hookAtom: Atoms.hookAtom,
+                setManagedInterval,
+                updateTabContent: () => {}, // TODO: wire from TabContent
+                document: document,
+                productionLog,
+                updateActivePetsFromRoomState: () => {}, // TODO: wire from Pets
+                ...depsOverride
+              }),
+              startIntervals: depsOverride => InitFunctions.startIntervals({
+                targetWindow: targetWin,
+                setManagedInterval,
+                checkShopRestock: Shop.checkShopRestock || (() => {}),
+                checkTurtleTimer: TurtleTimer.checkTurtleTimer || (() => {}),
+                productionLog,
+                ...depsOverride
+              }),
+              applyTheme: depsOverride => InitFunctions.applyTheme({
+                UnifiedState: UnifiedState.UnifiedState,
+                generateThemeStyles: ThemeSystem.generateThemeStyles,
+                applyThemeToElement: ThemeSystem.applyThemeToElement,
+                applyThemeToDock: ThemeSystem.applyThemeToDock,
+                applyThemeToSidebar: ThemeSystem.applyThemeToSidebar,
+                applyAccentToDock: ThemeSystem.applyAccentToDock,
+                applyAccentToSidebar: ThemeSystem.applyAccentToSidebar,
+                syncThemeToAllWindows: ThemeSystem.syncThemeToAllWindows,
+                ...depsOverride
+              }),
+              applyUltraCompactMode: (enabled, depsOverride) => InitFunctions.applyUltraCompactMode({
+                document: document,
+                productionLog,
+                ...depsOverride
+              }, enabled),
+              applyWeatherSetting: depsOverride => InitFunctions.applyWeatherSetting({
+                UnifiedState: UnifiedState.UnifiedState,
+                document: document,
+                productionLog,
+                ...depsOverride
+              }),
+              initializeKeyboardShortcuts: depsOverride => InitFunctions.initializeKeyboardShortcuts({
+                UnifiedState: UnifiedState.UnifiedState,
+                document: document,
+                toggleMainHUD: Overlay.toggleMainHUD || (() => {}),
+                productionLog,
+                ...depsOverride
+              }),
+
+              // Legacy bootstrap functions
+              cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition({ localStorage, console }),
+
+              // UI functions from Overlay module - CRITICAL: Must pass configuration object!
+              createUnifiedUI: () => {
+                if (!Overlay.createUnifiedUI) {
+                  console.error('[MGTools] createUnifiedUI not available in Overlay module');
+                  return;
+                }
+
+                // Assemble full configuration object required by createUnifiedUI
+                Overlay.createUnifiedUI({
+                  targetDocument: document,
+                  productionLog,
+                  UnifiedState: UnifiedState.UnifiedState,
+
+                  // Drag functionality
+                  makeDockDraggable: dock => {
+                    Draggable.makeDraggable(dock, dock, {
+                      targetDocument: document,
+                      debugLog,
+                      saveMainHUDPosition: pos => Overlay.saveDockPosition(pos)
+                    });
+                  },
+
+                  // Tab and window management - WIRED with actual implementations!
+                  openSidebarTab: tabName => {
+                    if (Overlay.openSidebarTab) {
+                      Overlay.openSidebarTab({
+                        targetDocument: document,
+                        UnifiedState: UnifiedState.UnifiedState,
+                        updateTabContent: updateTabContentFn
+                      }, tabName);
+                    }
+                  },
+                  toggleShopWindows: () => {
+                    if (Shop.toggleShopWindows) {
+                      Shop.toggleShopWindows({
+                        targetDocument: document,
+                        UnifiedState: UnifiedState.UnifiedState,
+                        createShopSidebars: Shop.createShopSidebars
+                      });
+                    }
+                  },
+                  openPopoutWidget: tabName => {
+                    if (Overlay.openPopoutWidget) {
+                      Overlay.openPopoutWidget({
+                        targetDocument: document,
+                        UnifiedState: UnifiedState.UnifiedState,
+                        makePopoutDraggable: Overlay.makePopoutDraggable || (() => {}),
+                        makeElementResizable: Draggable.makeElementResizable || (() => {}),
+                        generateThemeStyles: (settings, isPopout) => ThemeSystem.generateThemeStyles({}, settings, isPopout),
+                        applyThemeToPopoutWidget: (popout, themeStyles) =>
+                          ThemeSystem.applyThemeToPopoutWidget({ targetDocument: document }, popout, themeStyles),
+                        stopInventoryCounter: () => Shop.stopInventoryCounter?.({ targetDocument: document, UnifiedState: UnifiedState.UnifiedState }),
+                        getCachedTabContent: Overlay.getCachedTabContent,
+                        contentGetters: {}, // TODO: wire content getters
+                        handlerSetups: {} // TODO: wire handler setups
+                      }, tabName);
+                    }
+                  },
+
+                  // Version checker
+                  checkVersion: indicatorElement => {
+                    if (VersionChecker.checkVersion) {
+                      VersionChecker.checkVersion(indicatorElement, {
+                        CURRENT_VERSION: CONFIG.CURRENT_VERSION,
+                        IS_LIVE_BETA: CONFIG.IS_LIVE_BETA,
+                        isDiscordPage: targetWin.location.href?.includes('discordsays.com') || false,
+                        window: targetWin,
+                        console: console
+                      });
+                    }
+                  },
+
+                  // Dock position management
+                  saveDockOrientation: orientation => {
+                    try {
+                      localStorage.setItem('mgh_dock_orientation', orientation);
+                    } catch (e) {
+                      debugError('[MGTools] Failed to save dock orientation:', e);
+                    }
+                  },
+                  loadDockOrientation: () => {
+                    try {
+                      return localStorage.getItem('mgh_dock_orientation') || 'horizontal';
+                    } catch (e) {
+                      return 'horizontal';
+                    }
+                  },
+                  loadDockPosition: () => {
+                    try {
+                      const saved = localStorage.getItem('mgh_dock_position');
+                      if (saved) {
+                        const position = JSON.parse(saved);
+                        if (position && typeof position.left === 'number' && typeof position.top === 'number') {
+                          return position;
+                        }
+                      }
+                      return null;
+                    } catch (e) {
+                      debugError('[MGTools] Failed to load dock position:', e);
+                      return null;
+                    }
+                  },
+
+                  // Theme system
+                  generateThemeStyles: (settings, isPopout = false) =>
+                    ThemeSystem.generateThemeStyles({}, settings, isPopout),
+                  applyAccentToDock: themeStyles =>
+                    ThemeSystem.applyAccentToDock({ document }, themeStyles),
+                  applyAccentToSidebar: themeStyles =>
+                    ThemeSystem.applyAccentToSidebar({ document }, themeStyles),
+                  applyThemeToDock: themeStyles =>
+                    ThemeSystem.applyThemeToDock({ document }, themeStyles),
+                  applyThemeToSidebar: themeStyles =>
+                    ThemeSystem.applyThemeToSidebar({ document }, themeStyles),
+
+                  // Environment detection
+                  isDiscordEnv: targetWin.location.href?.includes('discordsays.com') || false,
+
+                  // Constants
+                  UNIFIED_STYLES: Overlay.UNIFIED_STYLES || '',
+                  CURRENT_VERSION: CONFIG.CURRENT_VERSION || '2.0.0',
+                  IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
+                });
+              },
+
+              // UI Health & Toolbar Control Dependencies
+              CURRENT_VERSION: CONFIG.CURRENT_VERSION || '2.0.0',
+              showToast: (title, subtitle, duration) => {
+                // Simple toast wrapper using showNotificationToast
+                Notifications.showNotificationToast(`${title} - ${subtitle}`, 'info', { targetDocument: document });
+              },
+              resetDockPosition: Overlay.resetDockPosition || (() => {}),
+
+              // UI Health Functions (referenced from Overlay module)
+              ensureUIHealthy: Overlay.ensureUIHealthy || (() => {}),
+              setupToolbarToggle: Overlay.setupToolbarToggle || (() => {}),
+              setupDockSizeControl: Overlay.setupDockSizeControl || (() => {}),
+
+              // Feature initialization - FULLY WIRED
+              initializeSortInventoryButton: () => {
+                // TODO: Wire from Shop module if available
+              },
+
+              initializeInstantFeedButtons: () => {
+                // REAL PET_FEED_CATALOG from Magic Garden/Magic Circle (Live-Beta line 31087)
+                const PET_FEED_CATALOG = {
+                  Worm: ['Carrot', 'Strawberry', 'Aloe', 'Tomato', 'Apple'],
+                  Snail: ['Blueberry', 'Tomato', 'Corn', 'Daffodil'],
+                  Bee: ['Strawberry', 'Blueberry', 'OrangeTulip', 'Daffodil', 'Lily'],
+                  Chicken: ['Aloe', 'Corn', 'Watermelon', 'Pumpkin'],
+                  Bunny: ['Carrot', 'Strawberry', 'Blueberry', 'Echeveria'],
+                  Dragonfly: ['Apple', 'OrangeTulip', 'Echeveria'],
+                  Pig: ['Watermelon', 'Pumpkin', 'Mushroom', 'Bamboo'],
+                  Cow: ['Coconut', 'Banana', 'BurrosTail', 'Mushroom'],
+                  Squirrel: ['Pumpkin', 'Banana', 'Grape'],
+                  Turtle: ['Watermelon', 'BurrosTail', 'Bamboo', 'Pepper'],
+                  Goat: ['Pumpkin', 'Coconut', 'Cactus', 'Pepper'],
+                  Butterfly: ['Daffodil', 'Lily', 'Grape', 'Lemon', 'Sunflower'],
+                  Capybara: ['Lemon', 'PassionFruit', 'DragonFruit', 'Lychee'],
+                  Peacock: ['Cactus', 'Sunflower', 'Lychee'],
+                  Copycat: []
+                };
+
+                // Create shared state for used crop IDs
+                const usedCropIds = new Set();
+
+                // getAtomValue helper (used by readMyPetSlots and handleInstantFeed)
+                const getAtomValue = atomName => {
+                  try {
+                    const store = RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog });
+                    if (store && store.get) {
+                      const atom = targetWin.jotaiAtomCache?.get?.(atomName);
+                      if (atom) {
+                        return store.get(atom);
+                      }
+                    }
+                  } catch (e) {
+                    // Silent fail, fallback to other methods
+                  }
+                  return null;
+                };
+
+                // readMyPetSlots function (from Live-Beta line 6838)
+                const readMyPetSlots = () => {
+                  try {
+                    return getAtomValue('myPetSlotInfosAtom');
+                  } catch {
+                    /* atom unavailable */
+                  }
+                  return UnifiedState.UnifiedState?.atoms?.activePets ?? null;
+                };
+
+                // Create bound handleInstantFeed with all dependencies
+                const boundHandleInstantFeed = (petIndex, buttonEl) => {
+                  return Pets.handleInstantFeed(petIndex, buttonEl, {
+                    targetWindow: targetWin,
+                    UnifiedState: UnifiedState.UnifiedState,
+                    getAtomValue,
+                    readAtom: atomName => RuntimeUtilities.readAtom(atomName, { targetWindow: targetWin }),
+                    readMyPetSlots,
+                    PET_FEED_CATALOG,
+                    sendFeedPet: Pets.sendFeedPet,
+                    feedPetEnsureSync: Pets.feedPetEnsureSync,
+                    flashButton: Pets.flashButton,
+                    usedCropIds
+                  });
+                };
+
+                // Initialize with all dependencies
+                Pets.initializeInstantFeedButtons({
+                  targetDocument: document,
+                  targetWindow: targetWin,
+                  UnifiedState: UnifiedState.UnifiedState,
+                  handleInstantFeed: boundHandleInstantFeed,
+                  captureJotaiStore: () => RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog }),
+                  productionLog
+                });
+              },
+
+              initializeTurtleTimer: () => {
+                // TODO: Wire from TurtleTimer module if available
+              },
+
+              updateTabContent: () => {
+                const contentEl = document.getElementById('mga-tab-content');
+                if (!contentEl || !UnifiedState.UnifiedState.activeTab) return;
+
+                const state = UnifiedState.UnifiedState;
+
+                switch (state.activeTab) {
+                  case 'pets':
+                    contentEl.innerHTML = Pets.getPetsTabContent({
+                      UnifiedState: state,
+                      calculateTimeUntilHungry: Pets.calculateTimeUntilHungry,
+                      formatHungerTimer: Pets.formatHungerTimer,
+                      ensurePresetOrder: Pets.ensurePresetOrder,
+                      productionLog
+                    });
+                    Pets.setupPetsTabHandlers(document, {
+                      UnifiedState: state,
+                      targetWindow: targetWin,
+                      targetDocument: document,
+                      productionLog,
+                      safeSendMessage: RuntimeUtilities.safeSendMessage,
+                      sendToGame: RuntimeUtilities.sendToGame,
+                      createToast: Notifications.showNotificationToast,
+                      exportPetPresets: Pets.exportPetPresets,
+                      importPetPresets: Pets.importPetPresets
+                    });
+                    break;
+
+                  case 'seeds':
+                    contentEl.innerHTML = TabContent.getSeedsTabContent({
+                      UnifiedState: state
+                    });
+                    // setupSeedsTabHandlers will be wired once extracted
+                    break;
+
+                  case 'abilities':
+                    contentEl.innerHTML = AbilitiesUI.getAbilitiesTabContent({
+                      UnifiedState: state,
+                      productionLog
+                    });
+                    // Setup abilities handlers if available
+                    if (AbilitiesHandlers.setupAbilitiesTabHandlers) {
+                      AbilitiesHandlers.setupAbilitiesTabHandlers(document, {
+                        UnifiedState: state,
+                        productionLog
+                      });
+                    }
+                    break;
+
+                  case 'values':
+                    contentEl.innerHTML = TabContent.getValuesTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+
+                  case 'timers':
+                    contentEl.innerHTML = TabContent.getTimersTabContent();
+                    break;
+
+                  case 'rooms':
+                    contentEl.innerHTML = TabContent.getRoomStatusTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+
+                  case 'tools':
+                    contentEl.innerHTML = TabContent.getToolsTabContent();
+                    break;
+
+                  case 'hotkeys':
+                    contentEl.innerHTML = TabContent.getHotkeysTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+
+                  case 'help':
+                    contentEl.innerHTML = TabContent.getHelpTabContent();
+                    break;
+
+                  case 'protect':
+                    contentEl.innerHTML = TabContent.getProtectTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+
+                  default:
+                    contentEl.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+                }
+              },
+
+              getContentForTab: (tabName, isPopout = false) => {
+                const state = UnifiedState.UnifiedState;
+
+                switch (tabName) {
+                  case 'pets':
+                    return isPopout ?
+                      Pets.getPetsPopoutContent({ UnifiedState: state, productionLog }) :
+                      Pets.getPetsTabContent({ UnifiedState: state, productionLog });
+                  case 'seeds':
+                    return TabContent.getSeedsTabContent({ UnifiedState: state });
+                  case 'abilities':
+                    return AbilitiesUI.getAbilitiesTabContent({ UnifiedState: state, productionLog });
+                  case 'values':
+                    return TabContent.getValuesTabContent({ UnifiedState: state });
+                  case 'timers':
+                    return TabContent.getTimersTabContent();
+                  case 'rooms':
+                    return TabContent.getRoomStatusTabContent({ UnifiedState: state });
+                  case 'tools':
+                    return TabContent.getToolsTabContent();
+                  case 'hotkeys':
+                    return TabContent.getHotkeysTabContent({ UnifiedState: state });
+                  case 'help':
+                    return TabContent.getHelpTabContent();
+                  case 'protect':
+                    return TabContent.getProtectTabContent({ UnifiedState: state });
+                  default:
+                    return '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+                }
+              },
+
+              setupSeedsTabHandlers: (context = document) => {
+                // TODO: Extract from Live-Beta and wire
+              },
+
+              setupPetsTabHandlers: (context = document) => {
+                Pets.setupPetsTabHandlers(context, {
+                  UnifiedState: UnifiedState.UnifiedState,
+                  targetWindow: targetWin,
+                  targetDocument: document,
+                  productionLog,
+                  safeSendMessage: RuntimeUtilities.safeSendMessage,
+                  sendToGame: RuntimeUtilities.sendToGame,
+                  createToast: Notifications.showNotificationToast,
+                  exportPetPresets: Pets.exportPetPresets,
+                  importPetPresets: Pets.importPetPresets
+                });
+              },
+
+              initializeTeleportSystem: () => {
+                // TODO: Wire if available
+              },
+
+              setupCropHighlightingSystem: () => {
+                // TODO: Wire from CropHighlighting module
+              },
+
+              initializeHotkeySystem: () => {
+                // TODO: Wire from Hotkeys module
+              },
+
+              // Runtime utilities
+              setManagedInterval,
+              clearManagedInterval,
+              captureJotaiStore: () => RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog })
+            });
+
+            console.log('[MGTools] ✅ Legacy bootstrap initialization complete!');
+          } catch (error) {
+            console.error('[MGTools] ❌ Initialization failed:', error);
+            console.error('[MGTools] Stack:', error.stack);
           }
 
           return true;

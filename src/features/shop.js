@@ -3535,6 +3535,21 @@ export function initializeShopWatcher(dependencies = {}) {
 }
 
 // ============================================================================
+// WRAPPER FUNCTIONS FOR EXTERNAL USE
+// ============================================================================
+
+/**
+ * Check shop restock - wrapper for checkForWatchedItems
+ * Used by interval timer in startIntervals()
+ *
+ * @param {object} dependencies - Injected dependencies
+ * @returns {void}
+ */
+export function checkShopRestock(dependencies = {}) {
+  return checkForWatchedItems(dependencies);
+}
+
+// ============================================================================
 // DEFAULT EXPORT
 // ============================================================================
 
@@ -3587,6 +3602,7 @@ export default {
   setupShopTabHandlers,
   // Phase 6: Shop Monitoring & Restock Detection
   checkForWatchedItems,
+  checkShopRestock,
   scheduleRefresh,
   handleEggRestockDetection,
   initializeToolRestockWatcher,

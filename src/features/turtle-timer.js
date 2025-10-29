@@ -897,3 +897,14 @@ export function initializeTurtleTimer(dependencies = {}) {
     console.log('⚠️ Could not attach debugCropDetection:', e);
   }
 }
+
+/**
+ * Check turtle timer - wrapper for insertTurtleEstimate
+ * Used by interval timer in startIntervals()
+ *
+ * @param {object} dependencies - Injected dependencies
+ * @returns {void}
+ */
+export function checkTurtleTimer(dependencies = {}) {
+  return insertTurtleEstimate(dependencies);
+}

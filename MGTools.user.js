@@ -845,8 +845,8 @@ Fix:
     },
     // Debug Settings
     DEBUG: {
-      PRODUCTION: true,
-      // Set to false for verbose debug logging
+      PRODUCTION: false,
+      // Set to false for verbose debug logging - ENABLED FOR DEBUGGING
       FLAGS: {
         OVERLAY_LIFECYCLE: false,
         HANDLER_SETUP: false,
@@ -3323,6 +3323,7 @@ ${title}:`);
   var runtime_utilities_exports = {};
   __export(runtime_utilities_exports, {
     RuntimeUtilities: () => RuntimeUtilities,
+    captureJotaiStore: () => captureJotaiStore,
     clearAllManagedIntervals: () => clearAllManagedIntervals,
     clearManagedInterval: () => clearManagedInterval,
     closeAllPopoutWindows: () => closeAllPopoutWindows,
@@ -3455,6 +3456,63 @@ ${title}:`);
     } catch (error) {
       console.error("\u274C sendToGame error:", error);
       return false;
+    }
+  }
+  var jotaiStore = null;
+  function captureJotaiStore(dependencies = {}) {
+    const {
+      targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null,
+      productionLog: productionLog3 = console.log
+    } = dependencies;
+    if (jotaiStore) return jotaiStore;
+    try {
+      const directStore = targetWindow3.__jotaiStore || targetWindow3.jotaiStore;
+      if (directStore && typeof directStore.get === "function" && typeof directStore.set === "function") {
+        jotaiStore = directStore;
+        console.log("\u2705 [STORE] Captured Jotai store from window.__jotaiStore");
+        return jotaiStore;
+      }
+      const hook = targetWindow3.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+      if (hook?.renderers?.size) {
+        for (const [rid] of hook.renderers) {
+          const roots = hook.getFiberRoots?.(rid);
+          if (!roots) continue;
+          for (const root of roots) {
+            const seen = /* @__PURE__ */ new Set();
+            const stack = [root.current];
+            while (stack.length) {
+              const fiber = stack.pop();
+              if (!fiber || seen.has(fiber)) continue;
+              seen.add(fiber);
+              const value = fiber?.pendingProps?.value;
+              if (value && typeof value.get === "function" && typeof value.set === "function" && typeof value.sub === "function") {
+                jotaiStore = value;
+                console.log("\u2705 [STORE] Captured Jotai store from React fiber tree");
+                return jotaiStore;
+              }
+              if (fiber.child) stack.push(fiber.child);
+              if (fiber.sibling) stack.push(fiber.sibling);
+              if (fiber.alternate) stack.push(fiber.alternate);
+            }
+          }
+        }
+      }
+      const atomCache = targetWindow3.jotaiAtomCache?.cache || targetWindow3.jotaiAtomCache;
+      if (atomCache && atomCache.size > 0) {
+        for (const [key, value] of atomCache.entries()) {
+          if (value?.store && typeof value.store.get === "function") {
+            jotaiStore = value.store;
+            console.log("\u2705 [STORE] Extracted Jotai store from atom cache metadata");
+            return jotaiStore;
+          }
+        }
+        productionLog3("\u23F3 [STORE] Atom cache exists but store not extractable - will use direct cache reading");
+      }
+      productionLog3("\u23F3 [STORE] Store not found - will fall back to direct atom cache reading");
+      return null;
+    } catch (error) {
+      console.error("[STORE] Error capturing Jotai store:", error);
+      return null;
     }
   }
   function readAtom2(atomName, dependencies = {}) {
@@ -3794,6 +3852,7 @@ ${title}:`);
     safeSendMessage,
     sendToGame,
     // Atom Utilities
+    captureJotaiStore,
     readAtom: readAtom2,
     hookAtom: hookAtom2,
     listenToSlotIndexAtom: listenToSlotIndexAtom2
@@ -6019,6 +6078,7 @@ ${title}:`);
     setupPetPopoutHandlers: () => setupPetPopoutHandlers,
     setupPureOverlayHandlers: () => setupPureOverlayHandlers,
     setupToolbarToggle: () => setupToolbarToggle,
+    toggleMainHUD: () => toggleMainHUD,
     toggleTabPopout: () => toggleTabPopout,
     updateOverlayContent: () => updateOverlayContent,
     updatePopoutButtonState: () => updatePopoutButtonState,
@@ -6397,6 +6457,8 @@ ${title}:`);
           padding: 20px;
           overflow-y: auto;
           color: white;
+          max-width: 400px;
+          max-height: 100vh;
       }
 
       .mgh-sidebar-body::-webkit-scrollbar { width: 6px; }
@@ -7061,7 +7123,7 @@ ${title}:`);
     UnifiedState3.panels.sidebar = sidebar;
     UnifiedState3.panels.sidebarBody = sidebarBody;
     setTimeout(() => {
-      const currentTheme = generateThemeStyles2();
+      const currentTheme = generateThemeStyles2({}, UnifiedState3.data.settings, false);
       const isBlackTheme = currentTheme.gradientStyle && currentTheme.gradientStyle.startsWith("black-");
       if (isBlackTheme && currentTheme.accentColor) {
         applyAccentToDock2(currentTheme);
@@ -7607,7 +7669,7 @@ ${title}:`);
       default:
         content = "<p>Tab content not available</p>";
     }
-    const currentTheme = UnifiedState3.currentTheme || deps.generateThemeStyles();
+    const currentTheme = UnifiedState3.currentTheme || deps.generateThemeStyles(UnifiedState3.data.settings, false);
     const popoutHTML = `
 <!DOCTYPE html>
 <html>
@@ -9146,6 +9208,29 @@ ${title}:`);
       duration: TAB_CACHE_DURATION
     };
   }
+  function toggleMainHUD(deps = {}) {
+    const { targetDocument: targetDocument2 = typeof document !== "undefined" ? document : null } = deps;
+    if (!targetDocument2) return;
+    try {
+      const dock = targetDocument2.querySelector("#mgh-dock");
+      const sidebar = targetDocument2.querySelector("#mgh-sidebar");
+      if (!dock) return;
+      const isHidden = dock.style.display === "none";
+      if (isHidden) {
+        dock.style.display = "";
+        if (sidebar) {
+          sidebar.style.display = "";
+        }
+      } else {
+        dock.style.display = "none";
+        if (sidebar) {
+          sidebar.style.display = "none";
+        }
+      }
+    } catch (error) {
+      console.error("[MGTools] Failed to toggle main HUD:", error);
+    }
+  }
 
   // src/ui/theme-system.js
   var theme_system_exports = {};
@@ -9161,6 +9246,7 @@ ${title}:`);
     calculateScale: () => calculateScale,
     generateThemeStyles: () => generateThemeStyles,
     getAccentColorForTheme: () => getAccentColorForTheme,
+    syncThemeToAllWindows: () => syncThemeToAllWindows,
     updateTabResponsiveness: () => updateTabResponsiveness
   });
   function generateThemeStyles(deps, settings, isPopout = false) {
@@ -9942,6 +10028,29 @@ ${title}:`);
       } else if (tabRect.left < containerRect.left) {
         tabsContainer.scrollLeft -= containerRect.left - tabRect.left + 10;
       }
+    }
+  }
+  function syncThemeToAllWindows(deps = {}) {
+    const {
+      targetDocument: targetDocument2 = typeof document !== "undefined" ? document : null,
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      generateThemeStyles: generateTheme = generateThemeStyles,
+      applyThemeToPopoutWidget: applyTheme2 = applyThemeToPopoutWidget
+    } = deps;
+    if (!targetDocument2 || !UnifiedState3) return;
+    try {
+      const settings = UnifiedState3.data?.settings;
+      if (!settings) return;
+      const themeStyles = generateTheme(deps, settings, true);
+      if (!themeStyles) return;
+      const popouts = targetDocument2.querySelectorAll(".mga-popout-window");
+      popouts.forEach((popout) => {
+        if (popout && popout.isConnected) {
+          applyTheme2(deps, popout, themeStyles);
+        }
+      });
+    } catch (error) {
+      console.error("[MGTools] Failed to sync theme to windows:", error);
     }
   }
 
@@ -12772,7 +12881,7 @@ ${title}:`);
       UnifiedState: UnifiedState3,
       document: document2,
       createDemoData,
-      loadSavedData,
+      loadSavedData: loadSavedData2,
       createUnifiedUI: createUnifiedUI2,
       ensureUIHealthy: ensureUIHealthy2,
       setupToolbarToggle: setupToolbarToggle2,
@@ -12783,7 +12892,11 @@ ${title}:`);
       productionLog: productionLog3,
       debugError: debugError2,
       cleanupCorruptedDockPosition: cleanupCorruptedDockPosition3,
-      generateDemoTiles: generateDemoTiles2
+      generateDemoTiles: generateDemoTiles2,
+      // UI Health & Toolbar Control Dependencies
+      CURRENT_VERSION: CURRENT_VERSION2,
+      showToast,
+      resetDockPosition: resetDockPosition2
     } = deps;
     if (UnifiedState3.initialized) {
       productionLog3("\u26A0\uFE0F Magic Garden Unified Assistant already initialized, skipping...");
@@ -12809,13 +12922,29 @@ ${title}:`);
       productionLog3("\u{1F4DD} Skipping demo ability logs injection - using real logs only");
       UnifiedState3.data.timers = demoData.timers;
       productionLog3("\u{1F4BE} Loading saved settings...");
-      loadSavedData();
+      loadSavedData2();
       productionLog3("\u{1F3A8} Creating Demo UI...");
       cleanupCorruptedDockPosition3();
       createUnifiedUI2();
-      ensureUIHealthy2();
-      setupToolbarToggle2();
-      setupDockSizeControl2();
+      ensureUIHealthy2({
+        targetDocument: document2,
+        cleanupCorruptedDockPosition: cleanupCorruptedDockPosition3,
+        createUnifiedUI: createUnifiedUI2,
+        showToast
+      });
+      setupToolbarToggle2({
+        targetDocument: document2,
+        document: document2,
+        productionLog: productionLog3,
+        showToast,
+        CURRENT_VERSION: CURRENT_VERSION2
+      });
+      setupDockSizeControl2({
+        targetDocument: document2,
+        document: document2,
+        resetDockPosition: resetDockPosition2,
+        showToast
+      });
       addDemoBanner2();
       productionLog3("\u23F0 Setting up demo timers...");
       setupDemoTimers2();
@@ -12867,7 +12996,7 @@ ${title}:`);
       continueInitialization: continueInitialization2,
       setTimeout: setTimeout2,
       performanceNow,
-      startIntervals,
+      startIntervals: startIntervals2,
       console: console2,
       productionLog: productionLog3,
       productionWarn: productionWarn3,
@@ -12946,8 +13075,8 @@ ${title}:`);
       if (typeof targetWindow3.notificationInterval === "undefined" || !targetWindow3._mgaIntervalsStarted) {
         productionWarn3("\u26A0\uFE0F [FAILSAFE] Intervals not started after 30s, forcing start...");
         try {
-          if (typeof startIntervals === "function") {
-            startIntervals();
+          if (typeof startIntervals2 === "function") {
+            startIntervals2();
             productionLog3("\u2705 [FAILSAFE] Successfully started intervals");
           } else {
             console2.error("\u274C [FAILSAFE] startIntervals function not found!");
@@ -12973,7 +13102,7 @@ ${title}:`);
       debugLog: debugLog3,
       debugError: debugError2,
       MGA_DEBUG,
-      loadSavedData,
+      loadSavedData: loadSavedData2,
       cleanupCorruptedDockPosition: cleanupCorruptedDockPosition3,
       createUnifiedUI: createUnifiedUI2,
       ensureUIHealthy: ensureUIHealthy2,
@@ -12981,13 +13110,13 @@ ${title}:`);
       setupDockSizeControl: setupDockSizeControl2,
       initializeSortInventoryButton,
       initializeInstantFeedButtons: initializeInstantFeedButtons2,
-      initializeAtoms,
+      initializeAtoms: initializeAtoms2,
       initializeTurtleTimer: initializeTurtleTimer3,
-      startIntervals,
-      applyTheme,
-      applyUltraCompactMode: applyUltraCompactMode2,
-      applyWeatherSetting,
-      initializeKeyboardShortcuts,
+      startIntervals: startIntervals2,
+      applyTheme: applyTheme2,
+      applyUltraCompactMode: applyUltraCompactMode3,
+      applyWeatherSetting: applyWeatherSetting2,
+      initializeKeyboardShortcuts: initializeKeyboardShortcuts2,
       updateTabContent,
       getContentForTab: getContentForTab2,
       setupSeedsTabHandlers,
@@ -12996,7 +13125,11 @@ ${title}:`);
       setupCropHighlightingSystem: setupCropHighlightingSystem2,
       initializeHotkeySystem: initializeHotkeySystem2,
       setManagedInterval: setManagedInterval2,
-      clearManagedInterval: clearManagedInterval2
+      clearManagedInterval: clearManagedInterval2,
+      // UI Health & Toolbar Control Dependencies
+      CURRENT_VERSION: CURRENT_VERSION2,
+      showToast,
+      resetDockPosition: resetDockPosition2
     } = deps;
     productionLog3("\u{1F331} Magic Garden Unified Assistant initializing...");
     productionLog3("\u{1F4CA} Connection Status:", targetWindow3.MagicCircle_RoomConnection ? "\u2705 Available" : "\u274C Not found");
@@ -13011,7 +13144,7 @@ ${title}:`);
     productionLog3("\u{1F4DD} [IDLE-PREVENTION] Idle prevention already applied at script start");
     try {
       productionLog3("\u{1F4BE} Loading saved data...");
-      loadSavedData();
+      loadSavedData2();
       if (MGA_DEBUG) {
         MGA_DEBUG.logStage("CREATE_UI_STARTING", {
           dataLoaded: !!UnifiedState3.data,
@@ -13022,9 +13155,25 @@ ${title}:`);
       try {
         cleanupCorruptedDockPosition3();
         createUnifiedUI2();
-        ensureUIHealthy2();
-        setupToolbarToggle2();
-        setupDockSizeControl2();
+        ensureUIHealthy2({
+          targetDocument: document2,
+          cleanupCorruptedDockPosition: cleanupCorruptedDockPosition3,
+          createUnifiedUI: createUnifiedUI2,
+          showToast
+        });
+        setupToolbarToggle2({
+          targetDocument: document2,
+          document: document2,
+          productionLog: productionLog3,
+          showToast,
+          CURRENT_VERSION: CURRENT_VERSION2
+        });
+        setupDockSizeControl2({
+          targetDocument: document2,
+          document: document2,
+          resetDockPosition: resetDockPosition2,
+          showToast
+        });
         if (MGA_DEBUG) {
           MGA_DEBUG.logStage("CREATE_UI_COMPLETED", {
             uiElements: document2.querySelectorAll(".mga-panel, .mga-toggle-btn").length,
@@ -13112,20 +13261,20 @@ ${title}:`);
         const checkedSeeds = document2.querySelectorAll(".seed-checkbox:checked");
       }, 100);
       productionLog3("\u{1F517} Initializing atom hooks...");
-      initializeAtoms();
+      initializeAtoms2();
       productionLog3("\u{1F422} Initializing turtle timer...");
       initializeTurtleTimer3();
       productionLog3("\u23F1\uFE0F Starting monitoring intervals...");
-      startIntervals();
+      startIntervals2();
       productionLog3("\u{1F3A8} Applying saved theme settings...");
-      applyTheme();
+      applyTheme2();
       if (UnifiedState3.data.settings.ultraCompactMode) {
         productionLog3("\u{1F4F1} Applying saved ultra-compact mode...");
-        applyUltraCompactMode2(true);
+        applyUltraCompactMode3(true);
       }
       productionLog3("\u{1F327}\uFE0F Applying saved weather setting...");
-      applyWeatherSetting();
-      initializeKeyboardShortcuts();
+      applyWeatherSetting2();
+      initializeKeyboardShortcuts2();
       productionLog3("\u{1F504} Applying delayed UI refresh to ensure saved state is displayed...");
       setTimeout2(() => {
         productionLog3("\u{1F504} [DATA-PERSISTENCE] Applying delayed UI refresh...");
@@ -13139,25 +13288,32 @@ ${title}:`);
           productionLog3("\u2705 [DATA-PERSISTENCE] UI refreshed with saved state");
         }
         if (UnifiedState3.data?.popouts?.overlays) {
-          UnifiedState3.data.popouts.overlays.forEach((overlay, tabName) => {
-            if (overlay && document2.contains(overlay)) {
-              try {
-                const content = getContentForTab2(tabName, true);
-                const contentEl = overlay.querySelector(".mga-overlay-content, .mga-content");
-                if (contentEl) {
-                  contentEl.innerHTML = content;
-                  if (tabName === "seeds" && typeof setupSeedsTabHandlers === "function") {
-                    setupSeedsTabHandlers(overlay);
-                  } else if (tabName === "pets" && typeof setupPetsTabHandlers2 === "function") {
-                    setupPetsTabHandlers2(overlay);
+          const overlays = UnifiedState3.data.popouts.overlays;
+          if (overlays instanceof Map) {
+            overlays.forEach((overlay, tabName) => {
+              if (overlay && document2.contains(overlay)) {
+                try {
+                  const content = getContentForTab2(tabName, true);
+                  const contentEl = overlay.querySelector(".mga-overlay-content, .mga-content");
+                  if (contentEl) {
+                    contentEl.innerHTML = content;
+                    if (tabName === "seeds" && typeof setupSeedsTabHandlers === "function") {
+                      setupSeedsTabHandlers(overlay);
+                    } else if (tabName === "pets" && typeof setupPetsTabHandlers2 === "function") {
+                      setupPetsTabHandlers2(overlay);
+                    }
+                    productionLog3(`\u2705 [DATA-PERSISTENCE] Refreshed ${tabName} overlay with saved state`);
                   }
-                  productionLog3(`\u2705 [DATA-PERSISTENCE] Refreshed ${tabName} overlay with saved state`);
+                } catch (error) {
+                  productionWarn3(`\u26A0\uFE0F [DATA-PERSISTENCE] Failed to refresh ${tabName} overlay:`, error);
                 }
-              } catch (error) {
-                productionWarn3(`\u26A0\uFE0F [DATA-PERSISTENCE] Failed to refresh ${tabName} overlay:`, error);
               }
-            }
-          });
+            });
+          } else if (typeof overlays === "object") {
+            productionLog3("[DATA-PERSISTENCE] \u26A0\uFE0F Popouts overlays is a plain object (JSON deserialized), skipping iteration");
+          } else {
+            debugLog3("[DATA-PERSISTENCE] Unexpected popouts.overlays type:", typeof overlays);
+          }
         }
       }, 1e3);
       initializeTeleportSystem();
@@ -13593,7 +13749,7 @@ ${title}:`);
       createInGameOverlay: createInGameOverlay2,
       closeInGameOverlay: closeInGameOverlay2,
       refreshOverlayContent: refreshOverlayContent2,
-      applyTheme,
+      applyTheme: applyTheme2,
       safeSendMessage: safeSendMessage2,
       MGA_saveJSON: MGA_saveJSON2,
       MGA_manageLogMemory: MGA_manageLogMemory2,
@@ -13788,13 +13944,13 @@ ${title}:`);
           const originalStyle = UnifiedState3.data.settings.gradientStyle;
           UnifiedState3.data.settings.gradientStyle = "rainbow-burst";
           UnifiedState3.data.settings.opacity = 75;
-          applyTheme();
+          applyTheme2();
           productionLog3("\u2705 Test theme applied! Check all windows for rainbow theme.");
           productionLog3("\u{1F4A1} Open a pop-out or overlay to see the theme in action!");
           setTimeout(() => {
             UnifiedState3.data.settings.gradientStyle = originalStyle;
             UnifiedState3.data.settings.opacity = 95;
-            applyTheme();
+            applyTheme2();
             productionLog3("\u{1F504} Original theme restored.");
           }, 5e3);
         },
@@ -14837,6 +14993,319 @@ ${title}:`);
     setupCleanupHandler,
     setupEventHandlers
   };
+
+  // src/init/init-functions.js
+  function loadSavedData(deps) {
+    const {
+      UnifiedState: UnifiedState3,
+      MGA_loadJSON: MGA_loadJSON2,
+      performStorageHealthCheck: performStorageHealthCheck2,
+      productionLog: productionLog3,
+      productionWarn: productionWarn3,
+      targetWindow: targetWindow3
+    } = deps;
+    targetWindow3.MGA_PERSISTENCE_GUARD = {
+      initializationSavesBlocked: true,
+      finalSaveLocation: 23480,
+      warningMessage: "\u26A0\uFE0F BLOCKED: Premature save during initialization detected! Only final save at line ~23480 is allowed."
+    };
+    productionLog3("\u{1F6E1}\uFE0F [PERSISTENCE-GUARD] Initialized - blocking premature saves during initialization");
+    productionLog3("\u{1F3E5} [HEALTH-CHECK] Running storage health check...");
+    const healthReport = performStorageHealthCheck2();
+    productionLog3("\u{1F3E5} [HEALTH-CHECK] Results:", {
+      GM: healthReport.writeTest.GM || "N/A",
+      localStorage: healthReport.writeTest.localStorage || "N/A",
+      issues: healthReport.issues.length
+    });
+    if (healthReport.issues.length > 0) {
+      productionWarn3("\u26A0\uFE0F [HEALTH-CHECK] Storage issues detected:", healthReport.issues);
+      healthReport.issues.forEach((issue) => {
+        productionWarn3(`  - ${issue.severity}: ${issue.message}`);
+      });
+    }
+    const savedData = MGA_loadJSON2("MGA_data", null);
+    if (savedData && typeof savedData === "object") {
+      Object.keys(savedData).forEach((key) => {
+        if (key in UnifiedState3.data) {
+          if (typeof savedData[key] === "object" && !Array.isArray(savedData[key])) {
+            UnifiedState3.data[key] = { ...UnifiedState3.data[key], ...savedData[key] };
+          } else {
+            UnifiedState3.data[key] = savedData[key];
+          }
+        }
+      });
+      productionLog3("\u2705 Loaded saved data from storage");
+      productionLog3("\u{1F4CA} Loaded state keys:", Object.keys(savedData).join(", "));
+    } else {
+      productionLog3("\u{1F4A1} No saved data found, using defaults");
+    }
+    targetWindow3.MGA_PERSISTENCE_GUARD.initializationSavesBlocked = false;
+    productionLog3("\u{1F6E1}\uFE0F [PERSISTENCE-GUARD] Disabled - normal saves now allowed");
+  }
+  function initializeAtoms(deps) {
+    const {
+      UnifiedState: UnifiedState3,
+      targetWindow: targetWindow3,
+      hookAtom: hookAtom3,
+      setManagedInterval: setManagedInterval2,
+      updateTabContent,
+      document: document2,
+      productionLog: productionLog3,
+      updateActivePetsFromRoomState: updateActivePetsFromRoomState2
+    } = deps;
+    productionLog3("\u{1F517} [SIMPLE-ATOMS] Starting simple atom initialization...");
+    productionLog3("\u{1F43E} [SIMPLE-ATOMS] Setting up room state pet detection...");
+    updateActivePetsFromRoomState2();
+    setManagedInterval2(
+      "petDetection",
+      () => {
+        updateActivePetsFromRoomState2();
+        if (targetWindow3.activePets && Array.isArray(targetWindow3.activePets) && targetWindow3.activePets.length > 0) {
+          productionLog3("\u{1F43E} [PERIODIC-CHECK] Found pets in window.activePets:", targetWindow3.activePets);
+          if (!UnifiedState3.atoms.activePets || UnifiedState3.atoms.activePets.length !== targetWindow3.activePets.length) {
+            UnifiedState3.atoms.activePets = targetWindow3.activePets;
+            if (UnifiedState3.activeTab === "pets") {
+              updateTabContent();
+            }
+          }
+        }
+      },
+      3e4
+    );
+    hookAtom3(
+      "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/_archive/myPetSlotsAtom.ts/myPetSlotsAtom",
+      "activePets",
+      (petSlots) => {
+        if (UnifiedState3.data.settings?.debugMode) {
+          productionLog3("\u{1F43E} [ATOM-DEBUG] myPetSlotsAtom raw value:", {
+            value: petSlots,
+            type: typeof petSlots,
+            isArray: Array.isArray(petSlots),
+            length: petSlots?.length,
+            valueIsArray: Array.isArray(petSlots?.value),
+            valueLength: petSlots?.value?.length
+          });
+        }
+        UnifiedState3.atoms.activePets = petSlots || [];
+        targetWindow3.activePets = petSlots || [];
+        if (UnifiedState3.activeTab === "pets") {
+          updateTabContent();
+        }
+      },
+      0,
+      {
+        targetWindow: targetWindow3,
+        UnifiedState: UnifiedState3,
+        productionLog: productionLog3,
+        productionWarn: () => {
+        },
+        console
+      }
+    );
+    hookAtom3(
+      "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/friendBonusAtom.ts/friendBonusAtom",
+      "friendBonus",
+      (value) => {
+        UnifiedState3.atoms.friendBonus = value || 1;
+        targetWindow3.friendBonus = value || 1;
+      },
+      0,
+      {
+        targetWindow: targetWindow3,
+        UnifiedState: UnifiedState3,
+        productionLog: productionLog3,
+        productionWarn: () => {
+        },
+        console
+      }
+    );
+    hookAtom3(
+      "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myGardenAtom.ts/myGardenAtom",
+      "myGarden",
+      (garden) => {
+        UnifiedState3.atoms.myGarden = garden || {};
+        targetWindow3.myGarden = garden || {};
+      },
+      0,
+      {
+        targetWindow: targetWindow3,
+        UnifiedState: UnifiedState3,
+        productionLog: productionLog3,
+        productionWarn: () => {
+        },
+        console
+      }
+    );
+    hookAtom3(
+      "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myInventoryAtom.ts/myInventoryAtom",
+      "inventory",
+      (inventory) => {
+        UnifiedState3.atoms.inventory = inventory || { items: [] };
+        targetWindow3.inventory = inventory || { items: [] };
+      },
+      0,
+      {
+        targetWindow: targetWindow3,
+        UnifiedState: UnifiedState3,
+        productionLog: productionLog3,
+        productionWarn: () => {
+        },
+        console
+      }
+    );
+    productionLog3("\u2705 [SIMPLE-ATOMS] Atom initialization complete");
+  }
+  function startIntervals(deps) {
+    const {
+      targetWindow: targetWindow3,
+      setManagedInterval: setManagedInterval2,
+      checkShopRestock: checkShopRestock2,
+      checkTurtleTimer: checkTurtleTimer2,
+      productionLog: productionLog3
+    } = deps;
+    productionLog3("\u23F1\uFE0F Starting monitoring intervals...");
+    if (checkShopRestock2) {
+      setManagedInterval2("shopRestock", checkShopRestock2, 3e4);
+      productionLog3("\u2705 Shop restock monitoring started");
+    }
+    if (checkTurtleTimer2) {
+      setManagedInterval2("turtleTimer", checkTurtleTimer2, 1e4);
+      productionLog3("\u2705 Turtle timer monitoring started");
+    }
+    targetWindow3._mgaIntervalsStarted = true;
+    productionLog3("\u2705 All monitoring intervals started");
+  }
+  function applyTheme(deps) {
+    const {
+      UnifiedState: UnifiedState3,
+      generateThemeStyles: generateThemeStyles2,
+      applyThemeToElement: applyThemeToElement2,
+      applyThemeToDock: applyThemeToDock2,
+      applyThemeToSidebar: applyThemeToSidebar2,
+      applyAccentToDock: applyAccentToDock2,
+      applyAccentToSidebar: applyAccentToSidebar2,
+      syncThemeToAllWindows: syncThemeToAllWindows2
+    } = deps;
+    const themeStyles = generateThemeStyles2({}, UnifiedState3.data.settings, false);
+    UnifiedState3.currentTheme = themeStyles;
+    const panel = UnifiedState3.panels.main;
+    if (panel && applyThemeToElement2) {
+      applyThemeToElement2({ document }, panel, themeStyles);
+    }
+    const isBlackTheme = themeStyles.gradientStyle && themeStyles.gradientStyle.startsWith("black-");
+    if (isBlackTheme && themeStyles.accentColor) {
+      applyAccentToDock2({ document }, themeStyles);
+      applyAccentToSidebar2({ document }, themeStyles);
+    } else {
+      applyThemeToDock2({ document }, themeStyles);
+      applyThemeToSidebar2({ document }, themeStyles);
+    }
+    if (syncThemeToAllWindows2) {
+      syncThemeToAllWindows2();
+    }
+  }
+  function applyUltraCompactMode2(deps, enabled) {
+    const { document: document2, productionLog: productionLog3 } = deps;
+    const panel = document2.querySelector(".mga-panel");
+    if (!panel) return;
+    if (enabled) {
+      panel.classList.add("ultra-compact");
+      productionLog3("\u{1F4F1} Ultra-compact mode enabled");
+    } else {
+      panel.classList.remove("ultra-compact");
+      productionLog3("\u{1F4F1} Ultra-compact mode disabled");
+    }
+    const compactStyles = `
+    .mga-panel.ultra-compact {
+      max-width: 300px !important;
+    }
+    .mga-panel.ultra-compact .mga-tab-content {
+      font-size: 11px !important;
+      padding: 8px !important;
+    }
+    .mga-panel.ultra-compact button {
+      padding: 4px 8px !important;
+      font-size: 11px !important;
+    }
+    .mga-panel.ultra-compact input,
+    .mga-panel.ultra-compact select {
+      font-size: 11px !important;
+      padding: 4px !important;
+    }
+  `;
+    let styleEl = document2.getElementById("mga-ultra-compact-styles");
+    if (enabled) {
+      if (!styleEl) {
+        styleEl = document2.createElement("style");
+        styleEl.id = "mga-ultra-compact-styles";
+        styleEl.textContent = compactStyles;
+        document2.head.appendChild(styleEl);
+      }
+    } else {
+      if (styleEl) {
+        styleEl.remove();
+      }
+    }
+  }
+  function applyWeatherSetting(deps) {
+    const { UnifiedState: UnifiedState3, document: document2, productionLog: productionLog3 } = deps;
+    const hideWeather = UnifiedState3.data.settings.hideWeather || false;
+    const weatherElements = document2.querySelectorAll('[class*="weather"], [class*="Weather"]');
+    weatherElements.forEach((el2) => {
+      if (hideWeather) {
+        el2.style.display = "none";
+      } else {
+        el2.style.display = "";
+      }
+    });
+    let styleEl = document2.getElementById("mga-weather-hide-styles");
+    if (hideWeather) {
+      if (!styleEl) {
+        styleEl = document2.createElement("style");
+        styleEl.id = "mga-weather-hide-styles";
+        styleEl.textContent = `
+        [class*="weather"],
+        [class*="Weather"],
+        [data-weather] {
+          display: none !important;
+        }
+      `;
+        document2.head.appendChild(styleEl);
+      }
+      productionLog3("\u{1F327}\uFE0F Weather hidden");
+    } else {
+      if (styleEl) {
+        styleEl.remove();
+      }
+      productionLog3("\u{1F327}\uFE0F Weather visible");
+    }
+  }
+  function initializeKeyboardShortcuts(deps) {
+    const { UnifiedState: UnifiedState3, document: document2, toggleMainHUD: toggleMainHUD2, productionLog: productionLog3 } = deps;
+    document2.addEventListener("keydown", (e) => {
+      if (e.altKey && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        if (toggleMainHUD2) {
+          toggleMainHUD2();
+        }
+      }
+    });
+    document2.addEventListener("keydown", (e) => {
+      if (e.altKey && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        UnifiedState3.data.settings.turtleTimerEnabled = !UnifiedState3.data.settings.turtleTimerEnabled;
+        productionLog3(`\u{1F422} Turtle timer ${UnifiedState3.data.settings.turtleTimerEnabled ? "enabled" : "disabled"}`);
+      }
+    });
+    document2.addEventListener("keydown", (e) => {
+      if (e.altKey && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        UnifiedState3.data.settings.protectionEnabled = !UnifiedState3.data.settings.protectionEnabled;
+        productionLog3(`\u{1F6E1}\uFE0F Protection ${UnifiedState3.data.settings.protectionEnabled ? "enabled" : "disabled"}`);
+      }
+    });
+    productionLog3("\u2328\uFE0F Keyboard shortcuts initialized (Alt+M, Alt+T, Alt+P)");
+  }
 
   // src/features/pets.js
   var pets_exports = {};
@@ -17723,13 +18192,13 @@ Error: ${error.message}`);
       }
     };
   }
-  function initializeInstantFeedButtons({ targetDocument: targetDocument2, targetWindow: targetWindow3, createInstantFeedButton: createInstantFeedButton2, captureJotaiStore, productionLog: productionLog3 }, options = {}) {
+  function initializeInstantFeedButtons({ targetDocument: targetDocument2, targetWindow: targetWindow3, UnifiedState: UnifiedState3, handleInstantFeed: handleInstantFeed2, captureJotaiStore: captureJotaiStore2, productionLog: productionLog3 }, options = {}) {
     const { pollInterval = 2e3 } = options;
     console.log("[MGTools Feed] \u{1F680} Initializing instant feed buttons with polling interval...");
-    let jotaiStore = null;
-    if (!jotaiStore) {
-      jotaiStore = captureJotaiStore();
-      if (jotaiStore) {
+    let jotaiStore2 = null;
+    if (!jotaiStore2) {
+      jotaiStore2 = captureJotaiStore2();
+      if (jotaiStore2) {
         console.log("[MGTools Feed] \u2705 Jotai store captured at initialization");
       } else {
         console.log("[MGTools Feed] \u23F3 Jotai store not ready yet - will use fallback data");
@@ -17786,7 +18255,7 @@ Error: ${error.message}`);
         if (currentPosition === "static") {
           container.style.position = "relative";
         }
-        const btn = createInstantFeedButton2(index);
+        const btn = createInstantFeedButton(index, { targetDocument: targetDocument2, UnifiedState: UnifiedState3, handleInstantFeed: handleInstantFeed2 });
         container.appendChild(btn);
         return true;
       } catch (err) {
@@ -18287,2347 +18756,6 @@ Error: ${error.message}`);
     setupAbilitiesTabHandlers
   };
 
-  // src/features/abilities/abilities-ui.js
-  var abilities_ui_exports = {};
-  __export(abilities_ui_exports, {
-    getAbilitiesTabContent: () => getAbilitiesTabContent
-  });
-  function getAbilitiesTabContent(dependencies = {}) {
-    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState } = dependencies;
-    const logs = (UnifiedState3?.data?.petAbilityLogs || []).slice(0, 30);
-    const filterMode = UnifiedState3?.data?.filterMode || "categories";
-    const abilityFilters = UnifiedState3?.data?.abilityFilters || {};
-    const debugMode = UnifiedState3?.data?.settings?.debugMode || false;
-    const detailedTimestamps = UnifiedState3?.data?.settings?.detailedTimestamps || false;
-    const html = `
-          <div class="mga-section">
-              <div class="mga-section-title">Filter Mode</div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
-                  <div style="display: flex; gap: 6px;">
-                      <button class="mga-btn mga-btn-sm ${filterMode === "categories" ? "active" : ""}" id="filter-mode-categories" style="padding: 6px 12px; font-size: 12px;">Categories</button>
-                      <button class="mga-btn mga-btn-sm ${filterMode === "byPet" ? "active" : ""}" id="filter-mode-bypet" style="padding: 6px 12px; font-size: 12px;">By Pet</button>
-                      <button class="mga-btn mga-btn-sm ${filterMode === "custom" ? "active" : ""}" id="filter-mode-custom" style="padding: 6px 12px; font-size: 12px;">Custom</button>
-                  </div>
-                  <div style="display: flex; gap: 6px;">
-                      <button class="mga-btn mga-btn-sm" id="select-all-filters" style="padding: 6px 10px; font-size: 11px;">All</button>
-                      <button class="mga-btn mga-btn-sm" id="select-none-filters" style="padding: 6px 10px; font-size: 11px;">None</button>
-                  </div>
-              </div>
-              <div id="filter-mode-description" style="font-size: 11px; color: #aaa; margin-bottom: 12px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px;">
-                  ${filterMode === "categories" ? "\u{1F4C2} Filter by ability categories" : filterMode === "byPet" ? "\u{1F43E} Filter by pet species" : "\u2699\uFE0F Filter by individual abilities"}
-              </div>
-
-              <!-- Categories Mode -->
-              <div id="category-filters" style="display: ${filterMode === "categories" ? "grid" : "none"}; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.xpBoost ? "checked" : ""} data-filter="xpBoost" style="accent-color: #4a9eff;">
-                      <span class="mga-label" style="font-size: 12px;">\u{1F4AB} XP Boost</span>
-                  </label>
-                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.cropSizeBoost ? "checked" : ""} data-filter="cropSizeBoost" style="accent-color: #4a9eff;">
-                      <span class="mga-label" style="font-size: 12px;">\u{1F4C8} Crop Size Boost</span>
-                  </label>
-                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.selling ? "checked" : ""} data-filter="selling" style="accent-color: #4a9eff;">
-                      <span class="mga-label" style="font-size: 12px;">\u{1F4B0} Selling</span>
-                  </label>
-                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.harvesting ? "checked" : ""} data-filter="harvesting" style="accent-color: #4a9eff;">
-                      <span class="mga-label" style="font-size: 12px;">\u{1F33E} Harvesting</span>
-                  </label>
-                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.growthSpeed ? "checked" : ""} data-filter="growthSpeed" style="accent-color: #4a9eff;">
-                      <span class="mga-label" style="font-size: 12px;">\u{1F422} Growth Speed</span>
-                  </label>
-                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.specialMutations ? "checked" : ""} data-filter="specialMutations" style="accent-color: #4a9eff;">
-                      <span class="mga-label" style="font-size: 12px;">\u{1F308}\u2728 Special Mutations</span>
-                  </label>
-                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.other ? "checked" : ""} data-filter="other" style="accent-color: #4a9eff;">
-                      <span class="mga-label" style="font-size: 12px;">\u{1F527} Other</span>
-                  </label>
-              </div>
-
-              <!-- By Pet Mode -->
-              <div id="pet-filters" style="display: ${filterMode === "byPet" ? "block" : "none"}; margin-bottom: 8px;">
-                  <div id="pet-species-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; padding: 8px;">
-                      <div style="color: #888; text-align: center;">Loading pet species...</div>
-                  </div>
-              </div>
-
-              <!-- Custom Mode -->
-              <div id="custom-filters" style="display: ${filterMode === "custom" ? "block" : "none"}; margin-bottom: 8px;">
-                  <div id="individual-abilities-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; padding: 8px;">
-                      <div style="color: #888; text-align: center;">Loading individual abilities...</div>
-                  </div>
-              </div>
-
-              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
-                  <button class="mga-btn mga-btn-sm" id="clear-logs-btn">Clear Logs</button>
-                  <button class="mga-btn mga-btn-sm" id="export-logs-btn">Export CSV</button>
-                  ${debugMode ? '<button class="mga-btn mga-btn-sm" id="diagnose-logs-btn" style="background: #ff6b35;">\u{1F50D} Diagnose Storage</button>' : ""}
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">Recent Ability Triggers</div>
-              <div style="margin-bottom: 8px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="detailed-timestamps-checkbox" class="mga-checkbox"
-                             ${detailedTimestamps ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F550} Show detailed timestamps (HH:MM:SS)</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      When enabled, shows detailed 24-hour format timestamps instead of 12-hour format.
-                  </p>
-              </div>
-              <div id="ability-logs" class="mga-scrollable" style="max-height: 400px; overflow-y: auto;">
-                  ${logs.length === 0 ? '<div style="color: #888; text-align: center; padding: 20px;">No ability logs yet. Ability logs will appear here when your pets trigger abilities in-game.</div>' : ""}
-              </div>
-          </div>
-      `;
-    return html;
-  }
-
-  // src/features/settings-ui.js
-  var settings_ui_exports = {};
-  __export(settings_ui_exports, {
-    getSettingsTabContent: () => getSettingsTabContent,
-    setupSettingsTabHandlers: () => setupSettingsTabHandlers
-  });
-  function getSettingsTabContent(dependencies = {}) {
-    const {
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      CompatibilityMode: CompatibilityMode2 = typeof window !== "undefined" && window.CompatibilityMode
-    } = dependencies;
-    const settings = UnifiedState3.data.settings;
-    return `
-          <div class="mga-section">
-              <div class="mga-section-title">Appearance</div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                      Main HUD Opacity: ${settings.opacity}%
-                  </label>
-                  <input type="range" class="mga-slider" id="opacity-slider"
-                         min="0" max="100" value="${settings.opacity}"
-                         style="width: 100%; accent-color: #4a9eff;">
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                      Pop-out Opacity: ${settings.popoutOpacity}%
-                  </label>
-                  <input type="range" class="mga-slider" id="popout-opacity-slider"
-                         min="0" max="100" value="${settings.popoutOpacity}"
-                         style="width: 100%; accent-color: #4a9eff;">
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Gradient Style
-                  </label>
-                  <select class="mga-select" id="gradient-select" style="margin-bottom: 8px;">
-                      <optgroup label="\u26AB Black Accent Themes">
-                          <option value="black-void" ${settings.gradientStyle === "black-void" ? "selected" : ""}>\u26AB\u2B1B Pure Void</option>
-                          <option value="black-crimson" ${settings.gradientStyle === "black-crimson" ? "selected" : ""}>\u26AB\u{1F534} Midnight Crimson</option>
-                          <option value="black-emerald" ${settings.gradientStyle === "black-emerald" ? "selected" : ""}>\u26AB\u{1F49A} Shadow Emerald</option>
-                          <option value="black-royal" ${settings.gradientStyle === "black-royal" ? "selected" : ""}>\u26AB\u{1F49C} Void Royal</option>
-                          <option value="black-gold" ${settings.gradientStyle === "black-gold" ? "selected" : ""}>\u26AB\u{1F49B} Obsidian Gold</option>
-                          <option value="black-ice" ${settings.gradientStyle === "black-ice" ? "selected" : ""}>\u26AB\u{1F499} Carbon Ice</option>
-                          <option value="black-flame" ${settings.gradientStyle === "black-flame" ? "selected" : ""}>\u26AB\u{1F9E1} Inferno Black</option>
-                          <option value="black-toxic" ${settings.gradientStyle === "black-toxic" ? "selected" : ""}>\u26AB\u2622\uFE0F Toxic Shadow</option>
-                          <option value="black-pink" ${settings.gradientStyle === "black-pink" ? "selected" : ""}>\u26AB\u{1F497} Noir Pink</option>
-                          <option value="black-matrix" ${settings.gradientStyle === "black-matrix" ? "selected" : ""}>\u26AB\u{1F7E2} Matrix Black</option>
-                          <option value="black-sunset" ${settings.gradientStyle === "black-sunset" ? "selected" : ""}>\u26AB\u{1F305} Eclipse Sunset</option>
-                          <option value="black-blood" ${settings.gradientStyle === "black-blood" ? "selected" : ""}>\u26AB\u{1FA78} Midnight Blood</option>
-                          <option value="black-neon" ${settings.gradientStyle === "black-neon" ? "selected" : ""}>\u26AB\u26A1 Shadow Neon</option>
-                          <option value="black-storm" ${settings.gradientStyle === "black-storm" ? "selected" : ""}>\u26AB\u26C8\uFE0F Obsidian Storm</option>
-                          <option value="black-sapphire" ${settings.gradientStyle === "black-sapphire" ? "selected" : ""}>\u26AB\u{1F4A0} Void Sapphire</option>
-                          <option value="black-aqua" ${settings.gradientStyle === "black-aqua" ? "selected" : ""}>\u26AB\u{1F30A} Dark Aqua</option>
-                          <option value="black-phantom" ${settings.gradientStyle === "black-phantom" ? "selected" : ""}>\u26AB\u{1FA99} Phantom Silver</option>
-                          <option value="black-violet" ${settings.gradientStyle === "black-violet" ? "selected" : ""}>\u26AB\u{1F49C} Deep Violet</option>
-                          <option value="black-amber" ${settings.gradientStyle === "black-amber" ? "selected" : ""}>\u26AB\u{1F7E0} Shadow Amber</option>
-                          <option value="black-jade" ${settings.gradientStyle === "black-jade" ? "selected" : ""}>\u26AB\u{1F7E2} Mystic Jade</option>
-                          <option value="black-coral" ${settings.gradientStyle === "black-coral" ? "selected" : ""}>\u26AB\u{1FAB8} Dark Coral</option>
-                          <option value="black-steel" ${settings.gradientStyle === "black-steel" ? "selected" : ""}>\u26AB\u{1F535} Carbon Steel</option>
-                          <option value="black-lavender" ${settings.gradientStyle === "black-lavender" ? "selected" : ""}>\u26AB\u{1F49C} Void Lavender</option>
-                          <option value="black-mint" ${settings.gradientStyle === "black-mint" ? "selected" : ""}>\u26AB\u{1F33F} Shadow Mint</option>
-                          <option value="black-ruby" ${settings.gradientStyle === "black-ruby" ? "selected" : ""}>\u26AB\u{1F48E} Obsidian Ruby</option>
-                          <option value="black-cobalt" ${settings.gradientStyle === "black-cobalt" ? "selected" : ""}>\u26AB\u{1F537} Deep Cobalt</option>
-                          <option value="black-bronze" ${settings.gradientStyle === "black-bronze" ? "selected" : ""}>\u26AB\u{1F7E4} Dark Bronze</option>
-                          <option value="black-teal" ${settings.gradientStyle === "black-teal" ? "selected" : ""}>\u26AB\u{1FA75} Shadow Teal</option>
-                          <option value="black-magenta" ${settings.gradientStyle === "black-magenta" ? "selected" : ""}>\u26AB\u{1FA77} Void Magenta</option>
-                          <option value="black-lime" ${settings.gradientStyle === "black-lime" ? "selected" : ""}>\u26AB\u{1F7E2} Electric Lime</option>
-                          <option value="black-indigo" ${settings.gradientStyle === "black-indigo" ? "selected" : ""}>\u26AB\u{1F499} Midnight Indigo</option>
-                      </optgroup>
-                      <optgroup label="\u{1F308} Classic Themes">
-                          <option value="blue-purple" ${settings.gradientStyle === "blue-purple" ? "selected" : ""}>\u{1F30C} Blue-Purple</option>
-                          <option value="green-blue" ${settings.gradientStyle === "green-blue" ? "selected" : ""}>\u{1F30A} Green-Blue</option>
-                          <option value="red-orange" ${settings.gradientStyle === "red-orange" ? "selected" : ""}>\u{1F525} Red-Orange</option>
-                          <option value="purple-pink" ${settings.gradientStyle === "purple-pink" ? "selected" : ""}>\u{1F49C} Purple-Pink</option>
-                          <option value="gold-yellow" ${settings.gradientStyle === "gold-yellow" ? "selected" : ""}>\u{1F451} Gold-Yellow</option>
-                      </optgroup>
-                      <optgroup label="\u2728 Vibrant Themes">
-                          <option value="electric-neon" ${settings.gradientStyle === "electric-neon" ? "selected" : ""}>\u26A1 Electric Neon</option>
-                          <option value="sunset-fire" ${settings.gradientStyle === "sunset-fire" ? "selected" : ""}>\u{1F305} Sunset Fire</option>
-                          <option value="emerald-cyan" ${settings.gradientStyle === "emerald-cyan" ? "selected" : ""}>\u{1F48E} Emerald Cyan</option>
-                          <option value="royal-gold" ${settings.gradientStyle === "royal-gold" ? "selected" : ""}>\u{1F3C6} Royal Gold</option>
-                          <option value="crimson-blaze" ${settings.gradientStyle === "crimson-blaze" ? "selected" : ""}>\u{1F525} Crimson Blaze</option>
-                          <option value="ocean-deep" ${settings.gradientStyle === "ocean-deep" ? "selected" : ""}>\u{1F30A} Ocean Deep</option>
-                          <option value="forest-mystique" ${settings.gradientStyle === "forest-mystique" ? "selected" : ""}>\u{1F332} Forest Mystique</option>
-                          <option value="cosmic-purple" ${settings.gradientStyle === "cosmic-purple" ? "selected" : ""}>\u{1F30C} Cosmic Purple</option>
-                          <option value="rainbow-burst" ${settings.gradientStyle === "rainbow-burst" ? "selected" : ""}>\u{1F308} Rainbow Burst</option>
-                      </optgroup>
-                      <optgroup label="\u{1F6E1}\uFE0F Metallic Themes">
-                          <option value="steel-blue" ${settings.gradientStyle === "steel-blue" ? "selected" : ""}>\u{1F6E1}\uFE0F Steel Blue</option>
-                          <option value="chrome-silver" ${settings.gradientStyle === "chrome-silver" ? "selected" : ""}>\u26AA Chrome Silver</option>
-                          <option value="titanium-gray" ${settings.gradientStyle === "titanium-gray" ? "selected" : ""}>\u{1F32B}\uFE0F Titanium Gray</option>
-                          <option value="platinum-white" ${settings.gradientStyle === "platinum-white" ? "selected" : ""}>\u{1F48D} Platinum White</option>
-                      </optgroup>
-                  </select>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Effect Style
-                  </label>
-                  <select class="mga-select" id="effect-select">
-                      <option value="none" ${settings.effectStyle === "none" ? "selected" : ""}>\u2728 None</option>
-                      <option value="metallic" ${settings.effectStyle === "metallic" ? "selected" : ""}>\u26A1 Metallic</option>
-                      <option value="glass" ${settings.effectStyle === "glass" ? "selected" : ""}>\u{1F48E} Glass</option>
-                      <option value="neon" ${settings.effectStyle === "neon" ? "selected" : ""}>\u{1F31F} Neon Glow</option>
-                      <option value="plasma" ${settings.effectStyle === "plasma" ? "selected" : ""}>\u{1F525} Plasma</option>
-                      <option value="aurora" ${settings.effectStyle === "aurora" ? "selected" : ""}>\u{1F30C} Aurora</option>
-                      <option value="crystal" ${settings.effectStyle === "crystal" ? "selected" : ""}>\u{1F4A0} Crystal</option>
-                      <option value="steel" ${settings.effectStyle === "steel" ? "selected" : ""}>\u{1F6E1}\uFE0F Steel</option>
-                      <option value="chrome" ${settings.effectStyle === "chrome" ? "selected" : ""}>\u26AA Chrome</option>
-                      <option value="titanium" ${settings.effectStyle === "titanium" ? "selected" : ""}>\u{1F32B}\uFE0F Titanium</option>
-                  </select>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Texture Overlay
-                  </label>
-                  <select class="mga-select" id="texture-select">
-                      <option value="none" ${settings.textureStyle === "none" || !settings.textureStyle ? "selected" : ""}>\u{1F6AB} None</option>
-
-                      <optgroup label="\u{1F31F} Modern Glass">
-                          <option value="frosted-glass" ${settings.textureStyle === "frosted-glass" ? "selected" : ""}>\u2744\uFE0F Frosted Glass</option>
-                          <option value="crystal-prism" ${settings.textureStyle === "crystal-prism" ? "selected" : ""}>\u{1F48E} Crystal Prism</option>
-                          <option value="ice-frost" ${settings.textureStyle === "ice-frost" ? "selected" : ""}>\u{1F9CA} Ice Frost</option>
-                          <option value="smoke-flow" ${settings.textureStyle === "smoke-flow" ? "selected" : ""}>\u{1F4A8} Smoke Flow</option>
-                          <option value="water-ripple" ${settings.textureStyle === "water-ripple" ? "selected" : ""}>\u{1F30A} Water Ripple</option>
-                      </optgroup>
-
-                      <optgroup label="\u2699\uFE0F Premium Materials">
-                          <option value="carbon-fiber-pro" ${settings.textureStyle === "carbon-fiber-pro" ? "selected" : ""}>\u{1F3C1} Carbon Fiber Pro</option>
-                          <option value="brushed-aluminum" ${settings.textureStyle === "brushed-aluminum" ? "selected" : ""}>\u26AA Brushed Aluminum</option>
-                          <option value="brushed-titanium" ${settings.textureStyle === "brushed-titanium" ? "selected" : ""}>\u26AB Brushed Titanium</option>
-                          <option value="leather-grain" ${settings.textureStyle === "leather-grain" ? "selected" : ""}>\u{1F9F3} Leather Grain</option>
-                          <option value="fabric-weave" ${settings.textureStyle === "fabric-weave" ? "selected" : ""}>\u{1F9F5} Fabric Weave</option>
-                          <option value="wood-grain" ${settings.textureStyle === "wood-grain" ? "selected" : ""}>\u{1FAB5} Wood Grain</option>
-                      </optgroup>
-
-                      <optgroup label="\u26A1 Tech/Futuristic">
-                          <option value="circuit-board" ${settings.textureStyle === "circuit-board" ? "selected" : ""}>\u{1F50C} Circuit Board</option>
-                          <option value="hexagon-grid-pro" ${settings.textureStyle === "hexagon-grid-pro" ? "selected" : ""}>\u2B21 Hexagon Grid Pro</option>
-                          <option value="hologram-scan" ${settings.textureStyle === "hologram-scan" ? "selected" : ""}>\u{1F4E1} Hologram Scan</option>
-                          <option value="matrix-rain" ${settings.textureStyle === "matrix-rain" ? "selected" : ""}>\u{1F49A} Matrix Rain</option>
-                          <option value="energy-waves" ${settings.textureStyle === "energy-waves" ? "selected" : ""}>\u26A1 Energy Waves</option>
-                          <option value="cyberpunk-grid" ${settings.textureStyle === "cyberpunk-grid" ? "selected" : ""}>\u{1F537} Cyberpunk Grid</option>
-                      </optgroup>
-
-                      <optgroup label="\u{1F4D0} Geometric Clean">
-                          <option value="dots-pro" ${settings.textureStyle === "dots-pro" ? "selected" : ""}>\u26AB Dots Professional</option>
-                          <option value="grid-pro" ${settings.textureStyle === "grid-pro" ? "selected" : ""}>\u2B1C Grid Professional</option>
-                          <option value="diagonal-pro" ${settings.textureStyle === "diagonal-pro" ? "selected" : ""}>\u{1F4D0} Diagonal Pro</option>
-                          <option value="waves" ${settings.textureStyle === "waves" ? "selected" : ""}>\u3030\uFE0F Waves</option>
-                          <option value="triangles" ${settings.textureStyle === "triangles" ? "selected" : ""}>\u{1F53A} Triangles</option>
-                          <option value="crosshatch" ${settings.textureStyle === "crosshatch" ? "selected" : ""}>\u2716\uFE0F Crosshatch</option>
-                      </optgroup>
-
-                      <optgroup label="\u{1F3AA} Special Effects">
-                          <option value="perlin-noise" ${settings.textureStyle === "perlin-noise" ? "selected" : ""}>\u{1F4FA} Perlin Noise</option>
-                          <option value="gradient-mesh" ${settings.textureStyle === "gradient-mesh" ? "selected" : ""}>\u{1F308} Gradient Mesh</option>
-                      </optgroup>
-                  </select>
-              </div>
-
-              <!-- Texture Intensity Slider -->
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <span>Texture Intensity</span>
-                      <span id="texture-intensity-value" style="color: #4a9eff; font-weight: 600;">${settings.textureIntensity !== void 0 ? settings.textureIntensity : 75}%</span>
-                  </label>
-                  <input type="range" id="texture-intensity-slider" min="0" max="100" value="${settings.textureIntensity !== void 0 ? settings.textureIntensity : 75}"
-                         style="width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(90deg, rgba(74, 158, 255, 0.48) 0%, rgba(74,158,255,0.8) 100%); outline: none; cursor: pointer;">
-              </div>
-
-              <!-- Texture Scale Control -->
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Texture Scale
-                  </label>
-                  <div style="display: flex; gap: 8px;">
-                      <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="small" style="flex: 1; ${settings.textureScale === "small" ? "background: #4a9eff; color: white;" : ""}">Small</button>
-                      <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="medium" style="flex: 1; ${settings.textureScale === "medium" || !settings.textureScale ? "background: #4a9eff; color: white;" : ""}">Medium</button>
-                      <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="large" style="flex: 1; ${settings.textureScale === "large" ? "background: #4a9eff; color: white;" : ""}">Large</button>
-                  </div>
-              </div>
-
-              <!-- Blend Mode Selector -->
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Blend Mode
-                  </label>
-                  <select class="mga-select" id="texture-blend-mode">
-                      <option value="overlay" ${settings.textureBlendMode === "overlay" || !settings.textureBlendMode ? "selected" : ""}>Overlay (Balanced)</option>
-                      <option value="multiply" ${settings.textureBlendMode === "multiply" ? "selected" : ""}>Multiply (Darken)</option>
-                      <option value="screen" ${settings.textureBlendMode === "screen" ? "selected" : ""}>Screen (Lighten)</option>
-                      <option value="soft-light" ${settings.textureBlendMode === "soft-light" ? "selected" : ""}>Soft Light (Subtle)</option>
-                  </select>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">Quick Presets</div>
-              <div class="mga-grid">
-                  <button class="mga-btn mga-btn-sm" data-preset="gaming">\u{1F3AE} Gaming</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="minimal">\u26AA Minimal</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="vibrant">\u{1F308} Vibrant</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="dark">\u26AB Dark</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="luxury">\u2728 Luxury</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="steel">\u{1F6E1}\uFE0F Steel</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="chrome">\u26AA Chrome</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="titanium">\u{1F32B}\uFE0F Titanium</button>
-                  <button class="mga-btn mga-btn-sm" data-preset="reset">\u{1F504} Reset</button>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">UI Mode</div>
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="ultra-compact-checkbox" class="mga-checkbox"
-                             ${settings.ultraCompactMode ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F4F1} Ultra-compact mode</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      Maximum space efficiency with condensed layouts and smaller text.
-                  </p>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">Pet Interface</div>
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="hide-feed-buttons-checkbox" class="mga-checkbox"
-                             ${settings.hideFeedButtons ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F343} Hide instant feed buttons</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      Hide the 3 quick-feed buttons next to active pet avatars. Applies immediately without page reload.
-                  </p>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">Pop-out Behavior</div>
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="use-overlays-checkbox" class="mga-checkbox"
-                             ${settings.useInGameOverlays ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F3AE} Use in-game overlays instead of separate windows</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      When enabled, tabs will open as draggable overlays within the game window instead of separate browser windows.
-                  </p>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">\u{1F6E1}\uFE0F Compatibility Mode</div>
-              <div style="margin-bottom: 16px;">
-                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px;
-                              background: ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "rgba(34, 197, 94, 0.30)" : "rgba(255, 255, 255, 0.05)"};
-                              border: 1px solid ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "rgba(34, 197, 94, 0.3)" : "rgba(255, 255, 255, 0.57)"};
-                              border-radius: 8px; margin-bottom: 12px;">
-                      <div>
-                          <div style="font-weight: 600; margin-bottom: 4px;">
-                              ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "\u2705 Enabled" : "\u26AA Disabled"}
-                          </div>
-                          <div style="font-size: 11px; color: #aaa;">
-                              ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "Reason: " + (CompatibilityMode2.detectionReason || "manual") : "Auto-detects CSP restrictions"}
-                          </div>
-                      </div>
-                      <button id="compat-toggle-btn" class="mga-btn mga-btn-sm"
-                              style="padding: 8px 16px; font-size: 12px; min-width: 100px;">
-                          ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "Disable" : "Force Enable"}
-                      </button>
-                  </div>
-                  <p style="font-size: 11px; color: #aaa; line-height: 1.6;">
-                      <strong>What it does:</strong><br>
-                      \u2022 Bypasses CSP restrictions for Discord/managed devices<br>
-                      \u2022 Uses system fonts instead of Google Fonts<br>
-                      \u2022 Forces WebSocket reconnection even when tab is hidden<br>
-                      \u2022 Uses GM_xmlhttpRequest for external network requests<br>
-                      <br>
-                      <strong>When to use:</strong><br>
-                      \u2022 Playing in Discord Activities<br>
-                      \u2022 Work/school computers with strict security policies<br>
-                      \u2022 Browser extensions or embeds<br>
-                      <br>
-                      <em style="opacity: 0.7;">Note: Changes require page refresh</em>
-                  </p>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">Developer Options</div>
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="debug-mode-checkbox" class="mga-checkbox"
-                             ${settings.debugMode ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F41B} Enable Debug Mode</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      Shows detailed console logs for troubleshooting pet hunger, notifications, and more.
-                  </p>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="room-debug-mode-checkbox" class="mga-checkbox"
-                             ${settings.roomDebugMode ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F310} Enable Room Debug Mode</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      Shows detailed console logs for room API requests and player count fetching.
-                  </p>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="hide-weather-checkbox" class="mga-checkbox"
-                             ${settings.hideWeather ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F327}\uFE0F Hide Weather Effects</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      Hide visual weather effects like snow, rain, and other weather animations for better performance.
-                  </p>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">Data Management</div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <button class="mga-btn mga-btn-sm" id="export-settings-btn">Export Settings</button>
-                  <button class="mga-btn mga-btn-sm" id="import-settings-btn">Import Settings</button>
-                  <button class="mga-btn mga-btn-sm" id="reset-loadouts-btn" style="background: #dc2626;">Reset Pet Loadouts</button>
-                  <button class="mga-btn mga-btn-sm" id="clear-hotkeys-btn" style="background: #ea580c;">Clear All Hotkeys</button>
-              </div>
-              <p style="font-size: 11px; color: #aaa; margin-top: 4px;">
-                  Reset button clears all saved pet loadouts. Clear hotkeys button removes all preset hotkey assignments.
-              </p>
-          </div>
-      `;
-  }
-  function setupSettingsTabHandlers(dependencies = {}) {
-    const {
-      context = typeof document !== "undefined" ? document : null,
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      CompatibilityMode: CompatibilityMode2 = typeof window !== "undefined" && window.CompatibilityMode,
-      applyTheme = typeof window !== "undefined" && window.applyTheme,
-      syncThemeToAllWindows = typeof window !== "undefined" && window.syncThemeToAllWindows,
-      applyPreset = typeof window !== "undefined" && window.applyPreset,
-      applyUltraCompactMode: applyUltraCompactMode2 = typeof window !== "undefined" && window.applyUltraCompactMode,
-      applyWeatherSetting = typeof window !== "undefined" && window.applyWeatherSetting,
-      MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
-      productionLog: productionLog3 = typeof window !== "undefined" && window.productionLog ? window.productionLog : () => {
-      },
-      logInfo: logInfo3 = typeof window !== "undefined" && window.logInfo ? window.logInfo : () => {
-      },
-      targetDocument: targetDocument2 = typeof window !== "undefined" && typeof document !== "undefined" ? document : null,
-      updateTabContent = typeof window !== "undefined" && window.updateTabContent,
-      showNotificationToast: showNotificationToast2 = typeof window !== "undefined" && window.showNotificationToast,
-      localStorage: storage = typeof window !== "undefined" && window.localStorage ? window.localStorage : null,
-      window: win = typeof window !== "undefined" ? window : null,
-      alert: alertFn = typeof window !== "undefined" && window.alert ? window.alert : () => {
-      },
-      confirm: confirmFn = typeof window !== "undefined" && window.confirm ? window.confirm : () => false,
-      URL: URLClass = typeof window !== "undefined" && window.URL ? window.URL : null,
-      Blob: BlobClass = typeof window !== "undefined" && window.Blob ? window.Blob : null,
-      FileReader: FileReaderClass = typeof window !== "undefined" && window.FileReader ? window.FileReader : null,
-      console: consoleFn = typeof console !== "undefined" ? console : { log: () => {
-      }, error: () => {
-      } }
-    } = dependencies;
-    consoleFn.log("\u{1F6A8} [CRITICAL-DEBUG] setupSettingsTabHandlers ENTERED");
-    productionLog3("\u2699\uFE0F [SETTINGS] setupSettingsTabHandlers called", {
-      context: context === (typeof document !== "undefined" ? document : null) ? "document" : "custom"
-    });
-    consoleFn.log(
-      "\u{1F6A8} [CRITICAL-DEBUG] Context type:",
-      context === (typeof document !== "undefined" ? document : null) ? "DOCUMENT" : "ELEMENT",
-      context
-    );
-    const compatToggleBtn = context.querySelector("#compat-toggle-btn");
-    if (compatToggleBtn && typeof CompatibilityMode2 !== "undefined") {
-      compatToggleBtn.addEventListener("click", () => {
-        if (CompatibilityMode2.flags.enabled) {
-          CompatibilityMode2.disableCompat();
-          logInfo3("COMPAT", "User disabled compatibility mode - reload required");
-          alertFn("Compatibility Mode disabled. Please refresh the page for changes to take effect.");
-        } else {
-          try {
-            storage.setItem("mgtools_compat_forced", "true");
-            storage.removeItem("mgtools_compat_disabled");
-            logInfo3("COMPAT", "User enabled compatibility mode - reload required");
-            alertFn("Compatibility Mode enabled. Please refresh the page for changes to take effect.");
-          } catch (e) {
-            alertFn("Unable to save compatibility mode setting. Your browser may have storage restrictions.");
-          }
-        }
-        if (confirmFn("Would you like to reload the page now?")) {
-          win.location.reload();
-        }
-      });
-    }
-    const opacitySlider = context.querySelector("#opacity-slider");
-    if (opacitySlider) {
-      opacitySlider.addEventListener("input", (e) => {
-        const opacity = parseInt(e.target.value);
-        UnifiedState3.data.settings.opacity = opacity;
-        applyTheme();
-        const label = opacitySlider.previousElementSibling;
-        label.textContent = `Main HUD Opacity: ${opacity}%`;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const popoutOpacitySlider = context.querySelector("#popout-opacity-slider");
-    if (popoutOpacitySlider) {
-      popoutOpacitySlider.addEventListener("input", (e) => {
-        const popoutOpacity = parseInt(e.target.value);
-        UnifiedState3.data.settings.popoutOpacity = popoutOpacity;
-        syncThemeToAllWindows();
-        const label = popoutOpacitySlider.previousElementSibling;
-        label.textContent = `Pop-out Opacity: ${popoutOpacity}%`;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const gradientSelect = context.querySelector("#gradient-select");
-    if (gradientSelect) {
-      gradientSelect.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.gradientStyle = e.target.value;
-        applyTheme();
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const effectSelect = context.querySelector("#effect-select");
-    if (effectSelect) {
-      effectSelect.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.effectStyle = e.target.value;
-        applyTheme();
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const themePresetButtons = context.querySelectorAll("[data-preset]");
-    themePresetButtons.forEach((btn) => {
-      if (!btn.hasAttribute("data-handler-setup")) {
-        btn.setAttribute("data-handler-setup", "true");
-        btn.addEventListener("click", (e) => {
-          const presetName = e.target.dataset.preset;
-          applyPreset(presetName);
-          applyTheme();
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-          const opacitySlider2 = context.querySelector("#opacity-slider");
-          if (opacitySlider2) {
-            opacitySlider2.value = UnifiedState3.data.settings.opacity;
-            const label = opacitySlider2.previousElementSibling;
-            if (label) {
-              label.textContent = `Main HUD Opacity: ${UnifiedState3.data.settings.opacity}%`;
-            }
-          }
-          const gradientSelect2 = context.querySelector("#gradient-select");
-          if (gradientSelect2) {
-            gradientSelect2.value = UnifiedState3.data.settings.gradientStyle;
-          }
-          const effectSelect2 = context.querySelector("#effect-select");
-          if (effectSelect2) {
-            effectSelect2.value = UnifiedState3.data.settings.effectStyle;
-          }
-          productionLog3(`\u{1F3A8} Applied theme preset: ${presetName}`);
-        });
-      }
-    });
-    const textureSelect = context.querySelector("#texture-select");
-    if (textureSelect) {
-      textureSelect.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.textureStyle = e.target.value;
-        applyTheme();
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const intensitySlider = context.querySelector("#texture-intensity-slider");
-    const intensityValue = context.querySelector("#texture-intensity-value");
-    if (intensitySlider && intensityValue) {
-      intensitySlider.addEventListener("input", (e) => {
-        const value = e.target.value;
-        intensityValue.textContent = value + "%";
-        UnifiedState3.data.settings.textureIntensity = parseInt(value);
-        applyTheme();
-      });
-      intensitySlider.addEventListener("change", (e) => {
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const scaleButtons = context.querySelectorAll(".texture-scale-btn");
-    if (scaleButtons.length > 0) {
-      scaleButtons.forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          const scale = e.target.dataset.scale;
-          UnifiedState3.data.settings.textureScale = scale;
-          scaleButtons.forEach((b) => {
-            b.style.background = "";
-            b.style.color = "";
-          });
-          e.target.style.background = "#4a9eff";
-          e.target.style.color = "white";
-          applyTheme();
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        });
-      });
-    }
-    const blendModeSelect = context.querySelector("#texture-blend-mode");
-    if (blendModeSelect) {
-      blendModeSelect.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.textureBlendMode = e.target.value;
-        applyTheme();
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const ultraCompactCheckbox = context.querySelector("#ultra-compact-checkbox");
-    if (ultraCompactCheckbox) {
-      const newCheckbox = ultraCompactCheckbox.cloneNode(true);
-      ultraCompactCheckbox.parentNode.replaceChild(newCheckbox, ultraCompactCheckbox);
-      newCheckbox.addEventListener("change", (e) => {
-        e.stopPropagation();
-        UnifiedState3.data.settings.ultraCompactMode = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        applyUltraCompactMode2(e.target.checked);
-        productionLog3(`\u{1F4F1} Ultra-compact mode ${e.target.checked ? "enabled" : "disabled"}`);
-      });
-    }
-    const hideFeedButtonsCheckbox = context.querySelector("#hide-feed-buttons-checkbox");
-    if (hideFeedButtonsCheckbox) {
-      hideFeedButtonsCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.hideFeedButtons = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        const allFeedButtons = targetDocument2.querySelectorAll(".mgtools-instant-feed-btn");
-        allFeedButtons.forEach((btn) => {
-          btn.style.setProperty("display", e.target.checked ? "none" : "block", "important");
-        });
-        consoleFn.log(`[MGTOOLS-FIX-B] Feed buttons ${e.target.checked ? "hidden" : "shown"}`);
-        productionLog3(`\u{1F343} Instant feed buttons ${e.target.checked ? "hidden" : "shown"}`);
-      });
-    }
-    const overlayCheckbox = context.querySelector("#use-overlays-checkbox");
-    if (overlayCheckbox) {
-      overlayCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.useInGameOverlays = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F3AE} Overlay mode ${e.target.checked ? "enabled" : "disabled"}`);
-      });
-    }
-    const debugModeCheckbox = context.querySelector("#debug-mode-checkbox");
-    if (debugModeCheckbox) {
-      debugModeCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.debugMode = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F41B} Debug mode ${e.target.checked ? "enabled" : "disabled"}`);
-      });
-    }
-    const roomDebugModeCheckbox = context.querySelector("#room-debug-mode-checkbox");
-    if (roomDebugModeCheckbox) {
-      roomDebugModeCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.roomDebugMode = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        consoleFn.log(`[MGTools] Room debug mode ${e.target.checked ? "enabled" : "disabled"}`);
-      });
-    }
-    context.querySelectorAll("[data-preset]").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const preset = e.target.dataset.preset;
-        applyPreset(preset);
-      });
-    });
-    const exportBtn = context.querySelector("#export-settings-btn");
-    if (exportBtn) {
-      exportBtn.addEventListener("click", () => {
-        const data = JSON.stringify(UnifiedState3.data, null, 2);
-        const blob = new BlobClass([data], { type: "application/json" });
-        const link = targetDocument2.createElement("a");
-        link.href = URLClass.createObjectURL(blob);
-        link.download = "MGA_Settings.json";
-        link.click();
-      });
-    }
-    const importBtn = context.querySelector("#import-settings-btn");
-    if (importBtn) {
-      importBtn.addEventListener("click", () => {
-        const fileInput = targetDocument2.createElement("input");
-        fileInput.type = "file";
-        fileInput.accept = ".json";
-        fileInput.addEventListener("change", (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          const reader = new FileReaderClass();
-          reader.onload = (event) => {
-            try {
-              const importedData = JSON.parse(event.target.result);
-              if (typeof importedData !== "object" || importedData === null) {
-                throw new Error("Invalid data format");
-              }
-              UnifiedState3.data = { ...UnifiedState3.data, ...importedData };
-              MGA_saveJSON2("MGA_data", UnifiedState3.data);
-              applyTheme();
-              if (UnifiedState3.data.settings.ultraCompactMode) {
-                applyUltraCompactMode2(true);
-              }
-              productionLog3("\u2705 Settings imported successfully!");
-              showNotificationToast2("\u2705 Settings imported and applied!", "success");
-              if (UnifiedState3.activeTab === "settings") {
-                updateTabContent();
-              }
-            } catch (error) {
-              consoleFn.error("Failed to import settings:", error);
-              showNotificationToast2("\u274C Failed to import settings. Invalid file format.", "error");
-            }
-          };
-          reader.readAsText(file);
-        });
-        fileInput.click();
-      });
-    }
-    const resetLoadoutsBtn = context.querySelector("#reset-loadouts-btn");
-    if (resetLoadoutsBtn) {
-      resetLoadoutsBtn.addEventListener("click", () => {
-        if (confirmFn("Are you sure you want to reset all pet loadouts? This cannot be undone.")) {
-          UnifiedState3.data.petPresets = {};
-          UnifiedState3.data.petPresetHotkeys = {};
-          UnifiedState3.data.petPresetsOrder = [];
-          MGA_saveJSON2("MGA_petPresets", UnifiedState3.data.petPresets);
-          MGA_saveJSON2("MGA_petPresetHotkeys", UnifiedState3.data.petPresetHotkeys);
-          MGA_saveJSON2("MGA_petPresetsOrder", UnifiedState3.data.petPresetsOrder);
-          productionLog3("[SETTINGS] Pet loadouts and hotkeys have been reset");
-          if (UnifiedState3.activeTab === "pets") {
-            updateTabContent();
-          }
-          productionLog3("[SETTINGS] Pet loadouts have been reset successfully");
-        }
-      });
-    }
-    const clearHotkeysBtn = context.querySelector("#clear-hotkeys-btn");
-    if (clearHotkeysBtn) {
-      clearHotkeysBtn.addEventListener("click", () => {
-        if (confirmFn("Clear all pet preset hotkeys? This will not delete your presets, only the hotkey assignments.")) {
-          UnifiedState3.data.petPresetHotkeys = {};
-          MGA_saveJSON2("MGA_petPresetHotkeys", UnifiedState3.data.petPresetHotkeys);
-          productionLog3("[SETTINGS] All pet preset hotkeys cleared");
-          if (UnifiedState3.activeTab === "pets") {
-            updateTabContent();
-          }
-          alertFn("All pet preset hotkeys have been cleared. You can now assign new hotkeys without conflicts.");
-        }
-      });
-    }
-    const weatherCheckbox = context.querySelector("#hide-weather-checkbox");
-    if (weatherCheckbox && !weatherCheckbox.hasAttribute("data-handler-setup")) {
-      weatherCheckbox.setAttribute("data-handler-setup", "true");
-      try {
-        weatherCheckbox.checked = !!(UnifiedState3 && UnifiedState3.data && UnifiedState3.data.settings && UnifiedState3.data.settings.hideWeather);
-      } catch (_) {
-      }
-      const cloned = weatherCheckbox.cloneNode(true);
-      weatherCheckbox.parentNode.replaceChild(cloned, weatherCheckbox);
-      cloned.addEventListener("change", (e) => {
-        if (!UnifiedState3 || !UnifiedState3.data || !UnifiedState3.data.settings) return;
-        UnifiedState3.data.settings.hideWeather = !!e.target.checked;
-        try {
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        } catch (err) {
-          consoleFn.error("Weather save failed:", err);
-        }
-        try {
-          applyWeatherSetting();
-        } catch (err) {
-          consoleFn.error("applyWeatherSetting failed:", err);
-        }
-        productionLog3(`\u{1F327}\uFE0F [WEATHER] Toggle set to ${e.target.checked ? "HIDE" : "SHOW"}`);
-      });
-    }
-  }
-
-  // src/features/notifications.js
-  var notifications_exports = {};
-  __export(notifications_exports, {
-    default: () => notifications_default,
-    dismissAllNotifications: () => dismissAllNotifications,
-    generateNotificationListHTML: () => generateNotificationListHTML,
-    getNotificationsTabContent: () => getNotificationsTabContent,
-    getTimeSinceLastSeen: () => getTimeSinceLastSeen,
-    isWatchedItem: () => isWatchedItem,
-    normalizeSpeciesName: () => normalizeSpeciesName,
-    playAlarmNotification: () => playAlarmNotification,
-    playAlertNotification: () => playAlertNotification,
-    playBuzzNotification: () => playBuzzNotification,
-    playChimeNotification: () => playChimeNotification,
-    playChirpNotification: () => playChirpNotification,
-    playCustomOrDefaultSound: () => playCustomOrDefaultSound,
-    playDingNotification: () => playDingNotification,
-    playDoubleBeepNotification: () => playDoubleBeepNotification,
-    playEpicNotification: () => playEpicNotification,
-    playGeneralNotificationSound: () => playGeneralNotificationSound,
-    playNotificationSound: () => playNotificationSound,
-    playSelectedNotification: () => playSelectedNotification,
-    playShopNotificationSound: () => playShopNotificationSound,
-    playSingleBeepNotification: () => playSingleBeepNotification,
-    playTripleBeepNotification: () => playTripleBeepNotification,
-    playWeatherNotificationSound: () => playWeatherNotificationSound,
-    queueNotification: () => queueNotification,
-    setupNotificationsTabHandlers: () => setupNotificationsTabHandlers,
-    showBatchedNotificationModal: () => showBatchedNotificationModal,
-    showNotificationToast: () => showNotificationToast,
-    showVisualNotification: () => showVisualNotification,
-    startContinuousAlarm: () => startContinuousAlarm,
-    stopContinuousAlarm: () => stopContinuousAlarm,
-    updateLastSeen: () => updateLastSeen,
-    updateNotificationModal: () => updateNotificationModal
-  });
-  function playNotificationSound(frequency = 800, duration = 200, volume = 0.3, dependencies = {}) {
-    const {
-      getAudioContext = () => new (window.AudioContext || window.webkitAudioContext)(),
-      productionLog: productionLog3 = console.log
-    } = dependencies;
-    try {
-      const audioContext = getAudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.frequency.value = frequency;
-      oscillator.type = "sine";
-      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1e3);
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + duration / 1e3);
-      productionLog3(`\u{1F50A} [NOTIFICATIONS] Sound played for rare item!`);
-    } catch (error) {
-      console.error("\u274C [NOTIFICATIONS] Failed to play notification sound:", error);
-    }
-  }
-  function playTripleBeepNotification(volume = 0.3, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    playSoundFn(1e3, 250, volume, dependencies);
-    setTimeout(() => playSoundFn(1e3, 200, volume * 0.8, dependencies), 300);
-    setTimeout(() => playSoundFn(1200, 150, volume * 0.6, dependencies), 600);
-  }
-  function playDoubleBeepNotification(volume = 0.3, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    playSoundFn(600, 200, volume, dependencies);
-    setTimeout(() => playSoundFn(600, 200, volume * 0.9, dependencies), 250);
-  }
-  function playSingleBeepNotification(volume = 0.2, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    playSoundFn(500, 150, volume, dependencies);
-  }
-  function playChimeNotification(volume = 0.2, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    playSoundFn(500, 100, volume, dependencies);
-    setTimeout(() => playSoundFn(800, 100, volume * 0.9, dependencies), 120);
-    setTimeout(() => playSoundFn(1e3, 120, volume * 0.8, dependencies), 240);
-  }
-  function playAlertNotification(volume = 0.2, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    playSoundFn(1200, 150, volume, dependencies);
-    setTimeout(() => playSoundFn(900, 150, volume * 0.9, dependencies), 160);
-  }
-  function playBuzzNotification(volume = 0.2, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    for (let i = 0; i < 8; i++) {
-      setTimeout(() => playSoundFn(300, 40, volume * (i % 2 === 0 ? 1 : 0.6), dependencies), i * 50);
-    }
-  }
-  function playDingNotification(volume = 0.2, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    playSoundFn(2e3, 180, volume, dependencies);
-  }
-  function playChirpNotification(volume = 0.2, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    playSoundFn(400, 80, volume, dependencies);
-    setTimeout(() => playSoundFn(800, 60, volume * 0.8, dependencies), 85);
-    setTimeout(() => playSoundFn(1200, 40, volume * 0.6, dependencies), 150);
-  }
-  function playAlarmNotification(volume = 0.5, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    let count = 0;
-    const interval = setInterval(() => {
-      playSoundFn(count % 2 === 0 ? 1500 : 800, 400, volume, dependencies);
-      count++;
-      if (count >= 6) clearInterval(interval);
-    }, 450);
-  }
-  var continuousAlarmInterval = null;
-  function startContinuousAlarm(volume = 0.4, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound, productionLog: productionLog3 = console.log } = dependencies;
-    if (continuousAlarmInterval) return;
-    let tone = 800;
-    continuousAlarmInterval = setInterval(() => {
-      tone = tone === 800 ? 1200 : 800;
-      playSoundFn(tone, 300, volume, dependencies);
-    }, 350);
-    productionLog3("\u{1F6A8} [NOTIFICATIONS] Continuous alarm started - requires acknowledgment!");
-  }
-  function stopContinuousAlarm(dependencies = {}) {
-    const { productionLog: productionLog3 = console.log } = dependencies;
-    if (continuousAlarmInterval) {
-      clearInterval(continuousAlarmInterval);
-      continuousAlarmInterval = null;
-      productionLog3("\u2705 [NOTIFICATIONS] Continuous alarm stopped");
-    }
-  }
-  function playEpicNotification(volume = 0.4, dependencies = {}) {
-    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
-    const sequence = [
-      [400, 100],
-      [500, 100],
-      [600, 100],
-      [800, 150],
-      [1e3, 200],
-      [1200, 150],
-      [1e3, 150],
-      [1200, 200],
-      [1500, 300],
-      [1200, 100],
-      [1500, 400]
-    ];
-    let delay = 0;
-    sequence.forEach(([freq, dur]) => {
-      setTimeout(() => playSoundFn(freq, dur, volume, dependencies), delay);
-      delay += dur + 50;
-    });
-  }
-  function playSelectedNotification(dependencies = {}) {
-    const {
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      productionLog: productionLog3 = console.log,
-      playNotificationSound: playSoundFn = playNotificationSound,
-      playTripleBeepNotification: playTripleFn = playTripleBeepNotification,
-      playAlarmNotification: playAlarmFn = playAlarmNotification,
-      playEpicNotification: playEpicFn = playEpicNotification,
-      startContinuousAlarm: startContinuousFn = startContinuousAlarm
-    } = dependencies;
-    const notifications = UnifiedState3.data.settings.notifications;
-    const volume = notifications.volume || 0.3;
-    const type = notifications.notificationType || "triple";
-    productionLog3(`\u{1F50A} [NOTIFICATIONS] Playing ${type} notification at ${Math.round(volume * 100)}% volume`);
-    switch (type) {
-      case "simple":
-        playSoundFn(1e3, 300, volume, dependencies);
-        break;
-      case "triple":
-        playTripleFn(volume, dependencies);
-        break;
-      case "alarm":
-        playAlarmFn(volume, dependencies);
-        break;
-      case "epic":
-        playEpicFn(volume, dependencies);
-        break;
-      case "continuous":
-        startContinuousFn(volume, dependencies);
-        break;
-      default:
-        playTripleFn(volume, dependencies);
-    }
-  }
-  function playCustomOrDefaultSound(soundType, defaultPlayFunc, volume, dependencies = {}) {
-    const {
-      GM_getValue: GM_getValue2 = typeof window !== "undefined" && window.GM_getValue,
-      startContinuousAlarm: startContinuousFn = startContinuousAlarm,
-      productionLog: productionLog3 = console.log,
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState
-    } = dependencies;
-    const customSound = GM_getValue2(`mgtools_custom_sound_${soundType}`, null);
-    if (customSound) {
-      const notificationType = UnifiedState3.data.settings.notifications.notificationType;
-      if (notificationType === "continuous") {
-        productionLog3(`\u{1F3B5} [CUSTOM-SOUND] Continuous mode active - using alarm instead of custom ${soundType} sound`);
-        startContinuousFn(volume, dependencies);
-        return;
-      }
-      try {
-        const audio = new Audio(customSound);
-        audio.volume = volume || 0.3;
-        audio.play();
-        productionLog3(`\u{1F3B5} [CUSTOM-SOUND] Playing custom ${soundType} sound`);
-      } catch (err) {
-        console.error(`Failed to play custom ${soundType} sound:`, err);
-        defaultPlayFunc(volume);
-      }
-    } else {
-      defaultPlayFunc(volume);
-    }
-  }
-  function playGeneralNotificationSound(volume, dependencies = {}) {
-    const {
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      playNotificationSound: playSoundFn = playNotificationSound,
-      playTripleBeepNotification: playTripleFn = playTripleBeepNotification,
-      playAlarmNotification: playAlarmFn = playAlarmNotification,
-      playEpicNotification: playEpicFn = playEpicNotification,
-      startContinuousAlarm: startContinuousFn = startContinuousAlarm
-    } = dependencies;
-    const type = UnifiedState3.data.settings.notifications.notificationType || "epic";
-    switch (type) {
-      case "simple":
-        playSoundFn(1e3, 300, volume, dependencies);
-        break;
-      case "triple":
-        playTripleFn(volume, dependencies);
-        break;
-      case "alarm":
-        playAlarmFn(volume, dependencies);
-        break;
-      case "epic":
-        playEpicFn(volume, dependencies);
-        break;
-      case "continuous":
-        startContinuousFn(volume, dependencies);
-        break;
-      default:
-        playEpicFn(volume, dependencies);
-    }
-  }
-  function playShopNotificationSound(volume, dependencies = {}) {
-    const {
-      playCustomOrDefaultSound: playCustomFn = playCustomOrDefaultSound,
-      playGeneralNotificationSound: playGeneralFn = playGeneralNotificationSound
-    } = dependencies;
-    playCustomFn("shop", playGeneralFn, volume, dependencies);
-  }
-  function playWeatherNotificationSound(volume, dependencies = {}) {
-    const {
-      playCustomOrDefaultSound: playCustomFn = playCustomOrDefaultSound,
-      playGeneralNotificationSound: playGeneralFn = playGeneralNotificationSound
-    } = dependencies;
-    playCustomFn("weather", playGeneralFn, volume, dependencies);
-  }
-  var notificationQueue = [];
-  var currentNotificationModal = null;
-  var notificationQueueTimer = null;
-  var NOTIFICATION_BATCH_DELAY = 2e3;
-  function queueNotification(message, requiresAcknowledgment = false, dependencies = {}) {
-    const {
-      updateNotificationModal: updateModalFn = updateNotificationModal,
-      showBatchedNotificationModal: showBatchedFn = showBatchedNotificationModal
-    } = dependencies;
-    notificationQueue.push({ message, requiresAcknowledgment, timestamp: Date.now() });
-    if (notificationQueueTimer) {
-      clearTimeout(notificationQueueTimer);
-    }
-    if (currentNotificationModal) {
-      updateModalFn(dependencies);
-      return;
-    }
-    notificationQueueTimer = setTimeout(() => {
-      showBatchedFn(dependencies);
-    }, NOTIFICATION_BATCH_DELAY);
-  }
-  function updateNotificationModal(dependencies = {}) {
-    const { generateNotificationListHTML: generateListFn = generateNotificationListHTML } = dependencies;
-    if (!currentNotificationModal) return;
-    const messageContainer = currentNotificationModal.querySelector(".notification-messages");
-    if (messageContainer) {
-      messageContainer.innerHTML = generateListFn();
-    }
-    const countDisplay = currentNotificationModal.querySelector(".notification-count");
-    if (countDisplay) {
-      countDisplay.textContent = `${notificationQueue.length} Notification${notificationQueue.length > 1 ? "s" : ""}`;
-    }
-  }
-  function generateNotificationListHTML() {
-    return notificationQueue.map(
-      (notif) => `
-      <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.57); border-radius: 5px; border-left: 3px solid #fff;">
-          <div style="font-size: 14px; margin-bottom: 5px;">${notif.message}</div>
-          <div style="font-size: 10px; opacity: 0.8;">${new Date(notif.timestamp).toLocaleTimeString()}</div>
-      </div>
-  `
-    ).join("");
-  }
-  function showBatchedNotificationModal(dependencies = {}) {
-    const {
-      targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null,
-      showVisualNotification: showVisualFn = showVisualNotification,
-      generateNotificationListHTML: generateListFn = generateNotificationListHTML,
-      dismissAllNotifications: dismissAllFn = dismissAllNotifications
-    } = dependencies;
-    if (notificationQueue.length === 0) return;
-    if (currentNotificationModal) {
-      dismissAllFn(dependencies);
-      setTimeout(() => showBatchedNotificationModal(dependencies), 350);
-      return;
-    }
-    const hasAcknowledgmentRequired = notificationQueue.some((n) => n.requiresAcknowledgment);
-    if (notificationQueue.length === 1 && !hasAcknowledgmentRequired) {
-      const notif = notificationQueue[0];
-      showVisualFn(notif.message, notif.requiresAcknowledgment, dependencies);
-      notificationQueue = [];
-      return;
-    }
-    if (!hasAcknowledgmentRequired) {
-      notificationQueue.forEach((notif) => {
-        showVisualFn(notif.message, false, dependencies);
-      });
-      notificationQueue = [];
-      return;
-    }
-    const notification = targetDocument2.createElement("div");
-    notification.className = "mga-batched-notification";
-    notification.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
-      color: white;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
-      z-index: 9999999;
-      font-weight: bold;
-      animation: mga-modal-entrance 0.5s ease-out;
-      border: 3px solid #ffffff;
-      text-align: center;
-      max-width: 500px;
-      max-height: 400px;
-      overflow-y: auto;
-  `;
-    notification.innerHTML = `
-      <div class="notification-count" style="font-size: 20px; margin-bottom: 15px;">
-          ${notificationQueue.length} Notification${notificationQueue.length > 1 ? "s" : ""}
-      </div>
-      <div class="notification-messages" style="text-align: left; margin-bottom: 20px; max-height: 200px; overflow-y: auto;">
-          ${generateListFn()}
-      </div>
-      <button class="acknowledge-all-btn" style="
-          background: white;
-          color: #ff0000;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 5px;
-          font-weight: bold;
-          font-size: 16px;
-          cursor: pointer;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-          transition: all 0.2s;
-      ">
-          ACKNOWLEDGE ALL (${notificationQueue.length})
-      </button>
-  `;
-    const ackButton = notification.querySelector(".acknowledge-all-btn");
-    ackButton.onmouseover = () => {
-      ackButton.style.transform = "scale(1.05)";
-      ackButton.style.boxShadow = "0 6px 15px rgba(0,0,0,0.4)";
-    };
-    ackButton.onmouseout = () => {
-      ackButton.style.transform = "scale(1)";
-      ackButton.style.boxShadow = "0 4px 10px rgba(0,0,0,0.3)";
-    };
-    ackButton.onclick = () => {
-      dismissAllFn(dependencies);
-    };
-    const backdrop = targetDocument2.createElement("div");
-    backdrop.className = "mga-notification-backdrop";
-    backdrop.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 9999998;
-      animation: fadeIn 0.3s ease-in;
-  `;
-    backdrop.onclick = () => {
-      backdrop.style.animation = "flash 0.3s ease-in-out";
-    };
-    targetDocument2.body.appendChild(backdrop);
-    targetDocument2.body.appendChild(notification);
-    currentNotificationModal = notification;
-  }
-  function dismissAllNotifications(dependencies = {}) {
-    const {
-      targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null,
-      stopContinuousAlarm: stopAlarmFn = stopContinuousAlarm
-    } = dependencies;
-    stopAlarmFn(dependencies);
-    if (currentNotificationModal) {
-      const backdrop = targetDocument2.querySelector(".mga-notification-backdrop");
-      currentNotificationModal.style.animation = "fadeOut 0.3s ease-out";
-      if (backdrop) backdrop.style.animation = "fadeOut 0.3s ease-out";
-      setTimeout(() => {
-        if (currentNotificationModal) currentNotificationModal.remove();
-        if (backdrop) backdrop.remove();
-        currentNotificationModal = null;
-      }, 300);
-    }
-    notificationQueue = [];
-    if (notificationQueueTimer) {
-      clearTimeout(notificationQueueTimer);
-      notificationQueueTimer = null;
-    }
-  }
-  function showVisualNotification(message, requiresAcknowledgment = false, dependencies = {}) {
-    const {
-      targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null,
-      stopContinuousAlarm: stopAlarmFn = stopContinuousAlarm,
-      dismissAllNotifications: dismissAllFn = dismissAllNotifications
-    } = dependencies;
-    if (requiresAcknowledgment && currentNotificationModal) {
-      dismissAllFn(dependencies);
-      setTimeout(() => showVisualNotification(message, requiresAcknowledgment, dependencies), 350);
-      return;
-    }
-    const notification = targetDocument2.createElement("div");
-    if (requiresAcknowledgment) {
-      notification.style.cssText = `
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
-          color: white;
-          padding: 30px;
-          border-radius: 15px;
-          box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
-          z-index: 9999999;
-          font-weight: bold;
-          font-size: 20px;
-          animation: mga-modal-entrance 0.5s ease-out;
-          border: 3px solid #ffffff;
-          text-align: center;
-          min-width: 400px;
-      `;
-      const messageDiv = targetDocument2.createElement("div");
-      messageDiv.textContent = message;
-      messageDiv.style.marginBottom = "20px";
-      notification.appendChild(messageDiv);
-      const ackButton = targetDocument2.createElement("button");
-      ackButton.textContent = "ACKNOWLEDGE (Stop Alarm)";
-      ackButton.style.cssText = `
-          background: white;
-          color: #ff0000;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
-          font-weight: bold;
-          font-size: 16px;
-          cursor: pointer;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-          transition: all 0.2s;
-      `;
-      ackButton.onmouseover = () => {
-        ackButton.style.transform = "scale(1.05)";
-        ackButton.style.boxShadow = "0 6px 15px rgba(0,0,0,0.4)";
-      };
-      ackButton.onmouseout = () => {
-        ackButton.style.transform = "scale(1)";
-        ackButton.style.boxShadow = "0 4px 10px rgba(0,0,0,0.3)";
-      };
-      ackButton.onclick = () => {
-        stopAlarmFn(dependencies);
-        notification.style.animation = "fadeOut 0.3s ease-out";
-        setTimeout(() => notification.remove(), 300);
-      };
-      notification.appendChild(ackButton);
-      const backdrop = targetDocument2.createElement("div");
-      backdrop.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.7);
-          z-index: 9999998;
-          animation: fadeIn 0.3s ease-in;
-      `;
-      backdrop.onclick = () => {
-        backdrop.style.animation = "flash 0.3s ease-in-out";
-      };
-      targetDocument2.body.appendChild(backdrop);
-      targetDocument2.body.appendChild(notification);
-      currentNotificationModal = notification;
-      ackButton.onclick = () => {
-        stopAlarmFn(dependencies);
-        notification.style.animation = "fadeOut 0.3s ease-out";
-        backdrop.style.animation = "fadeOut 0.3s ease-out";
-        setTimeout(() => {
-          notification.remove();
-          backdrop.remove();
-          currentNotificationModal = null;
-        }, 300);
-      };
-    } else {
-      notification.style.cssText = `
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 15px 20px;
-          border-radius: 10px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-          z-index: 999999;
-          font-weight: bold;
-          font-size: 16px;
-          animation: slideInRight 0.5s ease-out;
-          border: 2px solid rgba(255,255,255,0.3);
-      `;
-      notification.textContent = message;
-      setTimeout(() => {
-        notification.style.animation = "slideOutRight 0.5s ease-out";
-        setTimeout(() => notification.remove(), 500);
-      }, 5e3);
-    }
-    if (!targetDocument2.getElementById("mga-notification-animations")) {
-      const style = targetDocument2.createElement("style");
-      style.id = "mga-notification-animations";
-      style.textContent = `
-          @keyframes slideInRight {
-              from { transform: translateX(100%); opacity: 0; }
-              to { transform: translateX(0); opacity: 1; }
-          }
-          @keyframes slideOutRight {
-              from { transform: translateX(0); opacity: 1; }
-              to { transform: translateX(100%); opacity: 0; }
-          }
-          @keyframes mga-notification-pulse {
-              from { transform: translate(-50%, -50%) scale(1); }
-              to { transform: translate(-50%, -50%) scale(1.05); }
-          }
-          @keyframes mga-modal-entrance {
-              from {
-                  opacity: 0;
-                  transform: translate(-50%, -50%) scale(0.8);
-              }
-              to {
-                  opacity: 1;
-                  transform: translate(-50%, -50%) scale(1);
-              }
-          }
-          @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-          }
-          @keyframes fadeOut {
-              from { opacity: 1; }
-              to { opacity: 0; }
-          }
-          @keyframes flash {
-              0%, 100% { background: rgba(0, 0, 0, 0.7); }
-              50% { background: rgba(255, 0, 0, 0.3); }
-          }
-      `;
-      targetDocument2.head.appendChild(style);
-    }
-    targetDocument2.body.appendChild(notification);
-  }
-  function normalizeSpeciesName(name) {
-    if (!name || typeof name !== "string") return "";
-    return name.trim().toLowerCase();
-  }
-  function isWatchedItem(itemId, type = "seed", dependencies = {}) {
-    const {
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      normalizeSpeciesName: normalizeFn = normalizeSpeciesName
-    } = dependencies;
-    const notifications = UnifiedState3.data.settings.notifications;
-    if (type === "seed") {
-      const nameMap = {
-        DawnCelestial: "Dawnbinder",
-        MoonCelestial: "Moonbinder"
-      };
-      const checkId = nameMap[itemId] || itemId;
-      const normalizedItemId = normalizeFn(checkId);
-      return notifications.watchedSeeds.some((watched) => normalizeFn(watched) === normalizedItemId);
-    } else if (type === "egg") {
-      return notifications.watchedEggs.includes(itemId);
-    }
-    return false;
-  }
-  function updateLastSeen(itemId, dependencies = {}) {
-    const {
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
-      productionLog: productionLog3 = console.log
-    } = dependencies;
-    const notifications = UnifiedState3.data.settings.notifications;
-    notifications.lastSeenTimestamps[itemId] = Date.now();
-    MGA_saveJSON2("MGA_data", UnifiedState3.data);
-    productionLog3(`\u{1F4C5} [NOTIFICATIONS] Updated last seen for ${itemId}`);
-  }
-  function getTimeSinceLastSeen(itemId, dependencies = {}) {
-    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState } = dependencies;
-    const notifications = UnifiedState3.data.settings.notifications;
-    const reverseNameMap = {
-      Moonbinder: "MoonCelestial",
-      Dawnbinder: "DawnCelestial"
-    };
-    const lookupId = reverseNameMap[itemId] || itemId;
-    const timestamp = notifications.lastSeenTimestamps[lookupId];
-    if (!timestamp) return "Never seen";
-    const diff = Date.now() - timestamp;
-    const hours = Math.floor(diff / (1e3 * 60 * 60));
-    const days = Math.floor(hours / 24);
-    if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-    const minutes = Math.floor(diff / (1e3 * 60));
-    return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
-  }
-  function showNotificationToast(message, type = "info", dependencies = {}) {
-    const { targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null } = dependencies;
-    try {
-      const toast2 = targetDocument2.createElement("div");
-      toast2.textContent = message;
-      toast2.style.cssText = `
-          position: fixed;
-          top: 80px;
-          right: 20px;
-          padding: 12px 20px;
-          background: ${type === "warning" ? "rgba(255, 165, 0, 0.9)" : type === "success" ? "rgba(76, 175, 80, 0.9)" : "rgba(33, 150, 243, 0.9)"};
-          color: white;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: bold;
-          z-index: 2147483647;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          max-width: 300px;
-          word-wrap: break-word;
-          transition: opacity 0.3s ease;
-      `;
-      targetDocument2.body.appendChild(toast2);
-      setTimeout(() => {
-        toast2.style.opacity = "0";
-        setTimeout(() => toast2.remove(), 300);
-      }, 5e3);
-    } catch (error) {
-      console.error("\u274C [TOAST] Error showing notification toast:", error);
-    }
-  }
-  function getNotificationsTabContent(dependencies = {}) {
-    const {
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      DECOR_ITEMS = typeof window !== "undefined" && window.DECOR_ITEMS ? window.DECOR_ITEMS : []
-    } = dependencies;
-    const settings = UnifiedState3.data.settings;
-    if (!settings.notifications.petHungerEnabled && settings.notifications.petHungerEnabled !== false) {
-      settings.notifications.petHungerEnabled = false;
-    }
-    if (!settings.notifications.petHungerThreshold) {
-      settings.notifications.petHungerThreshold = 20;
-    }
-    if (!settings.notifications.abilityNotificationsEnabled && settings.notifications.abilityNotificationsEnabled !== false) {
-      settings.notifications.abilityNotificationsEnabled = false;
-    }
-    if (!settings.notifications.watchedAbilities) {
-      settings.notifications.watchedAbilities = [];
-    }
-    if (!settings.notifications.watchedAbilityCategories) {
-      settings.notifications.watchedAbilityCategories = {
-        xpBoost: true,
-        cropSizeBoost: true,
-        selling: true,
-        harvesting: true,
-        growthSpeed: true,
-        specialMutations: true,
-        other: true
-      };
-    }
-    if (!settings.notifications.weatherNotificationsEnabled && settings.notifications.weatherNotificationsEnabled !== false) {
-      settings.notifications.weatherNotificationsEnabled = false;
-    }
-    if (!settings.notifications.watchedDecor) {
-      settings.notifications.watchedDecor = [];
-    }
-    if (!settings.notifications.watchedWeatherEvents) {
-      settings.notifications.watchedWeatherEvents = ["Snow", "Rain", "AmberMoon", "Dawn"];
-    }
-    if (!settings.notifications.abilityNotificationSound) {
-      settings.notifications.abilityNotificationSound = "single";
-    }
-    if (settings.notifications.abilityNotificationVolume === void 0) {
-      settings.notifications.abilityNotificationVolume = 0.2;
-    }
-    if (settings.notifications.continuousEnabled === void 0 || settings.notifications.continuousEnabled === null) {
-      settings.notifications.continuousEnabled = false;
-    }
-    if (settings.debugMode === void 0) {
-      settings.debugMode = false;
-    }
-    return `
-          <div class="mga-section">
-              <div class="mga-section-title">\u{1F514} Shop Alert Notifications</div>
-              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                  Get audio and visual alerts when rare seeds or eggs appear in the shop.
-              </p>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="notifications-enabled-checkbox" class="mga-checkbox"
-                             ${settings.notifications.enabled ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F50A} Enable Notifications</span>
-                  </label>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                      Volume: ${Math.round(settings.notifications.volume * 100)}%
-                  </label>
-                  <input type="range" class="mga-slider" id="notification-volume-slider"
-                         min="0" max="100" value="${settings.notifications.volume * 100}"
-                         style="width: 100%; accent-color: #4a9eff;">
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="notification-continuous-checkbox" class="mga-checkbox"
-                             ${settings.notifications.continuousEnabled ? "checked" : ""}
-                             style="accent-color: #ff9900;">
-                      <span>\u26A0\uFE0F Enable Continuous Mode</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      Allows selection of continuous notification type that plays until acknowledged.
-                  </p>
-              </div>
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                      Notification Sound Type
-                  </label>
-                  <select class="mga-select" id="notification-type-select">
-                      <option value="simple" ${settings.notifications.notificationType === "simple" ? "selected" : ""}>\u{1F50A} Simple Beep</option>
-                      <option value="triple" ${settings.notifications.notificationType === "triple" ? "selected" : ""}>\u{1F514} Triple Beep</option>
-                      <option value="alarm" ${settings.notifications.notificationType === "alarm" ? "selected" : ""}>\u{1F6A8} Alarm Siren</option>
-                      <option value="epic" ${settings.notifications.notificationType === "epic" ? "selected" : ""}>\u{1F3B5} Epic Fanfare</option>
-                      <option value="continuous" ${settings.notifications.notificationType === "continuous" ? "selected" : ""} ${!settings.notifications.continuousEnabled ? "disabled" : ""}>\u26A0\uFE0F Continuous (Until Acknowledged)</option>
-                  </select>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="notification-acknowledgment-checkbox" class="mga-checkbox"
-                             ${settings.notifications.requiresAcknowledgment ? "checked" : ""}
-                             style="accent-color: #ff4444;">
-                      <span>\u{1F6A8} Require acknowledgment (persistent alert)</span>
-                  </label>
-                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
-                      When enabled, notifications will show a modal that must be clicked to dismiss.
-                  </p>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <button class="mga-btn mga-btn-sm" id="test-notification-btn" style="background: #4a5568;">
-                      \u{1F514} Test Notification
-                  </button>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">\u{1F3B5} Custom Notification Sounds</div>
-              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                  Upload your own .mp3/.wav/.ogg files to replace default beep sounds. Max 2MB per file.
-              </p>
-
-              <div id="custom-sounds-container" style="display: grid; gap: 12px;">
-                  <!-- Custom sound upload controls will be populated by setupNotificationsTabHandlers -->
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Watched Seeds
-                  </label>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
-                      ${[
-      "Carrot",
-      "Strawberry",
-      "Aloe",
-      "Blueberry",
-      "Apple",
-      "Tulip",
-      "Tomato",
-      "Daffodil",
-      "Corn",
-      "Watermelon",
-      "Pumpkin",
-      "Echeveria",
-      "Coconut",
-      "Banana",
-      "Lily",
-      "BurrosTail",
-      "Mushroom",
-      "Cactus",
-      "Bamboo",
-      "Grape",
-      "Pepper",
-      "Lemon",
-      "PassionFruit",
-      "DragonFruit",
-      "Lychee",
-      "Sunflower",
-      "Starweaver",
-      "Dawnbinder",
-      "Moonbinder"
-    ].map(
-      (seed) => `
-                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-${seed.toLowerCase()}" class="mga-checkbox"
-                                   ${settings.notifications.watchedSeeds.includes(seed) ? "checked" : ""}
-                                   style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>${seed === "BurrosTail" ? "\u{1F331} Burro's Tail" : seed === "Dawnbinder" ? "\u{1F305} Dawnbinder" : seed === "Moonbinder" ? "\u{1F319} Moonbinder" : seed === "Starweaver" ? "\u2B50 Starweaver" : "\u{1F331} " + seed}</span>
-                        </label>
-                    `
-    ).join("")}
-                  </div>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Watched Eggs
-                  </label>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
-                      ${["CommonEgg", "UncommonEgg", "RareEgg", "LegendaryEgg", "MythicalEgg"].map(
-      (egg) => `
-                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-${egg.toLowerCase().replace("egg", "-egg")}" class="mga-checkbox"
-                                   ${settings.notifications.watchedEggs.includes(egg) ? "checked" : ""}
-                                   style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>\u{1F95A} ${egg.replace("Egg", " Egg")}</span>
-                        </label>
-                    `
-    ).join("")}
-                  </div>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Watched Decor (Hourly Shop)
-                  </label>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
-                      ${DECOR_ITEMS.map(
-      (decor) => `
-                          <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                              <input type="checkbox" id="watch-decor-${decor.id.toLowerCase()}" class="mga-checkbox"
-                                     ${settings.notifications.watchedDecor.includes(decor.id) ? "checked" : ""}
-                                     style="accent-color: #4a9eff; transform: scale(0.8);">
-                              <span>\u{1F3A8} ${decor.name}</span>
-                          </label>
-                      `
-    ).join("")}
-                  </div>
-              </div>
-
-              <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.15); border-radius: 4px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px; font-size: 12px;">
-                      Last Seen
-                  </label>
-                  <div id="last-seen-display" style="font-size: 11px; color: #888; line-height: 1.3;">
-                      Loading...
-                  </div>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">\u{1F43E} Pet Hunger Alerts</div>
-              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                  Get notified when your pets' hunger drops below a threshold.
-              </p>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="pet-hunger-enabled" class="mga-checkbox"
-                             ${settings.notifications.petHungerEnabled ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F50A} Enable Pet Hunger Notifications</span>
-                  </label>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                      Alert when hunger below: ${settings.notifications.petHungerThreshold || 20}%
-                  </label>
-                  <input type="range" class="mga-slider" id="pet-hunger-threshold"
-                         min="5" max="50" step="5" value="${settings.notifications.petHungerThreshold || 20}"
-                         style="width: 100%; accent-color: #ff9900;">
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">\u2728 Ability Trigger Alerts</div>
-              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                  Get notified when your pets trigger abilities. Leave all unchecked to be notified for all abilities.
-              </p>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="ability-notifications-enabled" class="mga-checkbox"
-                             ${settings.notifications.abilityNotificationsEnabled ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F50A} Enable Ability Notifications</span>
-                  </label>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                      Ability Sound Type
-                  </label>
-                  <select class="mga-select" id="ability-notification-sound-select"
-                          style="width: 100%; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: white; font-size: 12px;">
-                      <option value="single" ${settings.notifications.abilityNotificationSound === "single" ? "selected" : ""}>\u{1F50A} Single Beep (Subtle)</option>
-                      <option value="double" ${settings.notifications.abilityNotificationSound === "double" ? "selected" : ""}>\u{1F514} Double Beep</option>
-                      <option value="triple" ${settings.notifications.abilityNotificationSound === "triple" ? "selected" : ""}>\u{1F3B5} Triple Beep</option>
-                      <option value="chime" ${settings.notifications.abilityNotificationSound === "chime" ? "selected" : ""}>\u{1F390} Chime (Pleasant)</option>
-                      <option value="alert" ${settings.notifications.abilityNotificationSound === "alert" ? "selected" : ""}>\u{1F6A8} Alert (Urgent)</option>
-                      <option value="buzz" ${settings.notifications.abilityNotificationSound === "buzz" ? "selected" : ""}>\u{1F4F3} Buzz (Energetic)</option>
-                      <option value="ding" ${settings.notifications.abilityNotificationSound === "ding" ? "selected" : ""}>\u{1F514} Ding (Clear)</option>
-                      <option value="chirp" ${settings.notifications.abilityNotificationSound === "chirp" ? "selected" : ""}>\u{1F426} Chirp (Cute)</option>
-                      <option value="epic" ${settings.notifications.abilityNotificationSound === "epic" ? "selected" : ""}>\u{1F3B5} Epic Fanfare</option>
-                  </select>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
-                      Ability Alert Volume: ${Math.round((settings.notifications.abilityNotificationVolume || 0.2) * 100)}%
-                  </label>
-                  <input type="range" class="mga-slider" id="ability-notification-volume-slider"
-                         min="0" max="100" value="${(settings.notifications.abilityNotificationVolume || 0.2) * 100}"
-                         style="width: 100%; accent-color: #9f7aea;">
-              </div>
-
-              <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57);">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px; font-weight: 600;">
-                      \u{1F4CB} Which Abilities to Notify For
-                  </label>
-                  <p style="font-size: 11px; color: #888; margin-bottom: 8px;">
-                      Select individual abilities that will trigger notifications. All abilities start enabled by default.
-                  </p>
-
-                  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                      <button id="select-all-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select All</button>
-                      <button id="select-none-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select None</button>
-                  </div>
-
-                  <input type="text" id="ability-search-box" placeholder="\u{1F50D} Search abilities..."
-                         style="width: 100%; padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: #fff; font-size: 12px;">
-
-                  <div id="individual-abilities-notification-list" style="display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 400px; overflow-y: auto; padding: 4px;">
-                      <!-- Ability checkboxes will be populated by handler -->
-                  </div>
-              </div>
-          </div>
-
-          <div class="mga-section">
-              <div class="mga-section-title">\u{1F324}\uFE0F Weather Event Alerts</div>
-              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
-                  Get notified when weather events occur in the game.
-              </p>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                      <input type="checkbox" id="weather-notifications-enabled" class="mga-checkbox"
-                             ${settings.notifications.weatherNotificationsEnabled ? "checked" : ""}
-                             style="accent-color: #4a9eff;">
-                      <span>\u{1F50A} Enable Weather Notifications</span>
-                  </label>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
-                      Watched Weather Events
-                  </label>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
-                      ${["Snow", "Rain", "AmberMoon", "Dawn"].map(
-      (weather, idx) => `
-                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" id="watch-${weather.toLowerCase().replace("ambermoon", "amber-moon")}" class="mga-checkbox"
-                                   ${settings.notifications.watchedWeatherEvents.includes(weather) ? "checked" : ""}
-                                   style="accent-color: #4a9eff; transform: scale(0.8);">
-                            <span>${idx === 0 ? "\u2744\uFE0F" : idx === 1 ? "\u{1F327}\uFE0F" : idx === 2 ? "\u{1F319}" : "\u{1F305}"} ${weather === "AmberMoon" ? "Amber Moon" : weather}</span>
-                        </label>
-                    `
-    ).join("")}
-                  </div>
-              </div>
-          </div>
-      `;
-  }
-  function setupNotificationsTabHandlers(context = document, dependencies = {}) {
-    const {
-      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
-      productionLog: productionLog3 = console.log,
-      productionWarn: productionWarn3 = console.warn,
-      playSelectedNotification: playSelectedFn = playSelectedNotification,
-      queueNotification: queueNotificationFn = queueNotification,
-      showVisualNotification: showVisualFn = showVisualNotification,
-      getTimeSinceLastSeen: getTimeSinceFn = getTimeSinceLastSeen,
-      scanAndAlertHungryPets: scanAndAlertHungryPets2 = typeof window !== "undefined" && window.scanAndAlertHungryPets,
-      DECOR_ITEMS = typeof window !== "undefined" && window.DECOR_ITEMS ? window.DECOR_ITEMS : [],
-      GM_getValue: GM_getValue2 = typeof window !== "undefined" && window.GM_getValue,
-      GM_setValue: GM_setValue2 = typeof window !== "undefined" && window.GM_setValue,
-      GM_deleteValue: GM_deleteValue2 = typeof window !== "undefined" && window.GM_deleteValue
-    } = dependencies;
-    const notificationEnabledCheckbox = context.querySelector("#notifications-enabled-checkbox");
-    if (notificationEnabledCheckbox && !notificationEnabledCheckbox.hasAttribute("data-handler-setup")) {
-      notificationEnabledCheckbox.setAttribute("data-handler-setup", "true");
-      notificationEnabledCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.notifications.enabled = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F514} [NOTIFICATIONS] ${e.target.checked ? "Enabled" : "Disabled"} notifications`);
-      });
-    }
-    const volumeSlider = context.querySelector("#notification-volume-slider");
-    if (volumeSlider && !volumeSlider.hasAttribute("data-handler-setup")) {
-      volumeSlider.setAttribute("data-handler-setup", "true");
-      volumeSlider.addEventListener("input", (e) => {
-        const volume = parseInt(e.target.value) / 100;
-        UnifiedState3.data.settings.notifications.volume = volume;
-        const label = volumeSlider.previousElementSibling;
-        label.textContent = `Volume: ${Math.round(volume * 100)}%`;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const continuousCheckbox = context.querySelector("#notification-continuous-checkbox");
-    if (continuousCheckbox && !continuousCheckbox.hasAttribute("data-handler-setup")) {
-      continuousCheckbox.setAttribute("data-handler-setup", "true");
-      if (UnifiedState3.data.settings.notifications.continuousEnabled) {
-        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
-        if (acknowledgmentCheckbox2) {
-          acknowledgmentCheckbox2.checked = true;
-          acknowledgmentCheckbox2.disabled = true;
-          UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
-        }
-        const notificationTypeSelect2 = context.querySelector("#notification-type-select");
-        if (notificationTypeSelect2) {
-          notificationTypeSelect2.value = "continuous";
-          UnifiedState3.data.settings.notifications.notificationType = "continuous";
-          productionLog3("\u{1F50A} [NOTIFICATIONS] Auto-selected continuous in dropdown (checkbox was checked on load)");
-        }
-      }
-      continuousCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.notifications.continuousEnabled = e.target.checked;
-        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
-        if (acknowledgmentCheckbox2) {
-          if (e.target.checked) {
-            acknowledgmentCheckbox2.checked = true;
-            acknowledgmentCheckbox2.disabled = true;
-            UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
-            productionLog3(`\u{1F6A8} [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
-          } else {
-            acknowledgmentCheckbox2.disabled = false;
-          }
-        }
-        const notificationTypeSelect2 = context.querySelector("#notification-type-select");
-        if (notificationTypeSelect2) {
-          const continuousOption = notificationTypeSelect2.querySelector('option[value="continuous"]');
-          if (continuousOption) {
-            continuousOption.disabled = !e.target.checked;
-            if (e.target.checked) {
-              if (notificationTypeSelect2.value !== "continuous") {
-                UnifiedState3.data.settings.notifications.previousNotificationType = notificationTypeSelect2.value;
-                notificationTypeSelect2.value = "continuous";
-                UnifiedState3.data.settings.notifications.notificationType = "continuous";
-                productionLog3(
-                  `\u{1F50A} [NOTIFICATIONS] Saved previous type (${UnifiedState3.data.settings.notifications.previousNotificationType}), auto-selected continuous`
-                );
-              }
-            } else {
-              if (notificationTypeSelect2.value === "continuous") {
-                const previousType = UnifiedState3.data.settings.notifications.previousNotificationType || "epic";
-                notificationTypeSelect2.value = previousType;
-                UnifiedState3.data.settings.notifications.notificationType = previousType;
-                productionLog3(`\u{1F50A} [NOTIFICATIONS] Continuous mode disabled, reverted to ${previousType}`);
-              }
-            }
-          }
-        }
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u26A0\uFE0F [NOTIFICATIONS] Continuous mode enabled: ${e.target.checked}`);
-      });
-    }
-    const notificationTypeSelect = context.querySelector("#notification-type-select");
-    if (notificationTypeSelect && !notificationTypeSelect.hasAttribute("data-handler-setup")) {
-      notificationTypeSelect.setAttribute("data-handler-setup", "true");
-      const savedNotificationType = UnifiedState3.data.settings.notifications.notificationType || "epic";
-      notificationTypeSelect.value = savedNotificationType;
-      productionLog3(`\u{1F50A} [NOTIFICATIONS] Restored notification type to: ${savedNotificationType}`);
-      if (UnifiedState3.data.settings.notifications.notificationType === "continuous") {
-        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
-        if (acknowledgmentCheckbox2) {
-          acknowledgmentCheckbox2.checked = true;
-          acknowledgmentCheckbox2.disabled = true;
-          UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
-        }
-      }
-      notificationTypeSelect.addEventListener("change", (e) => {
-        if (e.target.value === "continuous" && !UnifiedState3.data.settings.notifications.continuousEnabled) {
-          e.target.value = UnifiedState3.data.settings.notifications.notificationType || "epic";
-          productionWarn3(`\u26A0\uFE0F [NOTIFICATIONS] Cannot select continuous mode - please enable it first`);
-          showVisualFn("\u26A0\uFE0F Please enable Continuous Mode checkbox first", false, dependencies);
-          return;
-        }
-        UnifiedState3.data.settings.notifications.notificationType = e.target.value;
-        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
-        if (acknowledgmentCheckbox2) {
-          if (e.target.value === "continuous") {
-            acknowledgmentCheckbox2.checked = true;
-            acknowledgmentCheckbox2.disabled = true;
-            UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
-            productionLog3(`\u{1F6A8} [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
-          } else {
-            if (!UnifiedState3.data.settings.notifications.continuousEnabled) {
-              acknowledgmentCheckbox2.disabled = false;
-            }
-          }
-        }
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F50A} [NOTIFICATIONS] Sound type changed to: ${e.target.value}`);
-      });
-    }
-    const acknowledgmentCheckbox = context.querySelector("#notification-acknowledgment-checkbox");
-    if (acknowledgmentCheckbox && !acknowledgmentCheckbox.hasAttribute("data-handler-setup")) {
-      acknowledgmentCheckbox.setAttribute("data-handler-setup", "true");
-      acknowledgmentCheckbox.checked = UnifiedState3.data.settings.notifications.requiresAcknowledgment || false;
-      productionLog3(`\u{1F6A8} [NOTIFICATIONS] Restored acknowledgment checkbox to: ${acknowledgmentCheckbox.checked}`);
-      acknowledgmentCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.notifications.requiresAcknowledgment = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F6A8} [NOTIFICATIONS] Require acknowledgment: ${e.target.checked}`);
-      });
-    }
-    const testNotificationBtn = context.querySelector("#test-notification-btn");
-    if (testNotificationBtn && !testNotificationBtn.hasAttribute("data-handler-setup")) {
-      testNotificationBtn.setAttribute("data-handler-setup", "true");
-      testNotificationBtn.addEventListener("click", () => {
-        const notifications = UnifiedState3.data.settings.notifications;
-        playSelectedFn(dependencies);
-        queueNotificationFn(
-          "\u{1F514} Test notification - This is how alerts will look!",
-          notifications.requiresAcknowledgment,
-          dependencies
-        );
-        productionLog3(
-          `\u{1F514} [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`
-        );
-      });
-    }
-    const seedWatchMap = {
-      "watch-carrot": "Carrot",
-      "watch-strawberry": "Strawberry",
-      "watch-aloe": "Aloe",
-      "watch-blueberry": "Blueberry",
-      "watch-apple": "Apple",
-      "watch-tulip": "Tulip",
-      "watch-tomato": "Tomato",
-      "watch-daffodil": "Daffodil",
-      "watch-corn": "Corn",
-      "watch-watermelon": "Watermelon",
-      "watch-pumpkin": "Pumpkin",
-      "watch-echeveria": "Echeveria",
-      "watch-coconut": "Coconut",
-      "watch-banana": "Banana",
-      "watch-lily": "Lily",
-      "watch-burrostail": "BurrosTail",
-      "watch-mushroom": "Mushroom",
-      "watch-cactus": "Cactus",
-      "watch-bamboo": "Bamboo",
-      "watch-grape": "Grape",
-      "watch-pepper": "Pepper",
-      "watch-lemon": "Lemon",
-      "watch-passionfruit": "PassionFruit",
-      "watch-dragonfruit": "DragonFruit",
-      "watch-lychee": "Lychee",
-      "watch-sunflower": "Sunflower",
-      "watch-starweaver": "Starweaver",
-      "watch-dawnbinder": "Dawnbinder",
-      "watch-moonbinder": "Moonbinder"
-    };
-    Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
-      const checkbox = context.querySelector(`#${checkboxId}`);
-      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
-        checkbox.setAttribute("data-handler-setup", "true");
-        checkbox.addEventListener("change", (e) => {
-          const notifications = UnifiedState3.data.settings.notifications;
-          if (e.target.checked) {
-            if (!notifications.watchedSeeds.includes(seedId)) {
-              notifications.watchedSeeds.push(seedId);
-            }
-          } else {
-            notifications.watchedSeeds = notifications.watchedSeeds.filter((id) => id !== seedId);
-          }
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-          productionLog3(`\u{1F331} [NOTIFICATIONS] ${e.target.checked ? "Added" : "Removed"} ${seedId} to/from watch list`);
-          updateLastSeenDisplay();
-        });
-      }
-    });
-    const eggWatchMap = {
-      "watch-common-egg": "CommonEgg",
-      "watch-uncommon-egg": "UncommonEgg",
-      "watch-rare-egg": "RareEgg",
-      "watch-legendary-egg": "LegendaryEgg",
-      "watch-mythical-egg": "MythicalEgg"
-    };
-    Object.entries(eggWatchMap).forEach(([checkboxId, eggId]) => {
-      const checkbox = context.querySelector(`#${checkboxId}`);
-      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
-        checkbox.setAttribute("data-handler-setup", "true");
-        checkbox.addEventListener("change", (e) => {
-          const notifications = UnifiedState3.data.settings.notifications;
-          if (e.target.checked) {
-            if (!notifications.watchedEggs.includes(eggId)) {
-              notifications.watchedEggs.push(eggId);
-            }
-          } else {
-            notifications.watchedEggs = notifications.watchedEggs.filter((id) => id !== eggId);
-          }
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-          productionLog3(`\u{1F95A} [NOTIFICATIONS] ${e.target.checked ? "Added" : "Removed"} ${eggId} to/from watch list`);
-          updateLastSeenDisplay();
-        });
-      }
-    });
-    DECOR_ITEMS.forEach((decor) => {
-      const checkboxId = `watch-decor-${decor.id.toLowerCase()}`;
-      const checkbox = context.querySelector(`#${checkboxId}`);
-      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
-        checkbox.setAttribute("data-handler-setup", "true");
-        checkbox.addEventListener("change", (e) => {
-          const notifications = UnifiedState3.data.settings.notifications;
-          if (e.target.checked) {
-            if (!notifications.watchedDecor.includes(decor.id)) {
-              notifications.watchedDecor.push(decor.id);
-            }
-          } else {
-            notifications.watchedDecor = notifications.watchedDecor.filter((id) => id !== decor.id);
-          }
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-          productionLog3(`\u{1F3A8} [NOTIFICATIONS] ${e.target.checked ? "Added" : "Removed"} ${decor.id} to/from watch list`);
-          updateLastSeenDisplay();
-        });
-      }
-    });
-    function updateLastSeenDisplay() {
-      const lastSeenDisplay = context.querySelector("#last-seen-display");
-      if (!lastSeenDisplay) return;
-      const notifications = UnifiedState3.data.settings.notifications;
-      const allWatched = [...notifications.watchedSeeds, ...notifications.watchedEggs, ...notifications.watchedDecor];
-      if (allWatched.length === 0) {
-        lastSeenDisplay.innerHTML = "No items being watched";
-        return;
-      }
-      let html = "";
-      allWatched.forEach((itemId) => {
-        const timeSince = getTimeSinceFn(itemId, dependencies);
-        html += `<div>${itemId}: ${timeSince}</div>`;
-      });
-      lastSeenDisplay.innerHTML = html;
-    }
-    updateLastSeenDisplay();
-    setInterval(updateLastSeenDisplay, 3e4);
-    const petHungerCheckbox = context.querySelector("#pet-hunger-enabled");
-    if (petHungerCheckbox && !petHungerCheckbox.hasAttribute("data-handler-setup")) {
-      petHungerCheckbox.setAttribute("data-handler-setup", "true");
-      petHungerCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.notifications.petHungerEnabled = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F43E} [PET-HUNGER] ${e.target.checked ? "Enabled" : "Disabled"} pet hunger notifications`);
-        if (e.target.checked && scanAndAlertHungryPets2) {
-          setTimeout(() => {
-            scanAndAlertHungryPets2();
-          }, 500);
-        }
-      });
-    }
-    const petHungerThreshold = context.querySelector("#pet-hunger-threshold");
-    if (petHungerThreshold && !petHungerThreshold.hasAttribute("data-handler-setup")) {
-      petHungerThreshold.setAttribute("data-handler-setup", "true");
-      petHungerThreshold.addEventListener("input", (e) => {
-        const threshold = parseInt(e.target.value);
-        UnifiedState3.data.settings.notifications.petHungerThreshold = threshold;
-        const label = petHungerThreshold.previousElementSibling;
-        label.textContent = `Alert when hunger below: ${threshold}%`;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F43E} [PET-HUNGER] Threshold set to ${threshold}%`);
-      });
-    }
-    const abilityNotificationsCheckbox = context.querySelector("#ability-notifications-enabled");
-    if (abilityNotificationsCheckbox && !abilityNotificationsCheckbox.hasAttribute("data-handler-setup")) {
-      abilityNotificationsCheckbox.setAttribute("data-handler-setup", "true");
-      abilityNotificationsCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.notifications.abilityNotificationsEnabled = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u2728 [ABILITY-NOTIFY] ${e.target.checked ? "Enabled" : "Disabled"} ability notifications`);
-      });
-    }
-    const abilityNotificationSoundSelect = context.querySelector("#ability-notification-sound-select");
-    if (abilityNotificationSoundSelect && !abilityNotificationSoundSelect.hasAttribute("data-handler-setup")) {
-      abilityNotificationSoundSelect.setAttribute("data-handler-setup", "true");
-      abilityNotificationSoundSelect.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.notifications.abilityNotificationSound = e.target.value;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u2728 [ABILITY-NOTIFY] Sound type changed to: ${e.target.value}`);
-      });
-    }
-    const abilityVolumeSlider = context.querySelector("#ability-notification-volume-slider");
-    if (abilityVolumeSlider && !abilityVolumeSlider.hasAttribute("data-handler-setup")) {
-      abilityVolumeSlider.setAttribute("data-handler-setup", "true");
-      abilityVolumeSlider.addEventListener("input", (e) => {
-        const volume = parseInt(e.target.value) / 100;
-        UnifiedState3.data.settings.notifications.abilityNotificationVolume = volume;
-        const label = abilityVolumeSlider.previousElementSibling;
-        label.textContent = `Ability Alert Volume: ${Math.round(volume * 100)}%`;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-      });
-    }
-    const individualAbilityCheckboxes = context.querySelectorAll(".individual-ability-checkbox");
-    individualAbilityCheckboxes.forEach((checkbox) => {
-      if (!checkbox.hasAttribute("data-handler-setup")) {
-        checkbox.setAttribute("data-handler-setup", "true");
-        checkbox.addEventListener("change", (e) => {
-          const abilityName = e.target.dataset.abilityName;
-          if (!UnifiedState3.data.settings.notifications.watchedAbilities) {
-            UnifiedState3.data.settings.notifications.watchedAbilities = [];
-          }
-          if (e.target.checked) {
-            if (!UnifiedState3.data.settings.notifications.watchedAbilities.includes(abilityName)) {
-              UnifiedState3.data.settings.notifications.watchedAbilities.push(abilityName);
-            }
-          } else {
-            const index = UnifiedState3.data.settings.notifications.watchedAbilities.indexOf(abilityName);
-            if (index > -1) {
-              UnifiedState3.data.settings.notifications.watchedAbilities.splice(index, 1);
-            }
-          }
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-          productionLog3(`\u2728 [ABILITY-NOTIFY] ${abilityName}: ${e.target.checked ? "Enabled" : "Disabled"}`);
-        });
-      }
-    });
-    const abilitySearchBox = context.querySelector("#ability-search-box");
-    if (abilitySearchBox && !abilitySearchBox.hasAttribute("data-handler-setup")) {
-      abilitySearchBox.setAttribute("data-handler-setup", "true");
-      abilitySearchBox.addEventListener("input", (e) => {
-        const query = e.target.value.toLowerCase();
-        const items = context.querySelectorAll(".ability-checkbox-item");
-        items.forEach((item) => {
-          const abilityName = item.dataset.ability.toLowerCase();
-          item.style.display = abilityName.includes(query) ? "flex" : "none";
-        });
-      });
-    }
-    const selectAllIndividualAbilities = context.querySelector("#select-all-individual-abilities");
-    if (selectAllIndividualAbilities && !selectAllIndividualAbilities.hasAttribute("data-handler-setup")) {
-      selectAllIndividualAbilities.setAttribute("data-handler-setup", "true");
-      selectAllIndividualAbilities.addEventListener("click", () => {
-        UnifiedState3.data.settings.notifications.watchedAbilities = [];
-        context.querySelectorAll(".individual-ability-checkbox").forEach((checkbox) => {
-          checkbox.checked = true;
-        });
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3("\u2728 [ABILITY-NOTIFY] Enabled all abilities");
-      });
-    }
-    const selectNoneIndividualAbilities = context.querySelector("#select-none-individual-abilities");
-    if (selectNoneIndividualAbilities && !selectNoneIndividualAbilities.hasAttribute("data-handler-setup")) {
-      selectNoneIndividualAbilities.setAttribute("data-handler-setup", "true");
-      selectNoneIndividualAbilities.addEventListener("click", () => {
-        const allAbilities = [];
-        context.querySelectorAll(".individual-ability-checkbox").forEach((checkbox) => {
-          allAbilities.push(checkbox.dataset.abilityName);
-        });
-        UnifiedState3.data.settings.notifications.watchedAbilities = ["__NONE__"];
-        context.querySelectorAll(".individual-ability-checkbox").forEach((checkbox) => {
-          checkbox.checked = false;
-        });
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3("\u2728 [ABILITY-NOTIFY] Disabled all abilities");
-      });
-    }
-    const weatherNotificationsCheckbox = context.querySelector("#weather-notifications-enabled");
-    if (weatherNotificationsCheckbox && !weatherNotificationsCheckbox.hasAttribute("data-handler-setup")) {
-      weatherNotificationsCheckbox.setAttribute("data-handler-setup", "true");
-      weatherNotificationsCheckbox.addEventListener("change", (e) => {
-        UnifiedState3.data.settings.notifications.weatherNotificationsEnabled = e.target.checked;
-        MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        productionLog3(`\u{1F324}\uFE0F [WEATHER] ${e.target.checked ? "Enabled" : "Disabled"} weather notifications`);
-      });
-    }
-    const weatherEventMap = {
-      "watch-snow": "Snow",
-      "watch-rain": "Rain",
-      "watch-amber-moon": "AmberMoon",
-      "watch-dawn": "Dawn"
-    };
-    Object.entries(weatherEventMap).forEach(([checkboxId, eventName]) => {
-      const checkbox = context.querySelector(`#${checkboxId}`);
-      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
-        checkbox.setAttribute("data-handler-setup", "true");
-        checkbox.addEventListener("change", (e) => {
-          const watchedEvents = UnifiedState3.data.settings.notifications.watchedWeatherEvents;
-          if (e.target.checked) {
-            if (!watchedEvents.includes(eventName)) {
-              watchedEvents.push(eventName);
-            }
-          } else {
-            const idx = watchedEvents.indexOf(eventName);
-            if (idx > -1) watchedEvents.splice(idx, 1);
-          }
-          MGA_saveJSON2("MGA_data", UnifiedState3.data);
-          productionLog3(`\u{1F324}\uFE0F [WEATHER] ${e.target.checked ? "Added" : "Removed"} ${eventName} to/from watch list`);
-        });
-      }
-    });
-    const customSoundsContainer = context.querySelector("#custom-sounds-container");
-    if (customSoundsContainer && !customSoundsContainer.hasAttribute("data-handler-setup")) {
-      customSoundsContainer.setAttribute("data-handler-setup", "true");
-      const soundTypes = [
-        { id: "shop", label: "\u{1F6D2} Shop Alerts" },
-        { id: "pet", label: "\u{1F43E} Pet Hunger" },
-        { id: "ability", label: "\u26A1 Ability Triggers" },
-        { id: "weather", label: "\u{1F324}\uFE0F Weather Events" }
-      ];
-      soundTypes.forEach((type) => {
-        const hasCustom = GM_getValue2(`mgtools_custom_sound_${type.id}`, null) !== null;
-        const controlDiv = document.createElement("div");
-        controlDiv.style.cssText = "border: 1px solid rgba(255, 255, 255, 0.57); padding: 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.48);";
-        controlDiv.innerHTML = `
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                      <label class="mga-label" style="margin: 0;">${type.label}</label>
-                      <span id="custom-sound-status-${type.id}" style="font-size: 10px; color: ${hasCustom ? "#10b981" : "#666"};">
-                          ${hasCustom ? "\u2713 Custom" : "\u25CB Default"}
-                      </span>
-                  </div>
-                  <div style="display: flex; gap: 6px;">
-                      <input type="file" accept="audio/*" id="upload-sound-${type.id}" style="display: none;">
-                      <button class="mga-btn mga-btn-sm" id="upload-btn-${type.id}" style="flex: 1; background: #4a9eff; font-size: 11px; padding: 6px;">\u{1F4C1} Upload</button>
-                      <button class="mga-btn mga-btn-sm" id="test-btn-${type.id}" style="flex: 0.6; background: #10b981; font-size: 11px; padding: 6px;">\u25B6\uFE0F Test</button>
-                      <button class="mga-btn mga-btn-sm" id="delete-btn-${type.id}" style="flex: 0.6; background: ${hasCustom ? "#ef4444" : "#666"}; font-size: 11px; padding: 6px;" ${!hasCustom ? "disabled" : ""}>\u{1F5D1}\uFE0F</button>
-                  </div>
-              `;
-        customSoundsContainer.appendChild(controlDiv);
-        const uploadBtn = controlDiv.querySelector(`#upload-btn-${type.id}`);
-        const fileInput = controlDiv.querySelector(`#upload-sound-${type.id}`);
-        uploadBtn.addEventListener("click", () => fileInput.click());
-        fileInput.addEventListener("change", (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          if (file.size > 2 * 1024 * 1024) {
-            alert("\u274C File too large! Max 2MB");
-            return;
-          }
-          if (!file.type.startsWith("audio/")) {
-            alert("\u274C Please upload an audio file");
-            return;
-          }
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            GM_setValue2(`mgtools_custom_sound_${type.id}`, event.target.result);
-            controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = "\u2713 Custom";
-            controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = "#10b981";
-            const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
-            delBtn.disabled = false;
-            delBtn.style.background = "#ef4444";
-            productionLog3(`\u{1F3B5} [CUSTOM-SOUND] Uploaded: ${type.id}`);
-            alert(`\u2705 Custom sound uploaded!`);
-          };
-          reader.readAsDataURL(file);
-        });
-        controlDiv.querySelector(`#test-btn-${type.id}`).addEventListener("click", () => {
-          const customSound = GM_getValue2(`mgtools_custom_sound_${type.id}`, null);
-          const volume = UnifiedState3.data.settings.notifications.volume || 0.3;
-          if (customSound) {
-            const audio = new Audio(customSound);
-            audio.volume = volume;
-            audio.play();
-          } else {
-            playSelectedFn(dependencies);
-          }
-        });
-        controlDiv.querySelector(`#delete-btn-${type.id}`).addEventListener("click", () => {
-          if (confirm(`Delete custom sound for ${type.label}?`)) {
-            GM_deleteValue2(`mgtools_custom_sound_${type.id}`);
-            controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = "\u25CB Default";
-            controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = "#666";
-            const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
-            delBtn.disabled = true;
-            delBtn.style.background = "#666";
-            alert(`\u2705 Reverted to default sound`);
-          }
-        });
-      });
-    }
-  }
-  var notifications_default = {
-    // Core Sound System (Phase 1)
-    playNotificationSound,
-    playTripleBeepNotification,
-    playDoubleBeepNotification,
-    playSingleBeepNotification,
-    playChimeNotification,
-    playAlertNotification,
-    playBuzzNotification,
-    playDingNotification,
-    playChirpNotification,
-    playAlarmNotification,
-    startContinuousAlarm,
-    stopContinuousAlarm,
-    playEpicNotification,
-    playSelectedNotification,
-    // Custom Sound Wrappers (Phase 2)
-    playCustomOrDefaultSound,
-    playGeneralNotificationSound,
-    playShopNotificationSound,
-    playWeatherNotificationSound,
-    // Visual Notifications (Phase 3)
-    queueNotification,
-    updateNotificationModal,
-    generateNotificationListHTML,
-    showBatchedNotificationModal,
-    dismissAllNotifications,
-    showVisualNotification,
-    // Notification Utilities (Phase 4)
-    normalizeSpeciesName,
-    isWatchedItem,
-    updateLastSeen,
-    getTimeSinceLastSeen,
-    showNotificationToast
-  };
-
   // src/features/shop.js
   var shop_exports = {};
   __export(shop_exports, {
@@ -20640,6 +18768,7 @@ Error: ${error.message}`);
     SHOP_RAINBOW_ITEMS: () => SHOP_RAINBOW_ITEMS,
     buyItem: () => buyItem,
     checkForWatchedItems: () => checkForWatchedItems,
+    checkShopRestock: () => checkShopRestock,
     createShopItemElement: () => createShopItemElement,
     createShopOverlay: () => createShopOverlay,
     createShopSidebar: () => createShopSidebar,
@@ -22996,6 +21125,9 @@ Error: ${error.message}`);
     }
     watchShopData();
   }
+  function checkShopRestock(dependencies = {}) {
+    return checkForWatchedItems(dependencies);
+  }
   var shop_default = {
     // Phase 1: Constants & Utilities
     SHOP_IMAGE_MAP,
@@ -23045,485 +21177,1561 @@ Error: ${error.message}`);
     setupShopTabHandlers,
     // Phase 6: Shop Monitoring & Restock Detection
     checkForWatchedItems,
+    checkShopRestock,
     scheduleRefresh,
     handleEggRestockDetection,
     initializeToolRestockWatcher,
     initializeShopWatcher
   };
 
-  // src/features/version-checker.js
-  var version_checker_exports = {};
-  __export(version_checker_exports, {
-    checkVersion: () => checkVersion,
-    compareVersions: () => compareVersions2
+  // src/features/notifications.js
+  var notifications_exports = {};
+  __export(notifications_exports, {
+    default: () => notifications_default,
+    dismissAllNotifications: () => dismissAllNotifications,
+    generateNotificationListHTML: () => generateNotificationListHTML,
+    getNotificationsTabContent: () => getNotificationsTabContent,
+    getTimeSinceLastSeen: () => getTimeSinceLastSeen,
+    isWatchedItem: () => isWatchedItem,
+    normalizeSpeciesName: () => normalizeSpeciesName,
+    playAlarmNotification: () => playAlarmNotification,
+    playAlertNotification: () => playAlertNotification,
+    playBuzzNotification: () => playBuzzNotification,
+    playChimeNotification: () => playChimeNotification,
+    playChirpNotification: () => playChirpNotification,
+    playCustomOrDefaultSound: () => playCustomOrDefaultSound,
+    playDingNotification: () => playDingNotification,
+    playDoubleBeepNotification: () => playDoubleBeepNotification,
+    playEpicNotification: () => playEpicNotification,
+    playGeneralNotificationSound: () => playGeneralNotificationSound,
+    playNotificationSound: () => playNotificationSound,
+    playSelectedNotification: () => playSelectedNotification,
+    playShopNotificationSound: () => playShopNotificationSound,
+    playSingleBeepNotification: () => playSingleBeepNotification,
+    playTripleBeepNotification: () => playTripleBeepNotification,
+    playWeatherNotificationSound: () => playWeatherNotificationSound,
+    queueNotification: () => queueNotification,
+    setupNotificationsTabHandlers: () => setupNotificationsTabHandlers,
+    showBatchedNotificationModal: () => showBatchedNotificationModal,
+    showNotificationToast: () => showNotificationToast,
+    showVisualNotification: () => showVisualNotification,
+    startContinuousAlarm: () => startContinuousAlarm,
+    stopContinuousAlarm: () => stopContinuousAlarm,
+    updateLastSeen: () => updateLastSeen,
+    updateNotificationModal: () => updateNotificationModal
   });
-  function compareVersions2(v1, v2, dependencies = {}) {
-    const parts1 = v1.split(".").map(Number);
-    const parts2 = v2.split(".").map(Number);
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-      const part1 = parts1[i] || 0;
-      const part2 = parts2[i] || 0;
-      if (part1 > part2) return 1;
-      if (part1 < part2) return -1;
-    }
-    return 0;
-  }
-  async function checkVersion(indicatorElement, dependencies = {}) {
+  function playNotificationSound(frequency = 800, duration = 200, volume = 0.3, dependencies = {}) {
     const {
-      CURRENT_VERSION: CURRENT_VERSION2 = "1.0.0",
-      IS_LIVE_BETA: IS_LIVE_BETA2 = false,
-      STABLE_DOWNLOAD_URL: STABLE_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/main/MGTools.user.js",
-      BETA_DOWNLOAD_URL: BETA_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/Live-Beta/MGTools.user.js",
-      isDiscordPage = false,
-      window: win = typeof window !== "undefined" ? window : null,
-      console: con = typeof console !== "undefined" ? console : null
+      getAudioContext = () => new (window.AudioContext || window.webkitAudioContext)(),
+      productionLog: productionLog3 = console.log
     } = dependencies;
-    if (!win || !indicatorElement) return;
-    if (isDiscordPage) {
-      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#00ff00";
-      const tooltipLines = [
-        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
-        `STATUS: Version check disabled on Discord`,
-        "",
-        "Shift+Click: Install Stable",
-        "Shift+Alt+Click: Install Beta"
-      ];
-      indicatorElement.title = tooltipLines.join("\n");
-      indicatorElement.style.cursor = "pointer";
-      indicatorElement.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (e.shiftKey && e.altKey) {
-          win.open(BETA_DOWNLOAD_URL2, "_blank");
-        } else if (e.shiftKey) {
-          win.open(STABLE_DOWNLOAD_URL2, "_blank");
-        }
-      });
-      return;
-    }
-    const cacheBust = `?t=${Date.now()}`;
-    async function fetchVersion(branch) {
-      const urls = [
-        `https://raw.githubusercontent.com/Myke247/MGTools/${branch}/MGTools.user.js${cacheBust}`,
-        `https://api.github.com/repos/Myke247/MGTools/contents/MGTools.user.js`
-      ];
-      for (const url of urls) {
-        try {
-          const isGitHubAPI = url.includes("api.github.com");
-          const response = await win.fetch(url, {
-            method: "GET",
-            cache: "no-cache",
-            headers: isGitHubAPI ? { Accept: "application/vnd.github.v3.raw" } : {}
-          });
-          if (response.ok) {
-            const text = await response.text();
-            const match = text.match(/@version\s+([\d.]+)/);
-            if (match) return match[1];
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      return null;
-    }
     try {
-      const [stableVersion, betaVersion] = await Promise.all([fetchVersion("main"), fetchVersion("Live-Beta")]);
-      if (!stableVersion && !betaVersion) {
-        const branchLabel2 = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-        indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
-        const tooltipLines2 = [
-          `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel2})`,
-          `STATUS: Version check failed`,
-          "",
-          "Click: Retry",
-          "Shift+Click: Install Stable",
-          "Shift+Alt+Click: Install Beta"
-        ];
-        indicatorElement.title = tooltipLines2.join("\n");
-        indicatorElement.style.cursor = "pointer";
-        const newIndicator2 = indicatorElement.cloneNode(true);
-        indicatorElement.parentNode.replaceChild(newIndicator2, indicatorElement);
-        newIndicator2.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (e.shiftKey && e.altKey) {
-            win.open(BETA_DOWNLOAD_URL2, "_blank");
-          } else if (e.shiftKey) {
-            win.open(STABLE_DOWNLOAD_URL2, "_blank");
-          } else {
-            newIndicator2.style.color = "#888";
-            newIndicator2.title = "Checking for updates...";
-            checkVersion(newIndicator2, dependencies);
-          }
-        });
+      const audioContext = getAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = frequency;
+      oscillator.type = "sine";
+      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1e3);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration / 1e3);
+      productionLog3(`\u{1F50A} [NOTIFICATIONS] Sound played for rare item!`);
+    } catch (error) {
+      console.error("\u274C [NOTIFICATIONS] Failed to play notification sound:", error);
+    }
+  }
+  function playTripleBeepNotification(volume = 0.3, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    playSoundFn(1e3, 250, volume, dependencies);
+    setTimeout(() => playSoundFn(1e3, 200, volume * 0.8, dependencies), 300);
+    setTimeout(() => playSoundFn(1200, 150, volume * 0.6, dependencies), 600);
+  }
+  function playDoubleBeepNotification(volume = 0.3, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    playSoundFn(600, 200, volume, dependencies);
+    setTimeout(() => playSoundFn(600, 200, volume * 0.9, dependencies), 250);
+  }
+  function playSingleBeepNotification(volume = 0.2, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    playSoundFn(500, 150, volume, dependencies);
+  }
+  function playChimeNotification(volume = 0.2, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    playSoundFn(500, 100, volume, dependencies);
+    setTimeout(() => playSoundFn(800, 100, volume * 0.9, dependencies), 120);
+    setTimeout(() => playSoundFn(1e3, 120, volume * 0.8, dependencies), 240);
+  }
+  function playAlertNotification(volume = 0.2, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    playSoundFn(1200, 150, volume, dependencies);
+    setTimeout(() => playSoundFn(900, 150, volume * 0.9, dependencies), 160);
+  }
+  function playBuzzNotification(volume = 0.2, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    for (let i = 0; i < 8; i++) {
+      setTimeout(() => playSoundFn(300, 40, volume * (i % 2 === 0 ? 1 : 0.6), dependencies), i * 50);
+    }
+  }
+  function playDingNotification(volume = 0.2, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    playSoundFn(2e3, 180, volume, dependencies);
+  }
+  function playChirpNotification(volume = 0.2, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    playSoundFn(400, 80, volume, dependencies);
+    setTimeout(() => playSoundFn(800, 60, volume * 0.8, dependencies), 85);
+    setTimeout(() => playSoundFn(1200, 40, volume * 0.6, dependencies), 150);
+  }
+  function playAlarmNotification(volume = 0.5, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    let count = 0;
+    const interval = setInterval(() => {
+      playSoundFn(count % 2 === 0 ? 1500 : 800, 400, volume, dependencies);
+      count++;
+      if (count >= 6) clearInterval(interval);
+    }, 450);
+  }
+  var continuousAlarmInterval = null;
+  function startContinuousAlarm(volume = 0.4, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound, productionLog: productionLog3 = console.log } = dependencies;
+    if (continuousAlarmInterval) return;
+    let tone = 800;
+    continuousAlarmInterval = setInterval(() => {
+      tone = tone === 800 ? 1200 : 800;
+      playSoundFn(tone, 300, volume, dependencies);
+    }, 350);
+    productionLog3("\u{1F6A8} [NOTIFICATIONS] Continuous alarm started - requires acknowledgment!");
+  }
+  function stopContinuousAlarm(dependencies = {}) {
+    const { productionLog: productionLog3 = console.log } = dependencies;
+    if (continuousAlarmInterval) {
+      clearInterval(continuousAlarmInterval);
+      continuousAlarmInterval = null;
+      productionLog3("\u2705 [NOTIFICATIONS] Continuous alarm stopped");
+    }
+  }
+  function playEpicNotification(volume = 0.4, dependencies = {}) {
+    const { playNotificationSound: playSoundFn = playNotificationSound } = dependencies;
+    const sequence = [
+      [400, 100],
+      [500, 100],
+      [600, 100],
+      [800, 150],
+      [1e3, 200],
+      [1200, 150],
+      [1e3, 150],
+      [1200, 200],
+      [1500, 300],
+      [1200, 100],
+      [1500, 400]
+    ];
+    let delay = 0;
+    sequence.forEach(([freq, dur]) => {
+      setTimeout(() => playSoundFn(freq, dur, volume, dependencies), delay);
+      delay += dur + 50;
+    });
+  }
+  function playSelectedNotification(dependencies = {}) {
+    const {
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      productionLog: productionLog3 = console.log,
+      playNotificationSound: playSoundFn = playNotificationSound,
+      playTripleBeepNotification: playTripleFn = playTripleBeepNotification,
+      playAlarmNotification: playAlarmFn = playAlarmNotification,
+      playEpicNotification: playEpicFn = playEpicNotification,
+      startContinuousAlarm: startContinuousFn = startContinuousAlarm
+    } = dependencies;
+    const notifications = UnifiedState3.data.settings.notifications;
+    const volume = notifications.volume || 0.3;
+    const type = notifications.notificationType || "triple";
+    productionLog3(`\u{1F50A} [NOTIFICATIONS] Playing ${type} notification at ${Math.round(volume * 100)}% volume`);
+    switch (type) {
+      case "simple":
+        playSoundFn(1e3, 300, volume, dependencies);
+        break;
+      case "triple":
+        playTripleFn(volume, dependencies);
+        break;
+      case "alarm":
+        playAlarmFn(volume, dependencies);
+        break;
+      case "epic":
+        playEpicFn(volume, dependencies);
+        break;
+      case "continuous":
+        startContinuousFn(volume, dependencies);
+        break;
+      default:
+        playTripleFn(volume, dependencies);
+    }
+  }
+  function playCustomOrDefaultSound(soundType, defaultPlayFunc, volume, dependencies = {}) {
+    const {
+      GM_getValue: GM_getValue2 = typeof window !== "undefined" && window.GM_getValue,
+      startContinuousAlarm: startContinuousFn = startContinuousAlarm,
+      productionLog: productionLog3 = console.log,
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState
+    } = dependencies;
+    const customSound = GM_getValue2(`mgtools_custom_sound_${soundType}`, null);
+    if (customSound) {
+      const notificationType = UnifiedState3.data.settings.notifications.notificationType;
+      if (notificationType === "continuous") {
+        productionLog3(`\u{1F3B5} [CUSTOM-SOUND] Continuous mode active - using alarm instead of custom ${soundType} sound`);
+        startContinuousFn(volume, dependencies);
         return;
       }
-      const relevantVersion = IS_LIVE_BETA2 ? betaVersion : stableVersion;
-      const versionComparison = compareVersions2(CURRENT_VERSION2, relevantVersion);
-      let color;
-      let statusMsg;
-      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-      if (IS_LIVE_BETA2) {
-        if (versionComparison === 0) {
-          color = "#ff9500";
-          statusMsg = "UP TO DATE";
-        } else if (versionComparison > 0) {
-          color = "#ffff00";
-          statusMsg = "DEV VERSION";
-        } else {
-          color = "#ff00ff";
-          statusMsg = "UPDATE AVAILABLE";
-        }
-      } else {
-        if (versionComparison === 0) {
-          color = "#00ff00";
-          statusMsg = "UP TO DATE";
-        } else if (versionComparison > 0) {
-          color = "#90ee90";
-          statusMsg = "DEV VERSION";
-        } else {
-          color = "#ff0000";
-          statusMsg = "UPDATE AVAILABLE";
-        }
+      try {
+        const audio = new Audio(customSound);
+        audio.volume = volume || 0.3;
+        audio.play();
+        productionLog3(`\u{1F3B5} [CUSTOM-SOUND] Playing custom ${soundType} sound`);
+      } catch (err) {
+        console.error(`Failed to play custom ${soundType} sound:`, err);
+        defaultPlayFunc(volume);
       }
-      const tooltipLines = [
-        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
-        `STATUS: ${statusMsg}`,
-        "",
-        `GitHub Versions:`,
-        IS_LIVE_BETA2 ? `  Your Branch (Beta): v${betaVersion || "Loading..."}` : `  Your Branch (Stable): v${stableVersion || "Loading..."}`,
-        IS_LIVE_BETA2 ? `  Other Branch (Stable): v${stableVersion || "Loading..."}` : `  Other Branch (Beta): v${betaVersion || "Loading..."}`,
-        "",
-        "Click: Recheck",
-        "Shift+Click: Install Stable",
-        "Shift+Alt+Click: Install Beta"
-      ];
-      indicatorElement.style.color = color;
-      indicatorElement.title = tooltipLines.join("\n");
-      indicatorElement.style.cursor = "pointer";
-      const newIndicator = indicatorElement.cloneNode(true);
-      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-      newIndicator.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (e.shiftKey && e.altKey) {
-          win.open(BETA_DOWNLOAD_URL2, "_blank");
-        } else if (e.shiftKey) {
-          win.open(STABLE_DOWNLOAD_URL2, "_blank");
-        } else {
-          newIndicator.style.color = "#888";
-          newIndicator.title = `v${CURRENT_VERSION2} - Checking for updates...`;
-          checkVersion(newIndicator, dependencies);
-        }
-      });
-    } catch (e) {
-      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
-      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
-      const tooltipLines = [
-        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
-        `STATUS: Version check failed`,
-        "",
-        "Click: Retry",
-        "Shift+Click: Install Stable",
-        "Shift+Alt+Click: Install Beta"
-      ];
-      indicatorElement.title = tooltipLines.join("\n");
-      indicatorElement.style.cursor = "pointer";
-      const newIndicator = indicatorElement.cloneNode(true);
-      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
-      newIndicator.addEventListener("click", (e2) => {
-        e2.stopPropagation();
-        if (e2.shiftKey && e2.altKey) {
-          win.open(BETA_DOWNLOAD_URL2, "_blank");
-        } else if (e2.shiftKey) {
-          win.open(STABLE_DOWNLOAD_URL2, "_blank");
-        } else {
-          newIndicator.style.color = "#888";
-          newIndicator.title = "Checking for updates...";
-          checkVersion(newIndicator, dependencies);
-        }
-      });
-      if (con) {
-        con.log("[VERSION CHECK] Error:", e);
-      }
+    } else {
+      defaultPlayFunc(volume);
     }
   }
-
-  // src/init/modular-bootstrap.js
-  function initializeModular({ targetDocument: targetDocument2, targetWindow: targetWindow3 }) {
-    productionLog2("[MGTools v2.1] \u{1F680} Starting Simplified Modular Bootstrap...");
+  function playGeneralNotificationSound(volume, dependencies = {}) {
+    const {
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      playNotificationSound: playSoundFn = playNotificationSound,
+      playTripleBeepNotification: playTripleFn = playTripleBeepNotification,
+      playAlarmNotification: playAlarmFn = playAlarmNotification,
+      playEpicNotification: playEpicFn = playEpicNotification,
+      startContinuousAlarm: startContinuousFn = startContinuousAlarm
+    } = dependencies;
+    const type = UnifiedState3.data.settings.notifications.notificationType || "epic";
+    switch (type) {
+      case "simple":
+        playSoundFn(1e3, 300, volume, dependencies);
+        break;
+      case "triple":
+        playTripleFn(volume, dependencies);
+        break;
+      case "alarm":
+        playAlarmFn(volume, dependencies);
+        break;
+      case "epic":
+        playEpicFn(volume, dependencies);
+        break;
+      case "continuous":
+        startContinuousFn(volume, dependencies);
+        break;
+      default:
+        playEpicFn(volume, dependencies);
+    }
+  }
+  function playShopNotificationSound(volume, dependencies = {}) {
+    const {
+      playCustomOrDefaultSound: playCustomFn = playCustomOrDefaultSound,
+      playGeneralNotificationSound: playGeneralFn = playGeneralNotificationSound
+    } = dependencies;
+    playCustomFn("shop", playGeneralFn, volume, dependencies);
+  }
+  function playWeatherNotificationSound(volume, dependencies = {}) {
+    const {
+      playCustomOrDefaultSound: playCustomFn = playCustomOrDefaultSound,
+      playGeneralNotificationSound: playGeneralFn = playGeneralNotificationSound
+    } = dependencies;
+    playCustomFn("weather", playGeneralFn, volume, dependencies);
+  }
+  var notificationQueue = [];
+  var currentNotificationModal = null;
+  var notificationQueueTimer = null;
+  var NOTIFICATION_BATCH_DELAY = 2e3;
+  function queueNotification(message, requiresAcknowledgment = false, dependencies = {}) {
+    const {
+      updateNotificationModal: updateModalFn = updateNotificationModal,
+      showBatchedNotificationModal: showBatchedFn = showBatchedNotificationModal
+    } = dependencies;
+    notificationQueue.push({ message, requiresAcknowledgment, timestamp: Date.now() });
+    if (notificationQueueTimer) {
+      clearTimeout(notificationQueueTimer);
+    }
+    if (currentNotificationModal) {
+      updateModalFn(dependencies);
+      return;
+    }
+    notificationQueueTimer = setTimeout(() => {
+      showBatchedFn(dependencies);
+    }, NOTIFICATION_BATCH_DELAY);
+  }
+  function updateNotificationModal(dependencies = {}) {
+    const { generateNotificationListHTML: generateListFn = generateNotificationListHTML } = dependencies;
+    if (!currentNotificationModal) return;
+    const messageContainer = currentNotificationModal.querySelector(".notification-messages");
+    if (messageContainer) {
+      messageContainer.innerHTML = generateListFn();
+    }
+    const countDisplay = currentNotificationModal.querySelector(".notification-count");
+    if (countDisplay) {
+      countDisplay.textContent = `${notificationQueue.length} Notification${notificationQueue.length > 1 ? "s" : ""}`;
+    }
+  }
+  function generateNotificationListHTML() {
+    return notificationQueue.map(
+      (notif) => `
+      <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.57); border-radius: 5px; border-left: 3px solid #fff;">
+          <div style="font-size: 14px; margin-bottom: 5px;">${notif.message}</div>
+          <div style="font-size: 10px; opacity: 0.8;">${new Date(notif.timestamp).toLocaleTimeString()}</div>
+      </div>
+  `
+    ).join("");
+  }
+  function showBatchedNotificationModal(dependencies = {}) {
+    const {
+      targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null,
+      showVisualNotification: showVisualFn = showVisualNotification,
+      generateNotificationListHTML: generateListFn = generateNotificationListHTML,
+      dismissAllNotifications: dismissAllFn = dismissAllNotifications
+    } = dependencies;
+    if (notificationQueue.length === 0) return;
+    if (currentNotificationModal) {
+      dismissAllFn(dependencies);
+      setTimeout(() => showBatchedNotificationModal(dependencies), 350);
+      return;
+    }
+    const hasAcknowledgmentRequired = notificationQueue.some((n) => n.requiresAcknowledgment);
+    if (notificationQueue.length === 1 && !hasAcknowledgmentRequired) {
+      const notif = notificationQueue[0];
+      showVisualFn(notif.message, notif.requiresAcknowledgment, dependencies);
+      notificationQueue = [];
+      return;
+    }
+    if (!hasAcknowledgmentRequired) {
+      notificationQueue.forEach((notif) => {
+        showVisualFn(notif.message, false, dependencies);
+      });
+      notificationQueue = [];
+      return;
+    }
+    const notification = targetDocument2.createElement("div");
+    notification.className = "mga-batched-notification";
+    notification.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
+      z-index: 9999999;
+      font-weight: bold;
+      animation: mga-modal-entrance 0.5s ease-out;
+      border: 3px solid #ffffff;
+      text-align: center;
+      max-width: 500px;
+      max-height: 400px;
+      overflow-y: auto;
+  `;
+    notification.innerHTML = `
+      <div class="notification-count" style="font-size: 20px; margin-bottom: 15px;">
+          ${notificationQueue.length} Notification${notificationQueue.length > 1 ? "s" : ""}
+      </div>
+      <div class="notification-messages" style="text-align: left; margin-bottom: 20px; max-height: 200px; overflow-y: auto;">
+          ${generateListFn()}
+      </div>
+      <button class="acknowledge-all-btn" style="
+          background: white;
+          color: #ff0000;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 5px;
+          font-weight: bold;
+          font-size: 16px;
+          cursor: pointer;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+          transition: all 0.2s;
+      ">
+          ACKNOWLEDGE ALL (${notificationQueue.length})
+      </button>
+  `;
+    const ackButton = notification.querySelector(".acknowledge-all-btn");
+    ackButton.onmouseover = () => {
+      ackButton.style.transform = "scale(1.05)";
+      ackButton.style.boxShadow = "0 6px 15px rgba(0,0,0,0.4)";
+    };
+    ackButton.onmouseout = () => {
+      ackButton.style.transform = "scale(1)";
+      ackButton.style.boxShadow = "0 4px 10px rgba(0,0,0,0.3)";
+    };
+    ackButton.onclick = () => {
+      dismissAllFn(dependencies);
+    };
+    const backdrop = targetDocument2.createElement("div");
+    backdrop.className = "mga-notification-backdrop";
+    backdrop.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9999998;
+      animation: fadeIn 0.3s ease-in;
+  `;
+    backdrop.onclick = () => {
+      backdrop.style.animation = "flash 0.3s ease-in-out";
+    };
+    targetDocument2.body.appendChild(backdrop);
+    targetDocument2.body.appendChild(notification);
+    currentNotificationModal = notification;
+  }
+  function dismissAllNotifications(dependencies = {}) {
+    const {
+      targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null,
+      stopContinuousAlarm: stopAlarmFn = stopContinuousAlarm
+    } = dependencies;
+    stopAlarmFn(dependencies);
+    if (currentNotificationModal) {
+      const backdrop = targetDocument2.querySelector(".mga-notification-backdrop");
+      currentNotificationModal.style.animation = "fadeOut 0.3s ease-out";
+      if (backdrop) backdrop.style.animation = "fadeOut 0.3s ease-out";
+      setTimeout(() => {
+        if (currentNotificationModal) currentNotificationModal.remove();
+        if (backdrop) backdrop.remove();
+        currentNotificationModal = null;
+      }, 300);
+    }
+    notificationQueue = [];
+    if (notificationQueueTimer) {
+      clearTimeout(notificationQueueTimer);
+      notificationQueueTimer = null;
+    }
+  }
+  function showVisualNotification(message, requiresAcknowledgment = false, dependencies = {}) {
+    const {
+      targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null,
+      stopContinuousAlarm: stopAlarmFn = stopContinuousAlarm,
+      dismissAllNotifications: dismissAllFn = dismissAllNotifications
+    } = dependencies;
+    if (requiresAcknowledgment && currentNotificationModal) {
+      dismissAllFn(dependencies);
+      setTimeout(() => showVisualNotification(message, requiresAcknowledgment, dependencies), 350);
+      return;
+    }
+    const notification = targetDocument2.createElement("div");
+    if (requiresAcknowledgment) {
+      notification.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+          color: white;
+          padding: 30px;
+          border-radius: 15px;
+          box-shadow: 0 20px 60px rgba(255,0,0,0.4), 0 0 100px rgba(255, 0, 0, 0.48);
+          z-index: 9999999;
+          font-weight: bold;
+          font-size: 20px;
+          animation: mga-modal-entrance 0.5s ease-out;
+          border: 3px solid #ffffff;
+          text-align: center;
+          min-width: 400px;
+      `;
+      const messageDiv = targetDocument2.createElement("div");
+      messageDiv.textContent = message;
+      messageDiv.style.marginBottom = "20px";
+      notification.appendChild(messageDiv);
+      const ackButton = targetDocument2.createElement("button");
+      ackButton.textContent = "ACKNOWLEDGE (Stop Alarm)";
+      ackButton.style.cssText = `
+          background: white;
+          color: #ff0000;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          font-weight: bold;
+          font-size: 16px;
+          cursor: pointer;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+          transition: all 0.2s;
+      `;
+      ackButton.onmouseover = () => {
+        ackButton.style.transform = "scale(1.05)";
+        ackButton.style.boxShadow = "0 6px 15px rgba(0,0,0,0.4)";
+      };
+      ackButton.onmouseout = () => {
+        ackButton.style.transform = "scale(1)";
+        ackButton.style.boxShadow = "0 4px 10px rgba(0,0,0,0.3)";
+      };
+      ackButton.onclick = () => {
+        stopAlarmFn(dependencies);
+        notification.style.animation = "fadeOut 0.3s ease-out";
+        setTimeout(() => notification.remove(), 300);
+      };
+      notification.appendChild(ackButton);
+      const backdrop = targetDocument2.createElement("div");
+      backdrop.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          z-index: 9999998;
+          animation: fadeIn 0.3s ease-in;
+      `;
+      backdrop.onclick = () => {
+        backdrop.style.animation = "flash 0.3s ease-in-out";
+      };
+      targetDocument2.body.appendChild(backdrop);
+      targetDocument2.body.appendChild(notification);
+      currentNotificationModal = notification;
+      ackButton.onclick = () => {
+        stopAlarmFn(dependencies);
+        notification.style.animation = "fadeOut 0.3s ease-out";
+        backdrop.style.animation = "fadeOut 0.3s ease-out";
+        setTimeout(() => {
+          notification.remove();
+          backdrop.remove();
+          currentNotificationModal = null;
+        }, 300);
+      };
+    } else {
+      notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 15px 20px;
+          border-radius: 10px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+          z-index: 999999;
+          font-weight: bold;
+          font-size: 16px;
+          animation: slideInRight 0.5s ease-out;
+          border: 2px solid rgba(255,255,255,0.3);
+      `;
+      notification.textContent = message;
+      setTimeout(() => {
+        notification.style.animation = "slideOutRight 0.5s ease-out";
+        setTimeout(() => notification.remove(), 500);
+      }, 5e3);
+    }
+    if (!targetDocument2.getElementById("mga-notification-animations")) {
+      const style = targetDocument2.createElement("style");
+      style.id = "mga-notification-animations";
+      style.textContent = `
+          @keyframes slideInRight {
+              from { transform: translateX(100%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+          }
+          @keyframes slideOutRight {
+              from { transform: translateX(0); opacity: 1; }
+              to { transform: translateX(100%); opacity: 0; }
+          }
+          @keyframes mga-notification-pulse {
+              from { transform: translate(-50%, -50%) scale(1); }
+              to { transform: translate(-50%, -50%) scale(1.05); }
+          }
+          @keyframes mga-modal-entrance {
+              from {
+                  opacity: 0;
+                  transform: translate(-50%, -50%) scale(0.8);
+              }
+              to {
+                  opacity: 1;
+                  transform: translate(-50%, -50%) scale(1);
+              }
+          }
+          @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+          }
+          @keyframes fadeOut {
+              from { opacity: 1; }
+              to { opacity: 0; }
+          }
+          @keyframes flash {
+              0%, 100% { background: rgba(0, 0, 0, 0.7); }
+              50% { background: rgba(255, 0, 0, 0.3); }
+          }
+      `;
+      targetDocument2.head.appendChild(style);
+    }
+    targetDocument2.body.appendChild(notification);
+  }
+  function normalizeSpeciesName(name) {
+    if (!name || typeof name !== "string") return "";
+    return name.trim().toLowerCase();
+  }
+  function isWatchedItem(itemId, type = "seed", dependencies = {}) {
+    const {
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      normalizeSpeciesName: normalizeFn = normalizeSpeciesName
+    } = dependencies;
+    const notifications = UnifiedState3.data.settings.notifications;
+    if (type === "seed") {
+      const nameMap = {
+        DawnCelestial: "Dawnbinder",
+        MoonCelestial: "Moonbinder"
+      };
+      const checkId = nameMap[itemId] || itemId;
+      const normalizedItemId = normalizeFn(checkId);
+      return notifications.watchedSeeds.some((watched) => normalizeFn(watched) === normalizedItemId);
+    } else if (type === "egg") {
+      return notifications.watchedEggs.includes(itemId);
+    }
+    return false;
+  }
+  function updateLastSeen(itemId, dependencies = {}) {
+    const {
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
+      productionLog: productionLog3 = console.log
+    } = dependencies;
+    const notifications = UnifiedState3.data.settings.notifications;
+    notifications.lastSeenTimestamps[itemId] = Date.now();
+    MGA_saveJSON2("MGA_data", UnifiedState3.data);
+    productionLog3(`\u{1F4C5} [NOTIFICATIONS] Updated last seen for ${itemId}`);
+  }
+  function getTimeSinceLastSeen(itemId, dependencies = {}) {
+    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState } = dependencies;
+    const notifications = UnifiedState3.data.settings.notifications;
+    const reverseNameMap = {
+      Moonbinder: "MoonCelestial",
+      Dawnbinder: "DawnCelestial"
+    };
+    const lookupId = reverseNameMap[itemId] || itemId;
+    const timestamp = notifications.lastSeenTimestamps[lookupId];
+    if (!timestamp) return "Never seen";
+    const diff = Date.now() - timestamp;
+    const hours = Math.floor(diff / (1e3 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+    const minutes = Math.floor(diff / (1e3 * 60));
+    return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+  }
+  function showNotificationToast(message, type = "info", dependencies = {}) {
+    const { targetDocument: targetDocument2 = typeof window !== "undefined" ? window.document : null } = dependencies;
     try {
-      productionLog2("[MGTools] Step 1: Loading saved data...");
-      const savedData = MGA_loadJSON("MGA_data", null);
-      if (savedData && typeof savedData === "object") {
-        Object.assign(UnifiedState2.data, savedData);
-        productionLog2("[MGTools] \u2705 Loaded saved data from storage");
-      } else {
-        productionLog2("[MGTools] Using default settings (no saved data found)");
-      }
-      productionLog2("[MGTools] Step 2: Creating UI...");
-      const contentGetters = {
-        getPetsTabContent: () => getPetsTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getPetsPopoutContent: () => getPetsPopoutContent(),
-        getAbilitiesTabContent: () => getAbilitiesTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getSeedsTabContent: () => getSeedsTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getShopTabContent: () => getShopTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getValuesTabContent: () => getValuesTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getTimersTabContent: () => getTimersTabContent(),
-        getRoomStatusTabContent: () => getRoomStatusTabContent2({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getToolsTabContent: () => getToolsTabContent(),
-        getSettingsTabContent: () => getSettingsTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getHotkeysTabContent: () => getHotkeysTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getNotificationsTabContent: () => getNotificationsTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getProtectTabContent: () => getProtectTabContent({ UnifiedState: UnifiedState2, targetDocument: targetDocument2 }),
-        getHelpTabContent: () => getHelpTabContent()
-      };
-      const applyTheme = () => {
-        const settings = UnifiedState2.data.settings;
-        const themeStyles = generateThemeStyles({}, settings, false);
-        if (themeStyles) {
-          const isBlackTheme = settings.theme === "Black";
-          if (isBlackTheme && settings.gradientStyle) {
-            applyAccentToDock({ document: targetDocument2 }, themeStyles);
-            applyAccentToSidebar({ document: targetDocument2 }, themeStyles);
-          } else {
-            applyThemeToDock({ document: targetDocument2 }, themeStyles);
-            applyThemeToSidebar({ document: targetDocument2 }, themeStyles);
-          }
-          debugLog2("[MGTools] Theme applied:", settings.theme);
-        }
-      };
-      const updateTabContent = () => {
-        const contentEl = targetDocument2.querySelector("#mga-tab-content");
-        if (!contentEl) return;
-        const tabName = UnifiedState2.activeTab;
-        if (!tabName) return;
-        try {
-          const content = getContentForTab({ contentGetters }, tabName, false);
-          contentEl.innerHTML = content;
-          if (tabName === "settings") {
-            setupSettingsTabHandlers({
-              context: contentEl,
-              UnifiedState: UnifiedState2,
-              CompatibilityMode,
-              applyTheme,
-              syncThemeToAllWindows: () => {
-              },
-              // Stub
-              applyPreset: () => {
-              },
-              // Stub
-              applyUltraCompactMode: () => {
-              },
-              // Stub
-              applyWeatherSetting: () => {
-              },
-              // Stub
-              MGA_saveJSON,
-              productionLog: productionLog2,
-              logInfo: debugLog2,
-              targetDocument: targetDocument2,
-              updateTabContent,
-              showNotificationToast: () => {
-              }
-              // Stub
-            });
-            debugLog2("[MGTools] Settings tab handlers wired");
-          } else if (tabName === "shop") {
-            setupShopTabHandlers(contentEl, {
-              targetDocument: targetDocument2,
-              targetWindow: targetWindow3,
-              UnifiedState: UnifiedState2,
-              productionLog: productionLog2,
-              productionError: debugError,
-              alert: targetWindow3.alert,
-              console
-            });
-            debugLog2("[MGTools] Shop tab handlers wired");
-          }
-        } catch (error) {
-          debugError("[MGTools] Failed to update tab content:", error);
-          contentEl.innerHTML = '<div style="padding: 20px; color: #ff6b6b;">Error loading content</div>';
-        }
-      };
-      const minimalUIConfig = {
-        targetDocument: targetDocument2,
-        productionLog: productionLog2,
-        UnifiedState: UnifiedState2,
-        // Simple wrapper for drag functionality
-        makeDockDraggable: (dock) => {
-          makeDraggable(dock, dock, {
-            targetDocument: targetDocument2,
-            debugLog: debugLog2,
-            saveMainHUDPosition: (pos) => saveDockPosition(pos)
-          });
-        },
-        // WIRED: openSidebarTab - now functional with updateTabContent
-        openSidebarTab: (tabName) => {
-          openSidebarTab({ targetDocument: targetDocument2, UnifiedState: UnifiedState2, updateTabContent }, tabName);
-        },
-        // WIRED: Shop windows toggle
-        toggleShopWindows: () => {
-          toggleShopWindows({ targetDocument: targetDocument2, UnifiedState: UnifiedState2, createShopSidebars });
-        },
-        // WIRED: openPopoutWidget - shift+click popout windows
-        openPopoutWidget: (tabName) => {
-          const applyTheme2 = () => {
-            const settings = UnifiedState2.data.settings;
-            const themeStyles = generateThemeStyles({}, settings, false);
-            if (themeStyles) {
-              const isBlackTheme = settings.theme === "Black";
-              if (isBlackTheme && settings.gradientStyle) {
-                applyAccentToDock({ document: targetDocument2 }, themeStyles);
-                applyAccentToSidebar({ document: targetDocument2 }, themeStyles);
-              } else {
-                applyThemeToDock({ document: targetDocument2 }, themeStyles);
-                applyThemeToSidebar({ document: targetDocument2 }, themeStyles);
-              }
-              debugLog2("[MGTools] Theme applied from popout:", settings.theme);
-            }
-          };
-          const handlerSetups = {
-            setupPetsTabHandlers: () => {
-            },
-            setupAbilitiesTabHandlers: () => {
-            },
-            updateAbilityLogDisplay: () => {
-            },
-            setupSeedsTabHandlers: () => {
-            },
-            setupShopTabHandlers: (context) => {
-              setupShopTabHandlers(context, {
-                targetDocument: targetDocument2,
-                targetWindow: targetWindow3,
-                UnifiedState: UnifiedState2,
-                productionLog: productionLog2,
-                productionError: debugError,
-                alert: targetWindow3.alert,
-                console
-              });
-            },
-            setupValuesTabHandlers: () => {
-            },
-            setupRoomJoinButtons: () => {
-            },
-            setupSettingsTabHandlers: (context) => {
-              setupSettingsTabHandlers({
-                context,
-                UnifiedState: UnifiedState2,
-                CompatibilityMode,
-                applyTheme: applyTheme2,
-                syncThemeToAllWindows: () => {
-                },
-                // Stub for now
-                applyPreset: () => {
-                },
-                // Stub for now
-                applyUltraCompactMode: () => {
-                },
-                // Stub for now
-                applyWeatherSetting: () => {
-                },
-                // Stub for now
-                MGA_saveJSON,
-                productionLog: productionLog2,
-                logInfo: debugLog2,
-                targetDocument: targetDocument2,
-                updateTabContent,
-                showNotificationToast: () => {
-                }
-                // Stub for now
-              });
-            },
-            setupHotkeysTabHandlers: () => {
-            },
-            setupNotificationsTabHandlers: () => {
-            },
-            setupProtectTabHandlers: () => {
-            },
-            setupPetPopoutHandlers: () => {
-            }
-          };
-          openPopoutWidget(
-            {
-              targetDocument: targetDocument2,
-              UnifiedState: UnifiedState2,
-              makePopoutDraggable,
-              makeElementResizable,
-              generateThemeStyles: (settings, isPopout) => generateThemeStyles({}, settings, isPopout),
-              applyThemeToPopoutWidget: (popout, themeStyles) => applyThemeToPopoutWidget({ targetDocument: targetDocument2 }, popout, themeStyles),
-              stopInventoryCounter: () => stopInventoryCounter({ targetDocument: targetDocument2, UnifiedState: UnifiedState2 }),
-              getCachedTabContent,
-              contentGetters,
-              handlerSetups
-            },
-            tabName
-          );
-        },
-        // WIRED: Version checker
-        checkVersion: (indicatorElement) => {
-          checkVersion(indicatorElement, {
-            CURRENT_VERSION: CONFIG.CURRENT_VERSION,
-            IS_LIVE_BETA: CONFIG.IS_LIVE_BETA,
-            isDiscordPage: targetWindow3.location.href?.includes("discordsays.com") || false,
-            window: targetWindow3,
-            console
-          });
-        },
-        // Dock orientation management - uses localStorage to match overlay.js expectations
-        saveDockOrientation: (orientation) => {
-          try {
-            localStorage.setItem("mgh_dock_orientation", orientation);
-          } catch (e) {
-            debugError("[MGTools] Failed to save dock orientation:", e);
-          }
-        },
-        loadDockOrientation: () => {
-          try {
-            return localStorage.getItem("mgh_dock_orientation") || "horizontal";
-          } catch (e) {
-            return "horizontal";
-          }
-        },
-        // Dock position loading - uses localStorage and returns {left, top} object
-        // Note: saving is handled by saveDockPosition from overlay.js (called via makeDraggable)
-        loadDockPosition: () => {
-          try {
-            const saved = localStorage.getItem("mgh_dock_position");
-            if (saved) {
-              const position = JSON.parse(saved);
-              if (position && typeof position.left === "number" && typeof position.top === "number") {
-                return position;
-              }
-            }
-            return null;
-          } catch (e) {
-            debugError("[MGTools] Failed to load dock position:", e);
-            return null;
-          }
-        },
-        // Theme system (wired correctly with deps first)
-        generateThemeStyles: (settings, isPopout = false) => generateThemeStyles({}, settings, isPopout),
-        applyAccentToDock: (themeStyles) => applyAccentToDock({ document: targetDocument2 }, themeStyles),
-        applyAccentToSidebar: (themeStyles) => applyAccentToSidebar({ document: targetDocument2 }, themeStyles),
-        applyThemeToDock: (themeStyles) => applyThemeToDock({ document: targetDocument2 }, themeStyles),
-        applyThemeToSidebar: (themeStyles) => applyThemeToSidebar({ document: targetDocument2 }, themeStyles),
-        // Environment detection
-        isDiscordEnv: targetWindow3.location.href?.includes("discordsays.com") || false,
-        // Constants
-        UNIFIED_STYLES,
-        CURRENT_VERSION: CONFIG.CURRENT_VERSION || "2.1.0",
-        IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
-      };
-      createUnifiedUI(minimalUIConfig);
-      productionLog2("[MGTools] \u2705 UI created (minimal version)");
-      productionLog2("[MGTools] \u2705 Initialization complete (minimal)");
-      productionLog2("[MGTools] \u26A0\uFE0F Note: Many features are stubbed - will wire incrementally");
-      return true;
+      const toast2 = targetDocument2.createElement("div");
+      toast2.textContent = message;
+      toast2.style.cssText = `
+          position: fixed;
+          top: 80px;
+          right: 20px;
+          padding: 12px 20px;
+          background: ${type === "warning" ? "rgba(255, 165, 0, 0.9)" : type === "success" ? "rgba(76, 175, 80, 0.9)" : "rgba(33, 150, 243, 0.9)"};
+          color: white;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: bold;
+          z-index: 2147483647;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          max-width: 300px;
+          word-wrap: break-word;
+          transition: opacity 0.3s ease;
+      `;
+      targetDocument2.body.appendChild(toast2);
+      setTimeout(() => {
+        toast2.style.opacity = "0";
+        setTimeout(() => toast2.remove(), 300);
+      }, 5e3);
     } catch (error) {
-      debugError("[MGTools] \u274C Initialization failed:", error);
-      debugError("[MGTools] Stack:", error.stack);
-      return false;
+      console.error("\u274C [TOAST] Error showing notification toast:", error);
     }
   }
+  function getNotificationsTabContent(dependencies = {}) {
+    const {
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      DECOR_ITEMS = typeof window !== "undefined" && window.DECOR_ITEMS ? window.DECOR_ITEMS : []
+    } = dependencies;
+    const settings = UnifiedState3.data.settings;
+    if (!settings.notifications.petHungerEnabled && settings.notifications.petHungerEnabled !== false) {
+      settings.notifications.petHungerEnabled = false;
+    }
+    if (!settings.notifications.petHungerThreshold) {
+      settings.notifications.petHungerThreshold = 20;
+    }
+    if (!settings.notifications.abilityNotificationsEnabled && settings.notifications.abilityNotificationsEnabled !== false) {
+      settings.notifications.abilityNotificationsEnabled = false;
+    }
+    if (!settings.notifications.watchedAbilities) {
+      settings.notifications.watchedAbilities = [];
+    }
+    if (!settings.notifications.watchedAbilityCategories) {
+      settings.notifications.watchedAbilityCategories = {
+        xpBoost: true,
+        cropSizeBoost: true,
+        selling: true,
+        harvesting: true,
+        growthSpeed: true,
+        specialMutations: true,
+        other: true
+      };
+    }
+    if (!settings.notifications.weatherNotificationsEnabled && settings.notifications.weatherNotificationsEnabled !== false) {
+      settings.notifications.weatherNotificationsEnabled = false;
+    }
+    if (!settings.notifications.watchedDecor) {
+      settings.notifications.watchedDecor = [];
+    }
+    if (!settings.notifications.watchedWeatherEvents) {
+      settings.notifications.watchedWeatherEvents = ["Snow", "Rain", "AmberMoon", "Dawn"];
+    }
+    if (!settings.notifications.abilityNotificationSound) {
+      settings.notifications.abilityNotificationSound = "single";
+    }
+    if (settings.notifications.abilityNotificationVolume === void 0) {
+      settings.notifications.abilityNotificationVolume = 0.2;
+    }
+    if (settings.notifications.continuousEnabled === void 0 || settings.notifications.continuousEnabled === null) {
+      settings.notifications.continuousEnabled = false;
+    }
+    if (settings.debugMode === void 0) {
+      settings.debugMode = false;
+    }
+    return `
+          <div class="mga-section">
+              <div class="mga-section-title">\u{1F514} Shop Alert Notifications</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get audio and visual alerts when rare seeds or eggs appear in the shop.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="notifications-enabled-checkbox" class="mga-checkbox"
+                             ${settings.notifications.enabled ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F50A} Enable Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Volume: ${Math.round(settings.notifications.volume * 100)}%
+                  </label>
+                  <input type="range" class="mga-slider" id="notification-volume-slider"
+                         min="0" max="100" value="${settings.notifications.volume * 100}"
+                         style="width: 100%; accent-color: #4a9eff;">
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="notification-continuous-checkbox" class="mga-checkbox"
+                             ${settings.notifications.continuousEnabled ? "checked" : ""}
+                             style="accent-color: #ff9900;">
+                      <span>\u26A0\uFE0F Enable Continuous Mode</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      Allows selection of continuous notification type that plays until acknowledged.
+                  </p>
+              </div>
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Notification Sound Type
+                  </label>
+                  <select class="mga-select" id="notification-type-select">
+                      <option value="simple" ${settings.notifications.notificationType === "simple" ? "selected" : ""}>\u{1F50A} Simple Beep</option>
+                      <option value="triple" ${settings.notifications.notificationType === "triple" ? "selected" : ""}>\u{1F514} Triple Beep</option>
+                      <option value="alarm" ${settings.notifications.notificationType === "alarm" ? "selected" : ""}>\u{1F6A8} Alarm Siren</option>
+                      <option value="epic" ${settings.notifications.notificationType === "epic" ? "selected" : ""}>\u{1F3B5} Epic Fanfare</option>
+                      <option value="continuous" ${settings.notifications.notificationType === "continuous" ? "selected" : ""} ${!settings.notifications.continuousEnabled ? "disabled" : ""}>\u26A0\uFE0F Continuous (Until Acknowledged)</option>
+                  </select>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="notification-acknowledgment-checkbox" class="mga-checkbox"
+                             ${settings.notifications.requiresAcknowledgment ? "checked" : ""}
+                             style="accent-color: #ff4444;">
+                      <span>\u{1F6A8} Require acknowledgment (persistent alert)</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      When enabled, notifications will show a modal that must be clicked to dismiss.
+                  </p>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <button class="mga-btn mga-btn-sm" id="test-notification-btn" style="background: #4a5568;">
+                      \u{1F514} Test Notification
+                  </button>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">\u{1F3B5} Custom Notification Sounds</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Upload your own .mp3/.wav/.ogg files to replace default beep sounds. Max 2MB per file.
+              </p>
+
+              <div id="custom-sounds-container" style="display: grid; gap: 12px;">
+                  <!-- Custom sound upload controls will be populated by setupNotificationsTabHandlers -->
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Seeds
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${[
+      "Carrot",
+      "Strawberry",
+      "Aloe",
+      "Blueberry",
+      "Apple",
+      "Tulip",
+      "Tomato",
+      "Daffodil",
+      "Corn",
+      "Watermelon",
+      "Pumpkin",
+      "Echeveria",
+      "Coconut",
+      "Banana",
+      "Lily",
+      "BurrosTail",
+      "Mushroom",
+      "Cactus",
+      "Bamboo",
+      "Grape",
+      "Pepper",
+      "Lemon",
+      "PassionFruit",
+      "DragonFruit",
+      "Lychee",
+      "Sunflower",
+      "Starweaver",
+      "Dawnbinder",
+      "Moonbinder"
+    ].map(
+      (seed) => `
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-${seed.toLowerCase()}" class="mga-checkbox"
+                                   ${settings.notifications.watchedSeeds.includes(seed) ? "checked" : ""}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>${seed === "BurrosTail" ? "\u{1F331} Burro's Tail" : seed === "Dawnbinder" ? "\u{1F305} Dawnbinder" : seed === "Moonbinder" ? "\u{1F319} Moonbinder" : seed === "Starweaver" ? "\u2B50 Starweaver" : "\u{1F331} " + seed}</span>
+                        </label>
+                    `
+    ).join("")}
+                  </div>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Eggs
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${["CommonEgg", "UncommonEgg", "RareEgg", "LegendaryEgg", "MythicalEgg"].map(
+      (egg) => `
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-${egg.toLowerCase().replace("egg", "-egg")}" class="mga-checkbox"
+                                   ${settings.notifications.watchedEggs.includes(egg) ? "checked" : ""}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>\u{1F95A} ${egg.replace("Egg", " Egg")}</span>
+                        </label>
+                    `
+    ).join("")}
+                  </div>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Decor (Hourly Shop)
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${DECOR_ITEMS.map(
+      (decor) => `
+                          <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                              <input type="checkbox" id="watch-decor-${decor.id.toLowerCase()}" class="mga-checkbox"
+                                     ${settings.notifications.watchedDecor.includes(decor.id) ? "checked" : ""}
+                                     style="accent-color: #4a9eff; transform: scale(0.8);">
+                              <span>\u{1F3A8} ${decor.name}</span>
+                          </label>
+                      `
+    ).join("")}
+                  </div>
+              </div>
+
+              <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.15); border-radius: 4px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px; font-size: 12px;">
+                      Last Seen
+                  </label>
+                  <div id="last-seen-display" style="font-size: 11px; color: #888; line-height: 1.3;">
+                      Loading...
+                  </div>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">\u{1F43E} Pet Hunger Alerts</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get notified when your pets' hunger drops below a threshold.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="pet-hunger-enabled" class="mga-checkbox"
+                             ${settings.notifications.petHungerEnabled ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F50A} Enable Pet Hunger Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Alert when hunger below: ${settings.notifications.petHungerThreshold || 20}%
+                  </label>
+                  <input type="range" class="mga-slider" id="pet-hunger-threshold"
+                         min="5" max="50" step="5" value="${settings.notifications.petHungerThreshold || 20}"
+                         style="width: 100%; accent-color: #ff9900;">
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">\u2728 Ability Trigger Alerts</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get notified when your pets trigger abilities. Leave all unchecked to be notified for all abilities.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="ability-notifications-enabled" class="mga-checkbox"
+                             ${settings.notifications.abilityNotificationsEnabled ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F50A} Enable Ability Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Ability Sound Type
+                  </label>
+                  <select class="mga-select" id="ability-notification-sound-select"
+                          style="width: 100%; padding: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: white; font-size: 12px;">
+                      <option value="single" ${settings.notifications.abilityNotificationSound === "single" ? "selected" : ""}>\u{1F50A} Single Beep (Subtle)</option>
+                      <option value="double" ${settings.notifications.abilityNotificationSound === "double" ? "selected" : ""}>\u{1F514} Double Beep</option>
+                      <option value="triple" ${settings.notifications.abilityNotificationSound === "triple" ? "selected" : ""}>\u{1F3B5} Triple Beep</option>
+                      <option value="chime" ${settings.notifications.abilityNotificationSound === "chime" ? "selected" : ""}>\u{1F390} Chime (Pleasant)</option>
+                      <option value="alert" ${settings.notifications.abilityNotificationSound === "alert" ? "selected" : ""}>\u{1F6A8} Alert (Urgent)</option>
+                      <option value="buzz" ${settings.notifications.abilityNotificationSound === "buzz" ? "selected" : ""}>\u{1F4F3} Buzz (Energetic)</option>
+                      <option value="ding" ${settings.notifications.abilityNotificationSound === "ding" ? "selected" : ""}>\u{1F514} Ding (Clear)</option>
+                      <option value="chirp" ${settings.notifications.abilityNotificationSound === "chirp" ? "selected" : ""}>\u{1F426} Chirp (Cute)</option>
+                      <option value="epic" ${settings.notifications.abilityNotificationSound === "epic" ? "selected" : ""}>\u{1F3B5} Epic Fanfare</option>
+                  </select>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Ability Alert Volume: ${Math.round((settings.notifications.abilityNotificationVolume || 0.2) * 100)}%
+                  </label>
+                  <input type="range" class="mga-slider" id="ability-notification-volume-slider"
+                         min="0" max="100" value="${(settings.notifications.abilityNotificationVolume || 0.2) * 100}"
+                         style="width: 100%; accent-color: #9f7aea;">
+              </div>
+
+              <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.57);">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                      \u{1F4CB} Which Abilities to Notify For
+                  </label>
+                  <p style="font-size: 11px; color: #888; margin-bottom: 8px;">
+                      Select individual abilities that will trigger notifications. All abilities start enabled by default.
+                  </p>
+
+                  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                      <button id="select-all-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select All</button>
+                      <button id="select-none-individual-abilities" class="mga-btn mga-btn-secondary" style="flex: 1; padding: 6px; font-size: 11px;">Select None</button>
+                  </div>
+
+                  <input type="text" id="ability-search-box" placeholder="\u{1F50D} Search abilities..."
+                         style="width: 100%; padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; color: #fff; font-size: 12px;">
+
+                  <div id="individual-abilities-notification-list" style="display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 400px; overflow-y: auto; padding: 4px;">
+                      <!-- Ability checkboxes will be populated by handler -->
+                  </div>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">\u{1F324}\uFE0F Weather Event Alerts</div>
+              <p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">
+                  Get notified when weather events occur in the game.
+              </p>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="weather-notifications-enabled" class="mga-checkbox"
+                             ${settings.notifications.weatherNotificationsEnabled ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F50A} Enable Weather Notifications</span>
+                  </label>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Watched Weather Events
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+                      ${["Snow", "Rain", "AmberMoon", "Dawn"].map(
+      (weather, idx) => `
+                        <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                            <input type="checkbox" id="watch-${weather.toLowerCase().replace("ambermoon", "amber-moon")}" class="mga-checkbox"
+                                   ${settings.notifications.watchedWeatherEvents.includes(weather) ? "checked" : ""}
+                                   style="accent-color: #4a9eff; transform: scale(0.8);">
+                            <span>${idx === 0 ? "\u2744\uFE0F" : idx === 1 ? "\u{1F327}\uFE0F" : idx === 2 ? "\u{1F319}" : "\u{1F305}"} ${weather === "AmberMoon" ? "Amber Moon" : weather}</span>
+                        </label>
+                    `
+    ).join("")}
+                  </div>
+              </div>
+          </div>
+      `;
+  }
+  function setupNotificationsTabHandlers(context = document, dependencies = {}) {
+    const {
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
+      productionLog: productionLog3 = console.log,
+      productionWarn: productionWarn3 = console.warn,
+      playSelectedNotification: playSelectedFn = playSelectedNotification,
+      queueNotification: queueNotificationFn = queueNotification,
+      showVisualNotification: showVisualFn = showVisualNotification,
+      getTimeSinceLastSeen: getTimeSinceFn = getTimeSinceLastSeen,
+      scanAndAlertHungryPets: scanAndAlertHungryPets2 = typeof window !== "undefined" && window.scanAndAlertHungryPets,
+      DECOR_ITEMS = typeof window !== "undefined" && window.DECOR_ITEMS ? window.DECOR_ITEMS : [],
+      GM_getValue: GM_getValue2 = typeof window !== "undefined" && window.GM_getValue,
+      GM_setValue: GM_setValue2 = typeof window !== "undefined" && window.GM_setValue,
+      GM_deleteValue: GM_deleteValue2 = typeof window !== "undefined" && window.GM_deleteValue
+    } = dependencies;
+    const notificationEnabledCheckbox = context.querySelector("#notifications-enabled-checkbox");
+    if (notificationEnabledCheckbox && !notificationEnabledCheckbox.hasAttribute("data-handler-setup")) {
+      notificationEnabledCheckbox.setAttribute("data-handler-setup", "true");
+      notificationEnabledCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.notifications.enabled = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F514} [NOTIFICATIONS] ${e.target.checked ? "Enabled" : "Disabled"} notifications`);
+      });
+    }
+    const volumeSlider = context.querySelector("#notification-volume-slider");
+    if (volumeSlider && !volumeSlider.hasAttribute("data-handler-setup")) {
+      volumeSlider.setAttribute("data-handler-setup", "true");
+      volumeSlider.addEventListener("input", (e) => {
+        const volume = parseInt(e.target.value) / 100;
+        UnifiedState3.data.settings.notifications.volume = volume;
+        const label = volumeSlider.previousElementSibling;
+        label.textContent = `Volume: ${Math.round(volume * 100)}%`;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const continuousCheckbox = context.querySelector("#notification-continuous-checkbox");
+    if (continuousCheckbox && !continuousCheckbox.hasAttribute("data-handler-setup")) {
+      continuousCheckbox.setAttribute("data-handler-setup", "true");
+      if (UnifiedState3.data.settings.notifications.continuousEnabled) {
+        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
+        if (acknowledgmentCheckbox2) {
+          acknowledgmentCheckbox2.checked = true;
+          acknowledgmentCheckbox2.disabled = true;
+          UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
+        }
+        const notificationTypeSelect2 = context.querySelector("#notification-type-select");
+        if (notificationTypeSelect2) {
+          notificationTypeSelect2.value = "continuous";
+          UnifiedState3.data.settings.notifications.notificationType = "continuous";
+          productionLog3("\u{1F50A} [NOTIFICATIONS] Auto-selected continuous in dropdown (checkbox was checked on load)");
+        }
+      }
+      continuousCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.notifications.continuousEnabled = e.target.checked;
+        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
+        if (acknowledgmentCheckbox2) {
+          if (e.target.checked) {
+            acknowledgmentCheckbox2.checked = true;
+            acknowledgmentCheckbox2.disabled = true;
+            UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
+            productionLog3(`\u{1F6A8} [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+          } else {
+            acknowledgmentCheckbox2.disabled = false;
+          }
+        }
+        const notificationTypeSelect2 = context.querySelector("#notification-type-select");
+        if (notificationTypeSelect2) {
+          const continuousOption = notificationTypeSelect2.querySelector('option[value="continuous"]');
+          if (continuousOption) {
+            continuousOption.disabled = !e.target.checked;
+            if (e.target.checked) {
+              if (notificationTypeSelect2.value !== "continuous") {
+                UnifiedState3.data.settings.notifications.previousNotificationType = notificationTypeSelect2.value;
+                notificationTypeSelect2.value = "continuous";
+                UnifiedState3.data.settings.notifications.notificationType = "continuous";
+                productionLog3(
+                  `\u{1F50A} [NOTIFICATIONS] Saved previous type (${UnifiedState3.data.settings.notifications.previousNotificationType}), auto-selected continuous`
+                );
+              }
+            } else {
+              if (notificationTypeSelect2.value === "continuous") {
+                const previousType = UnifiedState3.data.settings.notifications.previousNotificationType || "epic";
+                notificationTypeSelect2.value = previousType;
+                UnifiedState3.data.settings.notifications.notificationType = previousType;
+                productionLog3(`\u{1F50A} [NOTIFICATIONS] Continuous mode disabled, reverted to ${previousType}`);
+              }
+            }
+          }
+        }
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u26A0\uFE0F [NOTIFICATIONS] Continuous mode enabled: ${e.target.checked}`);
+      });
+    }
+    const notificationTypeSelect = context.querySelector("#notification-type-select");
+    if (notificationTypeSelect && !notificationTypeSelect.hasAttribute("data-handler-setup")) {
+      notificationTypeSelect.setAttribute("data-handler-setup", "true");
+      const savedNotificationType = UnifiedState3.data.settings.notifications.notificationType || "epic";
+      notificationTypeSelect.value = savedNotificationType;
+      productionLog3(`\u{1F50A} [NOTIFICATIONS] Restored notification type to: ${savedNotificationType}`);
+      if (UnifiedState3.data.settings.notifications.notificationType === "continuous") {
+        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
+        if (acknowledgmentCheckbox2) {
+          acknowledgmentCheckbox2.checked = true;
+          acknowledgmentCheckbox2.disabled = true;
+          UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
+        }
+      }
+      notificationTypeSelect.addEventListener("change", (e) => {
+        if (e.target.value === "continuous" && !UnifiedState3.data.settings.notifications.continuousEnabled) {
+          e.target.value = UnifiedState3.data.settings.notifications.notificationType || "epic";
+          productionWarn3(`\u26A0\uFE0F [NOTIFICATIONS] Cannot select continuous mode - please enable it first`);
+          showVisualFn("\u26A0\uFE0F Please enable Continuous Mode checkbox first", false, dependencies);
+          return;
+        }
+        UnifiedState3.data.settings.notifications.notificationType = e.target.value;
+        const acknowledgmentCheckbox2 = context.querySelector("#notification-acknowledgment-checkbox");
+        if (acknowledgmentCheckbox2) {
+          if (e.target.value === "continuous") {
+            acknowledgmentCheckbox2.checked = true;
+            acknowledgmentCheckbox2.disabled = true;
+            UnifiedState3.data.settings.notifications.requiresAcknowledgment = true;
+            productionLog3(`\u{1F6A8} [NOTIFICATIONS] Auto-enabled and locked acknowledgment (required for continuous alarms)`);
+          } else {
+            if (!UnifiedState3.data.settings.notifications.continuousEnabled) {
+              acknowledgmentCheckbox2.disabled = false;
+            }
+          }
+        }
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F50A} [NOTIFICATIONS] Sound type changed to: ${e.target.value}`);
+      });
+    }
+    const acknowledgmentCheckbox = context.querySelector("#notification-acknowledgment-checkbox");
+    if (acknowledgmentCheckbox && !acknowledgmentCheckbox.hasAttribute("data-handler-setup")) {
+      acknowledgmentCheckbox.setAttribute("data-handler-setup", "true");
+      acknowledgmentCheckbox.checked = UnifiedState3.data.settings.notifications.requiresAcknowledgment || false;
+      productionLog3(`\u{1F6A8} [NOTIFICATIONS] Restored acknowledgment checkbox to: ${acknowledgmentCheckbox.checked}`);
+      acknowledgmentCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.notifications.requiresAcknowledgment = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F6A8} [NOTIFICATIONS] Require acknowledgment: ${e.target.checked}`);
+      });
+    }
+    const testNotificationBtn = context.querySelector("#test-notification-btn");
+    if (testNotificationBtn && !testNotificationBtn.hasAttribute("data-handler-setup")) {
+      testNotificationBtn.setAttribute("data-handler-setup", "true");
+      testNotificationBtn.addEventListener("click", () => {
+        const notifications = UnifiedState3.data.settings.notifications;
+        playSelectedFn(dependencies);
+        queueNotificationFn(
+          "\u{1F514} Test notification - This is how alerts will look!",
+          notifications.requiresAcknowledgment,
+          dependencies
+        );
+        productionLog3(
+          `\u{1F514} [NOTIFICATIONS] Test notification played - Type: ${notifications.notificationType}, Volume: ${Math.round(notifications.volume * 100)}%, Acknowledgment: ${notifications.requiresAcknowledgment}`
+        );
+      });
+    }
+    const seedWatchMap = {
+      "watch-carrot": "Carrot",
+      "watch-strawberry": "Strawberry",
+      "watch-aloe": "Aloe",
+      "watch-blueberry": "Blueberry",
+      "watch-apple": "Apple",
+      "watch-tulip": "Tulip",
+      "watch-tomato": "Tomato",
+      "watch-daffodil": "Daffodil",
+      "watch-corn": "Corn",
+      "watch-watermelon": "Watermelon",
+      "watch-pumpkin": "Pumpkin",
+      "watch-echeveria": "Echeveria",
+      "watch-coconut": "Coconut",
+      "watch-banana": "Banana",
+      "watch-lily": "Lily",
+      "watch-burrostail": "BurrosTail",
+      "watch-mushroom": "Mushroom",
+      "watch-cactus": "Cactus",
+      "watch-bamboo": "Bamboo",
+      "watch-grape": "Grape",
+      "watch-pepper": "Pepper",
+      "watch-lemon": "Lemon",
+      "watch-passionfruit": "PassionFruit",
+      "watch-dragonfruit": "DragonFruit",
+      "watch-lychee": "Lychee",
+      "watch-sunflower": "Sunflower",
+      "watch-starweaver": "Starweaver",
+      "watch-dawnbinder": "Dawnbinder",
+      "watch-moonbinder": "Moonbinder"
+    };
+    Object.entries(seedWatchMap).forEach(([checkboxId, seedId]) => {
+      const checkbox = context.querySelector(`#${checkboxId}`);
+      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
+        checkbox.setAttribute("data-handler-setup", "true");
+        checkbox.addEventListener("change", (e) => {
+          const notifications = UnifiedState3.data.settings.notifications;
+          if (e.target.checked) {
+            if (!notifications.watchedSeeds.includes(seedId)) {
+              notifications.watchedSeeds.push(seedId);
+            }
+          } else {
+            notifications.watchedSeeds = notifications.watchedSeeds.filter((id) => id !== seedId);
+          }
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+          productionLog3(`\u{1F331} [NOTIFICATIONS] ${e.target.checked ? "Added" : "Removed"} ${seedId} to/from watch list`);
+          updateLastSeenDisplay();
+        });
+      }
+    });
+    const eggWatchMap = {
+      "watch-common-egg": "CommonEgg",
+      "watch-uncommon-egg": "UncommonEgg",
+      "watch-rare-egg": "RareEgg",
+      "watch-legendary-egg": "LegendaryEgg",
+      "watch-mythical-egg": "MythicalEgg"
+    };
+    Object.entries(eggWatchMap).forEach(([checkboxId, eggId]) => {
+      const checkbox = context.querySelector(`#${checkboxId}`);
+      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
+        checkbox.setAttribute("data-handler-setup", "true");
+        checkbox.addEventListener("change", (e) => {
+          const notifications = UnifiedState3.data.settings.notifications;
+          if (e.target.checked) {
+            if (!notifications.watchedEggs.includes(eggId)) {
+              notifications.watchedEggs.push(eggId);
+            }
+          } else {
+            notifications.watchedEggs = notifications.watchedEggs.filter((id) => id !== eggId);
+          }
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+          productionLog3(`\u{1F95A} [NOTIFICATIONS] ${e.target.checked ? "Added" : "Removed"} ${eggId} to/from watch list`);
+          updateLastSeenDisplay();
+        });
+      }
+    });
+    DECOR_ITEMS.forEach((decor) => {
+      const checkboxId = `watch-decor-${decor.id.toLowerCase()}`;
+      const checkbox = context.querySelector(`#${checkboxId}`);
+      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
+        checkbox.setAttribute("data-handler-setup", "true");
+        checkbox.addEventListener("change", (e) => {
+          const notifications = UnifiedState3.data.settings.notifications;
+          if (e.target.checked) {
+            if (!notifications.watchedDecor.includes(decor.id)) {
+              notifications.watchedDecor.push(decor.id);
+            }
+          } else {
+            notifications.watchedDecor = notifications.watchedDecor.filter((id) => id !== decor.id);
+          }
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+          productionLog3(`\u{1F3A8} [NOTIFICATIONS] ${e.target.checked ? "Added" : "Removed"} ${decor.id} to/from watch list`);
+          updateLastSeenDisplay();
+        });
+      }
+    });
+    function updateLastSeenDisplay() {
+      const lastSeenDisplay = context.querySelector("#last-seen-display");
+      if (!lastSeenDisplay) return;
+      const notifications = UnifiedState3.data.settings.notifications;
+      const allWatched = [...notifications.watchedSeeds, ...notifications.watchedEggs, ...notifications.watchedDecor];
+      if (allWatched.length === 0) {
+        lastSeenDisplay.innerHTML = "No items being watched";
+        return;
+      }
+      let html = "";
+      allWatched.forEach((itemId) => {
+        const timeSince = getTimeSinceFn(itemId, dependencies);
+        html += `<div>${itemId}: ${timeSince}</div>`;
+      });
+      lastSeenDisplay.innerHTML = html;
+    }
+    updateLastSeenDisplay();
+    setInterval(updateLastSeenDisplay, 3e4);
+    const petHungerCheckbox = context.querySelector("#pet-hunger-enabled");
+    if (petHungerCheckbox && !petHungerCheckbox.hasAttribute("data-handler-setup")) {
+      petHungerCheckbox.setAttribute("data-handler-setup", "true");
+      petHungerCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.notifications.petHungerEnabled = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F43E} [PET-HUNGER] ${e.target.checked ? "Enabled" : "Disabled"} pet hunger notifications`);
+        if (e.target.checked && scanAndAlertHungryPets2) {
+          setTimeout(() => {
+            scanAndAlertHungryPets2();
+          }, 500);
+        }
+      });
+    }
+    const petHungerThreshold = context.querySelector("#pet-hunger-threshold");
+    if (petHungerThreshold && !petHungerThreshold.hasAttribute("data-handler-setup")) {
+      petHungerThreshold.setAttribute("data-handler-setup", "true");
+      petHungerThreshold.addEventListener("input", (e) => {
+        const threshold = parseInt(e.target.value);
+        UnifiedState3.data.settings.notifications.petHungerThreshold = threshold;
+        const label = petHungerThreshold.previousElementSibling;
+        label.textContent = `Alert when hunger below: ${threshold}%`;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F43E} [PET-HUNGER] Threshold set to ${threshold}%`);
+      });
+    }
+    const abilityNotificationsCheckbox = context.querySelector("#ability-notifications-enabled");
+    if (abilityNotificationsCheckbox && !abilityNotificationsCheckbox.hasAttribute("data-handler-setup")) {
+      abilityNotificationsCheckbox.setAttribute("data-handler-setup", "true");
+      abilityNotificationsCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.notifications.abilityNotificationsEnabled = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u2728 [ABILITY-NOTIFY] ${e.target.checked ? "Enabled" : "Disabled"} ability notifications`);
+      });
+    }
+    const abilityNotificationSoundSelect = context.querySelector("#ability-notification-sound-select");
+    if (abilityNotificationSoundSelect && !abilityNotificationSoundSelect.hasAttribute("data-handler-setup")) {
+      abilityNotificationSoundSelect.setAttribute("data-handler-setup", "true");
+      abilityNotificationSoundSelect.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.notifications.abilityNotificationSound = e.target.value;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u2728 [ABILITY-NOTIFY] Sound type changed to: ${e.target.value}`);
+      });
+    }
+    const abilityVolumeSlider = context.querySelector("#ability-notification-volume-slider");
+    if (abilityVolumeSlider && !abilityVolumeSlider.hasAttribute("data-handler-setup")) {
+      abilityVolumeSlider.setAttribute("data-handler-setup", "true");
+      abilityVolumeSlider.addEventListener("input", (e) => {
+        const volume = parseInt(e.target.value) / 100;
+        UnifiedState3.data.settings.notifications.abilityNotificationVolume = volume;
+        const label = abilityVolumeSlider.previousElementSibling;
+        label.textContent = `Ability Alert Volume: ${Math.round(volume * 100)}%`;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const individualAbilityCheckboxes = context.querySelectorAll(".individual-ability-checkbox");
+    individualAbilityCheckboxes.forEach((checkbox) => {
+      if (!checkbox.hasAttribute("data-handler-setup")) {
+        checkbox.setAttribute("data-handler-setup", "true");
+        checkbox.addEventListener("change", (e) => {
+          const abilityName = e.target.dataset.abilityName;
+          if (!UnifiedState3.data.settings.notifications.watchedAbilities) {
+            UnifiedState3.data.settings.notifications.watchedAbilities = [];
+          }
+          if (e.target.checked) {
+            if (!UnifiedState3.data.settings.notifications.watchedAbilities.includes(abilityName)) {
+              UnifiedState3.data.settings.notifications.watchedAbilities.push(abilityName);
+            }
+          } else {
+            const index = UnifiedState3.data.settings.notifications.watchedAbilities.indexOf(abilityName);
+            if (index > -1) {
+              UnifiedState3.data.settings.notifications.watchedAbilities.splice(index, 1);
+            }
+          }
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+          productionLog3(`\u2728 [ABILITY-NOTIFY] ${abilityName}: ${e.target.checked ? "Enabled" : "Disabled"}`);
+        });
+      }
+    });
+    const abilitySearchBox = context.querySelector("#ability-search-box");
+    if (abilitySearchBox && !abilitySearchBox.hasAttribute("data-handler-setup")) {
+      abilitySearchBox.setAttribute("data-handler-setup", "true");
+      abilitySearchBox.addEventListener("input", (e) => {
+        const query = e.target.value.toLowerCase();
+        const items = context.querySelectorAll(".ability-checkbox-item");
+        items.forEach((item) => {
+          const abilityName = item.dataset.ability.toLowerCase();
+          item.style.display = abilityName.includes(query) ? "flex" : "none";
+        });
+      });
+    }
+    const selectAllIndividualAbilities = context.querySelector("#select-all-individual-abilities");
+    if (selectAllIndividualAbilities && !selectAllIndividualAbilities.hasAttribute("data-handler-setup")) {
+      selectAllIndividualAbilities.setAttribute("data-handler-setup", "true");
+      selectAllIndividualAbilities.addEventListener("click", () => {
+        UnifiedState3.data.settings.notifications.watchedAbilities = [];
+        context.querySelectorAll(".individual-ability-checkbox").forEach((checkbox) => {
+          checkbox.checked = true;
+        });
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3("\u2728 [ABILITY-NOTIFY] Enabled all abilities");
+      });
+    }
+    const selectNoneIndividualAbilities = context.querySelector("#select-none-individual-abilities");
+    if (selectNoneIndividualAbilities && !selectNoneIndividualAbilities.hasAttribute("data-handler-setup")) {
+      selectNoneIndividualAbilities.setAttribute("data-handler-setup", "true");
+      selectNoneIndividualAbilities.addEventListener("click", () => {
+        const allAbilities = [];
+        context.querySelectorAll(".individual-ability-checkbox").forEach((checkbox) => {
+          allAbilities.push(checkbox.dataset.abilityName);
+        });
+        UnifiedState3.data.settings.notifications.watchedAbilities = ["__NONE__"];
+        context.querySelectorAll(".individual-ability-checkbox").forEach((checkbox) => {
+          checkbox.checked = false;
+        });
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3("\u2728 [ABILITY-NOTIFY] Disabled all abilities");
+      });
+    }
+    const weatherNotificationsCheckbox = context.querySelector("#weather-notifications-enabled");
+    if (weatherNotificationsCheckbox && !weatherNotificationsCheckbox.hasAttribute("data-handler-setup")) {
+      weatherNotificationsCheckbox.setAttribute("data-handler-setup", "true");
+      weatherNotificationsCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.notifications.weatherNotificationsEnabled = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F324}\uFE0F [WEATHER] ${e.target.checked ? "Enabled" : "Disabled"} weather notifications`);
+      });
+    }
+    const weatherEventMap = {
+      "watch-snow": "Snow",
+      "watch-rain": "Rain",
+      "watch-amber-moon": "AmberMoon",
+      "watch-dawn": "Dawn"
+    };
+    Object.entries(weatherEventMap).forEach(([checkboxId, eventName]) => {
+      const checkbox = context.querySelector(`#${checkboxId}`);
+      if (checkbox && !checkbox.hasAttribute("data-handler-setup")) {
+        checkbox.setAttribute("data-handler-setup", "true");
+        checkbox.addEventListener("change", (e) => {
+          const watchedEvents = UnifiedState3.data.settings.notifications.watchedWeatherEvents;
+          if (e.target.checked) {
+            if (!watchedEvents.includes(eventName)) {
+              watchedEvents.push(eventName);
+            }
+          } else {
+            const idx = watchedEvents.indexOf(eventName);
+            if (idx > -1) watchedEvents.splice(idx, 1);
+          }
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+          productionLog3(`\u{1F324}\uFE0F [WEATHER] ${e.target.checked ? "Added" : "Removed"} ${eventName} to/from watch list`);
+        });
+      }
+    });
+    const customSoundsContainer = context.querySelector("#custom-sounds-container");
+    if (customSoundsContainer && !customSoundsContainer.hasAttribute("data-handler-setup")) {
+      customSoundsContainer.setAttribute("data-handler-setup", "true");
+      const soundTypes = [
+        { id: "shop", label: "\u{1F6D2} Shop Alerts" },
+        { id: "pet", label: "\u{1F43E} Pet Hunger" },
+        { id: "ability", label: "\u26A1 Ability Triggers" },
+        { id: "weather", label: "\u{1F324}\uFE0F Weather Events" }
+      ];
+      soundTypes.forEach((type) => {
+        const hasCustom = GM_getValue2(`mgtools_custom_sound_${type.id}`, null) !== null;
+        const controlDiv = document.createElement("div");
+        controlDiv.style.cssText = "border: 1px solid rgba(255, 255, 255, 0.57); padding: 10px; border-radius: 6px; background: rgba(0, 0, 0, 0.48);";
+        controlDiv.innerHTML = `
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label class="mga-label" style="margin: 0;">${type.label}</label>
+                      <span id="custom-sound-status-${type.id}" style="font-size: 10px; color: ${hasCustom ? "#10b981" : "#666"};">
+                          ${hasCustom ? "\u2713 Custom" : "\u25CB Default"}
+                      </span>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                      <input type="file" accept="audio/*" id="upload-sound-${type.id}" style="display: none;">
+                      <button class="mga-btn mga-btn-sm" id="upload-btn-${type.id}" style="flex: 1; background: #4a9eff; font-size: 11px; padding: 6px;">\u{1F4C1} Upload</button>
+                      <button class="mga-btn mga-btn-sm" id="test-btn-${type.id}" style="flex: 0.6; background: #10b981; font-size: 11px; padding: 6px;">\u25B6\uFE0F Test</button>
+                      <button class="mga-btn mga-btn-sm" id="delete-btn-${type.id}" style="flex: 0.6; background: ${hasCustom ? "#ef4444" : "#666"}; font-size: 11px; padding: 6px;" ${!hasCustom ? "disabled" : ""}>\u{1F5D1}\uFE0F</button>
+                  </div>
+              `;
+        customSoundsContainer.appendChild(controlDiv);
+        const uploadBtn = controlDiv.querySelector(`#upload-btn-${type.id}`);
+        const fileInput = controlDiv.querySelector(`#upload-sound-${type.id}`);
+        uploadBtn.addEventListener("click", () => fileInput.click());
+        fileInput.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          if (file.size > 2 * 1024 * 1024) {
+            alert("\u274C File too large! Max 2MB");
+            return;
+          }
+          if (!file.type.startsWith("audio/")) {
+            alert("\u274C Please upload an audio file");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            GM_setValue2(`mgtools_custom_sound_${type.id}`, event.target.result);
+            controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = "\u2713 Custom";
+            controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = "#10b981";
+            const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
+            delBtn.disabled = false;
+            delBtn.style.background = "#ef4444";
+            productionLog3(`\u{1F3B5} [CUSTOM-SOUND] Uploaded: ${type.id}`);
+            alert(`\u2705 Custom sound uploaded!`);
+          };
+          reader.readAsDataURL(file);
+        });
+        controlDiv.querySelector(`#test-btn-${type.id}`).addEventListener("click", () => {
+          const customSound = GM_getValue2(`mgtools_custom_sound_${type.id}`, null);
+          const volume = UnifiedState3.data.settings.notifications.volume || 0.3;
+          if (customSound) {
+            const audio = new Audio(customSound);
+            audio.volume = volume;
+            audio.play();
+          } else {
+            playSelectedFn(dependencies);
+          }
+        });
+        controlDiv.querySelector(`#delete-btn-${type.id}`).addEventListener("click", () => {
+          if (confirm(`Delete custom sound for ${type.label}?`)) {
+            GM_deleteValue2(`mgtools_custom_sound_${type.id}`);
+            controlDiv.querySelector(`#custom-sound-status-${type.id}`).textContent = "\u25CB Default";
+            controlDiv.querySelector(`#custom-sound-status-${type.id}`).style.color = "#666";
+            const delBtn = controlDiv.querySelector(`#delete-btn-${type.id}`);
+            delBtn.disabled = true;
+            delBtn.style.background = "#666";
+            alert(`\u2705 Reverted to default sound`);
+          }
+        });
+      });
+    }
+  }
+  var notifications_default = {
+    // Core Sound System (Phase 1)
+    playNotificationSound,
+    playTripleBeepNotification,
+    playDoubleBeepNotification,
+    playSingleBeepNotification,
+    playChimeNotification,
+    playAlertNotification,
+    playBuzzNotification,
+    playDingNotification,
+    playChirpNotification,
+    playAlarmNotification,
+    startContinuousAlarm,
+    stopContinuousAlarm,
+    playEpicNotification,
+    playSelectedNotification,
+    // Custom Sound Wrappers (Phase 2)
+    playCustomOrDefaultSound,
+    playGeneralNotificationSound,
+    playShopNotificationSound,
+    playWeatherNotificationSound,
+    // Visual Notifications (Phase 3)
+    queueNotification,
+    updateNotificationModal,
+    generateNotificationListHTML,
+    showBatchedNotificationModal,
+    dismissAllNotifications,
+    showVisualNotification,
+    // Notification Utilities (Phase 4)
+    normalizeSpeciesName,
+    isWatchedItem,
+    updateLastSeen,
+    getTimeSinceLastSeen,
+    showNotificationToast
+  };
 
   // src/features/hotkeys.js
   var hotkeys_exports = {};
@@ -26667,6 +25875,7 @@ Error: ${error.message}`);
   var turtle_timer_exports = {};
   __export(turtle_timer_exports, {
     calculateCurrentSlotValue: () => calculateCurrentSlotValue2,
+    checkTurtleTimer: () => checkTurtleTimer,
     estimateUntilLatestCrop: () => estimateUntilLatestCrop2,
     getAbilityExpectations: () => getAbilityExpectations2,
     getCropHash: () => getCropHash2,
@@ -27265,6 +26474,9 @@ Error: ${error.message}`);
       console.log("\u26A0\uFE0F Could not attach debugCropDetection:", e);
     }
   }
+  function checkTurtleTimer(dependencies = {}) {
+    return insertTurtleEstimate2(dependencies);
+  }
 
   // src/features/room-manager.js
   var room_manager_exports = {};
@@ -27625,6 +26837,890 @@ Error: ${error.message}`);
     } catch (err) {
       console.error("\u274C initializeFirebase (/info) failed", err);
       return null;
+    }
+  }
+
+  // src/features/settings-ui.js
+  var settings_ui_exports = {};
+  __export(settings_ui_exports, {
+    getSettingsTabContent: () => getSettingsTabContent,
+    setupSettingsTabHandlers: () => setupSettingsTabHandlers
+  });
+  function getSettingsTabContent(dependencies = {}) {
+    const {
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      CompatibilityMode: CompatibilityMode2 = typeof window !== "undefined" && window.CompatibilityMode
+    } = dependencies;
+    const settings = UnifiedState3.data.settings;
+    return `
+          <div class="mga-section">
+              <div class="mga-section-title">Appearance</div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Main HUD Opacity: ${settings.opacity}%
+                  </label>
+                  <input type="range" class="mga-slider" id="opacity-slider"
+                         min="0" max="100" value="${settings.opacity}"
+                         style="width: 100%; accent-color: #4a9eff;">
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 4px;">
+                      Pop-out Opacity: ${settings.popoutOpacity}%
+                  </label>
+                  <input type="range" class="mga-slider" id="popout-opacity-slider"
+                         min="0" max="100" value="${settings.popoutOpacity}"
+                         style="width: 100%; accent-color: #4a9eff;">
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Gradient Style
+                  </label>
+                  <select class="mga-select" id="gradient-select" style="margin-bottom: 8px;">
+                      <optgroup label="\u26AB Black Accent Themes">
+                          <option value="black-void" ${settings.gradientStyle === "black-void" ? "selected" : ""}>\u26AB\u2B1B Pure Void</option>
+                          <option value="black-crimson" ${settings.gradientStyle === "black-crimson" ? "selected" : ""}>\u26AB\u{1F534} Midnight Crimson</option>
+                          <option value="black-emerald" ${settings.gradientStyle === "black-emerald" ? "selected" : ""}>\u26AB\u{1F49A} Shadow Emerald</option>
+                          <option value="black-royal" ${settings.gradientStyle === "black-royal" ? "selected" : ""}>\u26AB\u{1F49C} Void Royal</option>
+                          <option value="black-gold" ${settings.gradientStyle === "black-gold" ? "selected" : ""}>\u26AB\u{1F49B} Obsidian Gold</option>
+                          <option value="black-ice" ${settings.gradientStyle === "black-ice" ? "selected" : ""}>\u26AB\u{1F499} Carbon Ice</option>
+                          <option value="black-flame" ${settings.gradientStyle === "black-flame" ? "selected" : ""}>\u26AB\u{1F9E1} Inferno Black</option>
+                          <option value="black-toxic" ${settings.gradientStyle === "black-toxic" ? "selected" : ""}>\u26AB\u2622\uFE0F Toxic Shadow</option>
+                          <option value="black-pink" ${settings.gradientStyle === "black-pink" ? "selected" : ""}>\u26AB\u{1F497} Noir Pink</option>
+                          <option value="black-matrix" ${settings.gradientStyle === "black-matrix" ? "selected" : ""}>\u26AB\u{1F7E2} Matrix Black</option>
+                          <option value="black-sunset" ${settings.gradientStyle === "black-sunset" ? "selected" : ""}>\u26AB\u{1F305} Eclipse Sunset</option>
+                          <option value="black-blood" ${settings.gradientStyle === "black-blood" ? "selected" : ""}>\u26AB\u{1FA78} Midnight Blood</option>
+                          <option value="black-neon" ${settings.gradientStyle === "black-neon" ? "selected" : ""}>\u26AB\u26A1 Shadow Neon</option>
+                          <option value="black-storm" ${settings.gradientStyle === "black-storm" ? "selected" : ""}>\u26AB\u26C8\uFE0F Obsidian Storm</option>
+                          <option value="black-sapphire" ${settings.gradientStyle === "black-sapphire" ? "selected" : ""}>\u26AB\u{1F4A0} Void Sapphire</option>
+                          <option value="black-aqua" ${settings.gradientStyle === "black-aqua" ? "selected" : ""}>\u26AB\u{1F30A} Dark Aqua</option>
+                          <option value="black-phantom" ${settings.gradientStyle === "black-phantom" ? "selected" : ""}>\u26AB\u{1FA99} Phantom Silver</option>
+                          <option value="black-violet" ${settings.gradientStyle === "black-violet" ? "selected" : ""}>\u26AB\u{1F49C} Deep Violet</option>
+                          <option value="black-amber" ${settings.gradientStyle === "black-amber" ? "selected" : ""}>\u26AB\u{1F7E0} Shadow Amber</option>
+                          <option value="black-jade" ${settings.gradientStyle === "black-jade" ? "selected" : ""}>\u26AB\u{1F7E2} Mystic Jade</option>
+                          <option value="black-coral" ${settings.gradientStyle === "black-coral" ? "selected" : ""}>\u26AB\u{1FAB8} Dark Coral</option>
+                          <option value="black-steel" ${settings.gradientStyle === "black-steel" ? "selected" : ""}>\u26AB\u{1F535} Carbon Steel</option>
+                          <option value="black-lavender" ${settings.gradientStyle === "black-lavender" ? "selected" : ""}>\u26AB\u{1F49C} Void Lavender</option>
+                          <option value="black-mint" ${settings.gradientStyle === "black-mint" ? "selected" : ""}>\u26AB\u{1F33F} Shadow Mint</option>
+                          <option value="black-ruby" ${settings.gradientStyle === "black-ruby" ? "selected" : ""}>\u26AB\u{1F48E} Obsidian Ruby</option>
+                          <option value="black-cobalt" ${settings.gradientStyle === "black-cobalt" ? "selected" : ""}>\u26AB\u{1F537} Deep Cobalt</option>
+                          <option value="black-bronze" ${settings.gradientStyle === "black-bronze" ? "selected" : ""}>\u26AB\u{1F7E4} Dark Bronze</option>
+                          <option value="black-teal" ${settings.gradientStyle === "black-teal" ? "selected" : ""}>\u26AB\u{1FA75} Shadow Teal</option>
+                          <option value="black-magenta" ${settings.gradientStyle === "black-magenta" ? "selected" : ""}>\u26AB\u{1FA77} Void Magenta</option>
+                          <option value="black-lime" ${settings.gradientStyle === "black-lime" ? "selected" : ""}>\u26AB\u{1F7E2} Electric Lime</option>
+                          <option value="black-indigo" ${settings.gradientStyle === "black-indigo" ? "selected" : ""}>\u26AB\u{1F499} Midnight Indigo</option>
+                      </optgroup>
+                      <optgroup label="\u{1F308} Classic Themes">
+                          <option value="blue-purple" ${settings.gradientStyle === "blue-purple" ? "selected" : ""}>\u{1F30C} Blue-Purple</option>
+                          <option value="green-blue" ${settings.gradientStyle === "green-blue" ? "selected" : ""}>\u{1F30A} Green-Blue</option>
+                          <option value="red-orange" ${settings.gradientStyle === "red-orange" ? "selected" : ""}>\u{1F525} Red-Orange</option>
+                          <option value="purple-pink" ${settings.gradientStyle === "purple-pink" ? "selected" : ""}>\u{1F49C} Purple-Pink</option>
+                          <option value="gold-yellow" ${settings.gradientStyle === "gold-yellow" ? "selected" : ""}>\u{1F451} Gold-Yellow</option>
+                      </optgroup>
+                      <optgroup label="\u2728 Vibrant Themes">
+                          <option value="electric-neon" ${settings.gradientStyle === "electric-neon" ? "selected" : ""}>\u26A1 Electric Neon</option>
+                          <option value="sunset-fire" ${settings.gradientStyle === "sunset-fire" ? "selected" : ""}>\u{1F305} Sunset Fire</option>
+                          <option value="emerald-cyan" ${settings.gradientStyle === "emerald-cyan" ? "selected" : ""}>\u{1F48E} Emerald Cyan</option>
+                          <option value="royal-gold" ${settings.gradientStyle === "royal-gold" ? "selected" : ""}>\u{1F3C6} Royal Gold</option>
+                          <option value="crimson-blaze" ${settings.gradientStyle === "crimson-blaze" ? "selected" : ""}>\u{1F525} Crimson Blaze</option>
+                          <option value="ocean-deep" ${settings.gradientStyle === "ocean-deep" ? "selected" : ""}>\u{1F30A} Ocean Deep</option>
+                          <option value="forest-mystique" ${settings.gradientStyle === "forest-mystique" ? "selected" : ""}>\u{1F332} Forest Mystique</option>
+                          <option value="cosmic-purple" ${settings.gradientStyle === "cosmic-purple" ? "selected" : ""}>\u{1F30C} Cosmic Purple</option>
+                          <option value="rainbow-burst" ${settings.gradientStyle === "rainbow-burst" ? "selected" : ""}>\u{1F308} Rainbow Burst</option>
+                      </optgroup>
+                      <optgroup label="\u{1F6E1}\uFE0F Metallic Themes">
+                          <option value="steel-blue" ${settings.gradientStyle === "steel-blue" ? "selected" : ""}>\u{1F6E1}\uFE0F Steel Blue</option>
+                          <option value="chrome-silver" ${settings.gradientStyle === "chrome-silver" ? "selected" : ""}>\u26AA Chrome Silver</option>
+                          <option value="titanium-gray" ${settings.gradientStyle === "titanium-gray" ? "selected" : ""}>\u{1F32B}\uFE0F Titanium Gray</option>
+                          <option value="platinum-white" ${settings.gradientStyle === "platinum-white" ? "selected" : ""}>\u{1F48D} Platinum White</option>
+                      </optgroup>
+                  </select>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Effect Style
+                  </label>
+                  <select class="mga-select" id="effect-select">
+                      <option value="none" ${settings.effectStyle === "none" ? "selected" : ""}>\u2728 None</option>
+                      <option value="metallic" ${settings.effectStyle === "metallic" ? "selected" : ""}>\u26A1 Metallic</option>
+                      <option value="glass" ${settings.effectStyle === "glass" ? "selected" : ""}>\u{1F48E} Glass</option>
+                      <option value="neon" ${settings.effectStyle === "neon" ? "selected" : ""}>\u{1F31F} Neon Glow</option>
+                      <option value="plasma" ${settings.effectStyle === "plasma" ? "selected" : ""}>\u{1F525} Plasma</option>
+                      <option value="aurora" ${settings.effectStyle === "aurora" ? "selected" : ""}>\u{1F30C} Aurora</option>
+                      <option value="crystal" ${settings.effectStyle === "crystal" ? "selected" : ""}>\u{1F4A0} Crystal</option>
+                      <option value="steel" ${settings.effectStyle === "steel" ? "selected" : ""}>\u{1F6E1}\uFE0F Steel</option>
+                      <option value="chrome" ${settings.effectStyle === "chrome" ? "selected" : ""}>\u26AA Chrome</option>
+                      <option value="titanium" ${settings.effectStyle === "titanium" ? "selected" : ""}>\u{1F32B}\uFE0F Titanium</option>
+                  </select>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Texture Overlay
+                  </label>
+                  <select class="mga-select" id="texture-select">
+                      <option value="none" ${settings.textureStyle === "none" || !settings.textureStyle ? "selected" : ""}>\u{1F6AB} None</option>
+
+                      <optgroup label="\u{1F31F} Modern Glass">
+                          <option value="frosted-glass" ${settings.textureStyle === "frosted-glass" ? "selected" : ""}>\u2744\uFE0F Frosted Glass</option>
+                          <option value="crystal-prism" ${settings.textureStyle === "crystal-prism" ? "selected" : ""}>\u{1F48E} Crystal Prism</option>
+                          <option value="ice-frost" ${settings.textureStyle === "ice-frost" ? "selected" : ""}>\u{1F9CA} Ice Frost</option>
+                          <option value="smoke-flow" ${settings.textureStyle === "smoke-flow" ? "selected" : ""}>\u{1F4A8} Smoke Flow</option>
+                          <option value="water-ripple" ${settings.textureStyle === "water-ripple" ? "selected" : ""}>\u{1F30A} Water Ripple</option>
+                      </optgroup>
+
+                      <optgroup label="\u2699\uFE0F Premium Materials">
+                          <option value="carbon-fiber-pro" ${settings.textureStyle === "carbon-fiber-pro" ? "selected" : ""}>\u{1F3C1} Carbon Fiber Pro</option>
+                          <option value="brushed-aluminum" ${settings.textureStyle === "brushed-aluminum" ? "selected" : ""}>\u26AA Brushed Aluminum</option>
+                          <option value="brushed-titanium" ${settings.textureStyle === "brushed-titanium" ? "selected" : ""}>\u26AB Brushed Titanium</option>
+                          <option value="leather-grain" ${settings.textureStyle === "leather-grain" ? "selected" : ""}>\u{1F9F3} Leather Grain</option>
+                          <option value="fabric-weave" ${settings.textureStyle === "fabric-weave" ? "selected" : ""}>\u{1F9F5} Fabric Weave</option>
+                          <option value="wood-grain" ${settings.textureStyle === "wood-grain" ? "selected" : ""}>\u{1FAB5} Wood Grain</option>
+                      </optgroup>
+
+                      <optgroup label="\u26A1 Tech/Futuristic">
+                          <option value="circuit-board" ${settings.textureStyle === "circuit-board" ? "selected" : ""}>\u{1F50C} Circuit Board</option>
+                          <option value="hexagon-grid-pro" ${settings.textureStyle === "hexagon-grid-pro" ? "selected" : ""}>\u2B21 Hexagon Grid Pro</option>
+                          <option value="hologram-scan" ${settings.textureStyle === "hologram-scan" ? "selected" : ""}>\u{1F4E1} Hologram Scan</option>
+                          <option value="matrix-rain" ${settings.textureStyle === "matrix-rain" ? "selected" : ""}>\u{1F49A} Matrix Rain</option>
+                          <option value="energy-waves" ${settings.textureStyle === "energy-waves" ? "selected" : ""}>\u26A1 Energy Waves</option>
+                          <option value="cyberpunk-grid" ${settings.textureStyle === "cyberpunk-grid" ? "selected" : ""}>\u{1F537} Cyberpunk Grid</option>
+                      </optgroup>
+
+                      <optgroup label="\u{1F4D0} Geometric Clean">
+                          <option value="dots-pro" ${settings.textureStyle === "dots-pro" ? "selected" : ""}>\u26AB Dots Professional</option>
+                          <option value="grid-pro" ${settings.textureStyle === "grid-pro" ? "selected" : ""}>\u2B1C Grid Professional</option>
+                          <option value="diagonal-pro" ${settings.textureStyle === "diagonal-pro" ? "selected" : ""}>\u{1F4D0} Diagonal Pro</option>
+                          <option value="waves" ${settings.textureStyle === "waves" ? "selected" : ""}>\u3030\uFE0F Waves</option>
+                          <option value="triangles" ${settings.textureStyle === "triangles" ? "selected" : ""}>\u{1F53A} Triangles</option>
+                          <option value="crosshatch" ${settings.textureStyle === "crosshatch" ? "selected" : ""}>\u2716\uFE0F Crosshatch</option>
+                      </optgroup>
+
+                      <optgroup label="\u{1F3AA} Special Effects">
+                          <option value="perlin-noise" ${settings.textureStyle === "perlin-noise" ? "selected" : ""}>\u{1F4FA} Perlin Noise</option>
+                          <option value="gradient-mesh" ${settings.textureStyle === "gradient-mesh" ? "selected" : ""}>\u{1F308} Gradient Mesh</option>
+                      </optgroup>
+                  </select>
+              </div>
+
+              <!-- Texture Intensity Slider -->
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span>Texture Intensity</span>
+                      <span id="texture-intensity-value" style="color: #4a9eff; font-weight: 600;">${settings.textureIntensity !== void 0 ? settings.textureIntensity : 75}%</span>
+                  </label>
+                  <input type="range" id="texture-intensity-slider" min="0" max="100" value="${settings.textureIntensity !== void 0 ? settings.textureIntensity : 75}"
+                         style="width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(90deg, rgba(74, 158, 255, 0.48) 0%, rgba(74,158,255,0.8) 100%); outline: none; cursor: pointer;">
+              </div>
+
+              <!-- Texture Scale Control -->
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Texture Scale
+                  </label>
+                  <div style="display: flex; gap: 8px;">
+                      <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="small" style="flex: 1; ${settings.textureScale === "small" ? "background: #4a9eff; color: white;" : ""}">Small</button>
+                      <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="medium" style="flex: 1; ${settings.textureScale === "medium" || !settings.textureScale ? "background: #4a9eff; color: white;" : ""}">Medium</button>
+                      <button class="mga-btn mga-btn-sm texture-scale-btn" data-scale="large" style="flex: 1; ${settings.textureScale === "large" ? "background: #4a9eff; color: white;" : ""}">Large</button>
+                  </div>
+              </div>
+
+              <!-- Blend Mode Selector -->
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-label" style="display: block; margin-bottom: 8px;">
+                      Blend Mode
+                  </label>
+                  <select class="mga-select" id="texture-blend-mode">
+                      <option value="overlay" ${settings.textureBlendMode === "overlay" || !settings.textureBlendMode ? "selected" : ""}>Overlay (Balanced)</option>
+                      <option value="multiply" ${settings.textureBlendMode === "multiply" ? "selected" : ""}>Multiply (Darken)</option>
+                      <option value="screen" ${settings.textureBlendMode === "screen" ? "selected" : ""}>Screen (Lighten)</option>
+                      <option value="soft-light" ${settings.textureBlendMode === "soft-light" ? "selected" : ""}>Soft Light (Subtle)</option>
+                  </select>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">Quick Presets</div>
+              <div class="mga-grid">
+                  <button class="mga-btn mga-btn-sm" data-preset="gaming">\u{1F3AE} Gaming</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="minimal">\u26AA Minimal</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="vibrant">\u{1F308} Vibrant</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="dark">\u26AB Dark</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="luxury">\u2728 Luxury</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="steel">\u{1F6E1}\uFE0F Steel</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="chrome">\u26AA Chrome</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="titanium">\u{1F32B}\uFE0F Titanium</button>
+                  <button class="mga-btn mga-btn-sm" data-preset="reset">\u{1F504} Reset</button>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">UI Mode</div>
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="ultra-compact-checkbox" class="mga-checkbox"
+                             ${settings.ultraCompactMode ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F4F1} Ultra-compact mode</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      Maximum space efficiency with condensed layouts and smaller text.
+                  </p>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">Pet Interface</div>
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="hide-feed-buttons-checkbox" class="mga-checkbox"
+                             ${settings.hideFeedButtons ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F343} Hide instant feed buttons</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      Hide the 3 quick-feed buttons next to active pet avatars. Applies immediately without page reload.
+                  </p>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">Pop-out Behavior</div>
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="use-overlays-checkbox" class="mga-checkbox"
+                             ${settings.useInGameOverlays ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F3AE} Use in-game overlays instead of separate windows</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      When enabled, tabs will open as draggable overlays within the game window instead of separate browser windows.
+                  </p>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">\u{1F6E1}\uFE0F Compatibility Mode</div>
+              <div style="margin-bottom: 16px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px;
+                              background: ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "rgba(34, 197, 94, 0.30)" : "rgba(255, 255, 255, 0.05)"};
+                              border: 1px solid ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "rgba(34, 197, 94, 0.3)" : "rgba(255, 255, 255, 0.57)"};
+                              border-radius: 8px; margin-bottom: 12px;">
+                      <div>
+                          <div style="font-weight: 600; margin-bottom: 4px;">
+                              ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "\u2705 Enabled" : "\u26AA Disabled"}
+                          </div>
+                          <div style="font-size: 11px; color: #aaa;">
+                              ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "Reason: " + (CompatibilityMode2.detectionReason || "manual") : "Auto-detects CSP restrictions"}
+                          </div>
+                      </div>
+                      <button id="compat-toggle-btn" class="mga-btn mga-btn-sm"
+                              style="padding: 8px 16px; font-size: 12px; min-width: 100px;">
+                          ${typeof CompatibilityMode2 !== "undefined" && CompatibilityMode2.flags.enabled ? "Disable" : "Force Enable"}
+                      </button>
+                  </div>
+                  <p style="font-size: 11px; color: #aaa; line-height: 1.6;">
+                      <strong>What it does:</strong><br>
+                      \u2022 Bypasses CSP restrictions for Discord/managed devices<br>
+                      \u2022 Uses system fonts instead of Google Fonts<br>
+                      \u2022 Forces WebSocket reconnection even when tab is hidden<br>
+                      \u2022 Uses GM_xmlhttpRequest for external network requests<br>
+                      <br>
+                      <strong>When to use:</strong><br>
+                      \u2022 Playing in Discord Activities<br>
+                      \u2022 Work/school computers with strict security policies<br>
+                      \u2022 Browser extensions or embeds<br>
+                      <br>
+                      <em style="opacity: 0.7;">Note: Changes require page refresh</em>
+                  </p>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">Developer Options</div>
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="debug-mode-checkbox" class="mga-checkbox"
+                             ${settings.debugMode ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F41B} Enable Debug Mode</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      Shows detailed console logs for troubleshooting pet hunger, notifications, and more.
+                  </p>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="room-debug-mode-checkbox" class="mga-checkbox"
+                             ${settings.roomDebugMode ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F310} Enable Room Debug Mode</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      Shows detailed console logs for room API requests and player count fetching.
+                  </p>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="hide-weather-checkbox" class="mga-checkbox"
+                             ${settings.hideWeather ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F327}\uFE0F Hide Weather Effects</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      Hide visual weather effects like snow, rain, and other weather animations for better performance.
+                  </p>
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">Data Management</div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button class="mga-btn mga-btn-sm" id="export-settings-btn">Export Settings</button>
+                  <button class="mga-btn mga-btn-sm" id="import-settings-btn">Import Settings</button>
+                  <button class="mga-btn mga-btn-sm" id="reset-loadouts-btn" style="background: #dc2626;">Reset Pet Loadouts</button>
+                  <button class="mga-btn mga-btn-sm" id="clear-hotkeys-btn" style="background: #ea580c;">Clear All Hotkeys</button>
+              </div>
+              <p style="font-size: 11px; color: #aaa; margin-top: 4px;">
+                  Reset button clears all saved pet loadouts. Clear hotkeys button removes all preset hotkey assignments.
+              </p>
+          </div>
+      `;
+  }
+  function setupSettingsTabHandlers(dependencies = {}) {
+    const {
+      context = typeof document !== "undefined" ? document : null,
+      UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
+      CompatibilityMode: CompatibilityMode2 = typeof window !== "undefined" && window.CompatibilityMode,
+      applyTheme: applyTheme2 = typeof window !== "undefined" && window.applyTheme,
+      syncThemeToAllWindows: syncThemeToAllWindows2 = typeof window !== "undefined" && window.syncThemeToAllWindows,
+      applyPreset = typeof window !== "undefined" && window.applyPreset,
+      applyUltraCompactMode: applyUltraCompactMode3 = typeof window !== "undefined" && window.applyUltraCompactMode,
+      applyWeatherSetting: applyWeatherSetting2 = typeof window !== "undefined" && window.applyWeatherSetting,
+      MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
+      productionLog: productionLog3 = typeof window !== "undefined" && window.productionLog ? window.productionLog : () => {
+      },
+      logInfo: logInfo3 = typeof window !== "undefined" && window.logInfo ? window.logInfo : () => {
+      },
+      targetDocument: targetDocument2 = typeof window !== "undefined" && typeof document !== "undefined" ? document : null,
+      updateTabContent = typeof window !== "undefined" && window.updateTabContent,
+      showNotificationToast: showNotificationToast2 = typeof window !== "undefined" && window.showNotificationToast,
+      localStorage: storage = typeof window !== "undefined" && window.localStorage ? window.localStorage : null,
+      window: win = typeof window !== "undefined" ? window : null,
+      alert: alertFn = typeof window !== "undefined" && window.alert ? window.alert : () => {
+      },
+      confirm: confirmFn = typeof window !== "undefined" && window.confirm ? window.confirm : () => false,
+      URL: URLClass = typeof window !== "undefined" && window.URL ? window.URL : null,
+      Blob: BlobClass = typeof window !== "undefined" && window.Blob ? window.Blob : null,
+      FileReader: FileReaderClass = typeof window !== "undefined" && window.FileReader ? window.FileReader : null,
+      console: consoleFn = typeof console !== "undefined" ? console : { log: () => {
+      }, error: () => {
+      } }
+    } = dependencies;
+    consoleFn.log("\u{1F6A8} [CRITICAL-DEBUG] setupSettingsTabHandlers ENTERED");
+    productionLog3("\u2699\uFE0F [SETTINGS] setupSettingsTabHandlers called", {
+      context: context === (typeof document !== "undefined" ? document : null) ? "document" : "custom"
+    });
+    consoleFn.log(
+      "\u{1F6A8} [CRITICAL-DEBUG] Context type:",
+      context === (typeof document !== "undefined" ? document : null) ? "DOCUMENT" : "ELEMENT",
+      context
+    );
+    const compatToggleBtn = context.querySelector("#compat-toggle-btn");
+    if (compatToggleBtn && typeof CompatibilityMode2 !== "undefined") {
+      compatToggleBtn.addEventListener("click", () => {
+        if (CompatibilityMode2.flags.enabled) {
+          CompatibilityMode2.disableCompat();
+          logInfo3("COMPAT", "User disabled compatibility mode - reload required");
+          alertFn("Compatibility Mode disabled. Please refresh the page for changes to take effect.");
+        } else {
+          try {
+            storage.setItem("mgtools_compat_forced", "true");
+            storage.removeItem("mgtools_compat_disabled");
+            logInfo3("COMPAT", "User enabled compatibility mode - reload required");
+            alertFn("Compatibility Mode enabled. Please refresh the page for changes to take effect.");
+          } catch (e) {
+            alertFn("Unable to save compatibility mode setting. Your browser may have storage restrictions.");
+          }
+        }
+        if (confirmFn("Would you like to reload the page now?")) {
+          win.location.reload();
+        }
+      });
+    }
+    const opacitySlider = context.querySelector("#opacity-slider");
+    if (opacitySlider) {
+      opacitySlider.addEventListener("input", (e) => {
+        const opacity = parseInt(e.target.value);
+        UnifiedState3.data.settings.opacity = opacity;
+        applyTheme2();
+        const label = opacitySlider.previousElementSibling;
+        label.textContent = `Main HUD Opacity: ${opacity}%`;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const popoutOpacitySlider = context.querySelector("#popout-opacity-slider");
+    if (popoutOpacitySlider) {
+      popoutOpacitySlider.addEventListener("input", (e) => {
+        const popoutOpacity = parseInt(e.target.value);
+        UnifiedState3.data.settings.popoutOpacity = popoutOpacity;
+        syncThemeToAllWindows2();
+        const label = popoutOpacitySlider.previousElementSibling;
+        label.textContent = `Pop-out Opacity: ${popoutOpacity}%`;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const gradientSelect = context.querySelector("#gradient-select");
+    if (gradientSelect) {
+      gradientSelect.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.gradientStyle = e.target.value;
+        applyTheme2();
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const effectSelect = context.querySelector("#effect-select");
+    if (effectSelect) {
+      effectSelect.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.effectStyle = e.target.value;
+        applyTheme2();
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const themePresetButtons = context.querySelectorAll("[data-preset]");
+    themePresetButtons.forEach((btn) => {
+      if (!btn.hasAttribute("data-handler-setup")) {
+        btn.setAttribute("data-handler-setup", "true");
+        btn.addEventListener("click", (e) => {
+          const presetName = e.target.dataset.preset;
+          applyPreset(presetName);
+          applyTheme2();
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+          const opacitySlider2 = context.querySelector("#opacity-slider");
+          if (opacitySlider2) {
+            opacitySlider2.value = UnifiedState3.data.settings.opacity;
+            const label = opacitySlider2.previousElementSibling;
+            if (label) {
+              label.textContent = `Main HUD Opacity: ${UnifiedState3.data.settings.opacity}%`;
+            }
+          }
+          const gradientSelect2 = context.querySelector("#gradient-select");
+          if (gradientSelect2) {
+            gradientSelect2.value = UnifiedState3.data.settings.gradientStyle;
+          }
+          const effectSelect2 = context.querySelector("#effect-select");
+          if (effectSelect2) {
+            effectSelect2.value = UnifiedState3.data.settings.effectStyle;
+          }
+          productionLog3(`\u{1F3A8} Applied theme preset: ${presetName}`);
+        });
+      }
+    });
+    const textureSelect = context.querySelector("#texture-select");
+    if (textureSelect) {
+      textureSelect.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.textureStyle = e.target.value;
+        applyTheme2();
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const intensitySlider = context.querySelector("#texture-intensity-slider");
+    const intensityValue = context.querySelector("#texture-intensity-value");
+    if (intensitySlider && intensityValue) {
+      intensitySlider.addEventListener("input", (e) => {
+        const value = e.target.value;
+        intensityValue.textContent = value + "%";
+        UnifiedState3.data.settings.textureIntensity = parseInt(value);
+        applyTheme2();
+      });
+      intensitySlider.addEventListener("change", (e) => {
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const scaleButtons = context.querySelectorAll(".texture-scale-btn");
+    if (scaleButtons.length > 0) {
+      scaleButtons.forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const scale = e.target.dataset.scale;
+          UnifiedState3.data.settings.textureScale = scale;
+          scaleButtons.forEach((b) => {
+            b.style.background = "";
+            b.style.color = "";
+          });
+          e.target.style.background = "#4a9eff";
+          e.target.style.color = "white";
+          applyTheme2();
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        });
+      });
+    }
+    const blendModeSelect = context.querySelector("#texture-blend-mode");
+    if (blendModeSelect) {
+      blendModeSelect.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.textureBlendMode = e.target.value;
+        applyTheme2();
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+      });
+    }
+    const ultraCompactCheckbox = context.querySelector("#ultra-compact-checkbox");
+    if (ultraCompactCheckbox) {
+      const newCheckbox = ultraCompactCheckbox.cloneNode(true);
+      ultraCompactCheckbox.parentNode.replaceChild(newCheckbox, ultraCompactCheckbox);
+      newCheckbox.addEventListener("change", (e) => {
+        e.stopPropagation();
+        UnifiedState3.data.settings.ultraCompactMode = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        applyUltraCompactMode3(e.target.checked);
+        productionLog3(`\u{1F4F1} Ultra-compact mode ${e.target.checked ? "enabled" : "disabled"}`);
+      });
+    }
+    const hideFeedButtonsCheckbox = context.querySelector("#hide-feed-buttons-checkbox");
+    if (hideFeedButtonsCheckbox) {
+      hideFeedButtonsCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.hideFeedButtons = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        const allFeedButtons = targetDocument2.querySelectorAll(".mgtools-instant-feed-btn");
+        allFeedButtons.forEach((btn) => {
+          btn.style.setProperty("display", e.target.checked ? "none" : "block", "important");
+        });
+        consoleFn.log(`[MGTOOLS-FIX-B] Feed buttons ${e.target.checked ? "hidden" : "shown"}`);
+        productionLog3(`\u{1F343} Instant feed buttons ${e.target.checked ? "hidden" : "shown"}`);
+      });
+    }
+    const overlayCheckbox = context.querySelector("#use-overlays-checkbox");
+    if (overlayCheckbox) {
+      overlayCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.useInGameOverlays = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F3AE} Overlay mode ${e.target.checked ? "enabled" : "disabled"}`);
+      });
+    }
+    const debugModeCheckbox = context.querySelector("#debug-mode-checkbox");
+    if (debugModeCheckbox) {
+      debugModeCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.debugMode = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        productionLog3(`\u{1F41B} Debug mode ${e.target.checked ? "enabled" : "disabled"}`);
+      });
+    }
+    const roomDebugModeCheckbox = context.querySelector("#room-debug-mode-checkbox");
+    if (roomDebugModeCheckbox) {
+      roomDebugModeCheckbox.addEventListener("change", (e) => {
+        UnifiedState3.data.settings.roomDebugMode = e.target.checked;
+        MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        consoleFn.log(`[MGTools] Room debug mode ${e.target.checked ? "enabled" : "disabled"}`);
+      });
+    }
+    context.querySelectorAll("[data-preset]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const preset = e.target.dataset.preset;
+        applyPreset(preset);
+      });
+    });
+    const exportBtn = context.querySelector("#export-settings-btn");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => {
+        const data = JSON.stringify(UnifiedState3.data, null, 2);
+        const blob = new BlobClass([data], { type: "application/json" });
+        const link = targetDocument2.createElement("a");
+        link.href = URLClass.createObjectURL(blob);
+        link.download = "MGA_Settings.json";
+        link.click();
+      });
+    }
+    const importBtn = context.querySelector("#import-settings-btn");
+    if (importBtn) {
+      importBtn.addEventListener("click", () => {
+        const fileInput = targetDocument2.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = ".json";
+        fileInput.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReaderClass();
+          reader.onload = (event) => {
+            try {
+              const importedData = JSON.parse(event.target.result);
+              if (typeof importedData !== "object" || importedData === null) {
+                throw new Error("Invalid data format");
+              }
+              UnifiedState3.data = { ...UnifiedState3.data, ...importedData };
+              MGA_saveJSON2("MGA_data", UnifiedState3.data);
+              applyTheme2();
+              if (UnifiedState3.data.settings.ultraCompactMode) {
+                applyUltraCompactMode3(true);
+              }
+              productionLog3("\u2705 Settings imported successfully!");
+              showNotificationToast2("\u2705 Settings imported and applied!", "success");
+              if (UnifiedState3.activeTab === "settings") {
+                updateTabContent();
+              }
+            } catch (error) {
+              consoleFn.error("Failed to import settings:", error);
+              showNotificationToast2("\u274C Failed to import settings. Invalid file format.", "error");
+            }
+          };
+          reader.readAsText(file);
+        });
+        fileInput.click();
+      });
+    }
+    const resetLoadoutsBtn = context.querySelector("#reset-loadouts-btn");
+    if (resetLoadoutsBtn) {
+      resetLoadoutsBtn.addEventListener("click", () => {
+        if (confirmFn("Are you sure you want to reset all pet loadouts? This cannot be undone.")) {
+          UnifiedState3.data.petPresets = {};
+          UnifiedState3.data.petPresetHotkeys = {};
+          UnifiedState3.data.petPresetsOrder = [];
+          MGA_saveJSON2("MGA_petPresets", UnifiedState3.data.petPresets);
+          MGA_saveJSON2("MGA_petPresetHotkeys", UnifiedState3.data.petPresetHotkeys);
+          MGA_saveJSON2("MGA_petPresetsOrder", UnifiedState3.data.petPresetsOrder);
+          productionLog3("[SETTINGS] Pet loadouts and hotkeys have been reset");
+          if (UnifiedState3.activeTab === "pets") {
+            updateTabContent();
+          }
+          productionLog3("[SETTINGS] Pet loadouts have been reset successfully");
+        }
+      });
+    }
+    const clearHotkeysBtn = context.querySelector("#clear-hotkeys-btn");
+    if (clearHotkeysBtn) {
+      clearHotkeysBtn.addEventListener("click", () => {
+        if (confirmFn("Clear all pet preset hotkeys? This will not delete your presets, only the hotkey assignments.")) {
+          UnifiedState3.data.petPresetHotkeys = {};
+          MGA_saveJSON2("MGA_petPresetHotkeys", UnifiedState3.data.petPresetHotkeys);
+          productionLog3("[SETTINGS] All pet preset hotkeys cleared");
+          if (UnifiedState3.activeTab === "pets") {
+            updateTabContent();
+          }
+          alertFn("All pet preset hotkeys have been cleared. You can now assign new hotkeys without conflicts.");
+        }
+      });
+    }
+    const weatherCheckbox = context.querySelector("#hide-weather-checkbox");
+    if (weatherCheckbox && !weatherCheckbox.hasAttribute("data-handler-setup")) {
+      weatherCheckbox.setAttribute("data-handler-setup", "true");
+      try {
+        weatherCheckbox.checked = !!(UnifiedState3 && UnifiedState3.data && UnifiedState3.data.settings && UnifiedState3.data.settings.hideWeather);
+      } catch (_) {
+      }
+      const cloned = weatherCheckbox.cloneNode(true);
+      weatherCheckbox.parentNode.replaceChild(cloned, weatherCheckbox);
+      cloned.addEventListener("change", (e) => {
+        if (!UnifiedState3 || !UnifiedState3.data || !UnifiedState3.data.settings) return;
+        UnifiedState3.data.settings.hideWeather = !!e.target.checked;
+        try {
+          MGA_saveJSON2("MGA_data", UnifiedState3.data);
+        } catch (err) {
+          consoleFn.error("Weather save failed:", err);
+        }
+        try {
+          applyWeatherSetting2();
+        } catch (err) {
+          consoleFn.error("applyWeatherSetting failed:", err);
+        }
+        productionLog3(`\u{1F327}\uFE0F [WEATHER] Toggle set to ${e.target.checked ? "HIDE" : "SHOW"}`);
+      });
+    }
+  }
+
+  // src/features/version-checker.js
+  var version_checker_exports = {};
+  __export(version_checker_exports, {
+    checkVersion: () => checkVersion,
+    compareVersions: () => compareVersions2
+  });
+  function compareVersions2(v1, v2, dependencies = {}) {
+    const parts1 = v1.split(".").map(Number);
+    const parts2 = v2.split(".").map(Number);
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+      const part1 = parts1[i] || 0;
+      const part2 = parts2[i] || 0;
+      if (part1 > part2) return 1;
+      if (part1 < part2) return -1;
+    }
+    return 0;
+  }
+  async function checkVersion(indicatorElement, dependencies = {}) {
+    const {
+      CURRENT_VERSION: CURRENT_VERSION2 = "1.0.0",
+      IS_LIVE_BETA: IS_LIVE_BETA2 = false,
+      STABLE_DOWNLOAD_URL: STABLE_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/main/MGTools.user.js",
+      BETA_DOWNLOAD_URL: BETA_DOWNLOAD_URL2 = "https://github.com/Myke247/MGTools/raw/Live-Beta/MGTools.user.js",
+      isDiscordPage = false,
+      window: win = typeof window !== "undefined" ? window : null,
+      console: con = typeof console !== "undefined" ? console : null
+    } = dependencies;
+    if (!win || !indicatorElement) return;
+    if (isDiscordPage) {
+      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#00ff00";
+      const tooltipLines = [
+        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
+        `STATUS: Version check disabled on Discord`,
+        "",
+        "Shift+Click: Install Stable",
+        "Shift+Alt+Click: Install Beta"
+      ];
+      indicatorElement.title = tooltipLines.join("\n");
+      indicatorElement.style.cursor = "pointer";
+      indicatorElement.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (e.shiftKey && e.altKey) {
+          win.open(BETA_DOWNLOAD_URL2, "_blank");
+        } else if (e.shiftKey) {
+          win.open(STABLE_DOWNLOAD_URL2, "_blank");
+        }
+      });
+      return;
+    }
+    const cacheBust = `?t=${Date.now()}`;
+    async function fetchVersion(branch) {
+      const urls = [
+        `https://raw.githubusercontent.com/Myke247/MGTools/${branch}/MGTools.user.js${cacheBust}`,
+        `https://api.github.com/repos/Myke247/MGTools/contents/MGTools.user.js`
+      ];
+      for (const url of urls) {
+        try {
+          const isGitHubAPI = url.includes("api.github.com");
+          const response = await win.fetch(url, {
+            method: "GET",
+            cache: "no-cache",
+            headers: isGitHubAPI ? { Accept: "application/vnd.github.v3.raw" } : {}
+          });
+          if (response.ok) {
+            const text = await response.text();
+            const match = text.match(/@version\s+([\d.]+)/);
+            if (match) return match[1];
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      return null;
+    }
+    try {
+      const [stableVersion, betaVersion] = await Promise.all([fetchVersion("main"), fetchVersion("Live-Beta")]);
+      if (!stableVersion && !betaVersion) {
+        const branchLabel2 = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+        indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
+        const tooltipLines2 = [
+          `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel2})`,
+          `STATUS: Version check failed`,
+          "",
+          "Click: Retry",
+          "Shift+Click: Install Stable",
+          "Shift+Alt+Click: Install Beta"
+        ];
+        indicatorElement.title = tooltipLines2.join("\n");
+        indicatorElement.style.cursor = "pointer";
+        const newIndicator2 = indicatorElement.cloneNode(true);
+        indicatorElement.parentNode.replaceChild(newIndicator2, indicatorElement);
+        newIndicator2.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (e.shiftKey && e.altKey) {
+            win.open(BETA_DOWNLOAD_URL2, "_blank");
+          } else if (e.shiftKey) {
+            win.open(STABLE_DOWNLOAD_URL2, "_blank");
+          } else {
+            newIndicator2.style.color = "#888";
+            newIndicator2.title = "Checking for updates...";
+            checkVersion(newIndicator2, dependencies);
+          }
+        });
+        return;
+      }
+      const relevantVersion = IS_LIVE_BETA2 ? betaVersion : stableVersion;
+      const versionComparison = compareVersions2(CURRENT_VERSION2, relevantVersion);
+      let color;
+      let statusMsg;
+      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+      if (IS_LIVE_BETA2) {
+        if (versionComparison === 0) {
+          color = "#ff9500";
+          statusMsg = "UP TO DATE";
+        } else if (versionComparison > 0) {
+          color = "#ffff00";
+          statusMsg = "DEV VERSION";
+        } else {
+          color = "#ff00ff";
+          statusMsg = "UPDATE AVAILABLE";
+        }
+      } else {
+        if (versionComparison === 0) {
+          color = "#00ff00";
+          statusMsg = "UP TO DATE";
+        } else if (versionComparison > 0) {
+          color = "#90ee90";
+          statusMsg = "DEV VERSION";
+        } else {
+          color = "#ff0000";
+          statusMsg = "UPDATE AVAILABLE";
+        }
+      }
+      const tooltipLines = [
+        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
+        `STATUS: ${statusMsg}`,
+        "",
+        `GitHub Versions:`,
+        IS_LIVE_BETA2 ? `  Your Branch (Beta): v${betaVersion || "Loading..."}` : `  Your Branch (Stable): v${stableVersion || "Loading..."}`,
+        IS_LIVE_BETA2 ? `  Other Branch (Stable): v${stableVersion || "Loading..."}` : `  Other Branch (Beta): v${betaVersion || "Loading..."}`,
+        "",
+        "Click: Recheck",
+        "Shift+Click: Install Stable",
+        "Shift+Alt+Click: Install Beta"
+      ];
+      indicatorElement.style.color = color;
+      indicatorElement.title = tooltipLines.join("\n");
+      indicatorElement.style.cursor = "pointer";
+      const newIndicator = indicatorElement.cloneNode(true);
+      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+      newIndicator.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (e.shiftKey && e.altKey) {
+          win.open(BETA_DOWNLOAD_URL2, "_blank");
+        } else if (e.shiftKey) {
+          win.open(STABLE_DOWNLOAD_URL2, "_blank");
+        } else {
+          newIndicator.style.color = "#888";
+          newIndicator.title = `v${CURRENT_VERSION2} - Checking for updates...`;
+          checkVersion(newIndicator, dependencies);
+        }
+      });
+    } catch (e) {
+      const branchLabel = IS_LIVE_BETA2 ? "BETA" : "STABLE";
+      indicatorElement.style.color = IS_LIVE_BETA2 ? "#ff9500" : "#ffa500";
+      const tooltipLines = [
+        `CURRENT VERSION: v${CURRENT_VERSION2} (${branchLabel})`,
+        `STATUS: Version check failed`,
+        "",
+        "Click: Retry",
+        "Shift+Click: Install Stable",
+        "Shift+Alt+Click: Install Beta"
+      ];
+      indicatorElement.title = tooltipLines.join("\n");
+      indicatorElement.style.cursor = "pointer";
+      const newIndicator = indicatorElement.cloneNode(true);
+      indicatorElement.parentNode.replaceChild(newIndicator, indicatorElement);
+      newIndicator.addEventListener("click", (e2) => {
+        e2.stopPropagation();
+        if (e2.shiftKey && e2.altKey) {
+          win.open(BETA_DOWNLOAD_URL2, "_blank");
+        } else if (e2.shiftKey) {
+          win.open(STABLE_DOWNLOAD_URL2, "_blank");
+        } else {
+          newIndicator.style.color = "#888";
+          newIndicator.title = "Checking for updates...";
+          checkVersion(newIndicator, dependencies);
+        }
+      });
+      if (con) {
+        con.log("[VERSION CHECK] Error:", e);
+      }
     }
   }
 
@@ -28727,6 +28823,110 @@ Error: ${error.message}`);
     return {
       expectedMinutesRemoved
     };
+  }
+
+  // src/features/abilities/abilities-ui.js
+  var abilities_ui_exports = {};
+  __export(abilities_ui_exports, {
+    getAbilitiesTabContent: () => getAbilitiesTabContent
+  });
+  function getAbilitiesTabContent(dependencies = {}) {
+    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState } = dependencies;
+    const logs = (UnifiedState3?.data?.petAbilityLogs || []).slice(0, 30);
+    const filterMode = UnifiedState3?.data?.filterMode || "categories";
+    const abilityFilters = UnifiedState3?.data?.abilityFilters || {};
+    const debugMode = UnifiedState3?.data?.settings?.debugMode || false;
+    const detailedTimestamps = UnifiedState3?.data?.settings?.detailedTimestamps || false;
+    const html = `
+          <div class="mga-section">
+              <div class="mga-section-title">Filter Mode</div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+                  <div style="display: flex; gap: 6px;">
+                      <button class="mga-btn mga-btn-sm ${filterMode === "categories" ? "active" : ""}" id="filter-mode-categories" style="padding: 6px 12px; font-size: 12px;">Categories</button>
+                      <button class="mga-btn mga-btn-sm ${filterMode === "byPet" ? "active" : ""}" id="filter-mode-bypet" style="padding: 6px 12px; font-size: 12px;">By Pet</button>
+                      <button class="mga-btn mga-btn-sm ${filterMode === "custom" ? "active" : ""}" id="filter-mode-custom" style="padding: 6px 12px; font-size: 12px;">Custom</button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                      <button class="mga-btn mga-btn-sm" id="select-all-filters" style="padding: 6px 10px; font-size: 11px;">All</button>
+                      <button class="mga-btn mga-btn-sm" id="select-none-filters" style="padding: 6px 10px; font-size: 11px;">None</button>
+                  </div>
+              </div>
+              <div id="filter-mode-description" style="font-size: 11px; color: #aaa; margin-bottom: 12px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px;">
+                  ${filterMode === "categories" ? "\u{1F4C2} Filter by ability categories" : filterMode === "byPet" ? "\u{1F43E} Filter by pet species" : "\u2699\uFE0F Filter by individual abilities"}
+              </div>
+
+              <!-- Categories Mode -->
+              <div id="category-filters" style="display: ${filterMode === "categories" ? "grid" : "none"}; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.xpBoost ? "checked" : ""} data-filter="xpBoost" style="accent-color: #4a9eff;">
+                      <span class="mga-label" style="font-size: 12px;">\u{1F4AB} XP Boost</span>
+                  </label>
+                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.cropSizeBoost ? "checked" : ""} data-filter="cropSizeBoost" style="accent-color: #4a9eff;">
+                      <span class="mga-label" style="font-size: 12px;">\u{1F4C8} Crop Size Boost</span>
+                  </label>
+                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.selling ? "checked" : ""} data-filter="selling" style="accent-color: #4a9eff;">
+                      <span class="mga-label" style="font-size: 12px;">\u{1F4B0} Selling</span>
+                  </label>
+                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.harvesting ? "checked" : ""} data-filter="harvesting" style="accent-color: #4a9eff;">
+                      <span class="mga-label" style="font-size: 12px;">\u{1F33E} Harvesting</span>
+                  </label>
+                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.growthSpeed ? "checked" : ""} data-filter="growthSpeed" style="accent-color: #4a9eff;">
+                      <span class="mga-label" style="font-size: 12px;">\u{1F422} Growth Speed</span>
+                  </label>
+                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.specialMutations ? "checked" : ""} data-filter="specialMutations" style="accent-color: #4a9eff;">
+                      <span class="mga-label" style="font-size: 12px;">\u{1F308}\u2728 Special Mutations</span>
+                  </label>
+                  <label class="mga-checkbox-group" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                      <input type="checkbox" class="mga-checkbox" ${abilityFilters.other ? "checked" : ""} data-filter="other" style="accent-color: #4a9eff;">
+                      <span class="mga-label" style="font-size: 12px;">\u{1F527} Other</span>
+                  </label>
+              </div>
+
+              <!-- By Pet Mode -->
+              <div id="pet-filters" style="display: ${filterMode === "byPet" ? "block" : "none"}; margin-bottom: 8px;">
+                  <div id="pet-species-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; padding: 8px;">
+                      <div style="color: #888; text-align: center;">Loading pet species...</div>
+                  </div>
+              </div>
+
+              <!-- Custom Mode -->
+              <div id="custom-filters" style="display: ${filterMode === "custom" ? "block" : "none"}; margin-bottom: 8px;">
+                  <div id="individual-abilities-list" class="mga-scrollable" style="max-height: 150px; border: 1px solid rgba(255, 255, 255, 0.57); border-radius: 4px; padding: 8px;">
+                      <div style="color: #888; text-align: center;">Loading individual abilities...</div>
+                  </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                  <button class="mga-btn mga-btn-sm" id="clear-logs-btn">Clear Logs</button>
+                  <button class="mga-btn mga-btn-sm" id="export-logs-btn">Export CSV</button>
+                  ${debugMode ? '<button class="mga-btn mga-btn-sm" id="diagnose-logs-btn" style="background: #ff6b35;">\u{1F50D} Diagnose Storage</button>' : ""}
+              </div>
+          </div>
+
+          <div class="mga-section">
+              <div class="mga-section-title">Recent Ability Triggers</div>
+              <div style="margin-bottom: 8px;">
+                  <label class="mga-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" id="detailed-timestamps-checkbox" class="mga-checkbox"
+                             ${detailedTimestamps ? "checked" : ""}
+                             style="accent-color: #4a9eff;">
+                      <span>\u{1F550} Show detailed timestamps (HH:MM:SS)</span>
+                  </label>
+                  <p style="font-size: 11px; color: #aaa; margin: 4px 0 0 26px;">
+                      When enabled, shows detailed 24-hour format timestamps instead of 12-hour format.
+                  </p>
+              </div>
+              <div id="ability-logs" class="mga-scrollable" style="max-height: 400px; overflow-y: auto;">
+                  ${logs.length === 0 ? '<div style="color: #888; text-align: center; padding: 20px;">No ability logs yet. Ability logs will appear here when your pets trigger abilities in-game.</div>' : ""}
+              </div>
+          </div>
+      `;
+    return html;
   }
 
   // src/features/abilities/abilities-display.js
@@ -29889,13 +30089,494 @@ ${title}:`);
           const hasConnection = window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === "object";
           const hasBasicDom = document.body && document.readyState === "complete";
           if (hasAtoms && hasConnection || attempts >= maxAttempts) {
-            console.log("[MGTools] \u2705 Game ready, initializing with modular bootstrap...");
-            const success = initializeModular({
-              targetDocument: document,
-              targetWindow: window
-            });
-            if (!success) {
-              console.error("[MGTools] \u274C Initialization failed, see errors above");
+            console.log("[MGTools] \u2705 Game ready, initializing with LEGACY bootstrap (COMPLETE working code)...");
+            try {
+              const targetWin = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+              const updateTabContentFn = () => {
+                const contentEl = document.getElementById("mga-tab-content");
+                if (!contentEl || !UnifiedState2.activeTab) return;
+                const state = UnifiedState2;
+                switch (state.activeTab) {
+                  case "pets":
+                    contentEl.innerHTML = getPetsTabContent({
+                      UnifiedState: state,
+                      calculateTimeUntilHungry,
+                      formatHungerTimer,
+                      ensurePresetOrder,
+                      productionLog: productionLog2
+                    });
+                    setupPetsTabHandlers(document, {
+                      UnifiedState: state,
+                      targetWindow: targetWin,
+                      targetDocument: document,
+                      productionLog: productionLog2,
+                      safeSendMessage,
+                      sendToGame,
+                      createToast: showNotificationToast,
+                      exportPetPresets: exportPetPresets2,
+                      importPetPresets: importPetPresets2
+                    });
+                    break;
+                  case "seeds":
+                    contentEl.innerHTML = getSeedsTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+                  case "abilities":
+                    contentEl.innerHTML = getAbilitiesTabContent({
+                      UnifiedState: state,
+                      productionLog: productionLog2
+                    });
+                    if (setupAbilitiesTabHandlers2) {
+                      setupAbilitiesTabHandlers2(document, {
+                        UnifiedState: state,
+                        productionLog: productionLog2
+                      });
+                    }
+                    break;
+                  case "values":
+                    contentEl.innerHTML = getValuesTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+                  case "timers":
+                    contentEl.innerHTML = getTimersTabContent();
+                    break;
+                  case "rooms":
+                    contentEl.innerHTML = getRoomStatusTabContent2({
+                      UnifiedState: state
+                    });
+                    break;
+                  case "tools":
+                    contentEl.innerHTML = getToolsTabContent();
+                    break;
+                  case "hotkeys":
+                    contentEl.innerHTML = getHotkeysTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+                  case "help":
+                    contentEl.innerHTML = getHelpTabContent();
+                    break;
+                  case "protect":
+                    contentEl.innerHTML = getProtectTabContent({
+                      UnifiedState: state
+                    });
+                    break;
+                  default:
+                    contentEl.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+                }
+              };
+              continueInitialization({
+                // Core deps
+                UnifiedState: UnifiedState2,
+                // Module exports named 'UnifiedState'
+                targetWindow: targetWin,
+                document,
+                setTimeout,
+                performanceNow: () => performance.now(),
+                console,
+                // Logging
+                productionLog: productionLog2,
+                productionWarn: productionWarn2,
+                debugLog: debugLog2,
+                debugError,
+                MGA_DEBUG: targetWin.MGA_DEBUG || null,
+                // Initialization functions - call directly without wrapper
+                loadSavedData: () => {
+                  const state = UnifiedState2 || unified_state_exports;
+                  loadSavedData({
+                    UnifiedState: state,
+                    MGA_loadJSON,
+                    performStorageHealthCheck,
+                    productionLog: productionLog2,
+                    productionWarn: productionWarn2,
+                    targetWindow: targetWin
+                  });
+                },
+                initializeAtoms: (depsOverride) => initializeAtoms({
+                  UnifiedState: UnifiedState2,
+                  targetWindow: targetWin,
+                  hookAtom,
+                  setManagedInterval,
+                  updateTabContent: () => {
+                  },
+                  // TODO: wire from TabContent
+                  document,
+                  productionLog: productionLog2,
+                  updateActivePetsFromRoomState: () => {
+                  },
+                  // TODO: wire from Pets
+                  ...depsOverride
+                }),
+                startIntervals: (depsOverride) => startIntervals({
+                  targetWindow: targetWin,
+                  setManagedInterval,
+                  checkShopRestock: checkShopRestock || (() => {
+                  }),
+                  checkTurtleTimer: checkTurtleTimer || (() => {
+                  }),
+                  productionLog: productionLog2,
+                  ...depsOverride
+                }),
+                applyTheme: (depsOverride) => applyTheme({
+                  UnifiedState: UnifiedState2,
+                  generateThemeStyles,
+                  applyThemeToElement,
+                  applyThemeToDock,
+                  applyThemeToSidebar,
+                  applyAccentToDock,
+                  applyAccentToSidebar,
+                  syncThemeToAllWindows,
+                  ...depsOverride
+                }),
+                applyUltraCompactMode: (enabled, depsOverride) => applyUltraCompactMode2({
+                  document,
+                  productionLog: productionLog2,
+                  ...depsOverride
+                }, enabled),
+                applyWeatherSetting: (depsOverride) => applyWeatherSetting({
+                  UnifiedState: UnifiedState2,
+                  document,
+                  productionLog: productionLog2,
+                  ...depsOverride
+                }),
+                initializeKeyboardShortcuts: (depsOverride) => initializeKeyboardShortcuts({
+                  UnifiedState: UnifiedState2,
+                  document,
+                  toggleMainHUD: toggleMainHUD || (() => {
+                  }),
+                  productionLog: productionLog2,
+                  ...depsOverride
+                }),
+                // Legacy bootstrap functions
+                cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition2({ localStorage, console }),
+                // UI functions from Overlay module - CRITICAL: Must pass configuration object!
+                createUnifiedUI: () => {
+                  if (!createUnifiedUI) {
+                    console.error("[MGTools] createUnifiedUI not available in Overlay module");
+                    return;
+                  }
+                  createUnifiedUI({
+                    targetDocument: document,
+                    productionLog: productionLog2,
+                    UnifiedState: UnifiedState2,
+                    // Drag functionality
+                    makeDockDraggable: (dock) => {
+                      makeDraggable(dock, dock, {
+                        targetDocument: document,
+                        debugLog: debugLog2,
+                        saveMainHUDPosition: (pos) => saveDockPosition(pos)
+                      });
+                    },
+                    // Tab and window management - WIRED with actual implementations!
+                    openSidebarTab: (tabName) => {
+                      if (openSidebarTab) {
+                        openSidebarTab({
+                          targetDocument: document,
+                          UnifiedState: UnifiedState2,
+                          updateTabContent: updateTabContentFn
+                        }, tabName);
+                      }
+                    },
+                    toggleShopWindows: () => {
+                      if (toggleShopWindows) {
+                        toggleShopWindows({
+                          targetDocument: document,
+                          UnifiedState: UnifiedState2,
+                          createShopSidebars
+                        });
+                      }
+                    },
+                    openPopoutWidget: (tabName) => {
+                      if (openPopoutWidget) {
+                        openPopoutWidget({
+                          targetDocument: document,
+                          UnifiedState: UnifiedState2,
+                          makePopoutDraggable: makePopoutDraggable || (() => {
+                          }),
+                          makeElementResizable: makeElementResizable || (() => {
+                          }),
+                          generateThemeStyles: (settings, isPopout) => generateThemeStyles({}, settings, isPopout),
+                          applyThemeToPopoutWidget: (popout, themeStyles) => applyThemeToPopoutWidget({ targetDocument: document }, popout, themeStyles),
+                          stopInventoryCounter: () => stopInventoryCounter?.({ targetDocument: document, UnifiedState: UnifiedState2 }),
+                          getCachedTabContent,
+                          contentGetters: {},
+                          // TODO: wire content getters
+                          handlerSetups: {}
+                          // TODO: wire handler setups
+                        }, tabName);
+                      }
+                    },
+                    // Version checker
+                    checkVersion: (indicatorElement) => {
+                      if (checkVersion) {
+                        checkVersion(indicatorElement, {
+                          CURRENT_VERSION: CONFIG.CURRENT_VERSION,
+                          IS_LIVE_BETA: CONFIG.IS_LIVE_BETA,
+                          isDiscordPage: targetWin.location.href?.includes("discordsays.com") || false,
+                          window: targetWin,
+                          console
+                        });
+                      }
+                    },
+                    // Dock position management
+                    saveDockOrientation: (orientation) => {
+                      try {
+                        localStorage.setItem("mgh_dock_orientation", orientation);
+                      } catch (e) {
+                        debugError("[MGTools] Failed to save dock orientation:", e);
+                      }
+                    },
+                    loadDockOrientation: () => {
+                      try {
+                        return localStorage.getItem("mgh_dock_orientation") || "horizontal";
+                      } catch (e) {
+                        return "horizontal";
+                      }
+                    },
+                    loadDockPosition: () => {
+                      try {
+                        const saved = localStorage.getItem("mgh_dock_position");
+                        if (saved) {
+                          const position = JSON.parse(saved);
+                          if (position && typeof position.left === "number" && typeof position.top === "number") {
+                            return position;
+                          }
+                        }
+                        return null;
+                      } catch (e) {
+                        debugError("[MGTools] Failed to load dock position:", e);
+                        return null;
+                      }
+                    },
+                    // Theme system
+                    generateThemeStyles: (settings, isPopout = false) => generateThemeStyles({}, settings, isPopout),
+                    applyAccentToDock: (themeStyles) => applyAccentToDock({ document }, themeStyles),
+                    applyAccentToSidebar: (themeStyles) => applyAccentToSidebar({ document }, themeStyles),
+                    applyThemeToDock: (themeStyles) => applyThemeToDock({ document }, themeStyles),
+                    applyThemeToSidebar: (themeStyles) => applyThemeToSidebar({ document }, themeStyles),
+                    // Environment detection
+                    isDiscordEnv: targetWin.location.href?.includes("discordsays.com") || false,
+                    // Constants
+                    UNIFIED_STYLES: UNIFIED_STYLES || "",
+                    CURRENT_VERSION: CONFIG.CURRENT_VERSION || "2.0.0",
+                    IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
+                  });
+                },
+                // UI Health & Toolbar Control Dependencies
+                CURRENT_VERSION: CONFIG.CURRENT_VERSION || "2.0.0",
+                showToast: (title, subtitle, duration) => {
+                  showNotificationToast(`${title} - ${subtitle}`, "info", { targetDocument: document });
+                },
+                resetDockPosition: resetDockPosition || (() => {
+                }),
+                // UI Health Functions (referenced from Overlay module)
+                ensureUIHealthy: ensureUIHealthy || (() => {
+                }),
+                setupToolbarToggle: setupToolbarToggle || (() => {
+                }),
+                setupDockSizeControl: setupDockSizeControl || (() => {
+                }),
+                // Feature initialization - FULLY WIRED
+                initializeSortInventoryButton: () => {
+                },
+                initializeInstantFeedButtons: () => {
+                  const PET_FEED_CATALOG = {
+                    Worm: ["Carrot", "Strawberry", "Aloe", "Tomato", "Apple"],
+                    Snail: ["Blueberry", "Tomato", "Corn", "Daffodil"],
+                    Bee: ["Strawberry", "Blueberry", "OrangeTulip", "Daffodil", "Lily"],
+                    Chicken: ["Aloe", "Corn", "Watermelon", "Pumpkin"],
+                    Bunny: ["Carrot", "Strawberry", "Blueberry", "Echeveria"],
+                    Dragonfly: ["Apple", "OrangeTulip", "Echeveria"],
+                    Pig: ["Watermelon", "Pumpkin", "Mushroom", "Bamboo"],
+                    Cow: ["Coconut", "Banana", "BurrosTail", "Mushroom"],
+                    Squirrel: ["Pumpkin", "Banana", "Grape"],
+                    Turtle: ["Watermelon", "BurrosTail", "Bamboo", "Pepper"],
+                    Goat: ["Pumpkin", "Coconut", "Cactus", "Pepper"],
+                    Butterfly: ["Daffodil", "Lily", "Grape", "Lemon", "Sunflower"],
+                    Capybara: ["Lemon", "PassionFruit", "DragonFruit", "Lychee"],
+                    Peacock: ["Cactus", "Sunflower", "Lychee"],
+                    Copycat: []
+                  };
+                  const usedCropIds = /* @__PURE__ */ new Set();
+                  const getAtomValue = (atomName) => {
+                    try {
+                      const store = captureJotaiStore({ targetWindow: targetWin, productionLog: productionLog2 });
+                      if (store && store.get) {
+                        const atom = targetWin.jotaiAtomCache?.get?.(atomName);
+                        if (atom) {
+                          return store.get(atom);
+                        }
+                      }
+                    } catch (e) {
+                    }
+                    return null;
+                  };
+                  const readMyPetSlots = () => {
+                    try {
+                      return getAtomValue("myPetSlotInfosAtom");
+                    } catch {
+                    }
+                    return UnifiedState2?.atoms?.activePets ?? null;
+                  };
+                  const boundHandleInstantFeed = (petIndex, buttonEl) => {
+                    return handleInstantFeed(petIndex, buttonEl, {
+                      targetWindow: targetWin,
+                      UnifiedState: UnifiedState2,
+                      getAtomValue,
+                      readAtom: (atomName) => readAtom2(atomName, { targetWindow: targetWin }),
+                      readMyPetSlots,
+                      PET_FEED_CATALOG,
+                      sendFeedPet,
+                      feedPetEnsureSync,
+                      flashButton,
+                      usedCropIds
+                    });
+                  };
+                  initializeInstantFeedButtons({
+                    targetDocument: document,
+                    targetWindow: targetWin,
+                    UnifiedState: UnifiedState2,
+                    handleInstantFeed: boundHandleInstantFeed,
+                    captureJotaiStore: () => captureJotaiStore({ targetWindow: targetWin, productionLog: productionLog2 }),
+                    productionLog: productionLog2
+                  });
+                },
+                initializeTurtleTimer: () => {
+                },
+                updateTabContent: () => {
+                  const contentEl = document.getElementById("mga-tab-content");
+                  if (!contentEl || !UnifiedState2.activeTab) return;
+                  const state = UnifiedState2;
+                  switch (state.activeTab) {
+                    case "pets":
+                      contentEl.innerHTML = getPetsTabContent({
+                        UnifiedState: state,
+                        calculateTimeUntilHungry,
+                        formatHungerTimer,
+                        ensurePresetOrder,
+                        productionLog: productionLog2
+                      });
+                      setupPetsTabHandlers(document, {
+                        UnifiedState: state,
+                        targetWindow: targetWin,
+                        targetDocument: document,
+                        productionLog: productionLog2,
+                        safeSendMessage,
+                        sendToGame,
+                        createToast: showNotificationToast,
+                        exportPetPresets: exportPetPresets2,
+                        importPetPresets: importPetPresets2
+                      });
+                      break;
+                    case "seeds":
+                      contentEl.innerHTML = getSeedsTabContent({
+                        UnifiedState: state
+                      });
+                      break;
+                    case "abilities":
+                      contentEl.innerHTML = getAbilitiesTabContent({
+                        UnifiedState: state,
+                        productionLog: productionLog2
+                      });
+                      if (setupAbilitiesTabHandlers2) {
+                        setupAbilitiesTabHandlers2(document, {
+                          UnifiedState: state,
+                          productionLog: productionLog2
+                        });
+                      }
+                      break;
+                    case "values":
+                      contentEl.innerHTML = getValuesTabContent({
+                        UnifiedState: state
+                      });
+                      break;
+                    case "timers":
+                      contentEl.innerHTML = getTimersTabContent();
+                      break;
+                    case "rooms":
+                      contentEl.innerHTML = getRoomStatusTabContent2({
+                        UnifiedState: state
+                      });
+                      break;
+                    case "tools":
+                      contentEl.innerHTML = getToolsTabContent();
+                      break;
+                    case "hotkeys":
+                      contentEl.innerHTML = getHotkeysTabContent({
+                        UnifiedState: state
+                      });
+                      break;
+                    case "help":
+                      contentEl.innerHTML = getHelpTabContent();
+                      break;
+                    case "protect":
+                      contentEl.innerHTML = getProtectTabContent({
+                        UnifiedState: state
+                      });
+                      break;
+                    default:
+                      contentEl.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+                  }
+                },
+                getContentForTab: (tabName, isPopout = false) => {
+                  const state = UnifiedState2;
+                  switch (tabName) {
+                    case "pets":
+                      return isPopout ? getPetsPopoutContent2({ UnifiedState: state, productionLog: productionLog2 }) : getPetsTabContent({ UnifiedState: state, productionLog: productionLog2 });
+                    case "seeds":
+                      return getSeedsTabContent({ UnifiedState: state });
+                    case "abilities":
+                      return getAbilitiesTabContent({ UnifiedState: state, productionLog: productionLog2 });
+                    case "values":
+                      return getValuesTabContent({ UnifiedState: state });
+                    case "timers":
+                      return getTimersTabContent();
+                    case "rooms":
+                      return getRoomStatusTabContent2({ UnifiedState: state });
+                    case "tools":
+                      return getToolsTabContent();
+                    case "hotkeys":
+                      return getHotkeysTabContent({ UnifiedState: state });
+                    case "help":
+                      return getHelpTabContent();
+                    case "protect":
+                      return getProtectTabContent({ UnifiedState: state });
+                    default:
+                      return '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+                  }
+                },
+                setupSeedsTabHandlers: (context = document) => {
+                },
+                setupPetsTabHandlers: (context = document) => {
+                  setupPetsTabHandlers(context, {
+                    UnifiedState: UnifiedState2,
+                    targetWindow: targetWin,
+                    targetDocument: document,
+                    productionLog: productionLog2,
+                    safeSendMessage,
+                    sendToGame,
+                    createToast: showNotificationToast,
+                    exportPetPresets: exportPetPresets2,
+                    importPetPresets: importPetPresets2
+                  });
+                },
+                initializeTeleportSystem: () => {
+                },
+                setupCropHighlightingSystem: () => {
+                },
+                initializeHotkeySystem: () => {
+                },
+                // Runtime utilities
+                setManagedInterval,
+                clearManagedInterval,
+                captureJotaiStore: () => captureJotaiStore({ targetWindow: targetWin, productionLog: productionLog2 })
+              });
+              console.log("[MGTools] \u2705 Legacy bootstrap initialization complete!");
+            } catch (error) {
+              console.error("[MGTools] \u274C Initialization failed:", error);
+              console.error("[MGTools] Stack:", error.stack);
             }
             return true;
           }

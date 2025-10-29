@@ -500,7 +500,11 @@ export function initializeStandalone(deps) {
     productionLog,
     debugError,
     cleanupCorruptedDockPosition,
-    generateDemoTiles
+    generateDemoTiles,
+    // UI Health & Toolbar Control Dependencies
+    CURRENT_VERSION,
+    showToast,
+    resetDockPosition
   } = deps;
 
   if (UnifiedState.initialized) {
@@ -547,9 +551,25 @@ export function initializeStandalone(deps) {
     createUnifiedUI();
 
     // TEST VERSION: Add UI health check and Alt+M toggle
-    ensureUIHealthy();
-    setupToolbarToggle();
-    setupDockSizeControl();
+    ensureUIHealthy({
+      targetDocument: document,
+      cleanupCorruptedDockPosition,
+      createUnifiedUI,
+      showToast
+    });
+    setupToolbarToggle({
+      targetDocument: document,
+      document,
+      productionLog,
+      showToast,
+      CURRENT_VERSION
+    });
+    setupDockSizeControl({
+      targetDocument: document,
+      document,
+      resetDockPosition,
+      showToast
+    });
 
     addDemoBanner();
 
@@ -873,7 +893,11 @@ export function continueInitialization(deps) {
     setupCropHighlightingSystem,
     initializeHotkeySystem,
     setManagedInterval,
-    clearManagedInterval
+    clearManagedInterval,
+    // UI Health & Toolbar Control Dependencies
+    CURRENT_VERSION,
+    showToast,
+    resetDockPosition
   } = deps;
 
   productionLog('🌱 Magic Garden Unified Assistant initializing...');
@@ -925,9 +949,25 @@ export function continueInitialization(deps) {
       createUnifiedUI();
 
       // TEST VERSION: Add UI health check and Alt+M toggle
-      ensureUIHealthy();
-      setupToolbarToggle();
-      setupDockSizeControl();
+      ensureUIHealthy({
+        targetDocument: document,
+        cleanupCorruptedDockPosition,
+        createUnifiedUI,
+        showToast
+      });
+      setupToolbarToggle({
+        targetDocument: document,
+        document,
+        productionLog,
+        showToast,
+        CURRENT_VERSION
+      });
+      setupDockSizeControl({
+        targetDocument: document,
+        document,
+        resetDockPosition,
+        showToast
+      });
 
       if (MGA_DEBUG) {
         MGA_DEBUG.logStage('CREATE_UI_COMPLETED', {
@@ -1088,27 +1128,40 @@ export function continueInitialization(deps) {
       }
 
       // Update any open popout overlays
+      // CRITICAL FIX: Handle both Map objects (runtime) and plain objects (after JSON deserialization)
       if (UnifiedState.data?.popouts?.overlays) {
-        UnifiedState.data.popouts.overlays.forEach((overlay, tabName) => {
-          if (overlay && document.contains(overlay)) {
-            try {
-              const content = getContentForTab(tabName, true);
-              const contentEl = overlay.querySelector('.mga-overlay-content, .mga-content');
-              if (contentEl) {
-                contentEl.innerHTML = content;
-                // Set up handlers for the refreshed content
-                if (tabName === 'seeds' && typeof setupSeedsTabHandlers === 'function') {
-                  setupSeedsTabHandlers(overlay);
-                } else if (tabName === 'pets' && typeof setupPetsTabHandlers === 'function') {
-                  setupPetsTabHandlers(overlay);
+        const overlays = UnifiedState.data.popouts.overlays;
+
+        // Check if it's a Map or plain object
+        if (overlays instanceof Map) {
+          // It's a Map - use Map's forEach (value, key order)
+          overlays.forEach((overlay, tabName) => {
+            if (overlay && document.contains(overlay)) {
+              try {
+                const content = getContentForTab(tabName, true);
+                const contentEl = overlay.querySelector('.mga-overlay-content, .mga-content');
+                if (contentEl) {
+                  contentEl.innerHTML = content;
+                  // Set up handlers for the refreshed content
+                  if (tabName === 'seeds' && typeof setupSeedsTabHandlers === 'function') {
+                    setupSeedsTabHandlers(overlay);
+                  } else if (tabName === 'pets' && typeof setupPetsTabHandlers === 'function') {
+                    setupPetsTabHandlers(overlay);
+                  }
+                  productionLog(`✅ [DATA-PERSISTENCE] Refreshed ${tabName} overlay with saved state`);
                 }
-                productionLog(`✅ [DATA-PERSISTENCE] Refreshed ${tabName} overlay with saved state`);
+              } catch (error) {
+                productionWarn(`⚠️ [DATA-PERSISTENCE] Failed to refresh ${tabName} overlay:`, error);
               }
-            } catch (error) {
-              productionWarn(`⚠️ [DATA-PERSISTENCE] Failed to refresh ${tabName} overlay:`, error);
             }
-          }
-        });
+          });
+        } else if (typeof overlays === 'object') {
+          // It's a plain object (after JSON deserialization) - iterate using Object.entries
+          productionLog('[DATA-PERSISTENCE] ⚠️ Popouts overlays is a plain object (JSON deserialized), skipping iteration');
+          // Note: Plain objects from JSON won't have DOM elements anyway, so skip is safe
+        } else {
+          debugLog('[DATA-PERSISTENCE] Unexpected popouts.overlays type:', typeof overlays);
+        }
       }
     }, 1000); // 1000ms delay to ensure all data loading is complete
 

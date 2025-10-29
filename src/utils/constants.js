@@ -31,7 +31,7 @@ export const CONFIG = {
 
   // Debug Settings
   DEBUG: {
-    PRODUCTION: true, // Set to false for verbose debug logging
+    PRODUCTION: false, // Set to false for verbose debug logging - ENABLED FOR DEBUGGING
     FLAGS: {
       OVERLAY_LIFECYCLE: false,
       HANDLER_SETUP: false,

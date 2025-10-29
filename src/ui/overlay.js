@@ -411,6 +411,8 @@ const UNIFIED_STYLES = `
           padding: 20px;
           overflow-y: auto;
           color: white;
+          max-width: 400px;
+          max-height: 100vh;
       }
 
       .mgh-sidebar-body::-webkit-scrollbar { width: 6px; }
@@ -1201,7 +1203,7 @@ function createUnifiedUI({
 
   // Apply theme to dock and sidebar immediately after creation
   setTimeout(() => {
-    const currentTheme = generateThemeStyles();
+    const currentTheme = generateThemeStyles({}, UnifiedState.data.settings, false);
     const isBlackTheme = currentTheme.gradientStyle && currentTheme.gradientStyle.startsWith('black-');
     if (isBlackTheme && currentTheme.accentColor) {
       applyAccentToDock(currentTheme);
@@ -2035,7 +2037,7 @@ function openTabInSeparateWindow(deps, tabName) {
   }
 
   // Get current theme for pop-out window
-  const currentTheme = UnifiedState.currentTheme || deps.generateThemeStyles();
+  const currentTheme = UnifiedState.currentTheme || deps.generateThemeStyles(UnifiedState.data.settings, false);
 
   // Create pop-out window HTML with dynamic theming
   const popoutHTML = `
@@ -4274,6 +4276,46 @@ function getTabCacheStats(deps) {
     entries: Array.from(tabContentCache.keys()),
     duration: TAB_CACHE_DURATION
   };
+}
+
+/**
+ * Toggle main HUD visibility (dock and sidebar)
+ * Used by keyboard shortcut (Alt+M)
+ *
+ * @param {Object} deps - Dependencies object
+ * @param {Document} deps.targetDocument - Target document
+ * @returns {void}
+ */
+export function toggleMainHUD(deps = {}) {
+  const { targetDocument = typeof document !== 'undefined' ? document : null } = deps;
+
+  if (!targetDocument) return;
+
+  try {
+    const dock = targetDocument.querySelector('#mgh-dock');
+    const sidebar = targetDocument.querySelector('#mgh-sidebar');
+
+    if (!dock) return;
+
+    // Toggle visibility
+    const isHidden = dock.style.display === 'none';
+
+    if (isHidden) {
+      // Show HUD
+      dock.style.display = '';
+      if (sidebar) {
+        sidebar.style.display = '';
+      }
+    } else {
+      // Hide HUD
+      dock.style.display = 'none';
+      if (sidebar) {
+        sidebar.style.display = 'none';
+      }
+    }
+  } catch (error) {
+    console.error('[MGTools] Failed to toggle main HUD:', error);
+  }
 }
 
 // ==================== EXPORTS ====================

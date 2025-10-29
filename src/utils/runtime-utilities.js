@@ -301,6 +301,97 @@ export function sendToGame(payloadObj, dependencies = {}) {
  * ATOM UTILITIES
  * ============================================================================ */
 
+// Cached Jotai store reference
+let jotaiStore = null;
+
+/**
+ * Capture and cache the Jotai store from the game
+ *
+ * @param {object} dependencies - Injected dependencies
+ * @param {Window} [dependencies.targetWindow] - Target window object
+ * @param {Function} [dependencies.productionLog] - Info logger
+ * @returns {object|null} Jotai store or null
+ *
+ * @example
+ * const store = captureJotaiStore({ targetWindow: window });
+ */
+export function captureJotaiStore(dependencies = {}) {
+  const {
+    targetWindow = typeof window !== 'undefined' ? window : null,
+    productionLog = console.log
+  } = dependencies;
+
+  if (jotaiStore) return jotaiStore;
+
+  try {
+    // Method 1: Check if store is directly exposed on window
+    const directStore = targetWindow.__jotaiStore || targetWindow.jotaiStore;
+    if (directStore && typeof directStore.get === 'function' && typeof directStore.set === 'function') {
+      jotaiStore = directStore;
+      console.log('✅ [STORE] Captured Jotai store from window.__jotaiStore');
+      return jotaiStore;
+    }
+
+    // Method 2: Try React DevTools hook (original method)
+    const hook = targetWindow.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+    if (hook?.renderers?.size) {
+      for (const [rid] of hook.renderers) {
+        const roots = hook.getFiberRoots?.(rid);
+        if (!roots) continue;
+
+        for (const root of roots) {
+          const seen = new Set();
+          const stack = [root.current];
+
+          while (stack.length) {
+            const fiber = stack.pop();
+            if (!fiber || seen.has(fiber)) continue;
+            seen.add(fiber);
+
+            // Look for Jotai Provider's store in pendingProps.value
+            const value = fiber?.pendingProps?.value;
+            if (
+              value &&
+              typeof value.get === 'function' &&
+              typeof value.set === 'function' &&
+              typeof value.sub === 'function'
+            ) {
+              jotaiStore = value;
+              console.log('✅ [STORE] Captured Jotai store from React fiber tree');
+              return jotaiStore;
+            }
+
+            if (fiber.child) stack.push(fiber.child);
+            if (fiber.sibling) stack.push(fiber.sibling);
+            if (fiber.alternate) stack.push(fiber.alternate);
+          }
+        }
+      }
+    }
+
+    // Method 3: Try to extract store from an atom in the cache
+    const atomCache = targetWindow.jotaiAtomCache?.cache || targetWindow.jotaiAtomCache;
+    if (atomCache && atomCache.size > 0) {
+      // Try to find the store reference in any atom's metadata
+      for (const [key, value] of atomCache.entries()) {
+        // Some Jotai implementations store the store reference in the atom cache
+        if (value?.store && typeof value.store.get === 'function') {
+          jotaiStore = value.store;
+          console.log('✅ [STORE] Extracted Jotai store from atom cache metadata');
+          return jotaiStore;
+        }
+      }
+      productionLog('⏳ [STORE] Atom cache exists but store not extractable - will use direct cache reading');
+    }
+
+    productionLog('⏳ [STORE] Store not found - will fall back to direct atom cache reading');
+    return null;
+  } catch (error) {
+    console.error('[STORE] Error capturing Jotai store:', error);
+    return null;
+  }
+}
+
 /**
  * Read an atom value from the Jotai store
  *
@@ -829,6 +920,7 @@ export const RuntimeUtilities = {
   sendToGame,
 
   // Atom Utilities
+  captureJotaiStore,
   readAtom,
   hookAtom,
   listenToSlotIndexAtom

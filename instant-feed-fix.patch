@@ -1,0 +1,89 @@
+## COMPREHENSIVE FIX FOR INSTANT FEED BUTTONS
+
+### Changes needed in src/features/pets.js:
+
+**Line 4406 - Change function signature:**
+FROM:
+  { targetDocument, targetWindow, createInstantFeedButton, captureJotaiStore, productionLog },
+
+TO:
+  { targetDocument, targetWindow, UnifiedState, handleInstantFeed, captureJotaiStore, productionLog },
+
+
+**Line 4513 - Fix createInstantFeedButton call:**
+FROM:
+      const btn = createInstantFeedButton(index);
+
+TO:
+      // Create button with proper dependencies
+      const btn = createInstantFeedButton(index, {
+        targetDocument,
+        UnifiedState,
+        handleInstantFeed
+      });
+
+
+### Changes needed in src/index.js around line 578:
+
+Replace the entire initializeInstantFeedButtons wiring with:
+
+```javascript
+initializeInstantFeedButtons: () => {
+  // Create shared state for used crop IDs
+  const usedCropIds = new Set();
+
+  // Define PET_FEED_CATALOG (pet species -> compatible crops mapping)
+  const PET_FEED_CATALOG = {
+    // This needs to be populated with actual data or retrieved from game
+    // For now, using a placeholder that will need to be filled
+  };
+
+  // Create readMyPetSlots function
+  const readMyPetSlots = () => {
+    try {
+      return UnifiedState.UnifiedState.atoms?.activePets || [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // Create bound handleInstantFeed with all dependencies
+  const boundHandleInstantFeed = (petIndex, buttonEl) => {
+    return Pets.handleInstantFeed(petIndex, buttonEl, {
+      targetWindow: targetWin,
+      UnifiedState: UnifiedState.UnifiedState,
+      getAtomValue: async (atomName) => {
+        try {
+          const store = RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog });
+          if (store && store.get) {
+            const atom = targetWin.jotaiAtomCache?.get?.(atomName);
+            if (atom) {
+              return await store.get(atom);
+            }
+          }
+        } catch (e) {
+          productionLog('[Feed] getAtomValue failed:', e);
+        }
+        return null;
+      },
+      readAtom: (atomName) => RuntimeUtilities.readAtom(atomName, { targetWindow: targetWin }),
+      readMyPetSlots,
+      PET_FEED_CATALOG,
+      sendFeedPet: Pets.sendFeedPet,
+      feedPetEnsureSync: Pets.feedPetEnsureSync,
+      flashButton: Pets.flashButton,
+      usedCropIds
+    });
+  };
+
+  // Initialize with all dependencies
+  Pets.initializeInstantFeedButtons({
+    targetDocument: document,
+    targetWindow: targetWin,
+    UnifiedState: UnifiedState.UnifiedState,
+    handleInstantFeed: boundHandleInstantFeed,
+    captureJotaiStore: () => RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog }),
+    productionLog
+  });
+},
+```

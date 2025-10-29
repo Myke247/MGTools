@@ -1415,3 +1415,47 @@ export function updateTabResponsiveness(element) {
     }
   }
 }
+
+/**
+ * Sync theme to all popout windows
+ * Updates theme styling across all open popout widgets
+ *
+ * @param {Object} deps - Dependencies object
+ * @param {Document} deps.targetDocument - Target document
+ * @param {Object} deps.UnifiedState - Unified state object with settings
+ * @param {Function} deps.generateThemeStyles - Theme style generator
+ * @param {Function} deps.applyThemeToPopoutWidget - Apply theme to popout
+ * @returns {void}
+ */
+export function syncThemeToAllWindows(deps = {}) {
+  const {
+    targetDocument = typeof document !== 'undefined' ? document : null,
+    UnifiedState = typeof window !== 'undefined' && window.UnifiedState,
+    generateThemeStyles: generateTheme = generateThemeStyles,
+    applyThemeToPopoutWidget: applyTheme = applyThemeToPopoutWidget
+  } = deps;
+
+  if (!targetDocument || !UnifiedState) return;
+
+  try {
+    // Get current theme settings
+    const settings = UnifiedState.data?.settings;
+    if (!settings) return;
+
+    // Generate theme styles for popouts (using popout opacity)
+    const themeStyles = generateTheme(deps, settings, true);
+    if (!themeStyles) return;
+
+    // Find all popout windows
+    const popouts = targetDocument.querySelectorAll('.mga-popout-window');
+
+    // Apply theme to each popout
+    popouts.forEach(popout => {
+      if (popout && popout.isConnected) {
+        applyTheme(deps, popout, themeStyles);
+      }
+    });
+  } catch (error) {
+    console.error('[MGTools] Failed to sync theme to windows:', error);
+  }
+}

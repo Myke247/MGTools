@@ -4403,7 +4403,7 @@ export function injectInstantFeedButtons({ targetDocument, targetWindow, createI
  * @param {number} [options.pollInterval=2000] - Polling interval in milliseconds
  */
 export function initializeInstantFeedButtons(
-  { targetDocument, targetWindow, createInstantFeedButton, captureJotaiStore, productionLog },
+  { targetDocument, targetWindow, UnifiedState, handleInstantFeed, captureJotaiStore, productionLog },
   options = {}
 ) {
   const { pollInterval = 2000 } = options;
@@ -4510,7 +4510,7 @@ export function initializeInstantFeedButtons(
       }
 
       // Create and append button
-      const btn = createInstantFeedButton(index);
+      const btn = createInstantFeedButton(index, { targetDocument, UnifiedState, handleInstantFeed });
       container.appendChild(btn);
 
       return true;
