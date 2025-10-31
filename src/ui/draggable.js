@@ -65,6 +65,7 @@ export function makeDraggable(element, handle, dependencies = {}) {
   let startY = 0;
   let startLeft = 0;
   let startTop = 0;
+  let justFinishedDrag = false; // Track if we just ended a drag (better than time-based)
 
   handle.style.cursor = 'grab';
 
@@ -73,6 +74,14 @@ export function makeDraggable(element, handle, dependencies = {}) {
     if (event.target.tagName === 'BUTTON') return;
     // Don't start drag if clicking resize handle
     if (event.target.classList && event.target.classList.contains('mga-resize-handle')) return;
+
+    // CRITICAL FIX: Don't start drag if clicking on dock items or their children (icons, tooltips)
+    // This prevents drag from triggering when clicking icons to open tabs
+    const clickedElement = event.target;
+    if (clickedElement.classList && clickedElement.classList.contains('mgh-dock-item')) return;
+    if (clickedElement.closest && clickedElement.closest('.mgh-dock-item')) return;
+    if (clickedElement.classList && clickedElement.classList.contains('mgh-tail-group')) return;
+    if (clickedElement.closest && clickedElement.closest('.mgh-tail-group')) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -89,6 +98,11 @@ export function makeDraggable(element, handle, dependencies = {}) {
     // This prevents stretching when element has both top/bottom or left/right set
     element.style.bottom = '';
     element.style.right = '';
+
+    // CRITICAL: Re-apply size constraints to prevent stretching (Phase 4 fix)
+    // These match the CSS constraints from overlay.js lines 71, 81
+    element.style.maxWidth = '90vw';
+    element.style.maxHeight = 'calc(100vh - 40px)';
 
     // Professional drag start effects with will-change for performance
     element.style.willChange = 'transform';
@@ -188,11 +202,28 @@ export function makeDraggable(element, handle, dependencies = {}) {
         elementClass: element.className,
         finalPosition
       });
+
+      // Set flag to block immediate second mousedown (double-click pattern)
+      justFinishedDrag = true;
+      setTimeout(() => {
+        justFinishedDrag = false;
+      }, 500); // Clear after 500ms (Windows/Mac double-click threshold)
     }
   };
 
-  // Mouse event handlers
+  // Mouse event handlers with double-click protection
   handle.addEventListener('mousedown', e => {
+    // Prevent second click of double-click from triggering drag
+    // If we just finished a drag (within 500ms), block this mousedown
+    // This catches double-click pattern: drag→release→[BLOCK second drag]
+    if (justFinishedDrag) {
+      e.preventDefault();
+      e.stopPropagation();
+      debugLog('OVERLAY_LIFECYCLE', 'Second mousedown blocked (just finished drag)');
+      justFinishedDrag = false; // Clear flag so next click works
+      return;
+    }
+
     startDrag(e.clientX, e.clientY, e);
   });
 

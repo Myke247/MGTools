@@ -39,14 +39,7 @@
  * @returns {void}
  */
 export function loadSavedData(deps) {
-  const {
-    UnifiedState,
-    MGA_loadJSON,
-    performStorageHealthCheck,
-    productionLog,
-    productionWarn,
-    targetWindow
-  } = deps;
+  const { UnifiedState, MGA_loadJSON, performStorageHealthCheck, productionLog, productionWarn, targetWindow } = deps;
 
   // PERSISTENCE GUARD v3.6.6: Initialize guard to prevent premature saves during initialization
   targetWindow.MGA_PERSISTENCE_GUARD = {
@@ -179,10 +172,8 @@ export function initializeAtoms(deps) {
       UnifiedState.atoms.activePets = petSlots || [];
       targetWindow.activePets = petSlots || [];
 
-      // Force UI update if on pets tab
-      if (UnifiedState.activeTab === 'pets') {
-        updateTabContent();
-      }
+      // REMOVED: Don't force UI update on every atom change - destroys input focus!
+      // The pet tab will update naturally when user interacts with it
     },
     0,
     {
@@ -248,7 +239,29 @@ export function initializeAtoms(deps) {
     }
   );
 
-  productionLog('✅ [SIMPLE-ATOMS] Atom initialization complete');
+  // Hook #5: Global Shop data (CRITICAL for shop tab!)
+  hookAtom(
+    '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/globalShopAtom.ts/globalShopAtom',
+    'globalShop',
+    shopData => {
+      UnifiedState.atoms.globalShop = shopData || {};
+      targetWindow.globalShop = shopData || {};
+      productionLog('🏪 [ATOM-UPDATE] globalShop updated:', {
+        hasData: !!shopData,
+        itemCount: shopData?.items ? Object.keys(shopData.items).length : 0
+      });
+    },
+    0,
+    {
+      targetWindow,
+      UnifiedState,
+      productionLog,
+      productionWarn: () => {},
+      console
+    }
+  );
+
+  productionLog('✅ [SIMPLE-ATOMS] Atom initialization complete (5 atoms hooked)');
 }
 
 /* ============================================================================
@@ -269,13 +282,7 @@ export function initializeAtoms(deps) {
  * @returns {void}
  */
 export function startIntervals(deps) {
-  const {
-    targetWindow,
-    setManagedInterval,
-    checkShopRestock,
-    checkTurtleTimer,
-    productionLog
-  } = deps;
+  const { targetWindow, setManagedInterval, checkShopRestock, checkTurtleTimer, productionLog } = deps;
 
   productionLog('⏱️ Starting monitoring intervals...');
 
