@@ -46,7 +46,14 @@ import {
   calculateTimeUntilHungry,
   formatHungerTimer,
   ensurePresetOrder,
-  setupPetsTabHandlers as setupPetsTabHandlersFn
+  setupPetsTabHandlers as setupPetsTabHandlersFn,
+  placePetPreset,
+  exportPetPresets,
+  importPetPresets,
+  refreshPresetsList,
+  updatePetPresetDropdown,
+  updateActivePetsDisplay,
+  updateActivePetsFromRoomState
 } from '../features/pets.js';
 import { getAbilitiesTabContent } from '../features/abilities/abilities-ui.js';
 import {
@@ -84,7 +91,7 @@ import {
   applyWeatherSetting,
   initializeKeyboardShortcuts
 } from './init-functions.js';
-import { setManagedInterval } from '../utils/runtime-utilities.js';
+import { setManagedInterval, safeSendMessage } from '../utils/runtime-utilities.js';
 import { hookAtom } from '../core/atoms.js';
 import { insertTurtleEstimate } from '../features/turtle-timer.js';
 
@@ -128,10 +135,13 @@ function deepMerge(target, source) {
  * @returns {boolean} Success
  */
 export function initializeModular({ targetDocument, targetWindow }) {
+  // CRITICAL: Use console.log directly to ensure visibility
+  console.log('[MGTools v2.1] 🚀 Starting Simplified Modular Bootstrap...');
   productionLog('[MGTools v2.1] 🚀 Starting Simplified Modular Bootstrap...');
 
   try {
     // Step 1: Load Saved Data
+    console.log('[MGTools] Step 1: Loading saved data...');
     productionLog('[MGTools] Step 1: Loading saved data...');
     const savedData = MGA_loadJSON('MGA_data', null);
 
@@ -145,6 +155,7 @@ export function initializeModular({ targetDocument, targetWindow }) {
     }
 
     // Step 2: Create UI (MINIMAL VERSION - just get UI to appear)
+    console.log('[MGTools] Step 2: Creating UI...');
     productionLog('[MGTools] Step 2: Creating UI...');
 
     // Content getters object for updateTabContent
@@ -210,16 +221,18 @@ export function initializeModular({ targetDocument, targetWindow }) {
             UnifiedState,
             CompatibilityMode,
             applyTheme,
-            syncThemeToAllWindows: () => {}, // Stub
-            applyPreset: () => {}, // Stub
-            applyUltraCompactMode: () => {}, // Stub
-            applyWeatherSetting: () => {}, // Stub
+            syncThemeToAllWindows: () => applyTheme(), // Apply to current window
+            applyPreset: () => updateTabContent(), // Refresh tab content
+            applyUltraCompactMode: enabled =>
+              applyUltraCompactMode({ document: targetDocument, productionLog }, enabled), // WIRED
+            applyWeatherSetting: () =>
+              applyWeatherSetting({ UnifiedState, document: targetDocument, productionLog }), // WIRED
             MGA_saveJSON,
             productionLog,
             logInfo: debugLog,
             targetDocument,
             updateTabContent,
-            showNotificationToast: () => {} // Stub
+            showNotificationToast: msg => console.log('[MGTools] ' + msg) // Log notifications
           });
           debugLog('[MGTools] Settings tab handlers wired');
         } else if (tabName === 'shop') {
@@ -234,6 +247,43 @@ export function initializeModular({ targetDocument, targetWindow }) {
             console
           });
           debugLog('[MGTools] Shop tab handlers wired');
+        } else if (tabName === 'pets') {
+          // Wire pets tab handlers for input fields and buttons
+          // CRITICAL FIX: Pass imported functions DIRECTLY, no wrappers (wrappers caused infinite loop)
+          setupPetsTabHandlersFn(contentEl, {
+            UnifiedState,
+            MGA_saveJSON,
+            targetDocument,
+            calculateTimeUntilHungry,
+            formatHungerTimer,
+            // Pass functions directly - pets.js has correct context/params from deps
+            movePreset: ensurePresetOrder,
+            refreshPresetsList,
+            updatePetPresetDropdown,
+            refreshSeparateWindowPopouts: () => {}, // Stub - advanced feature
+            showHotkeyRecordingModal: () => {}, // Stub - advanced feature
+            safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
+            updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+            updateActivePetsDisplay,
+            updatePureOverlayContent: () => {}, // Stub - advanced feature
+            startRecordingHotkeyMGTools: () => {}, // Stub - advanced feature
+            debouncedPlacePetPreset: presetName => {
+              placePetPreset(presetName, {
+                UnifiedState,
+                targetWindow,
+                productionLog,
+                productionWarn: debugLog,
+                safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
+                updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+                updateTabContent,
+                updatePureOverlayContent: () => {}, // Stub - advanced feature
+                refreshSeparateWindowPopouts: () => {} // Stub - advanced feature
+              });
+            },
+            exportPetPresets: () => exportPetPresets(UnifiedState),
+            importPetPresets: () => importPetPresets(UnifiedState, MGA_saveJSON)
+          });
+          console.log('[MGTools] Pets tab handlers wired for sidebar (direct function pass)');
         }
       } catch (error) {
         debugError('[MGTools] Failed to update tab content:', error);
@@ -267,28 +317,52 @@ export function initializeModular({ targetDocument, targetWindow }) {
 
       openPopoutWidget: tabName => {
         // Complete handler setups with ALL functions wired
+
+        // Create debounced version of placePetPreset (300ms debounce to prevent rapid clicks)
+        let placePetPresetTimer = null;
+        const debouncedPlacePetPreset = presetName => {
+          if (placePetPresetTimer) {
+            clearTimeout(placePetPresetTimer);
+          }
+          placePetPresetTimer = setTimeout(() => {
+            placePetPreset(presetName, {
+              UnifiedState,
+              targetWindow,
+              productionLog,
+              productionWarn: debugLog,
+              safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
+              updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+              updateTabContent,
+              updatePureOverlayContent: () => {}, // Stub - advanced feature
+              refreshSeparateWindowPopouts: () => {} // Stub - advanced feature
+            });
+          }, 300);
+        };
+
         const handlerSetups = {
           setupPetsTabHandlers: context => {
+            // CRITICAL FIX: Pass imported functions DIRECTLY, no wrappers (wrappers caused infinite loop)
             setupPetsTabHandlersFn(context, {
               UnifiedState,
               MGA_saveJSON,
               targetDocument,
               calculateTimeUntilHungry,
               formatHungerTimer,
-              // Wire all pet functions properly
-              movePreset: ensurePresetOrder, // Use the imported function
-              refreshPresetsList: () => updateTabContent(), // Refresh the UI
-              updatePetPresetDropdown: () => updateTabContent(),
-              refreshSeparateWindowPopouts: () => {}, // Will be wired when needed
-              showHotkeyRecordingModal: () => {}, // Will be wired when needed
-              safeSendMessage: () => {}, // Will be wired when needed
-              updateActivePetsFromRoomState: () => updateTabContent(),
-              updateActivePetsDisplay: () => updateTabContent(),
-              updatePureOverlayContent: () => updateTabContent(),
-              startRecordingHotkeyMGTools: () => {}, // Will be wired when needed
-              debouncedPlacePetPreset: () => {}, // Will be wired when needed
-              exportPetPresets: () => {}, // Will be wired when needed
-              importPetPresets: () => {} // Will be wired when needed
+              // Pass functions directly - pets.js has correct context/params from deps
+              movePreset: ensurePresetOrder,
+              refreshPresetsList,
+              updatePetPresetDropdown,
+              refreshSeparateWindowPopouts: () => {}, // Stub - advanced feature
+              showHotkeyRecordingModal: () => {}, // Stub - advanced feature
+              safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
+              updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+              updateActivePetsDisplay,
+              updatePureOverlayContent: () => {}, // Stub - advanced feature
+              startRecordingHotkeyMGTools: () => {}, // Stub - advanced feature
+              // Wire actual pet functions
+              debouncedPlacePetPreset,
+              exportPetPresets: () => exportPetPresets(UnifiedState),
+              importPetPresets: () => importPetPresets(UnifiedState, MGA_saveJSON)
             });
           },
           setupAbilitiesTabHandlers: context => {
@@ -348,7 +422,8 @@ export function initializeModular({ targetDocument, targetWindow }) {
               applyTheme,
               syncThemeToAllWindows: () => applyTheme(), // Apply to current window
               applyPreset: () => updateTabContent(),
-              applyUltraCompactMode: enabled => applyUltraCompactMode({ document: targetDocument, productionLog }, enabled),
+              applyUltraCompactMode: enabled =>
+                applyUltraCompactMode({ document: targetDocument, productionLog }, enabled),
               applyWeatherSetting: () => applyWeatherSetting({ UnifiedState, document: targetDocument, productionLog }),
               MGA_saveJSON,
               productionLog,
@@ -440,13 +515,14 @@ export function initializeModular({ targetDocument, targetWindow }) {
       IS_LIVE_BETA: CONFIG.IS_LIVE_BETA || false
     };
 
-    // CRITICAL: Add delay to ensure resources are ready
-    setTimeout(() => {
-      createUnifiedUI(fullUIConfig);
-      productionLog('[MGTools] ✅ UI created with FULL configuration');
-    }, 100); // Small delay to ensure body and resources are ready
+    // Create UI immediately (DOM is already ready at this point)
+    console.log('[MGTools] Creating UI with full configuration...');
+    createUnifiedUI(fullUIConfig);
+    console.log('[MGTools] ✅ UI created with FULL configuration');
+    productionLog('[MGTools] ✅ UI created with FULL configuration');
 
     // Step 3: Initialize core features (Phase 4.8 - COMPLETE INIT)
+    console.log('[MGTools] Step 3: Initializing core features...');
     productionLog('[MGTools] Step 3: Initializing core features...');
 
     // Initialize Jotai atom subscriptions for live data
@@ -459,7 +535,7 @@ export function initializeModular({ targetDocument, targetWindow }) {
         updateTabContent,
         document: targetDocument,
         productionLog,
-        updateActivePetsFromRoomState: () => {} // Stub for now
+        updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay) // WIRED
       });
       productionLog('[MGTools] ✅ Atom subscriptions initialized');
     } catch (error) {
@@ -529,11 +605,15 @@ export function initializeModular({ targetDocument, targetWindow }) {
       debugError('[MGTools] Failed to initialize keyboard shortcuts:', error);
     }
 
+    console.log('[MGTools] ✅ Initialization complete (FULL FEATURE SET)');
     productionLog('[MGTools] ✅ Initialization complete (FULL FEATURE SET)');
+    console.log('[MGTools] 🎉 ALL missing init functions now wired!');
     productionLog('[MGTools] 🎉 ALL missing init functions now wired!');
 
     return true;
   } catch (error) {
+    console.error('[MGTools] ❌ Initialization failed:', error);
+    console.error('[MGTools] Stack:', error.stack);
     debugError('[MGTools] ❌ Initialization failed:', error);
     debugError('[MGTools] Stack:', error.stack);
     return false;
