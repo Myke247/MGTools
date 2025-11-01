@@ -11,6 +11,8 @@
  *
  * @module utils/platform-detection
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ============================================================================
  * ENVIRONMENT DETECTION

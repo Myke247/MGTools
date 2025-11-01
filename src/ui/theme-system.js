@@ -16,6 +16,8 @@
  * @module ui/theme-system
  * @version 2.1.0
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * Generate complete theme styles based on settings
@@ -1456,6 +1458,6 @@ export function syncThemeToAllWindows(deps = {}) {
       }
     });
   } catch (error) {
-    console.error('[MGTools] Failed to sync theme to windows:', error);
+    productionError('[MGTools] Failed to sync theme to windows:', error);
   }
 }

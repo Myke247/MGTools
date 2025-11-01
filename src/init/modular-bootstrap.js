@@ -81,7 +81,7 @@ import {
   getHotkeysTabContent
 } from '../ui/tab-content.js';
 
-// NEW: Core initialization functions (Phase 4.8 - Complete Init)
+// Core initialization functions
 import {
   loadSavedData as loadSavedDataFull,
   initializeAtoms,
@@ -136,12 +136,12 @@ function deepMerge(target, source) {
  */
 export function initializeModular({ targetDocument, targetWindow }) {
   // CRITICAL: Use console.log directly to ensure visibility
-  console.log('[MGTools v2.1] 🚀 Starting Simplified Modular Bootstrap...');
+  productionLog('[MGTools v2.1] 🚀 Starting Simplified Modular Bootstrap...');
   productionLog('[MGTools v2.1] 🚀 Starting Simplified Modular Bootstrap...');
 
   try {
     // Step 1: Load Saved Data
-    console.log('[MGTools] Step 1: Loading saved data...');
+    productionLog('[MGTools] Step 1: Loading saved data...');
     productionLog('[MGTools] Step 1: Loading saved data...');
     const savedData = MGA_loadJSON('MGA_data', null);
 
@@ -155,7 +155,7 @@ export function initializeModular({ targetDocument, targetWindow }) {
     }
 
     // Step 2: Create UI (MINIMAL VERSION - just get UI to appear)
-    console.log('[MGTools] Step 2: Creating UI...');
+    productionLog('[MGTools] Step 2: Creating UI...');
     productionLog('[MGTools] Step 2: Creating UI...');
 
     // Content getters object for updateTabContent
@@ -225,14 +225,13 @@ export function initializeModular({ targetDocument, targetWindow }) {
             applyPreset: () => updateTabContent(), // Refresh tab content
             applyUltraCompactMode: enabled =>
               applyUltraCompactMode({ document: targetDocument, productionLog }, enabled), // WIRED
-            applyWeatherSetting: () =>
-              applyWeatherSetting({ UnifiedState, document: targetDocument, productionLog }), // WIRED
+            applyWeatherSetting: () => applyWeatherSetting({ UnifiedState, document: targetDocument, productionLog }), // WIRED
             MGA_saveJSON,
             productionLog,
             logInfo: debugLog,
             targetDocument,
             updateTabContent,
-            showNotificationToast: msg => console.log('[MGTools] ' + msg) // Log notifications
+            showNotificationToast: msg => productionLog('[MGTools] ' + msg) // Log notifications
           });
           debugLog('[MGTools] Settings tab handlers wired');
         } else if (tabName === 'shop') {
@@ -263,7 +262,8 @@ export function initializeModular({ targetDocument, targetWindow }) {
             refreshSeparateWindowPopouts: () => {}, // Stub - advanced feature
             showHotkeyRecordingModal: () => {}, // Stub - advanced feature
             safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
-            updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+            updateActivePetsFromRoomState: () =>
+              updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
             updateActivePetsDisplay,
             updatePureOverlayContent: () => {}, // Stub - advanced feature
             startRecordingHotkeyMGTools: () => {}, // Stub - advanced feature
@@ -274,7 +274,8 @@ export function initializeModular({ targetDocument, targetWindow }) {
                 productionLog,
                 productionWarn: debugLog,
                 safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
-                updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+                updateActivePetsFromRoomState: () =>
+                  updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
                 updateTabContent,
                 updatePureOverlayContent: () => {}, // Stub - advanced feature
                 refreshSeparateWindowPopouts: () => {} // Stub - advanced feature
@@ -283,7 +284,7 @@ export function initializeModular({ targetDocument, targetWindow }) {
             exportPetPresets: () => exportPetPresets(UnifiedState),
             importPetPresets: () => importPetPresets(UnifiedState, MGA_saveJSON)
           });
-          console.log('[MGTools] Pets tab handlers wired for sidebar (direct function pass)');
+          productionLog('[MGTools] Pets tab handlers wired for sidebar (direct function pass)');
         }
       } catch (error) {
         debugError('[MGTools] Failed to update tab content:', error);
@@ -331,7 +332,8 @@ export function initializeModular({ targetDocument, targetWindow }) {
               productionLog,
               productionWarn: debugLog,
               safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
-              updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+              updateActivePetsFromRoomState: () =>
+                updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
               updateTabContent,
               updatePureOverlayContent: () => {}, // Stub - advanced feature
               refreshSeparateWindowPopouts: () => {} // Stub - advanced feature
@@ -355,7 +357,8 @@ export function initializeModular({ targetDocument, targetWindow }) {
               refreshSeparateWindowPopouts: () => {}, // Stub - advanced feature
               showHotkeyRecordingModal: () => {}, // Stub - advanced feature
               safeSendMessage: msg => safeSendMessage(msg, { targetWindow, productionLog, debugLog }), // WIRED
-              updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
+              updateActivePetsFromRoomState: () =>
+                updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay), // WIRED
               updateActivePetsDisplay,
               updatePureOverlayContent: () => {}, // Stub - advanced feature
               startRecordingHotkeyMGTools: () => {}, // Stub - advanced feature
@@ -516,13 +519,13 @@ export function initializeModular({ targetDocument, targetWindow }) {
     };
 
     // Create UI immediately (DOM is already ready at this point)
-    console.log('[MGTools] Creating UI with full configuration...');
+    productionLog('[MGTools] Creating UI with full configuration...');
     createUnifiedUI(fullUIConfig);
-    console.log('[MGTools] ✅ UI created with FULL configuration');
+    productionLog('[MGTools] ✅ UI created with FULL configuration');
     productionLog('[MGTools] ✅ UI created with FULL configuration');
 
     // Step 3: Initialize core features (Phase 4.8 - COMPLETE INIT)
-    console.log('[MGTools] Step 3: Initializing core features...');
+    productionLog('[MGTools] Step 3: Initializing core features...');
     productionLog('[MGTools] Step 3: Initializing core features...');
 
     // Initialize Jotai atom subscriptions for live data
@@ -535,7 +538,8 @@ export function initializeModular({ targetDocument, targetWindow }) {
         updateTabContent,
         document: targetDocument,
         productionLog,
-        updateActivePetsFromRoomState: () => updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay) // WIRED
+        updateActivePetsFromRoomState: () =>
+          updateActivePetsFromRoomState(targetWindow, UnifiedState, updateActivePetsDisplay) // WIRED
       });
       productionLog('[MGTools] ✅ Atom subscriptions initialized');
     } catch (error) {
@@ -605,15 +609,15 @@ export function initializeModular({ targetDocument, targetWindow }) {
       debugError('[MGTools] Failed to initialize keyboard shortcuts:', error);
     }
 
-    console.log('[MGTools] ✅ Initialization complete (FULL FEATURE SET)');
     productionLog('[MGTools] ✅ Initialization complete (FULL FEATURE SET)');
-    console.log('[MGTools] 🎉 ALL missing init functions now wired!');
+    productionLog('[MGTools] ✅ Initialization complete (FULL FEATURE SET)');
+    productionLog('[MGTools] 🎉 ALL missing init functions now wired!');
     productionLog('[MGTools] 🎉 ALL missing init functions now wired!');
 
     return true;
   } catch (error) {
-    console.error('[MGTools] ❌ Initialization failed:', error);
-    console.error('[MGTools] Stack:', error.stack);
+    productionError('[MGTools] ❌ Initialization failed:', error);
+    productionError('[MGTools] Stack:', error.stack);
     debugError('[MGTools] ❌ Initialization failed:', error);
     debugError('[MGTools] Stack:', error.stack);
     return false;

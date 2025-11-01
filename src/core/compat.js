@@ -13,6 +13,8 @@
  * Dependencies: None (runs before other modules initialize)
  * Note: Uses console.* directly instead of logging module since this runs very early
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ====================================================================================
  * CSP GUARD - IMMEDIATE EXECUTION
@@ -26,7 +28,7 @@
     const isDiscord =
       /discord|overlay|electron/i.test(navigator.userAgent) || window.DiscordNative || window.__discordApp;
     if (isDiscord) {
-      console.log('🛡️ [CSP] External font loads disabled in Discord context.');
+      productionLog('🛡️ [CSP] External font loads disabled in Discord context.');
     }
     const origCreateElement = Document.prototype.createElement;
     Document.prototype.createElement = function (tag) {
@@ -36,7 +38,7 @@
           const origSetAttribute = el.setAttribute;
           el.setAttribute = function (name, value) {
             if (name === 'href' && typeof value === 'string' && /fonts\.googleapis/i.test(value)) {
-              console.log('🛡️ [CSP] Prevented external font link injection:', value);
+              productionLog('🛡️ [CSP] Prevented external font link injection:', value);
               return;
             }
             return origSetAttribute.apply(this, arguments);
@@ -84,7 +86,7 @@ export const CompatibilityMode = {
     try {
       const disabled = localStorage.getItem('mgtools_compat_disabled');
       if (disabled === 'true') {
-        console.log('[COMPAT] Compatibility mode disabled by user');
+        productionLog('[COMPAT] Compatibility mode disabled by user');
         this.detectionComplete = true;
         return;
       }
@@ -96,7 +98,7 @@ export const CompatibilityMode = {
         return;
       }
     } catch (e) {
-      console.warn('[COMPAT] Unable to check localStorage for compat settings', e);
+      productionWarn('[COMPAT] Unable to check localStorage for compat settings', e);
     }
 
     // 1. Discord embed detection (enhanced)
@@ -162,12 +164,12 @@ export const CompatibilityMode = {
 
       this.detectionComplete = true;
       if (this.flags.enabled) {
-        console.log('[COMPAT] Compatibility mode ACTIVE', {
+        productionLog('[COMPAT] Compatibility mode ACTIVE', {
           reason: this.detectionReason,
           violations: this.cspViolations.length
         });
       } else {
-        console.log('[COMPAT] Compatibility mode not needed, running in normal mode');
+        productionLog('[COMPAT] Compatibility mode not needed, running in normal mode');
       }
     }, 500);
   },
@@ -175,17 +177,17 @@ export const CompatibilityMode = {
   enableCompat(reason) {
     if (this.flags.enabled) return; // Already enabled
 
-    console.log(`[COMPAT] Enabling compatibility mode: ${reason}`);
+    productionLog(`[COMPAT] Enabling compatibility mode: ${reason}`);
 
     // Discord Fix: Add detailed Discord-specific logging
     const isDiscordReason = reason.includes('discord') || reason.includes('csp');
     if (isDiscordReason) {
-      console.log('🎮 [DISCORD] Compatibility mode activated for Discord environment');
-      console.log('   📋 [DISCORD] Features enabled:');
-      console.log('      • Inline styles only (no external CSS)');
-      console.log('      • System fonts (no Google Fonts CDN)');
-      console.log('      • GM_xmlhttpRequest for network requests');
-      console.log('      • DOM mutation observer for UI persistence');
+      productionLog('🎮 [DISCORD] Compatibility mode activated for Discord environment');
+      productionLog('   📋 [DISCORD] Features enabled:');
+      productionLog('      • Inline styles only (no external CSS)');
+      productionLog('      • System fonts (no Google Fonts CDN)');
+      productionLog('      • GM_xmlhttpRequest for network requests');
+      productionLog('      • DOM mutation observer for UI persistence');
     }
 
     this.detectionReason = reason;
@@ -219,7 +221,7 @@ export const CompatibilityMode = {
       localStorage.removeItem('mgtools_compat_mode');
     } catch (e) {}
 
-    console.log('[COMPAT] Compatibility mode disabled');
+    productionLog('[COMPAT] Compatibility mode disabled');
   },
 
   isEnabled() {
@@ -262,7 +264,7 @@ export const targetDocument = targetWindow.document;
  */
 
 // Log context detection
-console.log('[COMPAT] Context isolation initialized:', {
+productionLog('[COMPAT] Context isolation initialized:', {
   isUserscript,
   targetWindowType: targetWindow.constructor.name,
   sameAsWindow: targetWindow === window

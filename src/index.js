@@ -15,9 +15,6 @@
  * @version 2.1.0
  */
 
-// CRITICAL DEBUG: Verify script loads AT ALL
-console.log('[MGTools DEBUG] *** index.js IIFE executing! ***');
-
 /* ============================================================================
  * PHASE F: COMPLETE MODULE IMPORTS (55 modules)
  * ============================================================================
@@ -226,7 +223,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     initializationStarted = true;
 
     try {
-      console.log('[MGTools] 🚀 Starting v2.0.0 (Modular Architecture)');
+      productionLog('[MGTools] 🚀 Starting v2.0.0 (Modular Architecture)');
 
       // Install early traps first (CRITICAL for RoomConnection capture)
       if (EarlyTraps?.installAllEarlyTraps) {
@@ -236,7 +233,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
           document,
           console
         });
-        console.log('[MGTools] ✅ Early traps installed');
+        productionLog('[MGTools] ✅ Early traps installed');
       }
 
       // Wait for game to be ready, then initialize
@@ -255,7 +252,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
         if ((hasAtoms && hasConnection) || attempts >= maxAttempts) {
           // Game is ready (or we've waited long enough) - initialize!
-          console.log('[MGTools] ✅ Game ready, initializing with LEGACY bootstrap (COMPLETE working code)...');
+          productionLog('[MGTools] ✅ Game ready, initializing with LEGACY bootstrap (COMPLETE working code)...');
 
           // CRITICAL FIX: Use complete legacy-bootstrap with ALL dependencies
           // This is the FULL working code from Live-Beta - NO STUBS!
@@ -347,7 +344,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
                   break;
 
                 default:
-                  contentEl.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+                  contentEl.innerHTML =
+                    '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
               }
             };
 
@@ -380,54 +378,63 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
                   targetWindow: targetWin
                 });
               },
-              initializeAtoms: depsOverride => InitFunctions.initializeAtoms({
-                UnifiedState: UnifiedState.UnifiedState,
-                targetWindow: targetWin,
-                hookAtom: Atoms.hookAtom,
-                setManagedInterval,
-                updateTabContent: () => {}, // TODO: wire from TabContent
-                document: document,
-                productionLog,
-                updateActivePetsFromRoomState: () => {}, // TODO: wire from Pets
-                ...depsOverride
-              }),
-              startIntervals: depsOverride => InitFunctions.startIntervals({
-                targetWindow: targetWin,
-                setManagedInterval,
-                checkShopRestock: Shop.checkShopRestock || (() => {}),
-                checkTurtleTimer: TurtleTimer.checkTurtleTimer || (() => {}),
-                productionLog,
-                ...depsOverride
-              }),
-              applyTheme: depsOverride => InitFunctions.applyTheme({
-                UnifiedState: UnifiedState.UnifiedState,
-                generateThemeStyles: ThemeSystem.generateThemeStyles,
-                applyThemeToElement: ThemeSystem.applyThemeToElement,
-                applyThemeToDock: ThemeSystem.applyThemeToDock,
-                applyThemeToSidebar: ThemeSystem.applyThemeToSidebar,
-                applyAccentToDock: ThemeSystem.applyAccentToDock,
-                applyAccentToSidebar: ThemeSystem.applyAccentToSidebar,
-                syncThemeToAllWindows: ThemeSystem.syncThemeToAllWindows,
-                ...depsOverride
-              }),
-              applyUltraCompactMode: (enabled, depsOverride) => InitFunctions.applyUltraCompactMode({
-                document: document,
-                productionLog,
-                ...depsOverride
-              }, enabled),
-              applyWeatherSetting: depsOverride => InitFunctions.applyWeatherSetting({
-                UnifiedState: UnifiedState.UnifiedState,
-                document: document,
-                productionLog,
-                ...depsOverride
-              }),
-              initializeKeyboardShortcuts: depsOverride => InitFunctions.initializeKeyboardShortcuts({
-                UnifiedState: UnifiedState.UnifiedState,
-                document: document,
-                toggleMainHUD: Overlay.toggleMainHUD || (() => {}),
-                productionLog,
-                ...depsOverride
-              }),
+              initializeAtoms: depsOverride =>
+                InitFunctions.initializeAtoms({
+                  UnifiedState: UnifiedState.UnifiedState,
+                  targetWindow: targetWin,
+                  hookAtom: Atoms.hookAtom,
+                  setManagedInterval,
+                  updateTabContent: () => {}, // TODO: wire from TabContent
+                  document: document,
+                  productionLog,
+                  updateActivePetsFromRoomState: () => {}, // TODO: wire from Pets
+                  ...depsOverride
+                }),
+              startIntervals: depsOverride =>
+                InitFunctions.startIntervals({
+                  targetWindow: targetWin,
+                  setManagedInterval,
+                  checkShopRestock: Shop.checkShopRestock || (() => {}),
+                  checkTurtleTimer: TurtleTimer.checkTurtleTimer || (() => {}),
+                  productionLog,
+                  ...depsOverride
+                }),
+              applyTheme: depsOverride =>
+                InitFunctions.applyTheme({
+                  UnifiedState: UnifiedState.UnifiedState,
+                  generateThemeStyles: ThemeSystem.generateThemeStyles,
+                  applyThemeToElement: ThemeSystem.applyThemeToElement,
+                  applyThemeToDock: ThemeSystem.applyThemeToDock,
+                  applyThemeToSidebar: ThemeSystem.applyThemeToSidebar,
+                  applyAccentToDock: ThemeSystem.applyAccentToDock,
+                  applyAccentToSidebar: ThemeSystem.applyAccentToSidebar,
+                  syncThemeToAllWindows: ThemeSystem.syncThemeToAllWindows,
+                  ...depsOverride
+                }),
+              applyUltraCompactMode: (enabled, depsOverride) =>
+                InitFunctions.applyUltraCompactMode(
+                  {
+                    document: document,
+                    productionLog,
+                    ...depsOverride
+                  },
+                  enabled
+                ),
+              applyWeatherSetting: depsOverride =>
+                InitFunctions.applyWeatherSetting({
+                  UnifiedState: UnifiedState.UnifiedState,
+                  document: document,
+                  productionLog,
+                  ...depsOverride
+                }),
+              initializeKeyboardShortcuts: depsOverride =>
+                InitFunctions.initializeKeyboardShortcuts({
+                  UnifiedState: UnifiedState.UnifiedState,
+                  document: document,
+                  toggleMainHUD: Overlay.toggleMainHUD || (() => {}),
+                  productionLog,
+                  ...depsOverride
+                }),
 
               // Legacy bootstrap functions
               cleanupCorruptedDockPosition: () => cleanupCorruptedDockPosition({ localStorage, console }),
@@ -435,7 +442,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
               // UI functions from Overlay module - CRITICAL: Must pass configuration object!
               createUnifiedUI: () => {
                 if (!Overlay.createUnifiedUI) {
-                  console.error('[MGTools] createUnifiedUI not available in Overlay module');
+                  productionError('[MGTools] createUnifiedUI not available in Overlay module');
                   return;
                 }
 
@@ -457,11 +464,14 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
                   // Tab and window management - WIRED with actual implementations!
                   openSidebarTab: tabName => {
                     if (Overlay.openSidebarTab) {
-                      Overlay.openSidebarTab({
-                        targetDocument: document,
-                        UnifiedState: UnifiedState.UnifiedState,
-                        updateTabContent: updateTabContentFn
-                      }, tabName);
+                      Overlay.openSidebarTab(
+                        {
+                          targetDocument: document,
+                          UnifiedState: UnifiedState.UnifiedState,
+                          updateTabContent: updateTabContentFn
+                        },
+                        tabName
+                      );
                     }
                   },
                   toggleShopWindows: () => {
@@ -475,19 +485,27 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
                   },
                   openPopoutWidget: tabName => {
                     if (Overlay.openPopoutWidget) {
-                      Overlay.openPopoutWidget({
-                        targetDocument: document,
-                        UnifiedState: UnifiedState.UnifiedState,
-                        makePopoutDraggable: Overlay.makePopoutDraggable || (() => {}),
-                        makeElementResizable: Draggable.makeElementResizable || (() => {}),
-                        generateThemeStyles: (settings, isPopout) => ThemeSystem.generateThemeStyles({}, settings, isPopout),
-                        applyThemeToPopoutWidget: (popout, themeStyles) =>
-                          ThemeSystem.applyThemeToPopoutWidget({ targetDocument: document }, popout, themeStyles),
-                        stopInventoryCounter: () => Shop.stopInventoryCounter?.({ targetDocument: document, UnifiedState: UnifiedState.UnifiedState }),
-                        getCachedTabContent: Overlay.getCachedTabContent,
-                        contentGetters: {}, // TODO: wire content getters
-                        handlerSetups: {} // TODO: wire handler setups
-                      }, tabName);
+                      Overlay.openPopoutWidget(
+                        {
+                          targetDocument: document,
+                          UnifiedState: UnifiedState.UnifiedState,
+                          makePopoutDraggable: Overlay.makePopoutDraggable || (() => {}),
+                          makeElementResizable: Draggable.makeElementResizable || (() => {}),
+                          generateThemeStyles: (settings, isPopout) =>
+                            ThemeSystem.generateThemeStyles({}, settings, isPopout),
+                          applyThemeToPopoutWidget: (popout, themeStyles) =>
+                            ThemeSystem.applyThemeToPopoutWidget({ targetDocument: document }, popout, themeStyles),
+                          stopInventoryCounter: () =>
+                            Shop.stopInventoryCounter?.({
+                              targetDocument: document,
+                              UnifiedState: UnifiedState.UnifiedState
+                            }),
+                          getCachedTabContent: Overlay.getCachedTabContent,
+                          contentGetters: {}, // TODO: wire content getters
+                          handlerSetups: {} // TODO: wire handler setups
+                        },
+                        tabName
+                      );
                     }
                   },
 
@@ -538,14 +556,10 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
                   // Theme system
                   generateThemeStyles: (settings, isPopout = false) =>
                     ThemeSystem.generateThemeStyles({}, settings, isPopout),
-                  applyAccentToDock: themeStyles =>
-                    ThemeSystem.applyAccentToDock({ document }, themeStyles),
-                  applyAccentToSidebar: themeStyles =>
-                    ThemeSystem.applyAccentToSidebar({ document }, themeStyles),
-                  applyThemeToDock: themeStyles =>
-                    ThemeSystem.applyThemeToDock({ document }, themeStyles),
-                  applyThemeToSidebar: themeStyles =>
-                    ThemeSystem.applyThemeToSidebar({ document }, themeStyles),
+                  applyAccentToDock: themeStyles => ThemeSystem.applyAccentToDock({ document }, themeStyles),
+                  applyAccentToSidebar: themeStyles => ThemeSystem.applyAccentToSidebar({ document }, themeStyles),
+                  applyThemeToDock: themeStyles => ThemeSystem.applyThemeToDock({ document }, themeStyles),
+                  applyThemeToSidebar: themeStyles => ThemeSystem.applyThemeToSidebar({ document }, themeStyles),
 
                   // Environment detection
                   isDiscordEnv: targetWin.location.href?.includes('discordsays.com') || false,
@@ -646,7 +660,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
                   targetWindow: targetWin,
                   UnifiedState: UnifiedState.UnifiedState,
                   handleInstantFeed: boundHandleInstantFeed,
-                  captureJotaiStore: () => RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog }),
+                  captureJotaiStore: () =>
+                    RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog }),
                   productionLog
                 });
               },
@@ -741,7 +756,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
                     break;
 
                   default:
-                    contentEl.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
+                    contentEl.innerHTML =
+                      '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Content not available</div>';
                 }
               },
 
@@ -750,9 +766,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
                 switch (tabName) {
                   case 'pets':
-                    return isPopout ?
-                      Pets.getPetsPopoutContent({ UnifiedState: state, productionLog }) :
-                      Pets.getPetsTabContent({ UnifiedState: state, productionLog });
+                    return isPopout
+                      ? Pets.getPetsPopoutContent({ UnifiedState: state, productionLog })
+                      : Pets.getPetsTabContent({ UnifiedState: state, productionLog });
                   case 'seeds':
                     return TabContent.getSeedsTabContent({ UnifiedState: state });
                   case 'abilities':
@@ -812,10 +828,10 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
               captureJotaiStore: () => RuntimeUtilities.captureJotaiStore({ targetWindow: targetWin, productionLog })
             });
 
-            console.log('[MGTools] ✅ Legacy bootstrap initialization complete!');
+            productionLog('[MGTools] ✅ Legacy bootstrap initialization complete!');
           } catch (error) {
-            console.error('[MGTools] ❌ Initialization failed:', error);
-            console.error('[MGTools] Stack:', error.stack);
+            productionError('[MGTools] ❌ Initialization failed:', error);
+            productionError('[MGTools] Stack:', error.stack);
           }
 
           return true;
@@ -823,7 +839,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
         // Still waiting for game
         if (attempts % 4 === 0) {
-          console.log(`[MGTools] ⏳ Waiting for game... (attempt ${attempts}/${maxAttempts})`);
+          productionLog(`[MGTools] ⏳ Waiting for game... (attempt ${attempts}/${maxAttempts})`);
         }
         return false;
       };
@@ -838,8 +854,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         }, 500);
       }
     } catch (error) {
-      console.error('[MGTools] ❌ Initialization failed:', error);
-      console.error('[MGTools] Stack:', error.stack);
+      productionError('[MGTools] ❌ Initialization failed:', error);
+      productionError('[MGTools] Stack:', error.stack);
     }
   };
 
@@ -851,22 +867,22 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   try {
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       // Page is already loaded or DOM is ready
-      console.log(`[MGTools] Page ready (${document.readyState}), initializing in ${initDelay}ms...`);
+      productionLog(`[MGTools] Page ready (${document.readyState}), initializing in ${initDelay}ms...`);
       setTimeout(initializeWhenReady, initDelay);
     } else {
       // Page still loading - wait for load event
-      console.log('[MGTools] Waiting for page load...');
+      productionLog('[MGTools] Waiting for page load...');
       window.addEventListener('load', () => {
         setTimeout(initializeWhenReady, initDelay);
       });
 
       // Backup: also listen for DOMContentLoaded
       document.addEventListener('DOMContentLoaded', () => {
-        console.log('[MGTools] DOM ready, waiting for complete load...');
+        productionLog('[MGTools] DOM ready, waiting for complete load...');
       });
     }
   } catch (error) {
-    console.error('[MGTools] ❌ Initialization setup failed:', error);
+    productionError('[MGTools] ❌ Initialization setup failed:', error);
     // Try to initialize anyway as fallback
     setTimeout(initializeWhenReady, 1000);
   }

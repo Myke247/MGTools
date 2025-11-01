@@ -12,6 +12,8 @@
  *
  * @module StorageRecovery
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * List of all known ability types for validation
@@ -255,7 +257,7 @@ export function exportPetPresets(dependencies = {}) {
     productionLog(`✅ [EXPORT] Successfully exported ${presetCount} pet presets`);
     alertFn(`✅ Exported ${presetCount} pet presets!\n\nFile saved to Downloads folder.`);
   } catch (error) {
-    console.error('❌ [EXPORT] Failed to export presets:', error);
+    productionError('❌ [EXPORT] Failed to export presets:', error);
     alertFn(`❌ Export failed!\n\nError: ${error.message}`);
   }
 }
@@ -333,7 +335,7 @@ export function importPetPresets(dependencies = {}) {
         // Reload to refresh UI
         setTimeout(() => win.location.reload(), 1000);
       } catch (error) {
-        console.error('❌ [IMPORT] Failed to import presets:', error);
+        productionError('❌ [IMPORT] Failed to import presets:', error);
         alertFn(
           `❌ Import failed!\n\nError: ${error.message}\n\nMake sure you're importing a valid MGTools preset file.`
         );
@@ -342,7 +344,7 @@ export function importPetPresets(dependencies = {}) {
 
     input.click();
   } catch (error) {
-    console.error('❌ [IMPORT] Failed to create import dialog:', error);
+    productionError('❌ [IMPORT] Failed to create import dialog:', error);
     alertFn(`❌ Import failed!\n\nError: ${error.message}`);
   }
 }
@@ -644,51 +646,51 @@ export function diagnoseAbilityLogStorage(dependencies = {}) {
   };
 
   // Output report to console
-  console.log('🔍 ========== ABILITY LOGS STORAGE DIAGNOSTIC ==========');
-  console.log('📊 Summary:', report.summary);
-  console.log('');
+  productionLog('🔍 ========== ABILITY LOGS STORAGE DIAGNOSTIC ==========');
+  productionLog('📊 Summary:', report.summary);
+  productionLog('');
 
   // Show counts for each storage location
-  console.log('📁 GM Storage:');
-  console.log('  Main:', report.sources.gmStorage.main.count, 'logs');
-  console.log('  Archive:', report.sources.gmStorage.archive.count, 'logs');
+  productionLog('📁 GM Storage:');
+  productionLog('  Main:', report.sources.gmStorage.main.count, 'logs');
+  productionLog('  Archive:', report.sources.gmStorage.archive.count, 'logs');
 
-  console.log('📁 Window localStorage:');
-  console.log('  Main:', report.sources.windowLocalStorage.main.count, 'logs');
-  console.log('  Archive:', report.sources.windowLocalStorage.archive.count, 'logs');
-  console.log('  Clear flag:', report.sources.windowLocalStorage.clearFlag);
+  productionLog('📁 Window localStorage:');
+  productionLog('  Main:', report.sources.windowLocalStorage.main.count, 'logs');
+  productionLog('  Archive:', report.sources.windowLocalStorage.archive.count, 'logs');
+  productionLog('  Clear flag:', report.sources.windowLocalStorage.clearFlag);
 
   if (report.sources.targetWindowLocalStorage) {
-    console.log('📁 Target Window localStorage:');
-    console.log('  Main:', report.sources.targetWindowLocalStorage.main.count, 'logs');
-    console.log('  Archive:', report.sources.targetWindowLocalStorage.archive.count, 'logs');
+    productionLog('📁 Target Window localStorage:');
+    productionLog('  Main:', report.sources.targetWindowLocalStorage.main.count, 'logs');
+    productionLog('  Archive:', report.sources.targetWindowLocalStorage.archive.count, 'logs');
   }
 
   if (report.sources.mgaDataNested) {
-    console.log('📁 MGA_data nested:', report.sources.mgaDataNested);
+    productionLog('📁 MGA_data nested:', report.sources.mgaDataNested);
   }
 
   if (report.sources.compatibilityArray) {
-    console.log('📁 Compatibility array:', report.sources.compatibilityArray);
+    productionLog('📁 Compatibility array:', report.sources.compatibilityArray);
   }
 
-  console.log('💾 Memory:', report.sources.memory.unifiedState.count, 'logs');
-  console.log('');
+  productionLog('💾 Memory:', report.sources.memory.unifiedState.count, 'logs');
+  productionLog('');
 
   // DETAILED LOG LISTING - Show individual logs from each source
-  console.log('📋 ========== DETAILED LOG LISTING ==========');
+  productionLog('📋 ========== DETAILED LOG LISTING ==========');
 
   const showLogs = (title, logs) => {
     if (logs && logs.length > 0) {
-      console.log(`\n${title}:`);
+      productionLog(`\n${title}:`);
       logs.forEach((log, i) => {
         const prefix = log.isMalformed ? '⚠️ MALFORMED' : log.isKnown ? '✅' : '❓ UNKNOWN';
-        console.log(`  ${i + 1}. ${prefix} [${log.fingerprint}]`);
-        console.log(`     ${log.ability} - ${log.pet}`);
+        productionLog(`  ${i + 1}. ${prefix} [${log.fingerprint}]`);
+        productionLog(`     ${log.ability} - ${log.pet}`);
         if (log.isMalformed) {
-          console.log(`     → Should be: "${log.normalizedAbility}"`);
+          productionLog(`     → Should be: "${log.normalizedAbility}"`);
         }
-        console.log(`     ${log.time}`);
+        productionLog(`     ${log.time}`);
       });
     }
   };
@@ -721,18 +723,18 @@ export function diagnoseAbilityLogStorage(dependencies = {}) {
   const totalMalformed = allSources.reduce((sum, src) => sum + (src.malformedCount || 0), 0);
   const totalUnknown = allSources.reduce((sum, src) => sum + (src.unknownCount || 0), 0);
 
-  console.log('\n=======================================================');
-  console.log('💡 TIPS:');
-  console.log('  • Look for logs with identical fingerprints across multiple storage locations');
-  console.log('  • If a log persists after clear, check which storage still contains it');
+  productionLog('\n=======================================================');
+  productionLog('💡 TIPS:');
+  productionLog('  • Look for logs with identical fingerprints across multiple storage locations');
+  productionLog('  • If a log persists after clear, check which storage still contains it');
   if (totalMalformed > 0) {
-    console.log(`  • ⚠️ Found ${totalMalformed} MALFORMED ability name(s) - missing spaces before roman numerals`);
-    console.log('  • Malformed logs may not clear properly. Enable Debug Mode and click "Clear Logs".');
+    productionLog(`  • ⚠️ Found ${totalMalformed} MALFORMED ability name(s) - missing spaces before roman numerals`);
+    productionLog('  • Malformed logs may not clear properly. Enable Debug Mode and click "Clear Logs".');
   }
   if (totalUnknown > 0) {
-    console.log(`  • ❓ Found ${totalUnknown} UNKNOWN ability type(s) - not in known abilities list`);
+    productionLog(`  • ❓ Found ${totalUnknown} UNKNOWN ability type(s) - not in known abilities list`);
   }
-  console.log('=======================================================');
+  productionLog('=======================================================');
 
   logDebug('ABILITY-LOGS', '✅ Diagnostic complete - see console for full report');
 
@@ -833,14 +835,14 @@ export function migrateFromLocalStorage(dependencies = {}) {
             win.localStorage.removeItem(key);
             productionLog(`🗑️ [MIGRATION] Removed ${key} from localStorage`);
           } else {
-            console.error(`❌ [MIGRATION] Verification failed for ${key} - keeping localStorage version`);
+            productionError(`❌ [MIGRATION] Verification failed for ${key} - keeping localStorage version`);
           }
         } else {
           // No data in localStorage for this key
           productionLog(`📝 [MIGRATION] No data found for ${key} in localStorage`);
         }
       } catch (error) {
-        console.error(`❌ [MIGRATION] Failed to migrate ${key}:`, error);
+        productionError(`❌ [MIGRATION] Failed to migrate ${key}:`, error);
       }
 
       // Process next key with a small delay to avoid blocking
@@ -856,7 +858,7 @@ export function migrateFromLocalStorage(dependencies = {}) {
 
     return { success: true, migratedCount, totalDataSize };
   } catch (error) {
-    console.error(`❌ [MIGRATION] Migration process failed:`, error);
+    productionError(`❌ [MIGRATION] Migration process failed:`, error);
     return { success: false, error: error.message };
   }
 }

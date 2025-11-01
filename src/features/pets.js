@@ -108,10 +108,10 @@ export function exportPetPresets(UnifiedState) {
     // Cleanup
     URL.revokeObjectURL(url);
 
-    console.log(`✅ [EXPORT] Successfully exported ${presetCount} pet presets`);
+    productionLog(`✅ [EXPORT] Successfully exported ${presetCount} pet presets`);
     alert(`✅ Exported ${presetCount} pet presets!\n\nFile saved to Downloads folder.`);
   } catch (error) {
-    console.error('❌ [EXPORT] Failed to export presets:', error);
+    productionError('❌ [EXPORT] Failed to export presets:', error);
     alert(`❌ Export failed!\n\nError: ${error.message}`);
   }
 }
@@ -154,7 +154,7 @@ export function importPetPresets(UnifiedState, MGA_saveJSON) {
         );
 
         if (!confirmed) {
-          console.log('⏸️ [IMPORT] User cancelled import');
+          productionLog('⏸️ [IMPORT] User cancelled import');
           return;
         }
 
@@ -166,13 +166,13 @@ export function importPetPresets(UnifiedState, MGA_saveJSON) {
         MGA_saveJSON('MGA_petPresets', importData.presets);
         MGA_saveJSON('MGA_petPresetsOrder', importData.presetsOrder || []);
 
-        console.log(`✅ [IMPORT] Successfully imported ${importCount} pet presets`);
+        productionLog(`✅ [IMPORT] Successfully imported ${importCount} pet presets`);
         alert(`✅ Imported ${importCount} presets!\n\nPage will reload to apply changes.`);
 
         // Reload to refresh UI
         setTimeout(() => window.location.reload(), 1000);
       } catch (error) {
-        console.error('❌ [IMPORT] Failed to import presets:', error);
+        productionError('❌ [IMPORT] Failed to import presets:', error);
         alert(
           `❌ Import failed!\n\nError: ${error.message}\n\nMake sure you're importing a valid MGTools preset file.`
         );
@@ -181,7 +181,7 @@ export function importPetPresets(UnifiedState, MGA_saveJSON) {
 
     input.click();
   } catch (error) {
-    console.error('❌ [IMPORT] Failed to create import dialog:', error);
+    productionError('❌ [IMPORT] Failed to create import dialog:', error);
     alert(`❌ Import failed!\n\nError: ${error.message}`);
   }
 }
@@ -214,7 +214,7 @@ export function checkPetHunger(UnifiedState, playPetNotificationSound, showNotif
       // BUGFIX: Check if hunger data exists before processing
       const currentHunger = pet.hunger !== undefined ? Number(pet.hunger) : null;
       if (currentHunger === null || isNaN(currentHunger)) {
-        console.log(`⚠️ [PET-HUNGER] ${pet.petSpecies || 'Pet'} has no hunger data - skipping`);
+        productionLog(`⚠️ [PET-HUNGER] ${pet.petSpecies || 'Pet'} has no hunger data - skipping`);
         return; // Skip this pet if no hunger data
       }
 
@@ -240,7 +240,7 @@ export function checkPetHunger(UnifiedState, playPetNotificationSound, showNotif
 
       // Debug logging (only when enabled)
       if (UnifiedState.data.settings?.debugMode) {
-        console.log(
+        productionLog(
           `🐾 [PET-HUNGER-DEBUG] ${petName} (ID: ${pet.id}): ${hungerPercent.toFixed(1)}% (hunger=${currentHunger}/${estimatedMaxHunger}), threshold=${thresholdPercent}%, lastPercent=${lastPercent.toFixed(1)}%, timeSinceLastAlert=${(timeSinceLastAlert / 1000).toFixed(0)}s`
         );
       }
@@ -265,7 +265,7 @@ export function checkPetHunger(UnifiedState, playPetNotificationSound, showNotif
           : justCrossed
             ? 'crossed threshold'
             : 'below threshold (throttle expired)';
-        console.log(
+        productionLog(
           `🐾 [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%) - Reason: ${reason}`
         );
 
@@ -284,7 +284,7 @@ export function checkPetHunger(UnifiedState, playPetNotificationSound, showNotif
       if (hungerPercent >= thresholdPercent && lastAlertTime > 0) {
         delete petHungerLastAlertTime[pet.id];
         if (UnifiedState.data.settings?.debugMode) {
-          console.log(`🐾 [PET-HUNGER-DEBUG] ${petName} fed above threshold, reset alert timer`);
+          productionLog(`🐾 [PET-HUNGER-DEBUG] ${petName} fed above threshold, reset alert timer`);
         }
       }
 
@@ -292,7 +292,7 @@ export function checkPetHunger(UnifiedState, playPetNotificationSound, showNotif
       lastPetHungerStates[pet.id] = currentHunger;
     });
   } catch (error) {
-    console.error('❌ [PET-HUNGER] Error checking pet hunger:', error);
+    productionError('❌ [PET-HUNGER] Error checking pet hunger:', error);
   }
 }
 
@@ -320,7 +320,7 @@ export function scanAndAlertHungryPets(UnifiedState, playPetNotificationSound, s
       // BUGFIX: Check if hunger data exists before processing
       const currentHunger = pet.hunger !== undefined ? Number(pet.hunger) : null;
       if (currentHunger === null || isNaN(currentHunger)) {
-        console.log(`⚠️ [PET-HUNGER] ${pet.petSpecies || 'Pet'} has no hunger data in scan - skipping`);
+        productionLog(`⚠️ [PET-HUNGER] ${pet.petSpecies || 'Pet'} has no hunger data in scan - skipping`);
         return; // Skip this pet if no hunger data
       }
 
@@ -333,7 +333,7 @@ export function scanAndAlertHungryPets(UnifiedState, playPetNotificationSound, s
       // Alert for any pet currently below threshold
       if (hungerPercent < thresholdPercent) {
         hungryCount += 1;
-        console.log(
+        productionLog(
           `🐾 [PET-HUNGER] Initial scan: ${petName} needs feeding! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`
         );
 
@@ -350,12 +350,12 @@ export function scanAndAlertHungryPets(UnifiedState, playPetNotificationSound, s
       // Play sound once for all hungry pets (custom or default)
       const volume = UnifiedState.data.settings.notifications.volume || 0.3;
       playPetNotificationSound(volume);
-      console.log(`🐾 [PET-HUNGER] Initial scan found ${hungryCount} hungry pet(s)`);
+      productionLog(`🐾 [PET-HUNGER] Initial scan found ${hungryCount} hungry pet(s)`);
     } else {
-      console.log(`🐾 [PET-HUNGER] Initial scan: All pets are well-fed`);
+      productionLog(`🐾 [PET-HUNGER] Initial scan: All pets are well-fed`);
     }
   } catch (error) {
-    console.error('❌ [PET-HUNGER] Error scanning for hungry pets:', error);
+    productionError('❌ [PET-HUNGER] Error scanning for hungry pets:', error);
   }
 }
 
@@ -381,10 +381,10 @@ export function calculateTimeUntilHungry(pet, UnifiedState) {
 
   // DEBUG: Log active pets and their abilities (using console.log to bypass PRODUCTION mode)
   if (UnifiedState.data.settings?.debugMode) {
-    console.log('🍖 [HUNGER-CALC] Calculating for pet:', pet.petSpecies);
-    console.log('🍖 [HUNGER-CALC] Active pets:', activePets.length);
+    productionLog('🍖 [HUNGER-CALC] Calculating for pet:', pet.petSpecies);
+    productionLog('🍖 [HUNGER-CALC] Active pets:', activePets.length);
     activePets.forEach((p, i) => {
-      console.log(`🍖 [HUNGER-CALC] Pet ${i}:`, {
+      productionLog(`🍖 [HUNGER-CALC] Pet ${i}:`, {
         species: p.petSpecies,
         abilities: p.abilities,
         strength: p.strength,
@@ -397,7 +397,7 @@ export function calculateTimeUntilHungry(pet, UnifiedState) {
     if (p.abilities && Array.isArray(p.abilities)) {
       p.abilities.forEach(ability => {
         if (UnifiedState.data.settings?.debugMode) {
-          console.log('🍖 [HUNGER-CALC] Checking ability:', ability);
+          productionLog('🍖 [HUNGER-CALC] Checking ability:', ability);
         }
         // Ability can be either a string directly or an object with properties
         const abilityType = typeof ability === 'string' ? ability : ability.abilityType || ability.type || ability;
@@ -412,7 +412,7 @@ export function calculateTimeUntilHungry(pet, UnifiedState) {
             totalHungerReduction += reduction * strength;
 
             if (UnifiedState.data.settings?.debugMode) {
-              console.log(
+              productionLog(
                 `🍖 [HUNGER-CALC] Found ${abilityType} on ${p.petSpecies}, STR: ${p.strength || p.str}, reduction: ${reduction}, strength mult: ${strength}`
               );
             }
@@ -423,7 +423,7 @@ export function calculateTimeUntilHungry(pet, UnifiedState) {
   });
 
   if (UnifiedState.data.settings?.debugMode && totalHungerReduction > 0) {
-    console.log(`🍖 [HUNGER-CALC] Total hunger reduction: ${(totalHungerReduction * 100).toFixed(1)}%`);
+    productionLog(`🍖 [HUNGER-CALC] Total hunger reduction: ${(totalHungerReduction * 100).toFixed(1)}%`);
   }
 
   // Cap reduction at 90% to avoid division by zero
@@ -459,12 +459,12 @@ export function formatHungerTimer(milliseconds) {
  * @returns {Array} Array of pet objects
  */
 export function getActivePetsFromRoomState(targetWindow, UnifiedState) {
-  console.log('🔧 [DEBUG] getActivePetsFromRoomState() called - checking for pets...');
+  productionLog('🔧 [DEBUG] getActivePetsFromRoomState() called - checking for pets...');
   try {
     // CORRECT path: Get the actual atom value that console shows
     const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
     if (!roomState?.child?.data) {
-      console.log('🐾 [SIMPLE-PETS] No room state data');
+      productionLog('🐾 [SIMPLE-PETS] No room state data');
       return [];
     }
 
@@ -474,24 +474,24 @@ export function getActivePetsFromRoomState(targetWindow, UnifiedState) {
     // Source 1: Check if pet data is directly in child.data (field1, field2, field3 format)
     if (roomState.child.data.field1 !== undefined) {
       petData = roomState.child.data;
-      console.log('🐾 [SIMPLE-PETS] Found pet data in child.data directly');
+      productionLog('🐾 [SIMPLE-PETS] Found pet data in child.data directly');
     }
 
     if (!petData) {
       if (UnifiedState.data.settings?.debugMode) {
-        console.log('🐾 [SIMPLE-PETS] No pet data found in room state');
+        productionLog('🐾 [SIMPLE-PETS] No pet data found in room state');
       }
 
       // FALLBACK: Use atom data if available
       if (window.activePets && window.activePets.length > 0) {
         if (UnifiedState.data.settings?.debugMode) {
-          console.log('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
+          productionLog('🐾 [FALLBACK] Using pets from myPetSlotsAtom:', window.activePets);
         }
         return window.activePets;
       }
 
       if (UnifiedState.data.settings?.debugMode) {
-        console.log('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
+        productionLog('🐾 [SIMPLE-PETS] No pet data found in room state or atoms');
       }
       return [];
     }
@@ -505,10 +505,10 @@ export function getActivePetsFromRoomState(targetWindow, UnifiedState) {
       }
     });
 
-    console.log('🐾 [SIMPLE-PETS] Extracted pets:', pets);
+    productionLog('🐾 [SIMPLE-PETS] Extracted pets:', pets);
     return pets;
   } catch (error) {
-    console.log('🐾 [SIMPLE-PETS] Error:', error.message);
+    productionLog('🐾 [SIMPLE-PETS] Error:', error.message);
     return [];
   }
 }
@@ -534,13 +534,13 @@ export function updateActivePetsFromRoomState(targetWindow, UnifiedState, update
     window.activePets[0].hunger !== undefined
   ) {
     // We have full atom data with hunger - preserve it!
-    console.log('🐾 [SIMPLE-PETS] Preserving existing full pet data from atom (has hunger)');
+    productionLog('🐾 [SIMPLE-PETS] Preserving existing full pet data from atom (has hunger)');
 
     // Only update species info if it's missing
     roomPets.forEach((roomPet, index) => {
       if (window.activePets[index] && !window.activePets[index].petSpecies && roomPet.petSpecies) {
         window.activePets[index].petSpecies = roomPet.petSpecies;
-        console.log(`🐾 [SIMPLE-PETS] Added missing species ${roomPet.petSpecies} to slot ${index + 1}`);
+        productionLog(`🐾 [SIMPLE-PETS] Added missing species ${roomPet.petSpecies} to slot ${index + 1}`);
       }
     });
 
@@ -554,7 +554,7 @@ export function updateActivePetsFromRoomState(targetWindow, UnifiedState, update
 
   const newCount = roomPets.length;
   if (newCount !== previousCount) {
-    console.log(`🐾 [SIMPLE-PETS] Pet count changed: ${previousCount} → ${newCount}`);
+    productionLog(`🐾 [SIMPLE-PETS] Pet count changed: ${previousCount} → ${newCount}`);
 
     // Update UI if pets tab is active and function provided
     if (UnifiedState.activeTab === 'pets' && updateActivePetsDisplay) {
@@ -586,7 +586,7 @@ export async function sendFeedPet(petItemId, cropItemId, rcSend) {
     petItemId: petItemId,
     cropItemId: cropItemId
   };
-  console.log('[MGA] Feed payload:', payload);
+  productionLog('[MGA] Feed payload:', payload);
   return rcSend(payload);
 }
 
@@ -634,14 +634,14 @@ export async function feedPetEnsureSync(
       // Fallback: Check if message JSON contains our IDs (less precise)
       const msgStr = JSON.stringify(msg);
       if (msgStr.includes(payload.petItemId) && msgStr.includes(payload.cropItemId)) {
-        console.log('[Feed-Verify] 🔍 Fallback match on IDs in:', msg.type || 'unknown');
+        productionLog('[Feed-Verify] 🔍 Fallback match on IDs in:', msg.type || 'unknown');
         return true;
       }
 
       return false;
     };
 
-  console.log('[Feed-Debug] 🚀 Sending feed command');
+  productionLog('[Feed-Debug] 🚀 Sending feed command');
   await sendFeedPet(petItemId, cropItemId, rcSend);
 
   const ack = await waitForServer(makePredicate({ type: 'FeedPet', payload: { petItemId, cropItemId } })).catch(
@@ -649,11 +649,11 @@ export async function feedPetEnsureSync(
   );
 
   if (ack) {
-    console.log('[Feed-Verify] ✅ verified by server event');
+    productionLog('[Feed-Verify] ✅ verified by server event');
     return { verified: true };
   }
 
-  console.warn('[Feed-Verify] ❌ no ack/delta in timeout period');
+  productionWarn('[Feed-Verify] ❌ no ack/delta in timeout period');
   return { verified: false };
 }
 
@@ -693,7 +693,7 @@ export function updatePetPresetDropdown(context, UnifiedState, targetDocument) {
   }
 
   if (UnifiedState.data.settings?.debugMode) {
-    console.log('[PETS_UI] Updated preset dropdown without full refresh');
+    productionLog('[PETS_UI] Updated preset dropdown without full refresh');
   }
 }
 
@@ -714,7 +714,7 @@ export function updateActivePetsDisplay(
 ) {
   // Only log in debug mode to reduce console spam
   if (UnifiedState.data.settings?.debugMode) {
-    console.log('🐾 [ACTIVE-PETS] Updating display', {
+    productionLog('🐾 [ACTIVE-PETS] Updating display', {
       retryCount,
       unifiedStateActivePets: UnifiedState.atoms.activePets?.length || 0,
       windowActivePets: window.activePets?.length || 0,
@@ -728,7 +728,7 @@ export function updateActivePetsDisplay(
   // If no pets found and this is first try, wait and retry (DOM timing fix)
   if (activePets.length === 0 && retryCount < 3) {
     if (UnifiedState.data.settings?.debugMode) {
-      console.log(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
+      productionLog(`🐾 [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
     }
     setTimeout(
       () => updateActivePetsDisplay(context, UnifiedState, calculateTimeUntilHungry, formatHungerTimer, retryCount + 1),
@@ -781,7 +781,7 @@ export function updateActivePetsDisplay(
   });
 
   if (UnifiedState.data.settings?.debugMode) {
-    console.log('🐾 [ACTIVE-PETS] Updated display elements:', {
+    productionLog('🐾 [ACTIVE-PETS] Updated display elements:', {
       elementsFound: activePetsDisplays.length,
       activePetsCount: activePets.length
     });
@@ -830,8 +830,8 @@ export function movePreset(
   refreshSeparateWindowPopouts,
   updateTabContent
 ) {
-  console.log(`🚨 [CRITICAL] movePreset called: ${presetName} ${direction}`);
-  console.log(`🚨 [CRITICAL] Current order:`, UnifiedState.data.petPresetsOrder);
+  productionLog(`🚨 [CRITICAL] movePreset called: ${presetName} ${direction}`);
+  productionLog(`🚨 [CRITICAL] Current order:`, UnifiedState.data.petPresetsOrder);
   ensurePresetOrder(UnifiedState);
   const currentIndex = UnifiedState.data.petPresetsOrder.indexOf(presetName);
 
@@ -855,7 +855,7 @@ export function movePreset(
   MGA_saveJSON('MGA_petPresetsOrder', UnifiedState.data.petPresetsOrder);
 
   // Force UI refresh after reorder
-  console.log(`🚨 [CRITICAL] Order after swap:`, UnifiedState.data.petPresetsOrder);
+  productionLog(`🚨 [CRITICAL] Order after swap:`, UnifiedState.data.petPresetsOrder);
 
   // Refresh the preset list display
   refreshPresetsList(context, UnifiedState, MGA_saveJSON);
@@ -868,7 +868,7 @@ export function movePreset(
     updateTabContent();
   }
 
-  console.log(`📋 [PET-PRESETS] Moved preset "${presetName}" ${direction}`);
+  productionLog(`📋 [PET-PRESETS] Moved preset "${presetName}" ${direction}`);
 }
 
 /**
@@ -963,7 +963,7 @@ export function addPresetToList(context, name, preset, UnifiedState, _MGA_saveJS
 
   presetsList.appendChild(presetDiv);
   if (UnifiedState.data.settings?.debugMode) {
-    console.log(`[PETS_UI] Added preset ${name} to list without full refresh`);
+    productionLog(`[PETS_UI] Added preset ${name} to list without full refresh`);
   }
 }
 
@@ -1014,12 +1014,12 @@ export function setupPetsTabHandlers(context, deps) {
     importPetPresets: importPetPresetsFn
   } = deps;
 
-  console.log('🚨 [CRITICAL] Setting up pet preset handlers');
+  productionLog('🚨 [CRITICAL] Setting up pet preset handlers');
 
   // Use event delegation on the parent container for all preset buttons
   const presetsContainer = context.querySelector('#presets-list');
   if (presetsContainer) {
-    console.log('🚨 [CRITICAL] Found presets container, adding delegation');
+    productionLog('🚨 [CRITICAL] Found presets container, adding delegation');
 
     // Remove old listener if it exists
     if (presetsContainer._mgaClickHandler) {
@@ -1037,10 +1037,10 @@ export function setupPetsTabHandlers(context, deps) {
       const action = btn.dataset.action;
       const presetName = btn.dataset.preset;
 
-      console.log(`🚨 [CRITICAL] Delegated click: action=${action}, preset=${presetName}`);
+      productionLog(`🚨 [CRITICAL] Delegated click: action=${action}, preset=${presetName}`);
 
       if (action === 'move-up') {
-        console.log(`🚨 [CRITICAL] Moving ${presetName} UP`);
+        productionLog(`🚨 [CRITICAL] Moving ${presetName} UP`);
         movePreset(
           presetName,
           'up',
@@ -1052,7 +1052,7 @@ export function setupPetsTabHandlers(context, deps) {
           () => {}
         );
       } else if (action === 'move-down') {
-        console.log(`🚨 [CRITICAL] Moving ${presetName} DOWN`);
+        productionLog(`🚨 [CRITICAL] Moving ${presetName} DOWN`);
         movePreset(
           presetName,
           'down',
@@ -1064,15 +1064,15 @@ export function setupPetsTabHandlers(context, deps) {
           () => {}
         );
       } else if (action === 'save') {
-        console.log(`🚨 [CRITICAL] Saving preset ${presetName}`);
+        productionLog(`🚨 [CRITICAL] Saving preset ${presetName}`);
         UnifiedState.data.petPresets[presetName] = (UnifiedState.atoms.activePets || []).slice(0, 3);
         MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
         refreshPresetsList(context, UnifiedState, MGA_saveJSON);
       } else if (action === 'place') {
-        console.log(`🚨 [CRITICAL] Placing preset ${presetName}`);
+        productionLog(`🚨 [CRITICAL] Placing preset ${presetName}`);
         debouncedPlacePetPreset(presetName);
       } else if (action === 'remove') {
-        console.log(`[CRITICAL] Removing preset ${presetName}`);
+        productionLog(`[CRITICAL] Removing preset ${presetName}`);
         delete UnifiedState.data.petPresets[presetName];
 
         // Clean up associated hotkey if it exists
@@ -1080,7 +1080,7 @@ export function setupPetsTabHandlers(context, deps) {
           const deletedHotkey = UnifiedState.data.petPresetHotkeys[presetName];
           delete UnifiedState.data.petPresetHotkeys[presetName];
           MGA_saveJSON('MGA_petPresetHotkeys', UnifiedState.data.petPresetHotkeys);
-          console.log(`[MGTOOLS] Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
+          productionLog(`[MGTOOLS] Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
         }
 
         MGA_saveJSON('MGA_petPresets', UnifiedState.data.petPresets);
@@ -1090,7 +1090,7 @@ export function setupPetsTabHandlers(context, deps) {
 
     // Add the handler
     presetsContainer.addEventListener('click', presetsContainer._mgaClickHandler);
-    console.log('🚨 [CRITICAL] Event delegation handler attached successfully');
+    productionLog('🚨 [CRITICAL] Event delegation handler attached successfully');
 
     // Handle hotkey button clicks
     context.querySelectorAll('.mga-hotkey-btn').forEach(btn => {
@@ -1101,7 +1101,7 @@ export function setupPetsTabHandlers(context, deps) {
       });
     });
   } else {
-    console.log('🚨 [CRITICAL] ERROR: presets container not found!');
+    productionLog('🚨 [CRITICAL] ERROR: presets container not found!');
   }
 
   const input = context.querySelector('#preset-name-input');
@@ -1149,14 +1149,14 @@ export function setupPetsTabHandlers(context, deps) {
       // Also isolate focus/blur events
       inputElement.addEventListener('focus', e => {
         if (UnifiedState.data.settings.debugMode) {
-          console.log('🔒 Input focused - Game keys isolated');
+          productionLog('🔒 Input focused - Game keys isolated');
         }
         e.stopPropagation();
       });
 
       inputElement.addEventListener('blur', e => {
         if (UnifiedState.data.settings.debugMode) {
-          console.log('🔓 Input blurred - Game keys restored');
+          productionLog('🔓 Input blurred - Game keys restored');
         }
         e.stopPropagation();
       });
@@ -1208,12 +1208,12 @@ export function setupPetsTabHandlers(context, deps) {
       const presetName = select.value;
 
       if (!presetName) {
-        console.warn('[PETS] No preset selected');
+        productionWarn('[PETS] No preset selected');
         return;
       }
 
       if (!UnifiedState.data.petPresets[presetName]) {
-        console.warn('[PETS] Preset not found:', presetName);
+        productionWarn('[PETS] Preset not found:', presetName);
         return;
       }
 
@@ -1221,7 +1221,7 @@ export function setupPetsTabHandlers(context, deps) {
 
       // Validate preset
       if (!preset || !Array.isArray(preset) || preset.length === 0) {
-        console.warn('[PETS] Preset is empty or invalid:', preset);
+        productionWarn('[PETS] Preset is empty or invalid:', preset);
         return;
       }
 
@@ -1244,14 +1244,14 @@ export function setupPetsTabHandlers(context, deps) {
               // Check if desired pet is already equipped
               if (currentPet.id === desiredPet.id) {
                 if (UnifiedState.data.settings?.debugMode) {
-                  console.log(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
+                  productionLog(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
                 }
                 return; // Skip swap, pet already in place
               }
 
               // Both exist: Use native SwapPet (no inventory space needed!)
               if (UnifiedState.data.settings?.debugMode) {
-                console.log(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} → ${desiredPet.id}`);
               }
 
               safeSendMessage({
@@ -1263,7 +1263,7 @@ export function setupPetsTabHandlers(context, deps) {
             } else if (!currentPet && desiredPet) {
               // Empty slot: Place new pet
               if (UnifiedState.data.settings?.debugMode) {
-                console.log(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
               }
 
               safeSendMessage({
@@ -1277,7 +1277,7 @@ export function setupPetsTabHandlers(context, deps) {
             } else if (currentPet && !desiredPet) {
               // Remove excess pet (preset has fewer pets)
               if (UnifiedState.data.settings?.debugMode) {
-                console.log(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
+                productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
               }
 
               safeSendMessage({
@@ -1356,7 +1356,7 @@ export function setupPetsTabHandlers(context, deps) {
         });
 
         if (UnifiedState.data.settings?.debugMode) {
-          console.log(`[BUTTON_INTERACTIONS] Created new preset: ${name} without full DOM refresh`);
+          productionLog(`[BUTTON_INTERACTIONS] Created new preset: ${name} without full DOM refresh`);
         }
       } else if (!name) {
         input.focus(); // Focus input if name is empty
@@ -1385,7 +1385,7 @@ export function setupPetsTabHandlers(context, deps) {
     });
   }
 
-  console.log('[PETS_UI] Event handlers setup complete');
+  productionLog('[PETS_UI] Event handlers setup complete');
 }
 
 /* ====================================================================================
@@ -1776,11 +1776,11 @@ export function setupPetPopoutHandlers(context, deps) {
           const deletedHotkey = UnifiedState.data.petPresetHotkeys[presetName];
           delete UnifiedState.data.petPresetHotkeys[presetName];
           MGA_saveJSON('MGA_petPresetHotkeys', UnifiedState.data.petPresetHotkeys);
-          console.log(`[MGTOOLS-FIX] ✅ Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
+          productionLog(`[MGTOOLS-FIX] ✅ Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
         }
 
         if (!saveSuccess) {
-          console.error('❌ Failed to save after removing preset');
+          productionError('❌ Failed to save after removing preset');
           alert('⚠️ Failed to save changes! The preset removal may not persist.');
         }
         refreshPresetsList(context, UnifiedState, MGA_saveJSON);
@@ -3540,7 +3540,7 @@ export function updateAbilityLogDisplay(
   });
 
   if (CONFIG?.DEBUG?.FLAGS?.FIX_VALIDATION) {
-    console.log('[FIX_ABILITY_LOGS] Update called:', {
+    productionLog('[FIX_ABILITY_LOGS] Update called:', {
       totalLogs: logs.length,
       filteredLogs: filteredLogs.length,
       filterMode: UnifiedState.data.filterMode,
@@ -3701,7 +3701,7 @@ export function updateAllAbilityLogDisplays(force, dependencies) {
   const currentLogCount = UnifiedState.data.petAbilityLogs?.length || 0;
 
   if (CONFIG?.DEBUG?.FLAGS?.FIX_VALIDATION) {
-    console.log('[FIX_ABILITY_LOGS] Update called:', {
+    productionLog('[FIX_ABILITY_LOGS] Update called:', {
       force,
       currentLogCount,
       lastLogCount: lastLogCount.value,
@@ -3893,25 +3893,25 @@ export async function handleInstantFeed(
         const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
         if (freshPetSlots?.[petIndex]) {
           pet = freshPetSlots[petIndex];
-          console.log('[MGTOOLS-FIX-A] Using fresh pet data from Jotai atom cache (Tier 1)');
+          productionLog('[MGTOOLS-FIX-A] Using fresh pet data from Jotai atom cache (Tier 1)');
         }
       } catch (e) {
-        console.warn('[MGTOOLS-FIX-A] Tier 1 (atom cache) failed:', e.message);
+        productionWarn('[MGTOOLS-FIX-A] Tier 1 (atom cache) failed:', e.message);
       }
     }
 
     if (!pet && UnifiedState.atoms.activePets?.[petIndex]) {
       pet = UnifiedState.atoms.activePets[petIndex];
-      console.log('[MGTOOLS-FIX-A] Using UnifiedState atoms (Tier 2)');
+      productionLog('[MGTOOLS-FIX-A] Using UnifiedState atoms (Tier 2)');
     }
 
     if (!pet && targetWindow.myData?.petSlots?.[petIndex]) {
       pet = targetWindow.myData.petSlots[petIndex];
-      console.log('[MGTOOLS-FIX-A] Using window.myData (Tier 3)');
+      productionLog('[MGTOOLS-FIX-A] Using window.myData (Tier 3)');
     }
 
     if (!pet) {
-      console.error('[MGTOOLS-FIX-A] ❌ No pet data available from any source');
+      productionError('[MGTOOLS-FIX-A] ❌ No pet data available from any source');
       alert('Pet data not ready. Please wait a moment and try again.');
       flashButton(buttonEl, 'error');
       buttonEl.disabled = false;
@@ -3923,7 +3923,7 @@ export async function handleInstantFeed(
     const species = pet.petSpecies;
     const petItemId = pet.id;
 
-    console.log('[Feed-Flow-1] 🐾 Active Pet:', {
+    productionLog('[Feed-Flow-1] 🐾 Active Pet:', {
       species,
       petItemId: petItemId.substring(0, 8) + '...',
       hunger: pet.hunger,
@@ -3932,10 +3932,10 @@ export async function handleInstantFeed(
 
     const compatibleCrops = PET_FEED_CATALOG[species];
 
-    console.log(`[Feed-Flow-2] 🌾 Compatible crops for ${species}:`, compatibleCrops || []);
+    productionLog(`[Feed-Flow-2] 🌾 Compatible crops for ${species}:`, compatibleCrops || []);
 
     if (!compatibleCrops || compatibleCrops.length === 0) {
-      console.error('[MGTools Feed] No compatible crops for', species);
+      productionError('[MGTools Feed] No compatible crops for', species);
       flashButton(buttonEl, 'error');
       buttonEl.disabled = false;
       buttonEl.textContent = 'Feed';
@@ -3954,10 +3954,10 @@ export async function handleInstantFeed(
         const freshInventory = await getAtomValue('myCropInventoryAtom');
         if (freshInventory?.items) {
           inventoryItems = freshInventory.items;
-          console.log('[MGTOOLS-FIX-A] Using fresh inventory from Jotai atom cache (Tier 1)');
+          productionLog('[MGTOOLS-FIX-A] Using fresh inventory from Jotai atom cache (Tier 1)');
         }
       } catch (e) {
-        console.warn('[MGTOOLS-FIX-A] Inventory Tier 1 (atom cache) failed:', e.message);
+        productionWarn('[MGTOOLS-FIX-A] Inventory Tier 1 (atom cache) failed:', e.message);
       }
     }
 
@@ -3965,10 +3965,10 @@ export async function handleInstantFeed(
       try {
         inventoryItems = readAtom('myCropItemsAtom') || [];
         if (inventoryItems.length > 0) {
-          console.log('[MGTOOLS-FIX-A] Using myCropItemsAtom (Tier 1.5)');
+          productionLog('[MGTOOLS-FIX-A] Using myCropItemsAtom (Tier 1.5)');
         }
       } catch (e) {
-        console.warn('[MGTOOLS-FIX-A] myCropItemsAtom failed:', e.message);
+        productionWarn('[MGTOOLS-FIX-A] myCropItemsAtom failed:', e.message);
       }
     }
 
@@ -3977,21 +3977,21 @@ export async function handleInstantFeed(
         inventoryItems = UnifiedState.atoms.inventory.items.filter(
           i => i.itemType === 'Produce' || i.itemType === 'Crop'
         );
-        console.log('[MGTOOLS-FIX-A] Using UnifiedState inventory (Tier 2)');
+        productionLog('[MGTOOLS-FIX-A] Using UnifiedState inventory (Tier 2)');
       }
     }
 
     if (!inventoryItems || inventoryItems.length === 0) {
       if (targetWindow.myData?.inventory?.items) {
         inventoryItems = targetWindow.myData.inventory.items;
-        console.log('[MGTOOLS-FIX-A] Using window.myData inventory (Tier 3)');
+        productionLog('[MGTOOLS-FIX-A] Using window.myData inventory (Tier 3)');
       }
     }
 
-    console.log('[Feed-Inventory] Fresh read:', inventoryItems?.length || 0, 'items');
+    productionLog('[Feed-Inventory] Fresh read:', inventoryItems?.length || 0, 'items');
 
     if (!inventoryItems || inventoryItems.length === 0) {
-      console.error('[MGTOOLS-FIX-A] ❌ No inventory data available from any source');
+      productionError('[MGTOOLS-FIX-A] ❌ No inventory data available from any source');
       alert('Inventory not ready. Please wait a moment.');
       flashButton(buttonEl, 'error');
       buttonEl.disabled = false;
@@ -4000,7 +4000,7 @@ export async function handleInstantFeed(
       return;
     }
 
-    console.log('[Feed-Flow-3] 📦 Full inventory:', {
+    productionLog('[Feed-Flow-3] 📦 Full inventory:', {
       count: inventoryItems.length,
       species: inventoryItems.map(item => item.species),
       items: inventoryItems
@@ -4008,7 +4008,7 @@ export async function handleInstantFeed(
 
     const favoritedSpecies = UnifiedState.data?.autoFavorite?.selectedSpecies || [];
 
-    console.log('[Feed-Flow-4] 🚫 Favorited species:', favoritedSpecies);
+    productionLog('[Feed-Flow-4] 🚫 Favorited species:', favoritedSpecies);
 
     const nonFavoritedCompatibleCrops = inventoryItems.filter(item => {
       if (!item || !item.species || !item.id) return false;
@@ -4018,7 +4018,7 @@ export async function handleInstantFeed(
       return isCompatible && !isFavorited && notUsed;
     });
 
-    console.log('[Feed-Flow-5] ✅ Non-favorited compatible crops available:', {
+    productionLog('[Feed-Flow-5] ✅ Non-favorited compatible crops available:', {
       count: nonFavoritedCompatibleCrops.length,
       species: nonFavoritedCompatibleCrops.map(item => item.species),
       items: nonFavoritedCompatibleCrops
@@ -4026,13 +4026,13 @@ export async function handleInstantFeed(
 
     const cropToFeed = nonFavoritedCompatibleCrops[0];
 
-    console.log(`[Feed-Flow-6] ❓ Compatible crop exists: ${!!cropToFeed}`);
+    productionLog(`[Feed-Flow-6] ❓ Compatible crop exists: ${!!cropToFeed}`);
 
     if (!cropToFeed) {
-      console.error('[MGTools Feed] No feedable crops (compatible, non-favorited, unused)');
-      console.log('[MGTools Feed] Compatible species:', compatibleCrops);
-      console.log('[MGTools Feed] Favorited species:', favoritedSpecies);
-      console.log('[MGTools Feed] Used crop IDs:', Array.from(usedCropIds));
+      productionError('[MGTools Feed] No feedable crops (compatible, non-favorited, unused)');
+      productionLog('[MGTools Feed] Compatible species:', compatibleCrops);
+      productionLog('[MGTools Feed] Favorited species:', favoritedSpecies);
+      productionLog('[MGTools Feed] Used crop IDs:', Array.from(usedCropIds));
       usedCropIds.clear();
       flashButton(buttonEl, 'error');
       buttonEl.disabled = false;
@@ -4045,14 +4045,14 @@ export async function handleInstantFeed(
 
     const cropItemId = cropToFeed?.id || cropToFeed?.inventoryItemId || cropToFeed?.itemId;
 
-    console.log('[Feed-Flow-7a] 🧪 Selected crop:', {
+    productionLog('[Feed-Flow-7a] 🧪 Selected crop:', {
       species: cropToFeed?.species,
       fullItem: cropToFeed,
       resolvedId: cropItemId
     });
 
     if (!cropItemId) {
-      console.error('[Feed] No valid ID found in crop item:', cropToFeed);
+      productionError('[Feed] No valid ID found in crop item:', cropToFeed);
       flashButton(buttonEl, 'error');
       buttonEl.disabled = false;
       buttonEl.textContent = 'Feed';
@@ -4066,8 +4066,8 @@ export async function handleInstantFeed(
     );
 
     if (!cropStillExists) {
-      console.error('[Feed] Crop no longer in inventory! ID:', cropItemId);
-      console.log(
+      productionError('[Feed] Crop no longer in inventory! ID:', cropItemId);
+      productionLog(
         '[Feed] Current inventory IDs:',
         currentInventory.map(i => i.id || i.inventoryItemId || i.itemId)
       );
@@ -4082,18 +4082,18 @@ export async function handleInstantFeed(
     const slotsNow = readMyPetSlots() || [];
     const reboundPetItemId = slotsNow?.[petIndex]?.id || petItemId;
     if (reboundPetItemId !== petItemId) {
-      console.warn('[Feed-Guard] Rebound petItemId from slots', {
+      productionWarn('[Feed-Guard] Rebound petItemId from slots', {
         old: petItemId,
         new: reboundPetItemId,
         petIndex
       });
     }
 
-    console.log('[Feed-Debug] 🚀 Sending FeedPet message with inventoryItemId');
+    productionLog('[Feed-Debug] 🚀 Sending FeedPet message with inventoryItemId');
 
     try {
       await sendFeedPet(reboundPetItemId, cropItemId);
-      console.log(`[MGTools Feed] 🚀 Sent feed: ${species} with ${cropToFeed.species}`);
+      productionLog(`[MGTools Feed] 🚀 Sent feed: ${species} with ${cropToFeed.species}`);
 
       flashButton(buttonEl, 'success');
 
@@ -4106,14 +4106,14 @@ export async function handleInstantFeed(
       feedPetEnsureSync(reboundPetItemId, cropItemId, petIndex, false)
         .then(result => {
           if (!result?.verified) {
-            console.warn('[MGTools Feed] ⚠️ Background verification failed (feed may have worked anyway)');
+            productionWarn('[MGTools Feed] ⚠️ Background verification failed (feed may have worked anyway)');
           } else {
-            console.log('[MGTools Feed] ✅ Background verification succeeded');
+            productionLog('[MGTools Feed] ✅ Background verification succeeded');
           }
         })
-        .catch(err => console.warn('[MGTools Feed] Background verification error:', err));
+        .catch(err => productionWarn('[MGTools Feed] Background verification error:', err));
     } catch (err) {
-      console.warn('[MGTools Feed] ⚠️ Feed failed:', err.message);
+      productionWarn('[MGTools Feed] ⚠️ Feed failed:', err.message);
       flashButton(buttonEl, 'error');
       usedCropIds.delete(cropToFeed.id);
       buttonEl.disabled = false;
@@ -4121,7 +4121,7 @@ export async function handleInstantFeed(
       buttonEl.style.opacity = '1';
     }
   } catch (error) {
-    console.error('[MGTools Feed] Error:', error);
+    productionError('[MGTools Feed] Error:', error);
     flashButton(buttonEl, 'error');
 
     buttonEl.disabled = false;
@@ -4131,7 +4131,7 @@ export async function handleInstantFeed(
 }
 
 /* ====================================================================================
- * INSTANT FEED INITIALIZATION & POLLING (Phase 10)
+ * INSTANT FEED INITIALIZATION & POLLING
  * ====================================================================================
  */
 
@@ -4158,7 +4158,7 @@ export function injectInstantFeedButtons({ targetDocument, targetWindow, createI
 
     try {
       isInjecting = true;
-      console.log('[MGTools Feed] 🔍 Starting container-based injection...');
+      productionLog('[MGTools Feed] 🔍 Starting container-based injection...');
 
       // Check which buttons already exist by data-pet-index
       const existingButtons = targetDocument.querySelectorAll('.mgtools-instant-feed-btn');
@@ -4204,7 +4204,7 @@ export function injectInstantFeedButtons({ targetDocument, targetWindow, createI
         .slice(0, 3);
 
       if (petAvatarCanvases.length === 0) {
-        console.warn('[MGTools Feed] ⚠️ No pet avatar canvases found!');
+        productionWarn('[MGTools Feed] ⚠️ No pet avatar canvases found!');
         isInjecting = false;
         return;
       }
@@ -4242,7 +4242,7 @@ export function injectInstantFeedButtons({ targetDocument, targetWindow, createI
           }
 
           if (candidates.length === 0) {
-            console.warn(`[MGTools Feed] ⚠️ No valid container found for pet ${index + 1}`);
+            productionWarn(`[MGTools Feed] ⚠️ No valid container found for pet ${index + 1}`);
             return;
           }
 
@@ -4250,7 +4250,7 @@ export function injectInstantFeedButtons({ targetDocument, targetWindow, createI
           candidates.sort((a, b) => a.area - b.area);
           const targetContainer = candidates[0].element;
 
-          console.log(`[MGTools Feed] 📐 Selected container:`, {
+          productionLog(`[MGTools Feed] 📐 Selected container:`, {
             width: candidates[0].width.toFixed(1),
             height: candidates[0].height.toFixed(1),
             tagName: targetContainer.tagName
@@ -4273,14 +4273,14 @@ export function injectInstantFeedButtons({ targetDocument, targetWindow, createI
 
           productionLog(`[MGTools Feed] Injected feed button ${index + 1}`);
         } catch (err) {
-          console.error(`[MGTools Feed] Error processing canvas ${index + 1}:`, err);
+          productionError(`[MGTools Feed] Error processing canvas ${index + 1}:`, err);
         }
       });
 
       // Reset flag after successful injection
       isInjecting = false;
     } catch (error) {
-      console.error('[MGTools Feed] Error in injectInstantFeedButtons:', error);
+      productionError('[MGTools Feed] Error in injectInstantFeedButtons:', error);
       isInjecting = false; // Reset flag even on error
     }
   };
@@ -4305,16 +4305,16 @@ export function initializeInstantFeedButtons(
 ) {
   const { pollInterval = 2000 } = options;
 
-  console.log('[MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...');
+  productionLog('[MGTools Feed] 🚀 Initializing instant feed buttons with polling interval...');
 
   // Capture jotaiStore early (but don't block if unavailable)
   let jotaiStore = null;
   if (!jotaiStore) {
     jotaiStore = captureJotaiStore();
     if (jotaiStore) {
-      console.log('[MGTools Feed] ✅ Jotai store captured at initialization');
+      productionLog('[MGTools Feed] ✅ Jotai store captured at initialization');
     } else {
-      console.log('[MGTools Feed] ⏳ Jotai store not ready yet - will use fallback data');
+      productionLog('[MGTools Feed] ⏳ Jotai store not ready yet - will use fallback data');
     }
   }
 
@@ -4412,7 +4412,7 @@ export function initializeInstantFeedButtons(
 
       return true;
     } catch (err) {
-      console.error(`[MGTools Feed] Error injecting button ${index + 1}:`, err);
+      productionError(`[MGTools Feed] Error injecting button ${index + 1}:`, err);
       return false;
     }
   }
@@ -4455,7 +4455,7 @@ export function initializeInstantFeedButtons(
         checkAndInjectButtons();
       }
     } catch (err) {
-      console.error('[MGTools Feed] Error in polling:', err);
+      productionError('[MGTools Feed] Error in polling:', err);
     }
   }, pollInterval);
 
@@ -4465,14 +4465,14 @@ export function initializeInstantFeedButtons(
   }
   targetWindow.MGToolsIntervals.push(interval);
 
-  console.log(
+  productionLog(
     `[MGTools Feed] ✅ Polling active (${pollInterval}ms) - buttons will auto-reappear when containers become visible`
   );
   productionLog('✅ [MGTools] Instant feed buttons initialized with polling detection');
 }
 
 /* ====================================================================================
- * ADDITIONAL PET MANAGEMENT FUNCTIONS (Phase 11)
+ * ADDITIONAL PET MANAGEMENT FUNCTIONS
  * ====================================================================================
  */
 
@@ -4611,7 +4611,7 @@ export function playAbilityNotificationSound(volume, dependencies = {}) {
       productionLog('🎵 [CUSTOM-SOUND] Playing custom ability sound');
       return; // Exit early if custom sound played
     } catch (err) {
-      console.error('Failed to play custom ability sound:', err);
+      productionError('Failed to play custom ability sound:', err);
       // Fall through to default sound logic
     }
   }
@@ -4958,7 +4958,7 @@ export function setupAbilitiesTabHandlers(context = document, dependencies, opti
   if (diagnoseLogsBtn && !diagnoseLogsBtn.hasAttribute('data-handler-setup')) {
     diagnoseLogsBtn.setAttribute('data-handler-setup', 'true');
     diagnoseLogsBtn.addEventListener('click', () => {
-      console.log('🔍 Running ability logs storage diagnostic...');
+      productionLog('🔍 Running ability logs storage diagnostic...');
       const report = MGA_diagnoseAbilityLogStorage();
 
       // Show a user-friendly notification
@@ -5036,7 +5036,7 @@ export default {
   sendFeedPet,
   feedPetEnsureSync,
 
-  // UI Helpers (Phase 3)
+  // UI Helpers
   updatePetPresetDropdown,
   updateActivePetsDisplay,
   ensurePresetOrder,
@@ -5046,19 +5046,19 @@ export default {
   addPresetToList,
   setupPetsTabHandlers,
 
-  // Tab Content Generators (Phase 3 - continued)
+  // Tab Content Generators
   getPetsPopoutContent,
   setupPetPopoutHandlers,
   getPetsTabContent,
 
-  // Ability Calculation Helpers (Game-specific)
+  // Ability Calculation Helpers
   getTurtleExpectations,
   estimateUntilLatestCrop,
   getAbilityExpectations,
   getEggExpectations,
   getGrowthExpectations,
 
-  // Auto-Favorite System (Phase 4)
+  // Auto-Favorite System
   initAutoFavorite,
   favoriteSpecies,
   unfavoriteSpecies,
@@ -5067,7 +5067,7 @@ export default {
   favoritePetAbility,
   unfavoritePetAbility,
 
-  // Additional Pet Functions (Phase 5)
+  // Additional Pet Functions
   playPetNotificationSound,
   placePetPreset,
   loadPetPreset,
@@ -5077,7 +5077,7 @@ export default {
   categorizeAbilityToFilterKey,
   monitorPetAbilities,
 
-  // Ability Log Utilities (Phase 6)
+  // Ability Log Utilities
   getAllUniqueAbilities,
   populateIndividualAbilities,
   selectAllFilters,
@@ -5085,12 +5085,12 @@ export default {
   exportAbilityLogs,
   loadPresetByNumber,
 
-  // Supporting Utilities (Phase 6)
+  // Supporting Utilities
   normalizeAbilityName,
   formatTimestamp,
   getGardenCropIfUnique,
 
-  // Ability Log Management (Phase 7)
+  // Ability Log Management
   KNOWN_ABILITY_TYPES,
   isKnownAbilityType,
   initAbilityCache,
@@ -5100,22 +5100,22 @@ export default {
   formatLogData,
   formatRelativeTime,
 
-  // Display Update Functions (Phase 8)
+  // Display Update Functions
   updateAbilityLogDisplay,
   updateLogVisibility,
   updateAllLogVisibility,
   updateAllAbilityLogDisplays,
 
-  // Instant Feed Core Functions (Phase 9)
+  // Instant Feed Core Functions
   createInstantFeedButton,
   flashButton,
   handleInstantFeed,
 
-  // Instant Feed Initialization & Polling (Phase 10)
+  // Instant Feed Initialization & Polling
   injectInstantFeedButtons,
   initializeInstantFeedButtons,
 
-  // Additional Pet Management Functions (Phase 11)
+  // Additional Pet Management Functions
   presetHasCropEater,
   cycleToNextPreset,
   playAbilityNotificationSound,

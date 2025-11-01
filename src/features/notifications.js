@@ -1,58 +1,16 @@
 /**
- * NOTIFICATION SYSTEM MODULE
- * ====================================================================================
- * All notification-related functionality extracted from monolith
+ * Notification System Module
+ *
+ * Comprehensive notification system for Magic Garden.
+ *
+ * Features:
+ * - Core sound system (Web Audio API)
+ * - Custom sound wrappers for different notification types
+ * - Visual notifications with batching and queue system
+ * - Notification utilities (watch lists, timestamps, toasts)
+ * - UI tab content for notification settings
  *
  * @module features/notifications
- *
- * Phase 1 (Complete):
- * - Core Sound System - ~200 lines
- *   • playNotificationSound() - Web Audio API sound generator
- *   • Basic sound presets (triple, double, single, chime, alert, buzz, ding, chirp)
- *   • Alarm sounds (alarm, continuous alarm with start/stop)
- *   • Epic notification sequence
- *   • playSelectedNotification() - User preference selector
- *
- * Phase 2 (Complete):
- * - Custom Sound Wrappers - ~120 lines
- *   • playCustomOrDefaultSound() - Core wrapper utility (GM storage integration)
- *   • playGeneralNotificationSound() - General notification wrapper
- *   • playShopNotificationSound() - Shop-specific wrapper
- *   • playWeatherNotificationSound() - Weather-specific wrapper
- *   NOTE: playPetNotificationSound & playAbilityNotificationSound already in pets.js
- *
- * Phase 3 (Complete):
- * - Visual Notifications - ~380 lines
- *   • queueNotification() - Queue system with 2-second batching (~24 lines)
- *   • updateNotificationModal() - Update existing modal (~15 lines)
- *   • generateNotificationListHTML() - Generate queue HTML (~12 lines)
- *   • showBatchedNotificationModal() - Batched modal display (~124 lines)
- *   • dismissAllNotifications() - Dismiss and cleanup (~28 lines)
- *   • showVisualNotification() - Toast/modal with animations (~177 lines)
- *   • Module-level state: notificationQueue, currentNotificationModal, timer
- *
- * Phase 4 (Complete):
- * - Notification Utilities - ~84 lines
- *   • normalizeSpeciesName() - Case-insensitive species name normalization (~3 lines)
- *   • isWatchedItem() - Check if item is on watch list (~23 lines)
- *   • updateLastSeen() - Update last seen timestamp (~12 lines)
- *   • getTimeSinceLastSeen() - Human-readable time since last seen (~26 lines)
- *   • showNotificationToast() - Simple colored toast notifications (~32 lines)
- *
- * Phase 5 (Complete):
- * - UI Tab Content - ~1,205 lines
- *   • getNotificationsTabContent() - HTML generation for settings tab (~592 lines)
- *   • setupNotificationsTabHandlers() - Event handlers for settings tab (~613 lines)
- *
- * Total Extracted: ~1,989 lines (ALL PHASES COMPLETE!)
- * Progress: 100% (notification system fully extracted!)
- *
- * Dependencies:
- * - Core: logging (productionLog)
- * - State: UnifiedState (for user preferences, watch lists, timestamps)
- * - Storage: GM_getValue, MGA_saveJSON (for custom sounds and persistence)
- * - Browser APIs: Web Audio API, Audio(), setTimeout, DOM manipulation
- * - Document: createElement, querySelector, appendChild (for visual notifications)
  */
 
 /* ====================================================================================
@@ -65,7 +23,7 @@
 // import { productionLog } from '../core/logging.js';
 
 /* ====================================================================================
- * CORE SOUND SYSTEM (Phase 1)
+ * CORE SOUND SYSTEM
  * ====================================================================================
  */
 
@@ -105,7 +63,7 @@ export function playNotificationSound(frequency = 800, duration = 200, volume = 
 
     productionLog(`🔊 [NOTIFICATIONS] Sound played for rare item!`);
   } catch (error) {
-    console.error('❌ [NOTIFICATIONS] Failed to play notification sound:', error);
+    productionError('❌ [NOTIFICATIONS] Failed to play notification sound:', error);
   }
 }
 
@@ -419,7 +377,7 @@ export function playCustomOrDefaultSound(soundType, defaultPlayFunc, volume, dep
       audio.play();
       productionLog(`🎵 [CUSTOM-SOUND] Playing custom ${soundType} sound`);
     } catch (err) {
-      console.error(`Failed to play custom ${soundType} sound:`, err);
+      productionError(`Failed to play custom ${soundType} sound:`, err);
       defaultPlayFunc(volume);
     }
   } else {
@@ -1114,7 +1072,7 @@ export function showNotificationToast(message, type = 'info', dependencies = {})
       setTimeout(() => toast.remove(), 300);
     }, 5000);
   } catch (error) {
-    console.error('❌ [TOAST] Error showing notification toast:', error);
+    productionError('❌ [TOAST] Error showing notification toast:', error);
   }
 }
 

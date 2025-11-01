@@ -11,6 +11,8 @@
  *
  * @module Environment
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * Detect execution environment and game readiness state

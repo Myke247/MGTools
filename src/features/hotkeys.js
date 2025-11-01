@@ -1,46 +1,16 @@
 /**
- * HOTKEY SYSTEM MODULE
- * ====================================================================================
- * Complete hotkey management system for MGTools
+ * Hotkey System Module
+ *
+ * Complete hotkey management system for MGTools.
+ *
+ * Features:
+ * - Hotkey recording for game actions and MGTools actions
+ * - Input detection and blocking when typing
+ * - Key combination parsing and simulation
+ * - Global event handlers for key remapping
+ * - Hotkey settings UI
  *
  * @module features/hotkeys
- *
- * Phase 1 (Complete):
- * - Recording & Utilities - ~276 lines
- *   • Module-level state (currentlyRecordingHotkey)
- *   • startRecordingHotkey() - Record game key bindings
- *   • stopRecordingHotkey() - Stop recording and reset UI
- *   • startRecordingHotkeyMGTools() - Record MGTools key bindings
- *   • shouldBlockHotkey() - Comprehensive input field detection
- *   • isTypingInInput() - Legacy alias
- *   • parseKeyCombo() - Parse key combination strings
- *   • getProperKeyCode() - Get KeyboardEvent code for simulation
- *
- * Phase 2 (Complete):
- * - Simulation & Matching - ~50 lines
- *   • heldRemappedKeys Map - Track held remapped keys
- *   • matchesKeyCombo() - Check if event matches combo
- *   • simulateKeyDown() - Simulate key press
- *   • simulateKeyUp() - Simulate key release
- *
- * Phase 3 (Complete):
- * - Event Handlers - ~140 lines
- *   • handleHotkeyPress() - Global keydown handler (game key remapping)
- *   • handleHotkeyRelease() - Global keyup handler
- *   • initializeHotkeySystem() - Initialize listeners
- *
- * Phase 4 (Complete):
- * - Tab UI - ~84 lines
- *   • setupHotkeysTabHandlers() - Setup UI event handlers
- *
- * Total Extracted: ~550 lines (ALL 4 PHASES COMPLETE!)
- * Progress: 100% (hotkey system fully extracted!)
- *
- * Dependencies:
- * - Core: UnifiedState (hotkey config), MGA_saveJSON (persistence)
- * - Logging: productionLog, debugLog
- * - UI: updateTabContent (monolith function - called during recording)
- * - Shop: toggleShopWindows (monolith function - called by toggleQuickShop hotkey)
  */
 
 /* ====================================================================================
@@ -66,7 +36,7 @@
 let currentlyRecordingHotkey = null;
 
 /* ====================================================================================
- * HOTKEY RECORDING FUNCTIONS (Phase 1)
+ * HOTKEY RECORDING FUNCTIONS
  * ====================================================================================
  */
 
@@ -265,7 +235,7 @@ export function startRecordingHotkeyMGTools(key, buttonElement, dependencies = {
 }
 
 /* ====================================================================================
- * INPUT DETECTION UTILITIES (Phase 1)
+ * INPUT DETECTION UTILITIES
  * ====================================================================================
  */
 
@@ -307,7 +277,7 @@ export function shouldBlockHotkey(event, dependencies = {}) {
   // SPECIFIC CHECK for game's Chakra UI chat input
   if (active.classList?.contains('chakra-input')) {
     if (UnifiedState?.data?.settings?.debugMode) {
-      console.log('[FIX_HOTKEYS] Blocking - Chakra UI input detected');
+      productionLog('[FIX_HOTKEYS] Blocking - Chakra UI input detected');
     }
     return true;
   }
@@ -371,7 +341,7 @@ export function shouldBlockHotkey(event, dependencies = {}) {
 
   if (hasChatPattern && (tagName === 'div' || tagName === 'span' || active.isContentEditable)) {
     // Likely a chat input
-    console.log('[FIX_HOTKEYS] Blocking hotkey - detected chat input:', {
+    productionLog('[FIX_HOTKEYS] Blocking hotkey - detected chat input:', {
       tag: tagName,
       classes: activeClasses,
       id: activeId,
@@ -392,7 +362,7 @@ export function shouldBlockHotkey(event, dependencies = {}) {
         pattern => parentClasses.toLowerCase().includes(pattern) || parentId.toLowerCase().includes(pattern)
       )
     ) {
-      console.log('[FIX_HOTKEYS] Blocking hotkey - active element in chat container:', {
+      productionLog('[FIX_HOTKEYS] Blocking hotkey - active element in chat container:', {
         parentTag: parent.tagName,
         parentClasses,
         parentId,
@@ -420,7 +390,7 @@ export function isTypingInInput(dependencies = {}) {
 }
 
 /* ====================================================================================
- * KEY PARSING UTILITIES (Phase 1)
+ * KEY PARSING UTILITIES
  * ====================================================================================
  */
 
@@ -515,7 +485,7 @@ export function getProperKeyCode(key) {
 }
 
 /* ====================================================================================
- * KEY SIMULATION & MATCHING (Phase 2)
+ * KEY SIMULATION & MATCHING
  * ====================================================================================
  */
 
@@ -621,7 +591,7 @@ export function simulateKeyUp(keyCombo, dependencies = {}) {
 }
 
 /* ====================================================================================
- * HOTKEY EVENT HANDLERS (Phase 3)
+ * HOTKEY EVENT HANDLERS
  * ====================================================================================
  */
 
@@ -691,7 +661,7 @@ export function handleHotkeyPress(e, dependencies = {}) {
     // Log when hotkey is blocked (helps diagnose chat detection issues)
     if (UnifiedState.data.settings?.debugMode) {
       const active = targetDocument.activeElement;
-      console.log('[FIX_HOTKEYS] Hotkey blocked - typing detected:', {
+      productionLog('[FIX_HOTKEYS] Hotkey blocked - typing detected:', {
         key: e.key,
         tag: active?.tagName,
         id: active?.id,
@@ -824,7 +794,7 @@ export function initializeHotkeySystem(dependencies = {}) {
 }
 
 /* ====================================================================================
- * HOTKEY TAB UI (Phase 4)
+ * HOTKEY TAB UI
  * ====================================================================================
  */
 
@@ -946,29 +916,29 @@ export function setupHotkeysTabHandlers(context = document, dependencies = {}) {
  */
 
 export default {
-  // Recording Functions (Phase 1)
+  // Recording Functions
   startRecordingHotkey,
   stopRecordingHotkey,
   startRecordingHotkeyMGTools,
 
-  // Input Detection (Phase 1)
+  // Input Detection
   shouldBlockHotkey,
   isTypingInInput,
 
-  // Key Parsing Utilities (Phase 1)
+  // Key Parsing Utilities
   parseKeyCombo,
   getProperKeyCode,
 
-  // Key Simulation & Matching (Phase 2)
+  // Key Simulation & Matching
   matchesKeyCombo,
   simulateKeyDown,
   simulateKeyUp,
 
-  // Event Handlers (Phase 3)
+  // Event Handlers
   handleHotkeyPress,
   handleHotkeyRelease,
   initializeHotkeySystem,
 
-  // Tab UI (Phase 4)
+  // Tab UI
   setupHotkeysTabHandlers
 };

@@ -9,9 +9,11 @@
  * @version 1.0.0
  * @date 2025-10-25
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ============================================================================
- * PHASE 1: UNIFIED_STYLES CSS (~722 lines)
+ * UNIFIED CSS STYLES
  * ============================================================================
  * Complete CSS styling system for MGTools UI
  * Includes dock, sidebar, popout, overlay, and theme styles
@@ -827,7 +829,7 @@ function createUnifiedUI({
 
   // Critical: Ensure body exists before creating UI
   if (!targetDocument.body) {
-    console.error('[MGTools] ⚠️ Body not ready, retrying UI creation in 100ms...');
+    productionError('[MGTools] ⚠️ Body not ready, retrying UI creation in 100ms...');
     setTimeout(
       () =>
         createUnifiedUI({
@@ -876,11 +878,11 @@ function createUnifiedUI({
     const preloadImg = new Image();
     const promise = new Promise(resolve => {
       preloadImg.onload = () => {
-        console.log(`[MGTools] ✅ Preloaded ${key} icon`);
+        productionLog(`[MGTools] ✅ Preloaded ${key} icon`);
         resolve();
       };
       preloadImg.onerror = () => {
-        console.warn(`[MGTools] ⚠️ Failed to preload ${key} icon, will use fallback`);
+        productionWarn(`[MGTools] ⚠️ Failed to preload ${key} icon, will use fallback`);
         resolve(); // Resolve anyway to not block UI creation
       };
     });
@@ -893,7 +895,7 @@ function createUnifiedUI({
     Promise.all(preloadPromises),
     new Promise(resolve => setTimeout(resolve, 500)) // 500ms timeout
   ]).then(() => {
-    console.log('[MGTools] Icon preloading complete, continuing with UI creation');
+    productionLog('[MGTools] Icon preloading complete, continuing with UI creation');
   });
 
   // Create hybrid dock
@@ -995,7 +997,7 @@ function createUnifiedUI({
 
       // Retry loading the image
       retryCount++;
-      console.log(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
+      productionLog(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
       setTimeout(() => {
         // Create new image element for retry
         const newImg = targetDocument.createElement('img');
@@ -1005,7 +1007,7 @@ function createUnifiedUI({
         newImg.onload = () => {
           // Success! Replace the failed image
           img.replaceWith(newImg);
-          console.log(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
+          productionLog(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
         };
       }, retryDelay * retryCount); // Exponential backoff
     };
@@ -1084,7 +1086,7 @@ function createUnifiedUI({
 
       // Retry loading the image
       retryCount++;
-      console.log(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
+      productionLog(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
       setTimeout(() => {
         // Create new image element for retry
         const newImg = targetDocument.createElement('img');
@@ -1094,7 +1096,7 @@ function createUnifiedUI({
         newImg.onload = () => {
           // Success! Replace the failed image
           img.replaceWith(newImg);
-          console.log(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
+          productionLog(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
         };
       }, retryDelay * retryCount); // Exponential backoff
     };
@@ -1341,14 +1343,14 @@ function ensureUIHealthy({ targetDocument, cleanupCorruptedDockPosition, createU
 
     if (!dock || !sidebar || dockHidden || sidebarHidden) {
       // Log the specific issue
-      if (!dock) console.warn('[MGTools] Dock element missing');
-      if (!sidebar) console.warn('[MGTools] Sidebar element missing');
-      if (dockHidden) console.warn('[MGTools] Dock is hidden (display:none)');
-      if (sidebarHidden) console.warn('[MGTools] Sidebar is hidden (display:none)');
+      if (!dock) productionWarn('[MGTools] Dock element missing');
+      if (!sidebar) productionWarn('[MGTools] Sidebar element missing');
+      if (dockHidden) productionWarn('[MGTools] Dock is hidden (display:none)');
+      if (sidebarHidden) productionWarn('[MGTools] Sidebar is hidden (display:none)');
 
       // Clear potentially corrupted localStorage state
       if (dockHidden || sidebarHidden) {
-        console.warn('[MGTools] Clearing corrupted visibility state...');
+        productionWarn('[MGTools] Clearing corrupted visibility state...');
         localStorage.removeItem('mgh_toolbar_visible');
       }
       retryCount++;
@@ -1362,11 +1364,11 @@ function ensureUIHealthy({ targetDocument, cleanupCorruptedDockPosition, createU
             createUnifiedUI();
             checkAndRetry(); // Check again after creation
           } catch (error) {
-            console.error('[MGTools TEST] UI recreation failed:', error);
+            productionError('[MGTools TEST] UI recreation failed:', error);
           }
         }, delay);
       } else {
-        console.error('[MGTools TEST] UI failed to load. Please report this issue.');
+        productionError('[MGTools TEST] UI failed to load. Please report this issue.');
 
         // Emergency notification
         try {
@@ -1381,7 +1383,7 @@ function ensureUIHealthy({ targetDocument, cleanupCorruptedDockPosition, createU
             if (msg.parentNode) msg.parentNode.removeChild(msg);
           }, 10000);
         } catch (e) {
-          console.error('[MGTools TEST] Emergency notification failed:', e);
+          productionError('[MGTools TEST] Emergency notification failed:', e);
         }
       }
     } else {
@@ -1473,7 +1475,7 @@ function setupToolbarToggle({ targetDocument, document, productionLog, showToast
       e.stopPropagation();
       toolbarVisible = !toolbarVisible;
       applyVisibility(toolbarVisible, true);
-      console.log(`[MGTools] Alt+M: Toolbar ${toolbarVisible ? 'shown' : 'hidden'}`);
+      productionLog(`[MGTools] Alt+M: Toolbar ${toolbarVisible ? 'shown' : 'hidden'}`);
     }
   };
 
@@ -1557,7 +1559,7 @@ function setupDockSizeControl({ targetDocument, document, resetDockPosition, sho
       const currentIndex = SIZES.indexOf(currentSize);
       const nextIndex = (currentIndex + 1) % SIZES.length;
       applyDockSize(SIZES[nextIndex], true);
-      console.log(`[MGTools] Alt+=: Dock size → ${SIZE_LABELS[SIZES[nextIndex]]}`);
+      productionLog(`[MGTools] Alt+=: Dock size → ${SIZE_LABELS[SIZES[nextIndex]]}`);
     } else if (e.altKey && (e.key === '-' || e.key === '_')) {
       // Alt+- to decrease size
       e.preventDefault();
@@ -1565,13 +1567,13 @@ function setupDockSizeControl({ targetDocument, document, resetDockPosition, sho
       const currentIndex = SIZES.indexOf(currentSize);
       const prevIndex = (currentIndex - 1 + SIZES.length) % SIZES.length;
       applyDockSize(SIZES[prevIndex], true);
-      console.log(`[MGTools] Alt+-: Dock size → ${SIZE_LABELS[SIZES[prevIndex]]}`);
+      productionLog(`[MGTools] Alt+-: Dock size → ${SIZE_LABELS[SIZES[prevIndex]]}`);
     } else if (e.altKey && (e.key === 'x' || e.key === 'X')) {
       // Alt+X to reset dock position
       e.preventDefault();
       e.stopPropagation();
       resetDockPosition();
-      console.log(`[MGTools] Alt+X: Dock position reset to default`);
+      productionLog(`[MGTools] Alt+X: Dock position reset to default`);
     }
   };
 
@@ -1594,9 +1596,9 @@ function saveDockPosition(position) {
     localStorage.setItem('mgh_dock_position', serialized);
 
     // v3.8.7 - Concise breadcrumb log
-    console.log(`[DOCK-SAVE] left=${position.left}, top=${position.top}, typeof=string (len=${serialized.length})`);
+    productionLog(`[DOCK-SAVE] left=${position.left}, top=${position.top}, typeof=string (len=${serialized.length})`);
   } catch (e) {
-    console.warn('[DOCK-SAVE] Exception during save:', e);
+    productionWarn('[DOCK-SAVE] Exception during save:', e);
   }
 }
 
@@ -1611,13 +1613,13 @@ function resetDockPosition({ targetDocument, showNotificationToast }) {
   try {
     const dock = targetDocument.getElementById('mgh-dock');
     if (!dock) {
-      console.warn('[DOCK-RESET] Dock element not found');
+      productionWarn('[DOCK-RESET] Dock element not found');
       return;
     }
 
     // Clear saved position
     localStorage.removeItem('mgh_dock_position');
-    console.log('[DOCK-RESET] Cleared saved position');
+    productionLog('[DOCK-RESET] Cleared saved position');
 
     // Calculate default position (right side of screen)
     const dockWidth = dock.offsetWidth || 380;
@@ -1631,17 +1633,17 @@ function resetDockPosition({ targetDocument, showNotificationToast }) {
     dock.style.bottom = 'auto';
     dock.style.right = 'auto';
 
-    console.log(`[DOCK-RESET] Reset to default position: left=${defaultLeft}, top=${defaultTop}`);
+    productionLog(`[DOCK-RESET] Reset to default position: left=${defaultLeft}, top=${defaultTop}`);
 
     // Show toast notification
     try {
       showNotificationToast('🏠 Dock Reset - Position reset to default', 'success');
     } catch (e) {
       // Toast not ready, silent fail
-      console.log('[DOCK-RESET] Toast notification unavailable');
+      productionLog('[DOCK-RESET] Toast notification unavailable');
     }
   } catch (e) {
-    console.warn('[DOCK-RESET] Exception during reset:', e);
+    productionWarn('[DOCK-RESET] Exception during reset:', e);
   }
 }
 
@@ -1657,10 +1659,10 @@ function cleanupCorruptedDockPosition() {
     if (typeof saved === 'object' && saved !== null) {
       // If it has valid shape {left, top}, keep it
       if (typeof saved.left === 'number' && typeof saved.top === 'number') {
-        console.log('[DOCK-CLEANUP] Found valid object position, keeping it');
+        productionLog('[DOCK-CLEANUP] Found valid object position, keeping it');
         return; // Valid object, no cleanup needed
       } else {
-        console.log('[DOCK-CLEANUP] Detected invalid object shape, clearing');
+        productionLog('[DOCK-CLEANUP] Detected invalid object shape, clearing');
         localStorage.removeItem('mgh_dock_position');
         return;
       }
@@ -1668,7 +1670,7 @@ function cleanupCorruptedDockPosition() {
 
     // Check for corrupted string data
     if (typeof saved === 'string' && (saved === '[object Object]' || saved.startsWith('[object'))) {
-      console.log('[DOCK-CLEANUP] Detected corrupted position data, clearing');
+      productionLog('[DOCK-CLEANUP] Detected corrupted position data, clearing');
       localStorage.removeItem('mgh_dock_position');
       return;
     }
@@ -1676,13 +1678,13 @@ function cleanupCorruptedDockPosition() {
     // Try to parse to ensure it's valid JSON
     try {
       JSON.parse(saved);
-      console.log('[DOCK-CLEANUP] Position data is valid');
+      productionLog('[DOCK-CLEANUP] Position data is valid');
     } catch (parseError) {
-      console.log('[DOCK-CLEANUP] Invalid JSON in position data, clearing');
+      productionLog('[DOCK-CLEANUP] Invalid JSON in position data, clearing');
       localStorage.removeItem('mgh_dock_position');
     }
   } catch (e) {
-    console.warn('[DOCK-CLEANUP] Error during cleanup:', e);
+    productionWarn('[DOCK-CLEANUP] Error during cleanup:', e);
     localStorage.removeItem('mgh_dock_position');
   }
 }
@@ -1691,10 +1693,6 @@ function cleanupCorruptedDockPosition() {
  * MODULE EXPORTS
  * ============================================================================
  */
-
-// End of Phase 2
-// Total: ~895 lines of UI creation and management functions
-// (Exports moved to end of file)
 /**
  * openSidebarTab - Opens or switches to a sidebar tab
  * @param {Object} deps - Dependencies
@@ -1784,7 +1782,7 @@ function openPopoutWidget(deps, tabName) {
 
   // Ensure widgets is a Map (can become Object after save/load)
   if (!(UnifiedState.data.popouts.widgets instanceof Map)) {
-    console.warn('[MGTools] widgets was not a Map, re-initializing');
+    productionWarn('[MGTools] widgets was not a Map, re-initializing');
     UnifiedState.data.popouts.widgets = new Map();
   }
 
@@ -1918,14 +1916,14 @@ function openPopoutWidget(deps, tabName) {
 
   // Add ESC key handler to close popout
   escHandler = e => {
-    console.log('[MGTools DEBUG] Popout keydown event:', e.key, 'Target:', e.target.tagName);
+    productionLog('[MGTools DEBUG] Popout keydown event:', e.key, 'Target:', e.target.tagName);
     if (e.key === 'Escape') {
-      console.log('[MGTools DEBUG] ESC detected, closing popout:', tabName);
+      productionLog('[MGTools DEBUG] ESC detected, closing popout:', tabName);
       closePopout();
     }
   };
   targetDocument.addEventListener('keydown', escHandler);
-  console.log('[MGTools DEBUG] ESC listener added for popout:', tabName);
+  productionLog('[MGTools DEBUG] ESC listener added for popout:', tabName);
 
   // Make resizable LAST
   makeElementResizable(popout, {
@@ -2055,7 +2053,7 @@ function openTabInSeparateWindow(deps, tabName) {
 
   // Ensure windows is a Map (can become Object after save/load)
   if (!(UnifiedState.data.popouts.windows instanceof Map)) {
-    console.warn('[MGTools] windows was not a Map, re-initializing');
+    productionWarn('[MGTools] windows was not a Map, re-initializing');
     UnifiedState.data.popouts.windows = new Map();
   }
 
@@ -2213,7 +2211,7 @@ function openTabInSeparateWindow(deps, tabName) {
 
         function refreshPopoutContent(tabName) {
             if (!mainWindow || mainWindow.closed) {
-                console.warn('⚠️ Main window is closed. Cannot refresh content.');
+                productionWarn('⚠️ Main window is closed. Cannot refresh content.');
                 return;
             }
 
@@ -2272,7 +2270,7 @@ function openTabInSeparateWindow(deps, tabName) {
                 mainWindow.setupRoomJoinButtons.call(mainWindow);
             }
 
-            console.log('Pop-out content refreshed for:', tabName);
+            productionLog('Pop-out content refreshed for:', tabName);
         }
 
         // Expose refresh function on window object for external access
@@ -2295,7 +2293,7 @@ function openTabInSeparateWindow(deps, tabName) {
 
         // Cleanup when window closes
         window.addEventListener('beforeunload', () => {
-            console.log('Pop-out window closing for:', currentTabName);
+            productionLog('Pop-out window closing for:', currentTabName);
         });
     </script>
 </body>
@@ -2497,7 +2495,7 @@ function createInGameOverlay(deps, tabName) {
 
   // Ensure overlays is a Map (can become Object after save/load)
   if (!(UnifiedState.data.popouts.overlays instanceof Map)) {
-    console.warn('[MGTools] overlays was not a Map, re-initializing');
+    productionWarn('[MGTools] overlays was not a Map, re-initializing');
     UnifiedState.data.popouts.overlays = new Map();
   }
 
@@ -4411,15 +4409,15 @@ export function toggleMainHUD(deps = {}) {
       }
     }
   } catch (error) {
-    console.error('[MGTools] Failed to toggle main HUD:', error);
+    productionError('[MGTools] Failed to toggle main HUD:', error);
   }
 }
 
 // ==================== EXPORTS ====================
-// All UI Overlay functions (Phases 2-5)
+// UI Overlay exports
 
 export {
-  // Phase 2: Main UI Creation (7 functions)
+  // Main UI Creation
   createUnifiedUI,
   ensureUIHealthy,
   setupToolbarToggle,
@@ -4428,7 +4426,7 @@ export {
   resetDockPosition,
   cleanupCorruptedDockPosition,
 
-  // Phase 3: Sidebar & Popout Management (12 functions)
+  // Sidebar & Popout Management
   openSidebarTab,
   openPopoutWidget,
   makePopoutDraggable,
@@ -4442,7 +4440,7 @@ export {
   getPetsPopoutContent,
   setupPetPopoutHandlers,
 
-  // Phase 4: In-Game Overlay System (9 functions)
+  // In-Game Overlay System
   createInGameOverlay,
   makeEntireOverlayDraggable,
   closeInGameOverlay,
@@ -4453,7 +4451,7 @@ export {
   setupOverlayHandlers,
   getContentForTab,
 
-  // Position & Dimension Management (10 functions)
+  // Position & Dimension Management
   getGameViewport,
   addResizeHandleToOverlay,
   saveOverlayDimensions,
@@ -4465,7 +4463,7 @@ export {
   saveOverlayPosition,
   loadOverlayPosition,
 
-  // Phase 5: Tab Content Cache (5 exports)
+  // Tab Content Cache
   getCachedTabContent,
   invalidateTabCache,
   getTabCacheStats,

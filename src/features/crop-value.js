@@ -5,27 +5,6 @@
  *
  * @module features/crop-value
  *
- * Complete System (3 Phases):
- * - Phase 1: Value Constants & Multipliers (~100 lines)
- *   • SPECIES_VALUES - Base values for all crop species
- *   • COLOR_MULT - Color mutation multipliers (Gold, Rainbow)
- *   • WEATHER_MULT - Weather mutation multipliers (Wet, Chilled, Frozen)
- *   • TIME_MULT - Time mutation multipliers (Dawnlit, Amberlit, etc.)
- *   • WEATHER_TIME_COMBO - Combined mutation multipliers
- *   • calculateMutationMultiplier() - Calculate total mutation value bonus
- *
- * - Phase 2: Value Calculation Functions (~100 lines)
- *   • getCurrentSlotIndex() - Get current crop slot for multi-harvest
- *   • calculateCurrentSlotValue() - Calculate value of current visible slot
- *   • isValidTooltipElement() - Validate tooltip DOM element position
- *
- * - Phase 3: Turtle Timer & UI Integration (~250 lines)
- *   • insertTurtleEstimate() - Insert growth timer and value into tooltip
- *   • initializeTurtleTimer() - Initialize turtle timer atom hooks
- *
- * Total Extracted: ~450 lines (ALL 3 PHASES COMPLETE!)
- * Progress: 100% (crop value system fully extracted!)
- *
  * Features:
  * - Accurate crop value calculation with all mutation types
  * - Multi-harvest crop support with slot tracking
@@ -40,6 +19,8 @@
  * - Pet Functions: getEggExpectations, estimateUntilLatestCrop
  * - Atom Hooks: hookAtom, listenToSlotIndexAtom
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ====================================================================================
  * IMPORTS
@@ -64,8 +45,7 @@ if (typeof window !== 'undefined' && typeof window._mgtools_currentSlotIndex ===
 }
 
 /* ====================================================================================
- * VALUE CONSTANTS & MULTIPLIERS (Phase 1)
- * ====================================================================================
+ * VALUE CONSTANTS & MULTIPLIERS * ====================================================================================
  */
 
 /**
@@ -220,8 +200,7 @@ export function calculateMutationMultiplier(mutations, dependencies = {}) {
 }
 
 /* ====================================================================================
- * VALUE CALCULATION FUNCTIONS (Phase 2)
- * ====================================================================================
+ * VALUE CALCULATION FUNCTIONS * ====================================================================================
  */
 
 /**
@@ -274,12 +253,12 @@ export function calculateCurrentSlotValue(currentCrop, dependencies = {}) {
     // The value at that position is the actual slot index in currentCrop
     if (slotIndex < sortedIndices.length) {
       actualSlotIndex = sortedIndices[slotIndex];
-      console.log(`🔄 [CROP-VALUE] Using sorted index: position ${slotIndex} → actual slot ${actualSlotIndex}`);
+      productionLog(`🔄 [CROP-VALUE] Using sorted index: position ${slotIndex} → actual slot ${actualSlotIndex}`);
     }
   }
 
   // Debug logging
-  console.log(`📊 [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
+  productionLog(`📊 [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
     displayIndex: slotIndex,
     actualSlotIndex,
     cropCount: currentCrop.length,
@@ -289,14 +268,14 @@ export function calculateCurrentSlotValue(currentCrop, dependencies = {}) {
 
   // Validate slot index
   if (actualSlotIndex < 0 || actualSlotIndex >= currentCrop.length) {
-    console.error(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
+    productionError(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
     targetWindow._mgtools_currentSlotIndex = 0; // Reset to safe value
     return 0;
   }
 
   const slot = currentCrop[actualSlotIndex];
   if (!slot || !slot.species) {
-    console.log(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
+    productionLog(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
     return 0;
   }
 
@@ -306,7 +285,7 @@ export function calculateCurrentSlotValue(currentCrop, dependencies = {}) {
   const value = Math.round(multiplier * speciesVal * scale * friendBonus);
 
   // Always log for debugging
-  console.log(
+  productionLog(
     `💰 [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`,
     {
       species: slot.species,
@@ -372,15 +351,14 @@ export function isValidTooltipElement(element, dependencies = {}) {
   } catch (e) {
     // Only log errors, not validation failures
     if (UnifiedState?.data?.settings?.debugMode) {
-      console.error('[CROP-VALUE] ❌ Error validating tooltip element:', e);
+      productionError('[CROP-VALUE] ❌ Error validating tooltip element:', e);
     }
     return false;
   }
 }
 
 /* ====================================================================================
- * TURTLE TIMER & UI INTEGRATION (Phase 3)
- * ====================================================================================
+ * TURTLE TIMER & UI INTEGRATION * ====================================================================================
  */
 
 /**
@@ -447,7 +425,7 @@ export function insertTurtleEstimate(dependencies = {}) {
 
   // Final validation: Ensure element is in valid screen position
   if (!validateTooltip(currentPlantTooltipFlexbox, dependencies)) {
-    console.warn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
+    productionWarn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
     return;
   }
 
@@ -917,22 +895,18 @@ export function initializeTurtleTimer(dependencies = {}) {
  */
 
 export default {
-  // Constants (Phase 1)
-  SPECIES_VALUES,
+  // Constants  SPECIES_VALUES,
   COLOR_MULT,
   WEATHER_MULT,
   TIME_MULT,
   WEATHER_TIME_COMBO,
 
-  // Multiplier Calculation (Phase 1)
-  calculateMutationMultiplier,
+  // Multiplier Calculation  calculateMutationMultiplier,
 
-  // Value Calculation (Phase 2)
-  getCurrentSlotIndex,
+  // Value Calculation  getCurrentSlotIndex,
   calculateCurrentSlotValue,
   isValidTooltipElement,
 
-  // Turtle Timer & UI Integration (Phase 3)
-  insertTurtleEstimate,
+  // Turtle Timer & UI Integration  insertTurtleEstimate,
   initializeTurtleTimer
 };

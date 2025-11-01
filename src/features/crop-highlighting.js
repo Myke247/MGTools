@@ -5,23 +5,6 @@
  *
  * @module features/crop-highlighting
  *
- * Complete System (3 Phases):
- * - Phase 1: Core Highlighting Functions (~130 lines)
- *   • clearCropHighlighting() - Clear all crop highlights
- *   • debugCropHighlighting() - Debug garden data availability
- *   • applyCropHighlighting() - Apply highlighting with validation
- *
- * - Phase 2: Automatic Highlighting & Hotkeys (~75 lines)
- *   • setupAutomaticCropHighlighting() - Ctrl+C toggle highlighting
- *   • setupCropHighlightingSystem() - Ctrl+H clear highlights
- *   • initializeCropHighlightingAtoms() - Atom hook initialization
- *
- * - Phase 3: Event Handlers (~13 lines)
- *   • setupCropHighlightingHandlers() - UI button handlers
- *
- * Total Extracted: ~218 lines (ALL 3 PHASES COMPLETE!)
- * Progress: 100% (crop highlighting fully extracted!)
- *
  * Features:
  * - Species-based crop highlighting
  * - Slot-based highlighting (0-2)
@@ -36,6 +19,8 @@
  * - Game: window.gardenInfo, window.currentCrop, window.highlightTilesByMutation
  * - Atom hooks: hookAtomForTileOverrides
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ====================================================================================
  * IMPORTS
@@ -108,8 +93,7 @@ export function initializeCropHighlightingAtoms(dependencies = {}) {
 }
 
 /* ====================================================================================
- * CORE HIGHLIGHTING FUNCTIONS (Phase 1)
- * ====================================================================================
+ * CORE HIGHLIGHTING FUNCTIONS * ====================================================================================
  */
 
 /**
@@ -305,8 +289,7 @@ export function applyCropHighlighting(dependencies = {}) {
 }
 
 /* ====================================================================================
- * AUTOMATIC HIGHLIGHTING & HOTKEYS (Phase 2)
- * ====================================================================================
+ * AUTOMATIC HIGHLIGHTING & HOTKEYS * ====================================================================================
  */
 
 /**
@@ -362,7 +345,7 @@ export function setupAutomaticCropHighlighting(dependencies = {}) {
 
         e.preventDefault(); // block normal copy
       } catch (err) {
-        console.error('❌ Error handling Ctrl+C highlight action', err);
+        productionError('❌ Error handling Ctrl+C highlight action', err);
       }
     }
   });
@@ -426,8 +409,7 @@ export function setupCropHighlightingSystem(dependencies = {}) {
 }
 
 /* ====================================================================================
- * EVENT HANDLERS (Phase 3)
- * ====================================================================================
+ * EVENT HANDLERS * ====================================================================================
  */
 
 /**
@@ -470,15 +452,12 @@ export default {
   // Atom Initialization
   initializeCropHighlightingAtoms,
 
-  // Core Functions (Phase 1)
-  clearCropHighlighting,
+  // Core Functions  clearCropHighlighting,
   debugCropHighlighting,
   applyCropHighlighting,
 
-  // Automatic & Hotkeys (Phase 2)
-  setupAutomaticCropHighlighting,
+  // Automatic & Hotkeys  setupAutomaticCropHighlighting,
   setupCropHighlightingSystem,
 
-  // Event Handlers (Phase 3)
-  setupCropHighlightingHandlers
+  // Event Handlers  setupCropHighlightingHandlers
 };

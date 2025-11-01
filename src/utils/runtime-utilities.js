@@ -13,6 +13,8 @@
  *
  * @module utils/runtime-utilities
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ============================================================================
  * INTERVAL MANAGEMENT
@@ -256,7 +258,7 @@ export function safeSendMessage(message, dependencies = {}) {
     targetWindow.MagicCircle_RoomConnection.sendMessage(message);
     return true;
   } catch (error) {
-    console.error('❌ Error sending message:', error);
+    productionError('❌ Error sending message:', error);
     return false;
   }
 }
@@ -292,7 +294,7 @@ export function sendToGame(payloadObj, dependencies = {}) {
     targetWindow.MagicCircle_RoomConnection.sendMessage(msg);
     return true;
   } catch (error) {
-    console.error('❌ sendToGame error:', error);
+    productionError('❌ sendToGame error:', error);
     return false;
   }
 }
@@ -316,10 +318,7 @@ let jotaiStore = null;
  * const store = captureJotaiStore({ targetWindow: window });
  */
 export function captureJotaiStore(dependencies = {}) {
-  const {
-    targetWindow = typeof window !== 'undefined' ? window : null,
-    productionLog = console.log
-  } = dependencies;
+  const { targetWindow = typeof window !== 'undefined' ? window : null, productionLog = console.log } = dependencies;
 
   if (jotaiStore) return jotaiStore;
 
@@ -328,7 +327,7 @@ export function captureJotaiStore(dependencies = {}) {
     const directStore = targetWindow.__jotaiStore || targetWindow.jotaiStore;
     if (directStore && typeof directStore.get === 'function' && typeof directStore.set === 'function') {
       jotaiStore = directStore;
-      console.log('✅ [STORE] Captured Jotai store from window.__jotaiStore');
+      productionLog('✅ [STORE] Captured Jotai store from window.__jotaiStore');
       return jotaiStore;
     }
 
@@ -357,7 +356,7 @@ export function captureJotaiStore(dependencies = {}) {
               typeof value.sub === 'function'
             ) {
               jotaiStore = value;
-              console.log('✅ [STORE] Captured Jotai store from React fiber tree');
+              productionLog('✅ [STORE] Captured Jotai store from React fiber tree');
               return jotaiStore;
             }
 
@@ -377,7 +376,7 @@ export function captureJotaiStore(dependencies = {}) {
         // Some Jotai implementations store the store reference in the atom cache
         if (value?.store && typeof value.store.get === 'function') {
           jotaiStore = value.store;
-          console.log('✅ [STORE] Extracted Jotai store from atom cache metadata');
+          productionLog('✅ [STORE] Extracted Jotai store from atom cache metadata');
           return jotaiStore;
         }
       }
@@ -387,7 +386,7 @@ export function captureJotaiStore(dependencies = {}) {
     productionLog('⏳ [STORE] Store not found - will fall back to direct atom cache reading');
     return null;
   } catch (error) {
-    console.error('[STORE] Error capturing Jotai store:', error);
+    productionError('[STORE] Error capturing Jotai store:', error);
     return null;
   }
 }
@@ -458,10 +457,10 @@ export function hookAtom(atomPath, windowKey, callback, retryCount = 0, dependen
 
   // DIAGNOSTIC: Check multiple possible locations for jotaiAtomCache
   if (retryCount === 0) {
-    console.log('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
-    console.log('  - isUserscript:', isUserscript, '(using unsafeWindow:', isUserscript ? 'YES' : 'NO)');
+    productionLog('  - targetWindow.jotaiAtomCache:', typeof targetWindow.jotaiAtomCache, targetWindow.jotaiAtomCache);
+    productionLog('  - isUserscript:', isUserscript, '(using unsafeWindow:', isUserscript ? 'YES' : 'NO)');
     const jotaiKeys = Object.keys(targetWindow).filter(k => k.toLowerCase().includes('jotai'));
-    console.log('  - Keys with "jotai" on targetWindow:', jotaiKeys);
+    productionLog('  - Keys with "jotai" on targetWindow:', jotaiKeys);
   }
 
   // Try multiple contexts for jotaiAtomCache (cascading fallback)
@@ -482,12 +481,12 @@ export function hookAtom(atomPath, windowKey, callback, retryCount = 0, dependen
 
   if (!atomCache || !atomCache.get) {
     if (retryCount >= maxRetries) {
-      console.error(
+      productionError(
         `❌ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries (${maxRetries / 2}s)`
       );
-      console.error(`❌ [ATOM-HOOK] Final check - targetWindow.jotaiAtomCache:`, targetWindow.jotaiAtomCache);
-      console.error(`❌ [ATOM-HOOK] Using unsafeWindow:`, isUserscript);
-      console.error(`❌ [ATOM-HOOK] Script will continue with reduced functionality`);
+      productionError(`❌ [ATOM-HOOK] Final check - targetWindow.jotaiAtomCache:`, targetWindow.jotaiAtomCache);
+      productionError(`❌ [ATOM-HOOK] Using unsafeWindow:`, isUserscript);
+      productionError(`❌ [ATOM-HOOK] Script will continue with reduced functionality`);
       productionWarn(`⚠️ [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries`);
       productionWarn(`⚠️ [ATOM-HOOK] Script will continue with reduced functionality`);
       return;
@@ -573,7 +572,7 @@ export function hookAtom(atomPath, windowKey, callback, retryCount = 0, dependen
     });
     productionLog(`📦 Stored atom reference for ${windowKey} (can now re-query for fresh data)`);
   } catch (error) {
-    console.error(`❌ Error hooking ${atomPath}:`, error);
+    productionError(`❌ Error hooking ${atomPath}:`, error);
   }
 }
 
@@ -610,7 +609,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
   // Initialize the slot index
   if (typeof targetWindow._mgtools_currentSlotIndex === 'undefined') {
     targetWindow._mgtools_currentSlotIndex = 0;
-    console.log('🎯 [SLOT-ATOM] Initialized slot index to 0');
+    productionLog('🎯 [SLOT-ATOM] Initialized slot index to 0');
   }
 
   // Method 1: Try to hook via jotaiAtomCache
@@ -642,7 +641,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
           // Only update if changed
           if (targetWindow._mgtools_currentSlotIndex !== idx) {
             targetWindow._mgtools_currentSlotIndex = idx;
-            console.log(`🎯 [SLOT-ATOM-CACHE] Slot index changed to: ${idx}`);
+            productionLog(`🎯 [SLOT-ATOM-CACHE] Slot index changed to: ${idx}`);
 
             // Update display
             if (typeof insertTurtleEstimate === 'function') {
@@ -735,7 +734,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
       targetWindow._mgtools_currentSlotIndex = idx;
 
       if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
-        console.log('[FIX_SLOT] Set slot index to:', idx);
+        productionLog('[FIX_SLOT] Set slot index to:', idx);
       }
     }
 
@@ -767,7 +766,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
 
         if (CONFIG.DEBUG.FLAGS.FIX_VALIDATION) {
           targetWindow._mgtools_syncCount = (targetWindow._mgtools_syncCount || 0) + 1;
-          console.log('[FIX_HARVEST] Synced to game slot:', {
+          productionLog('[FIX_HARVEST] Synced to game slot:', {
             from: currentIndex,
             to: gameIndex,
             syncCount: targetWindow._mgtools_syncCount
@@ -801,7 +800,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
         targetWindow._mgtools_currentSlotIndex = (targetWindow._mgtools_currentSlotIndex - 1 + maxIndex) % maxIndex;
       }
 
-      console.log(
+      productionLog(
         `🎯 [SLOT-KEY] Cycled ${direction} - slot index: ${targetWindow._mgtools_currentSlotIndex}/${maxIndex}`
       );
 
@@ -829,7 +828,7 @@ export function listenToSlotIndexAtom(dependencies = {}) {
         if (currentHash !== lastCropHash) {
           targetWindow._mgtools_currentSlotIndex = 0;
           lastCropHash = currentHash;
-          console.log(`🔄 [SLOT-KEY] New crop detected, reset index to 0`);
+          productionLog(`🔄 [SLOT-KEY] New crop detected, reset index to 0`);
         }
 
         if (e.key.toLowerCase() === 'x') {
@@ -864,17 +863,17 @@ export function listenToSlotIndexAtom(dependencies = {}) {
           button.getAttribute('aria-label')?.includes('Next');
 
         if (hasLeftArrow) {
-          console.log('⬅️ [SLOT-ARROW] Left arrow clicked');
+          productionLog('⬅️ [SLOT-ARROW] Left arrow clicked');
           updateSlotIndex('backward');
         } else if (hasRightArrow) {
-          console.log('➡️ [SLOT-ARROW] Right arrow clicked');
+          productionLog('➡️ [SLOT-ARROW] Right arrow clicked');
           updateSlotIndex('forward');
         }
       },
       true
     );
 
-    console.log('✅ [SLOT-ATOM] Key and arrow watchers installed');
+    productionLog('✅ [SLOT-ATOM] Key and arrow watchers installed');
   };
 
   // Install key watcher immediately as backup

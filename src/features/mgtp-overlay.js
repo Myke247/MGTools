@@ -18,6 +18,8 @@
  * - window.RoomRegistry (global)
  * - GM_setValue, GM_getValue, GM_xmlhttpRequest (optional, Tampermonkey)
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * Initialize MGTP Overlay system
@@ -291,7 +293,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
                 }
               }
             } catch (err) {
-              console.error('[MGTP] clear logs failed', err);
+              productionError('[MGTP] clear logs failed', err);
             }
           }
         },
@@ -433,23 +435,23 @@ export function initializeMGTPOverlay(dependencies = {}) {
           const url1 = API_V1(roomIdOrName);
           data = await fetchWithFetch(url1, roomIdOrName);
           if (roomDebugMode) {
-            console.log(`[ROOMS] ✅ Fetch succeeded for ${roomIdOrName}:`, data);
+            productionLog(`[ROOMS] ✅ Fetch succeeded for ${roomIdOrName}:`, data);
           }
         } catch (e1) {
           // Try GM_xmlhttpRequest fallback if fetch fails
           try {
             const url1 = API_V1(roomIdOrName);
             if (roomDebugMode) {
-              console.log(`[ROOMS] 🔄 Retrying ${roomIdOrName} with GM_xmlhttpRequest`);
+              productionLog(`[ROOMS] 🔄 Retrying ${roomIdOrName} with GM_xmlhttpRequest`);
             }
             data = await fetchWithGM(url1, roomIdOrName);
             if (roomDebugMode) {
-              console.log(`[ROOMS] ✅ GM fetch succeeded for ${roomIdOrName}:`, data);
+              productionLog(`[ROOMS] ✅ GM fetch succeeded for ${roomIdOrName}:`, data);
             }
           } catch (e2) {
             // Log error if Room Debug Mode is enabled
             if (roomDebugMode) {
-              console.warn(`[ROOMS] ❌ Failed to fetch ${roomIdOrName}:`, e1.message);
+              productionWarn(`[ROOMS] ❌ Failed to fetch ${roomIdOrName}:`, e1.message);
             }
             throw new Error(`All methods failed for ${roomIdOrName}`);
           }
@@ -464,12 +466,12 @@ export function initializeMGTPOverlay(dependencies = {}) {
         if (isDiscordRoom && roomIdToName[roomIdOrName]) {
           storageKey = roomIdToName[roomIdOrName].toUpperCase();
           if (roomDebugMode && online > 0) {
-            console.log(`[ROOMS] 📊 Discord room ${roomIdToName[roomIdOrName]}: ${online} players`);
+            productionLog(`[ROOMS] 📊 Discord room ${roomIdToName[roomIdOrName]}: ${online} players`);
           }
         } else {
           storageKey = roomIdOrName.toUpperCase();
           if (roomDebugMode && online > 0) {
-            console.log(`[ROOMS] 📊 ${roomIdOrName}: ${online} players`);
+            productionLog(`[ROOMS] 📊 ${roomIdOrName}: ${online} players`);
           }
         }
 
@@ -486,7 +488,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
 
         // Log failures only in debug mode
         if (roomDebugMode) {
-          console.warn(
+          productionWarn(
             `[ROOMS] ⚠️ ${isDiscordRoom ? 'Discord room' : 'Room'} ${roomIdOrName.substring(0, 30)}... failed:`,
             e.message
           );
@@ -523,13 +525,13 @@ export function initializeMGTPOverlay(dependencies = {}) {
         if (lastTickWhenHidden > 0 && now - lastTickWhenHidden < 30000) {
           if (roomDebugMode) {
             const secondsSinceLastPoll = Math.floor((now - lastTickWhenHidden) / 1000);
-            console.log(`[ROOMS] ⏸️ Skipping tick - UI hidden (last poll ${secondsSinceLastPoll}s ago)`);
+            productionLog(`[ROOMS] ⏸️ Skipping tick - UI hidden (last poll ${secondsSinceLastPoll}s ago)`);
           }
           return;
         }
         lastTickWhenHidden = now;
         if (roomDebugMode) {
-          console.log('[ROOMS] 🔄 Polling while UI hidden (30s interval)');
+          productionLog('[ROOMS] 🔄 Polling while UI hidden (30s interval)');
         }
       } else {
         // Reset hidden timer when UI is visible
@@ -549,14 +551,14 @@ export function initializeMGTPOverlay(dependencies = {}) {
           roomIdToName[room.id] = room.name;
         });
         if (roomDebugMode) {
-          console.log('[ROOMS] 🗺️ Built Discord room lookup map:', Object.keys(roomIdToName).length, 'rooms');
+          productionLog('[ROOMS] 🗺️ Built Discord room lookup map:', Object.keys(roomIdToName).length, 'rooms');
         }
       }
 
       const names = [...TRACKED, ...extra, ...discordRoomIds];
 
       if (roomDebugMode) {
-        console.log(
+        productionLog(
           `[ROOMS] 🔄 Tick running: ${names.length} total rooms (${TRACKED.length} MG/Custom, ${discordRoomIds.length} Discord)`
         );
       }
@@ -581,7 +583,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
         if (roomDebugMode) {
           const discordKeys = Object.keys(counts).filter(k => k.startsWith('PLAY'));
           if (discordKeys.length > 0) {
-            console.log(
+            productionLog(
               '[ROOMS] 📝 Sample Discord room counts:',
               discordKeys
                 .slice(0, 5)
@@ -591,7 +593,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
           }
         }
       } catch (e) {
-        console.error('[ROOMS] ❌ Tick error:', e);
+        productionError('[ROOMS] ❌ Tick error:', e);
       }
 
       // write into UnifiedState so UI updates
@@ -606,7 +608,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
         }
 
         if (roomDebugMode) {
-          console.log(`[ROOMS] ✅ Updated ${Object.keys(counts).length} room counts in UnifiedState`);
+          productionLog(`[ROOMS] ✅ Updated ${Object.keys(counts).length} room counts in UnifiedState`);
         }
 
         // refresh any open rooms views
@@ -711,8 +713,8 @@ export function initializeMGTPOverlay(dependencies = {}) {
       const testId = roomId || 'i-1425232387037462538-gc-1399110335469977781-1411124424676999308';
       const url = `${apiBase}/api/rooms/${encodeURIComponent(testId)}/info`;
 
-      console.log('[ROOMS TEST] Testing:', testId.substring(0, 40) + '...');
-      console.log('[ROOMS TEST] URL:', url);
+      productionLog('[ROOMS TEST] Testing:', testId.substring(0, 40) + '...');
+      productionLog('[ROOMS TEST] URL:', url);
 
       try {
         const response = await fetch(url, {
@@ -723,14 +725,14 @@ export function initializeMGTPOverlay(dependencies = {}) {
 
         if (!response.ok) {
           const text = await response.text();
-          console.error('[ROOMS TEST] ❌ HTTP', response.status, '-', text);
+          productionError('[ROOMS TEST] ❌ HTTP', response.status, '-', text);
           return;
         }
 
         const data = await response.json();
-        console.log('[ROOMS TEST] ✅ Success! Players:', data.numPlayers ?? 'NOT FOUND', '| Full data:', data);
+        productionLog('[ROOMS TEST] ✅ Success! Players:', data.numPlayers ?? 'NOT FOUND', '| Full data:', data);
       } catch (e) {
-        console.error('[ROOMS TEST] ❌ Fetch failed:', e);
+        productionError('[ROOMS TEST] ❌ Fetch failed:', e);
       }
     };
   })();
@@ -1203,7 +1205,7 @@ export function initializeMGTPOverlay(dependencies = {}) {
       if (targetWindow.UnifiedState?.data) targetWindow.UnifiedState.data.petAbilityLogs = [];
       if (Array.isArray(targetWindow.petAbilityLogs)) targetWindow.petAbilityLogs.length = 0;
     } catch (e) {
-      console.error('[MGTools] hardClear logs failed', e);
+      productionError('[MGTools] hardClear logs failed', e);
     }
   }
   targetWindow.MGTOOLS_hardClearAbilityLogs = hardClear;

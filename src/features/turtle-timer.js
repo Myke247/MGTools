@@ -15,6 +15,8 @@
  *
  * @module TurtleTimer
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * Generate hash for crop change detection
@@ -268,7 +270,7 @@ export function isValidTooltipElement(element, dependencies = {}) {
   } catch (e) {
     // Only log errors, not validation failures
     if (UnifiedState?.data?.settings?.debugMode) {
-      console.error('[CROP-VALUE] ❌ Error validating tooltip element:', e);
+      productionError('[CROP-VALUE] ❌ Error validating tooltip element:', e);
     }
     return false;
   }
@@ -328,12 +330,12 @@ export function calculateCurrentSlotValue(currentCrop, dependencies = {}) {
   if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0) {
     if (slotIndex < sortedIndices.length) {
       actualSlotIndex = sortedIndices[slotIndex];
-      console.log(`🔄 [CROP-VALUE] Using sorted index: position ${slotIndex} → actual slot ${actualSlotIndex}`);
+      productionLog(`🔄 [CROP-VALUE] Using sorted index: position ${slotIndex} → actual slot ${actualSlotIndex}`);
     }
   }
 
   // Debug logging
-  console.log(`📊 [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
+  productionLog(`📊 [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
     displayIndex: slotIndex,
     actualSlotIndex,
     cropCount: currentCrop.length,
@@ -343,14 +345,14 @@ export function calculateCurrentSlotValue(currentCrop, dependencies = {}) {
 
   // Validate slot index
   if (actualSlotIndex < 0 || actualSlotIndex >= currentCrop.length) {
-    console.error(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
+    productionError(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
     win._mgtools_currentSlotIndex = 0; // Reset to safe value
     return 0;
   }
 
   const slot = currentCrop[actualSlotIndex];
   if (!slot || !slot.species) {
-    console.log(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
+    productionLog(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
     return 0;
   }
 
@@ -360,7 +362,7 @@ export function calculateCurrentSlotValue(currentCrop, dependencies = {}) {
   const value = Math.round(multiplier * speciesVal * scale * friendBonus);
 
   // Always log for debugging
-  console.log(
+  productionLog(
     `💰 [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`,
     {
       species: slot.species,
@@ -430,7 +432,7 @@ export function insertTurtleEstimate(dependencies = {}) {
 
   // Final validation
   if (!isValidTooltip(currentPlantTooltipFlexbox, dependencies)) {
-    console.warn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
+    productionWarn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
     return;
   }
 
@@ -614,7 +616,7 @@ export function initializeTurtleTimer(dependencies = {}) {
     requestAnimationFrame: raf = typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : setTimeout
   } = dependencies;
 
-  console.log('🐢🐢🐢 [TURTLE-TIMER-START] initializeTurtleTimer() called!');
+  productionLog('🐢🐢🐢 [TURTLE-TIMER-START] initializeTurtleTimer() called!');
   productionLog('🐢 [TURTLE-TIMER] Initializing crop growth estimate...');
 
   // Initialize global slot index if not exists
@@ -833,56 +835,56 @@ export function initializeTurtleTimer(dependencies = {}) {
 
   // Debug function
   const debugCropDetectionFunc = function debugCropDetection() {
-    console.log('=== MANUAL CROP DETECTION DEBUG ===');
+    productionLog('=== MANUAL CROP DETECTION DEBUG ===');
 
     const atomCache = win.jotaiAtomCache?.cache || win.jotaiAtomCache;
-    console.log('atomCache exists:', !!atomCache);
+    productionLog('atomCache exists:', !!atomCache);
 
     if (atomCache && atomCache.get) {
-      console.log('Atom cache entries count:', atomCache.size || 'unknown');
+      productionLog('Atom cache entries count:', atomCache.size || 'unknown');
 
       try {
         const allKeys = Array.from(atomCache.keys ? atomCache.keys() : []);
-        console.log('Total atoms:', allKeys.length);
+        productionLog('Total atoms:', allKeys.length);
 
         const cropAtoms = allKeys.filter(
           k => k.includes('Crop') || k.includes('crop') || k.includes('Grow') || k.includes('Egg')
         );
-        console.log('Crop-related atoms:', cropAtoms);
+        productionLog('Crop-related atoms:', cropAtoms);
 
         const atom = atomCache.get(
           '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom'
         );
-        console.log('Current crop atom:', atom);
+        productionLog('Current crop atom:', atom);
 
         if (atom) {
-          console.log('Atom properties:', Object.keys(atom));
-          console.log('Atom.debugValue:', atom.debugValue);
-          console.log('Atom.init:', atom.init);
+          productionLog('Atom properties:', Object.keys(atom));
+          productionLog('Atom.debugValue:', atom.debugValue);
+          productionLog('Atom.init:', atom.init);
 
           const tw = win;
           if (tw.__foundJotaiStore) {
-            console.log('Found store, trying to read...');
+            productionLog('Found store, trying to read...');
             try {
               const val = tw.__foundJotaiStore.get(atom);
-              console.log('✅ Store.get(atom) returned:', val);
+              productionLog('✅ Store.get(atom) returned:', val);
             } catch (e) {
-              console.log('❌ Error reading from store:', e);
+              productionLog('❌ Error reading from store:', e);
             }
           } else {
-            console.log('⚠️ No Jotai store found yet');
+            productionLog('⚠️ No Jotai store found yet');
           }
         }
       } catch (e) {
-        console.log('Error exploring atoms:', e);
+        productionLog('Error exploring atoms:', e);
       }
     }
 
-    console.log('Calling insertTurtleEstimate()...');
+    productionLog('Calling insertTurtleEstimate()...');
     if (typeof insertEstimate === 'function') {
       insertEstimate(dependencies);
     } else {
-      console.log('❌ insertTurtleEstimate not available in this context');
+      productionLog('❌ insertTurtleEstimate not available in this context');
     }
   };
 
@@ -891,10 +893,10 @@ export function initializeTurtleTimer(dependencies = {}) {
     win.debugCropDetection = debugCropDetectionFunc;
     targetWindow.debugCropDetection = debugCropDetectionFunc;
 
-    console.log('💡 TIP: Run window.debugCropDetection() in console to debug crop detection');
-    console.log('💡 Available in: window, targetWindow');
+    productionLog('💡 TIP: Run window.debugCropDetection() in console to debug crop detection');
+    productionLog('💡 Available in: window, targetWindow');
   } catch (e) {
-    console.log('⚠️ Could not attach debugCropDetection:', e);
+    productionLog('⚠️ Could not attach debugCropDetection:', e);
   }
 }
 

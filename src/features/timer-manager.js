@@ -13,6 +13,8 @@
  *
  * @module TimerManager
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * TimerManager class for managing multiple timers with RAF-based execution

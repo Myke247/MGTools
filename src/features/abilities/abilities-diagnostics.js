@@ -13,6 +13,8 @@
  *
  * @module features/abilities/abilities-diagnostics
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../../core/logging.js';
+
 
 import { normalizeAbilityName, isKnownAbilityType } from './abilities-data.js';
 
@@ -47,7 +49,7 @@ import { normalizeAbilityName, isKnownAbilityType } from './abilities-data.js';
  *
  * @example
  * const report = MGA_diagnoseAbilityLogStorage({ UnifiedState, GM_getValue, window });
- * console.log(report.summary); // { totalLocationsWithLogs: 3, totals: {...}, suspectSources: [...] }
+ * productionLog(report.summary); // { totalLocationsWithLogs: 3, totals: {...}, suspectSources: [...] }
  */
 export function MGA_diagnoseAbilityLogStorage(dependencies = {}) {
   const {

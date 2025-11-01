@@ -19,6 +19,8 @@
  * @version 1.0.0
  * @extracted 2025-10-25
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ============================================================================
  * HELPER FUNCTIONS - STORAGE AND UTILITY
@@ -52,16 +54,16 @@ export function cleanupCorruptedDockPosition({ localStorage, console }) {
           (parsed.x !== undefined && typeof parsed.x !== 'number') ||
           (parsed.y !== undefined && typeof parsed.y !== 'number')
         ) {
-          console.warn('⚠️ Corrupted dock position detected, clearing...');
+          productionWarn('⚠️ Corrupted dock position detected, clearing...');
           localStorage.removeItem('mgh_dock_position');
         }
       } catch (e) {
-        console.warn('⚠️ Invalid dock position JSON, clearing...', e);
+        productionWarn('⚠️ Invalid dock position JSON, clearing...', e);
         localStorage.removeItem('mgh_dock_position');
       }
     }
   } catch (error) {
-    console.error('❌ Error cleaning dock position:', error);
+    productionError('❌ Error cleaning dock position:', error);
   }
 }
 
@@ -140,7 +142,7 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
   const { connection, console } = deps;
 
   if (!inventoryObj || !Array.isArray(inventoryObj.items)) {
-    console.error('[MGTOOLS-FIX-D] Invalid inventory object passed to sorter.');
+    productionError('[MGTOOLS-FIX-D] Invalid inventory object passed to sorter.');
     return null;
   }
 
@@ -407,7 +409,7 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
     if (connection && typeof connection.sendMessage === 'function') {
       connection.sendMessage(msg);
     } else {
-      console.warn('[MGTOOLS-FIX-D] MagicCircle_RoomConnection not available — simulated move:', msg);
+      productionWarn('[MGTOOLS-FIX-D] MagicCircle_RoomConnection not available — simulated move:', msg);
     }
   }
 
@@ -428,13 +430,13 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
 
     const curIndex = findIndexInWorking(desiredItem);
     if (curIndex === -1) {
-      console.warn('[MGTOOLS-FIX-D] Could not find desired item in current inventory for', desiredItem);
+      productionWarn('[MGTOOLS-FIX-D] Could not find desired item in current inventory for', desiredItem);
       continue;
     }
 
     const moveId = getMoveItemId(desiredItem);
     if (!moveId) {
-      console.warn('[MGTOOLS-FIX-D] No moveItemId for', desiredItem);
+      productionWarn('[MGTOOLS-FIX-D] No moveItemId for', desiredItem);
       continue;
     }
 
@@ -448,7 +450,7 @@ export function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options
     sendMove(m.moveId, m.to);
   }
 
-  console.log('[MGTOOLS-FIX-D] ✅ Sort completed. Moves sent:', moves.length, moves);
+  productionLog('[MGTOOLS-FIX-D] ✅ Sort completed. Moves sent:', moves.length, moves);
   return targetOrder;
 }
 
@@ -582,7 +584,7 @@ export function initializeStandalone(deps) {
     productionLog('✅ Magic Garden Assistant Demo initialized successfully!');
     productionLog('🎯 Try the features - they work with realistic demo data');
   } catch (error) {
-    console.error('❌ Failed to initialize demo mode:', error);
+    productionError('❌ Failed to initialize demo mode:', error);
     debugError('STANDALONE_INIT', 'Demo initialization failed', error);
     UnifiedState.initialized = false;
   }
@@ -822,10 +824,10 @@ export function initializeScript(deps) {
           startIntervals();
           productionLog('✅ [FAILSAFE] Successfully started intervals');
         } else {
-          console.error('❌ [FAILSAFE] startIntervals function not found!');
+          productionError('❌ [FAILSAFE] startIntervals function not found!');
         }
       } catch (e) {
-        console.error('❌ [FAILSAFE] Could not start intervals:', e);
+        productionError('❌ [FAILSAFE] Could not start intervals:', e);
       }
     } else {
       productionLog('✅ [FAILSAFE] Intervals already running, no action needed');
@@ -984,7 +986,7 @@ export function continueInitialization(deps) {
       // Initialize instant feed buttons after UI is created AND atom cache is ready
       (async () => {
         try {
-          console.log('[MGTools Feed] 🔍 Waiting for Jotai atom cache before initializing feed buttons...');
+          productionLog('[MGTools Feed] 🔍 Waiting for Jotai atom cache before initializing feed buttons...');
 
           // Wait for atom cache to be ready (max 10 seconds)
           const maxWait = 10000;
@@ -995,7 +997,7 @@ export function continueInitialization(deps) {
             // Check if atom cache is ready (this is what we actually need!)
             if (targetWindow.jotaiAtomCache) {
               const elapsed = Date.now() - startTime;
-              console.log(`[MGTools Feed] ✅ Jotai atom cache ready after ${elapsed}ms`);
+              productionLog(`[MGTools Feed] ✅ Jotai atom cache ready after ${elapsed}ms`);
               UnifiedState.jotaiReady = true; // Mark as ready in UnifiedState
               atomCacheReady = true;
 
@@ -1003,9 +1005,9 @@ export function continueInitialization(deps) {
               if (!deps.jotaiStore) {
                 deps.jotaiStore = deps.captureJotaiStore();
                 if (deps.jotaiStore) {
-                  console.log('[MGTools Feed] ✅ Also captured Jotai store');
+                  productionLog('[MGTools Feed] ✅ Also captured Jotai store');
                 } else {
-                  console.log('[MGTools Feed] ℹ️ Store not captured, will use direct atom cache reading');
+                  productionLog('[MGTools Feed] ℹ️ Store not captured, will use direct atom cache reading');
                 }
               }
               break;
@@ -1016,14 +1018,14 @@ export function continueInitialization(deps) {
           }
 
           if (!atomCacheReady) {
-            console.warn('[MGTools Feed] ⚠️ Jotai atom cache not ready after timeout - initializing anyway');
+            productionWarn('[MGTools Feed] ⚠️ Jotai atom cache not ready after timeout - initializing anyway');
             UnifiedState.jotaiReady = false;
           }
 
           // Now initialize feed buttons
           initializeInstantFeedButtons();
         } catch (error) {
-          console.error('[MGTools] Error initializing instant feed buttons:', error);
+          productionError('[MGTools] Error initializing instant feed buttons:', error);
         }
       })();
 
@@ -1032,11 +1034,11 @@ export function continueInitialization(deps) {
         try {
           initializeSortInventoryButton();
         } catch (error) {
-          console.error('[MGTools] Error initializing sort inventory button:', error);
+          productionError('[MGTools] Error initializing sort inventory button:', error);
         }
       }, 1500); // Slightly longer delay to ensure inventory UI is ready
     } catch (error) {
-      console.error('❌ Error creating UI:', error);
+      productionError('❌ Error creating UI:', error);
 
       // Show visible error popup for user (especially important in Discord browser)
       try {
@@ -1064,7 +1066,7 @@ export function continueInitialization(deps) {
         document.body.appendChild(errorDiv);
       } catch (e) {
         // If even error display fails, log it
-        console.error('Failed to show error UI:', e);
+        productionError('Failed to show error UI:', e);
       }
 
       if (MGA_DEBUG) {
@@ -1157,7 +1159,9 @@ export function continueInitialization(deps) {
           });
         } else if (typeof overlays === 'object') {
           // It's a plain object (after JSON deserialization) - iterate using Object.entries
-          productionLog('[DATA-PERSISTENCE] ⚠️ Popouts overlays is a plain object (JSON deserialized), skipping iteration');
+          productionLog(
+            '[DATA-PERSISTENCE] ⚠️ Popouts overlays is a plain object (JSON deserialized), skipping iteration'
+          );
           // Note: Plain objects from JSON won't have DOM elements anyway, so skip is safe
         } else {
           debugLog('[DATA-PERSISTENCE] Unexpected popouts.overlays type:', typeof overlays);
@@ -1223,26 +1227,26 @@ export function continueInitialization(deps) {
 
     // Add global recovery function for users whose UI disappears
     targetWindow.MGA_SHOW_UI = function () {
-      console.log('%c🔧 MGTools Recovery', 'color: #4CAF50; font-weight: bold; font-size: 14px');
-      console.log('Clearing corrupted UI state...');
+      productionLog('%c🔧 MGTools Recovery', 'color: #4CAF50; font-weight: bold; font-size: 14px');
+      productionLog('Clearing corrupted UI state...');
       try {
         deps.localStorage.removeItem('mgh_toolbar_visible');
         deps.localStorage.removeItem('mgh_dock_position');
         deps.localStorage.removeItem('mgh_dock_orientation');
-        console.log('✅ State cleared. Reloading page...');
+        productionLog('✅ State cleared. Reloading page...');
         setTimeout(() => deps.location.reload(), 500);
       } catch (e) {
-        console.error('❌ Recovery failed:', e);
-        console.log('Try manually: localStorage.clear() then refresh');
+        productionError('❌ Recovery failed:', e);
+        productionLog('Try manually: localStorage.clear() then refresh');
       }
     };
 
     // Startup banner with recovery instructions
-    console.log(
+    productionLog(
       '%c🎮 MGTools v' + (typeof deps.GM_info !== 'undefined' ? deps.GM_info.script.version : '1.1.1') + ' Loaded',
       'color: #4CAF50; font-weight: bold; font-size: 14px'
     );
-    console.log('%c💡 UI not showing? Run in console: MGA_SHOW_UI()', 'color: #FFC107; font-size: 12px');
+    productionLog('%c💡 UI not showing? Run in console: MGA_SHOW_UI()', 'color: #FFC107; font-size: 12px');
 
     // Remove test UI after successful initialization
     const testUI =
@@ -1274,8 +1278,8 @@ export function continueInitialization(deps) {
       5000
     );
   } catch (error) {
-    console.error('❌ Failed to initialize Magic Garden Unified Assistant:', error);
-    console.error('Stack trace:', error.stack);
+    productionError('❌ Failed to initialize Magic Garden Unified Assistant:', error);
+    productionError('Stack trace:', error.stack);
     UnifiedState.initialized = false; // Allow retry
   }
 }
@@ -1316,10 +1320,10 @@ export function continueInitialization(deps) {
 export function initializeBasedOnEnvironment(deps) {
   const { detectEnvironment, initializeScript, waitForGameReady, initializeStandalone, console, productionLog } = deps;
 
-  console.log('🔍🔍🔍 [EXECUTION] ENTERED initializeBasedOnEnvironment()');
-  console.log('🔍 [EXECUTION] About to call detectEnvironment()');
+  productionLog('🔍🔍🔍 [EXECUTION] ENTERED initializeBasedOnEnvironment()');
+  productionLog('🔍 [EXECUTION] About to call detectEnvironment()');
   const environment = detectEnvironment();
-  console.log('🔍 [EXECUTION] detectEnvironment() returned:', environment);
+  productionLog('🔍 [EXECUTION] detectEnvironment() returned:', environment);
 
   productionLog('📊 Environment Analysis:', {
     domain: environment.domain,

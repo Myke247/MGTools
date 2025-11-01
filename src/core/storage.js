@@ -7,6 +7,8 @@
  *
  * @module core/storage
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ============================================================================
  * DEPENDENCIES
@@ -123,7 +125,7 @@ export const Storage = (() => {
         iframeStorage.removeItem(test);
 
         localStorageRef = iframeStorage;
-        console.log('✅ [STORAGE] Using iframe localStorage workaround');
+        productionLog('✅ [STORAGE] Using iframe localStorage workaround');
         return localStorageRef;
       } catch (iframeError) {
         // Fallback failed
@@ -166,16 +168,16 @@ export const Storage = (() => {
     // Test storage types in order of preference
     if (testGMStorage()) {
       storageType = storageTypes.GM;
-      console.log('✅ [STORAGE] Using GM storage (persistent across domains)');
+      productionLog('✅ [STORAGE] Using GM storage (persistent across domains)');
     } else if (getLocalStorage()) {
       storageType = storageTypes.LOCAL;
-      console.log('✅ [STORAGE] Using localStorage');
+      productionLog('✅ [STORAGE] Using localStorage');
     } else if (getSessionStorage()) {
       storageType = storageTypes.SESSION;
-      console.warn('⚠️ [STORAGE] Using sessionStorage (data lost on tab close)');
+      productionWarn('⚠️ [STORAGE] Using sessionStorage (data lost on tab close)');
     } else {
       storageType = storageTypes.MEMORY;
-      console.warn('⚠️ [STORAGE] Using memory storage (data lost on refresh)');
+      productionWarn('⚠️ [STORAGE] Using memory storage (data lost on refresh)');
     }
 
     initialized = true;
@@ -219,7 +221,7 @@ export const Storage = (() => {
 
       return value !== null ? value : defaultValue;
     } catch (e) {
-      console.error('[STORAGE] getItem error:', e);
+      productionError('[STORAGE] getItem error:', e);
       return defaultValue;
     }
   }
@@ -254,13 +256,13 @@ export const Storage = (() => {
 
       return true;
     } catch (e) {
-      console.error('[STORAGE] setItem error:', e);
+      productionError('[STORAGE] setItem error:', e);
 
       // Try fallback to memory if other storage fails
       if (storageType !== storageTypes.MEMORY) {
         try {
           memoryStore[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
-          console.warn('[STORAGE] Fallback to memory for key:', key);
+          productionWarn('[STORAGE] Fallback to memory for key:', key);
           return true;
         } catch (e2) {}
       }
@@ -299,7 +301,7 @@ export const Storage = (() => {
 
       return true;
     } catch (e) {
-      console.error('[STORAGE] removeItem error:', e);
+      productionError('[STORAGE] removeItem error:', e);
       return false;
     }
   }
@@ -315,7 +317,7 @@ export const Storage = (() => {
       switch (storageType) {
         case storageTypes.GM:
           // GM storage doesn't have a clear method, would need to track keys
-          console.warn('[STORAGE] GM storage clear not implemented');
+          productionWarn('[STORAGE] GM storage clear not implemented');
           break;
         case storageTypes.LOCAL:
           localStorageRef.clear();
@@ -330,7 +332,7 @@ export const Storage = (() => {
 
       return true;
     } catch (e) {
-      console.error('[STORAGE] clear error:', e);
+      productionError('[STORAGE] clear error:', e);
       return false;
     }
   }
@@ -386,11 +388,11 @@ export const localStorage = {
   removeItem: key => Storage.remove(key),
   clear: () => Storage.clear(),
   get length() {
-    console.warn('[STORAGE] localStorage.length not supported in unified storage');
+    productionWarn('[STORAGE] localStorage.length not supported in unified storage');
     return 0;
   },
   key: _index => {
-    console.warn('[STORAGE] localStorage.key() not supported in unified storage');
+    productionWarn('[STORAGE] localStorage.key() not supported in unified storage');
     return null;
   }
 };
@@ -428,10 +430,10 @@ export function isGMApiAvailable() {
           if (typeof logWarn === 'function') {
             logWarn('GM-STORAGE', 'GM API functions not defined - using localStorage fallback');
           } else {
-            console.warn('⚠️ [GM-STORAGE] GM API not available - using localStorage fallback');
+            productionWarn('⚠️ [GM-STORAGE] GM API not available - using localStorage fallback');
           }
         } catch (e) {
-          console.warn('⚠️ [GM-STORAGE] GM API not available - using localStorage fallback');
+          productionWarn('⚠️ [GM-STORAGE] GM API not available - using localStorage fallback');
         }
         gmApiWarningShown = true;
       }
@@ -461,10 +463,10 @@ export function isGMApiAvailable() {
           if (typeof logInfo === 'function') {
             logInfo('GM-STORAGE', 'GM API fully functional');
           } else {
-            console.log('✅ [GM-STORAGE] GM API fully functional');
+            productionLog('✅ [GM-STORAGE] GM API fully functional');
           }
         } catch (e) {
-          console.log('✅ [GM-STORAGE] GM API fully functional');
+          productionLog('✅ [GM-STORAGE] GM API fully functional');
         }
         return true;
       } else {
@@ -477,10 +479,10 @@ export function isGMApiAvailable() {
           if (typeof logWarn === 'function') {
             logWarn('GM-STORAGE', 'GM API blocked by security policy - using localStorage fallback');
           } else {
-            console.warn('⚠️ [GM-STORAGE] GM API blocked - using localStorage fallback');
+            productionWarn('⚠️ [GM-STORAGE] GM API blocked - using localStorage fallback');
           }
         } catch (e2) {
-          console.warn('⚠️ [GM-STORAGE] GM API blocked - using localStorage fallback');
+          productionWarn('⚠️ [GM-STORAGE] GM API blocked - using localStorage fallback');
         }
         gmApiWarningShown = true;
       }
@@ -491,7 +493,7 @@ export function isGMApiAvailable() {
     gmApiCheckResult = false;
     gmApiWarningShown = true;
     try {
-      console.warn('⚠️ [GM-STORAGE] Unexpected error testing GM API - using localStorage fallback');
+      productionWarn('⚠️ [GM-STORAGE] Unexpected error testing GM API - using localStorage fallback');
     } catch (e) {
       // Even console might fail on heavily locked down devices
     }
@@ -517,7 +519,7 @@ export function MGA_loadJSON(key, fallback = null) {
   let keyLocal = key;
   // Enforce MGA_ namespace
   if (keyLocal && !String(keyLocal).startsWith('MGA_')) {
-    console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to load with non-MGA key: ${keyLocal}`);
+    productionError(`❌ [MGA-ISOLATION] CRITICAL: Attempted to load with non-MGA key: ${keyLocal}`);
     try {
       console.trace();
     } catch (_) {}
@@ -627,7 +629,7 @@ export function MGA_loadJSON(key, fallback = null) {
     // Nothing usable, honor fallback
     return typeof fallback === 'undefined' ? null : fallback;
   } catch (err) {
-    console.error('[MGA_loadJSON] Unexpected failure for key', keyLocal, err);
+    productionError('[MGA_loadJSON] Unexpected failure for key', keyLocal, err);
     return typeof fallback === 'undefined' ? null : fallback;
   }
 }
@@ -669,8 +671,8 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
 
   // CRITICAL: Ensure we never use MainScript keys
   if (keyLocal && !keyLocal.startsWith('MGA_')) {
-    console.error(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
-    console.error(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
+    productionError(`❌ [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
+    productionError(`❌ [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
     console.trace();
     keyLocal = 'MGA_' + keyLocal;
   }
@@ -744,7 +746,7 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
     // Enhanced verification with deep check
     const verification = GM_getValue(keyLocal, null);
     if (!verification) {
-      console.error(`❌ [GM-STORAGE] Save verification failed for ${keyLocal} - no data retrieved!`);
+      productionError(`❌ [GM-STORAGE] Save verification failed for ${keyLocal} - no data retrieved!`);
 
       // Retry logic
       if (retryCount < MAX_RETRIES - 1) {
@@ -759,7 +761,7 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
       }
 
       // Final attempt failed - show user alert
-      console.error(`❌ [GM-STORAGE] All retry attempts failed for ${keyLocal}`);
+      productionError(`❌ [GM-STORAGE] All retry attempts failed for ${keyLocal}`);
       if (keyLocal === 'MGA_petPresets' || keyLocal === 'MGA_seedsToDelete') {
         alert(`⚠️ Failed to save ${keyLocal.replace('MGA_', '')}! Your changes may not persist.`);
       }
@@ -800,8 +802,8 @@ export function MGA_saveJSON(key, value, retryCount = 0) {
 
     return true;
   } catch (error) {
-    console.error(`❌ [GM-STORAGE] Failed to save ${keyLocal}:`, error);
-    console.error(`❌ [GM-STORAGE] Error details:`, {
+    productionError(`❌ [GM-STORAGE] Failed to save ${keyLocal}:`, error);
+    productionError(`❌ [GM-STORAGE] Error details:`, {
       name: error.name,
       message: error.message,
       gmApiAvailable: typeof GM_setValue !== 'undefined',
@@ -886,7 +888,7 @@ export function MGA_saveJSON_localStorage_fallback(key, value) {
       }
       return true;
     } else {
-      console.error(`[FALLBACK] ${StorageManager.storageType} save verification failed for ${key}`);
+      productionError(`[FALLBACK] ${StorageManager.storageType} save verification failed for ${key}`);
       return false;
     }
   } catch (error) {
@@ -895,9 +897,9 @@ export function MGA_saveJSON_localStorage_fallback(key, value) {
       error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('exceeded');
 
     if (isQuotaError) {
-      console.error(`[FALLBACK] localStorage quota exceeded for ${key}!`);
-      console.error(`[FALLBACK] Try clearing browser console history or other localStorage data`);
-      console.error(`[FALLBACK] In Chrome DevTools: Application > Storage > Clear site data`);
+      productionError(`[FALLBACK] localStorage quota exceeded for ${key}!`);
+      productionError(`[FALLBACK] Try clearing browser console history or other localStorage data`);
+      productionError(`[FALLBACK] In Chrome DevTools: Application > Storage > Clear site data`);
 
       // Alert user for critical data
       if (key === 'MGA_petPresets' || key === 'MGA_seedsToDelete' || key === 'MGA_data') {
@@ -906,7 +908,7 @@ export function MGA_saveJSON_localStorage_fallback(key, value) {
         );
       }
     } else {
-      console.error(`[FALLBACK] localStorage save failed for ${key}:`, error);
+      productionError(`[FALLBACK] localStorage save failed for ${key}:`, error);
     }
     return false;
   }
@@ -1020,10 +1022,10 @@ export function _MGA_syncStorageBothWays() {
           }
         }
       } catch (innerErr) {
-        console.error('[STORAGE-SYNC] Error while syncing key', key, innerErr);
+        productionError('[STORAGE-SYNC] Error while syncing key', key, innerErr);
       }
     });
   } catch (err) {
-    console.error('[STORAGE-SYNC] Sync failed:', err);
+    productionError('[STORAGE-SYNC] Sync failed:', err);
   }
 }

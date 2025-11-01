@@ -9,6 +9,8 @@
  *
  * @module init/event-handlers
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ============================================================================
  * AUTO-SAVE INTERVAL
@@ -37,7 +39,7 @@ export function setupAutoSave(dependencies = {}) {
   } = dependencies;
 
   if (!setManagedInterval) {
-    console.warn('⚠️ setManagedInterval not provided, auto-save cannot be setup');
+    productionWarn('⚠️ setManagedInterval not provided, auto-save cannot be setup');
     return;
   }
 
@@ -46,7 +48,7 @@ export function setupAutoSave(dependencies = {}) {
     'autoSave',
     () => {
       if (!UnifiedState || !MGA_saveJSON) {
-        console.warn('⚠️ UnifiedState or MGA_saveJSON not available for auto-save');
+        productionWarn('⚠️ UnifiedState or MGA_saveJSON not available for auto-save');
         return;
       }
 
@@ -101,7 +103,7 @@ export function setupCleanupHandler(dependencies = {}) {
   } = dependencies;
 
   if (!targetWindow) {
-    console.warn('⚠️ targetWindow not available, cleanup handler cannot be setup');
+    productionWarn('⚠️ targetWindow not available, cleanup handler cannot be setup');
     return;
   }
 

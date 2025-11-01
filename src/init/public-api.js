@@ -15,6 +15,8 @@
  * @version 1.3.2
  * @since 2024-10-07
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 // ============================================================================
 // SECTION 1: ABILITY LOG PERSISTENCE WORKAROUNDS
@@ -791,7 +793,7 @@ export function createPublicAPI(dependencies) {
        * @returns {boolean} True if connection available
        * @example
        * if (MGA.debug.checkConnection()) {
-       *   console.log('Connected to game');
+       *   productionLog('Connected to game');
        * }
        */
       checkConnection: () => {
@@ -808,7 +810,7 @@ export function createPublicAPI(dependencies) {
        * @returns {boolean} True if send succeeded
        * @example
        * if (MGA.debug.testSendMessage()) {
-       *   console.log('Send message works');
+       *   productionLog('Send message works');
        * }
        */
       testSendMessage: () => {
@@ -1092,7 +1094,7 @@ export function createPublicAPI(dependencies) {
           }
           productionLog('✅ Pet presets imported successfully');
         } catch (e) {
-          console.error('❌ Failed to import pet presets:', e);
+          productionError('❌ Failed to import pet presets:', e);
         }
       },
 
@@ -1128,7 +1130,7 @@ export function createPublicAPI(dependencies) {
           updateTabContent();
           productionLog('✅ All data imported successfully');
         } catch (e) {
-          console.error('❌ Failed to import data:', e);
+          productionError('❌ Failed to import data:', e);
         }
       }
     },
@@ -1268,7 +1270,7 @@ export function createPublicAPI(dependencies) {
        * @returns {Object} Pet state from UnifiedState, window, and Room
        * @example
        * const pets = MGA.debugControls.checkPets();
-       * console.log('Active pets:', pets.unifiedState);
+       * productionLog('Active pets:', pets.unifiedState);
        */
       checkPets: () => {
         productionLog('🐾 [DEBUG] Current pet state:');
@@ -1287,7 +1289,7 @@ export function createPublicAPI(dependencies) {
        * @returns {Array} Updated pet list
        * @example
        * const pets = MGA.debugControls.refreshPets();
-       * console.log('Refreshed pets:', pets);
+       * productionLog('Refreshed pets:', pets);
        */
       refreshPets: () => {
         productionLog('🔄 [DEBUG] Manually refreshing pets from room state');
@@ -1301,7 +1303,7 @@ export function createPublicAPI(dependencies) {
        * @returns {Object} Interval status object
        * @example
        * const intervals = MGA.debugControls.listIntervals();
-       * console.log('Active intervals:', intervals);
+       * productionLog('Active intervals:', intervals);
        */
       listIntervals: () => {
         productionLog('⏰ [DEBUG] Active managed intervals:');

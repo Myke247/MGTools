@@ -1,102 +1,23 @@
 /**
  * Shop System Module
  *
- * Comprehensive shop management system for Magic Garden:
- * - Seeds, eggs, tools, and decor shop monitoring
+ * Comprehensive shop management system for Magic Garden.
+ *
+ * Features:
+ * - Shop constants and pricing data
+ * - Inventory and stock management with 100-slot cap tracking
  * - Shop UI windows and overlays (draggable, persistent)
- * - Purchase logic with inventory management
+ * - Purchase logic with validation and visual feedback
  * - Restock detection and notifications
- * - Watch list integration
- *
- * This module is extracted incrementally across 6 phases:
- *
- * Phase 1 (Complete):
- * - Shop Constants & Utilities - ~246 lines
- *   • SHOP_IMAGE_MAP - Discord CDN URLs for item sprites (~45 lines)
- *   • SHOP_COLOR_GROUPS - Rarity color groupings (~7 lines)
- *   • SHOP_RAINBOW_ITEMS - Celestial seed list (~1 line)
- *   • SHOP_PRICES - Price data for all items (~50 lines)
- *   • SHOP_DISPLAY_NAMES - Human-readable name overrides (~7 lines)
- *   • formatShopPrice() - Format prices with k/m/b notation (~17 lines)
- *   • normalizeShopKey() - Normalize strings for comparison (~5 lines)
- *   • getShopItemColorClass() - Get rarity color class (~24 lines)
- *   • preloadShopImages() - Image preloading for performance (~7 lines)
- *   • flashPurchaseFeedback() - Visual purchase feedback (~75 lines)
- *   • showFloatingMsg() - Floating message helper (~8 lines)
- *
- * Phase 2 (Complete):
- * - Inventory & Stock Management - ~363 lines
- *   • localPurchaseTrackerState - Module-level state (~4 lines)
- *   • loadPurchaseTracker() - Load tracker from storage (~27 lines)
- *   • savePurchaseTracker() - Save tracker to storage (~15 lines)
- *   • trackLocalPurchase() - Track item purchase (~20 lines)
- *   • getLocalPurchaseCount() - Get purchase count (~23 lines)
- *   • resetLocalPurchases() - Reset on restock (~24 lines)
- *   • isInventoryFull() - Check 100-slot cap (~10 lines)
- *   • getInventoryItemCount() - Count items in inventory (~18 lines)
- *   • getItemStackCap() - Get stack capacity limits (~13 lines)
- *   • flashInventoryFullFeedback() - Red flash animation (~33 lines)
- *   • getItemStock() - Get current shop stock (~53 lines)
- *
- * Phase 3 (Complete):
- * - Shop Item Elements & Purchase Logic - ~405 lines
- *   • isShopDataReady() - Check if shop data loaded (~3 lines)
- *   • waitForShopData() - Polling wait for shop data (~26 lines)
- *   • createShopItemElement() - Create shop item UI element (~112 lines)
- *   • buyItem() - Purchase item with validation (~189 lines)
- *
- * Phase 4 (Complete):
- * - Shop Windows & Overlays - ~722 lines
- *   • Module-level state - Window state management (~6 lines)
- *   • SEED_SPECIES_SHOP - Seed item list (~30 lines)
- *   • EGG_IDS_SHOP - Egg item list (~1 line)
- *   • refreshAllShopWindows() - Refresh all shop UIs (~8 lines)
- *   • createShopOverlay() - Create persistent backdrop (~16 lines)
- *   • createShopSidebar() - Create sidebar UI (~84 lines)
- *   • updateInventoryCounters() - Update inventory displays (~36 lines)
- *   • startInventoryCounter() - Start counter updates (~9 lines)
- *   • stopInventoryCounter() - Stop counter updates (~11 lines)
- *   • toggleShopWindows() - Show/hide shop windows (~24 lines)
- *   • createShopSidebars() - Create both sidebars (~10 lines)
- *   • createShopWindow() - Create floating window (~115 lines)
- *   • makeShopWindowDraggable() - Drag-and-drop logic (~47 lines)
- *   • setupShopWindowHandlers() - Event handlers + rendering (~293 lines)
- *   • getItemValue() - Item value lookup for sorting (~46 lines)
- *
- * Phase 5 (Complete):
- * - Shop Tab Content - ~438 lines
- *   • getShopTabContent() - Generate tab HTML (~72 lines)
- *   • setupShopTabHandlers() - Tab handlers with nested functions (~366 lines)
- *     - createShopItem() - Tab item UI (~52 lines)
- *     - getTabItemStock() - Tab stock lookup (~30 lines)
- *     - buyTabItem() - Tab purchase logic (~157 lines)
- *     - applyStockFilter() - Filter by stock (~10 lines)
- *     - Auto-refresh interval (~28 lines)
- *
- * Phase 6 (Complete):
- * - Shop Monitoring & Restock Detection - ~863 lines
- *   • Module-level state - Watcher state management (~4 lines)
- *   • checkForWatchedItems() - Scan shops for watched items (~518 lines)
- *     - Edge-based restock detection (pattern analysis)
- *     - Batch notification system
- *     - Supports seeds, eggs, and decor shops
- *     - Internal state management with closures
- *   • scheduleRefresh() - Debounced shop refresh (~14 lines)
- *   • handleEggRestockDetection() - Pattern-based egg restock (~33 lines)
- *   • initializeToolRestockWatcher() - Tool restock monitoring (~44 lines)
- *   • initializeShopWatcher() - Main watcher system (~156 lines)
- *     - Nested watchShopData() - Global shop monitoring
- *     - Proxy-based globalShop replacement detection
- *     - Lightweight 5s polling (no MutationObserver for performance)
- *
- * Total Extracted: ~3,037 lines (ALL 6 PHASES COMPLETE!)
- * Progress: 100% complete (6/6 phases) - SHOP EXTRACTION FINISHED!
+ * - Watch list integration for automated monitoring
  *
  * @module features/shop
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 // ============================================================================
-// PHASE 1: SHOP CONSTANTS & UTILITIES
+// SHOP CONSTANTS & UTILITIES
 // ============================================================================
 
 /**
@@ -2143,7 +2064,7 @@ export function setupShopWindowHandlers(windowEl, type, dependencies = {}) {
           timerWasDecreasing = false;
 
           if (UnifiedState?.data?.settings?.debugMode) {
-            console.log(
+            productionLog(
               `[SHOP DEBUG] Restock detected for ${type}! Pattern: ${lastTimerValue}s → ${currentTimer}s (was decreasing, then increased)`
             );
           }
@@ -3554,7 +3475,7 @@ export function checkShopRestock(dependencies = {}) {
 // ============================================================================
 
 export default {
-  // Phase 1: Constants & Utilities
+  // Constants & Utilities
   SHOP_IMAGE_MAP,
   SHOP_COLOR_GROUPS,
   SHOP_RAINBOW_ITEMS,
@@ -3566,7 +3487,7 @@ export default {
   preloadShopImages,
   flashPurchaseFeedback,
   showFloatingMsg,
-  // Phase 2: Inventory & Stock Management
+  // Inventory & Stock Management
   loadPurchaseTracker,
   savePurchaseTracker,
   trackLocalPurchase,
@@ -3577,12 +3498,12 @@ export default {
   getItemStackCap,
   flashInventoryFullFeedback,
   getItemStock,
-  // Phase 3: Shop Item Elements & Purchase Logic
+  // Shop Item Elements & Purchase Logic
   isShopDataReady,
   waitForShopData,
   createShopItemElement,
   buyItem,
-  // Phase 4: Shop Windows & Overlays
+  // Shop Windows & Overlays
   SEED_SPECIES_SHOP,
   EGG_IDS_SHOP,
   refreshAllShopWindows,
@@ -3597,10 +3518,10 @@ export default {
   makeShopWindowDraggable,
   setupShopWindowHandlers,
   getItemValue,
-  // Phase 5: Shop Tab Content
+  // Shop Tab Content
   getShopTabContent,
   setupShopTabHandlers,
-  // Phase 6: Shop Monitoring & Restock Detection
+  // Shop Monitoring & Restock Detection
   checkForWatchedItems,
   checkShopRestock,
   scheduleRefresh,

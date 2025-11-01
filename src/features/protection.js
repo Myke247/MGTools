@@ -52,8 +52,7 @@
 // import { UnifiedState } from '../state/unified-state.js';
 
 /* ====================================================================================
- * PROTECTION TAB UI (Phase 5)
- * ====================================================================================
+ * PROTECTION TAB UI * ====================================================================================
  */
 
 /**
@@ -206,14 +205,14 @@ export function setupProtectTabHandlers(context = document, dependencies = {}) {
   // Diagnostic logging
   const speciesCheckboxes = context.querySelectorAll('.protect-species-checkbox');
   const mutationCheckboxes = context.querySelectorAll('.protect-mutation-checkbox');
-  console.log(
+  productionLog(
     `✅ [Protect] Found ${speciesCheckboxes.length} species checkboxes, ${mutationCheckboxes.length} mutation checkboxes`
   );
 
   // Handle species checkbox changes
   context.querySelectorAll('.protect-species-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', e => {
-      console.log('[Protect] 🔔 Species checkbox changed!', e.target.value, 'checked:', e.target.checked);
+      productionLog('[Protect] 🔔 Species checkbox changed!', e.target.value, 'checked:', e.target.checked);
       const species = e.target.value;
       if (e.target.checked) {
         if (!lockedCrops.species.includes(species)) {
@@ -222,9 +221,9 @@ export function setupProtectTabHandlers(context = document, dependencies = {}) {
       } else {
         lockedCrops.species = lockedCrops.species.filter(s => s !== species);
       }
-      console.log('[Protect] Saving species change:', species, e.target.checked);
+      productionLog('[Protect] Saving species change:', species, e.target.checked);
       MGA_saveJSON('MGA_data', UnifiedState.data);
-      console.log('[Protect] Save completed');
+      productionLog('[Protect] Save completed');
       updateProtectStatusFn(context, dependencies);
       applyHarvestRuleFn(dependencies);
     });
@@ -233,7 +232,7 @@ export function setupProtectTabHandlers(context = document, dependencies = {}) {
   // Handle mutation checkbox changes
   context.querySelectorAll('.protect-mutation-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', e => {
-      console.log('[Protect] 🔔 Mutation checkbox changed!', e.target.value, 'checked:', e.target.checked);
+      productionLog('[Protect] 🔔 Mutation checkbox changed!', e.target.value, 'checked:', e.target.checked);
       const mutation = e.target.value;
 
       // Special handling for "Lock All Mutations" - it's a "select all" toggle
@@ -284,9 +283,9 @@ export function setupProtectTabHandlers(context = document, dependencies = {}) {
         }
       }
 
-      console.log('[Protect] Saving mutation change:', mutation, e.target.checked);
+      productionLog('[Protect] Saving mutation change:', mutation, e.target.checked);
       MGA_saveJSON('MGA_data', UnifiedState.data);
-      console.log('[Protect] Save completed');
+      productionLog('[Protect] Save completed');
       updateProtectStatusFn(context, dependencies);
       applyHarvestRuleFn(dependencies);
     });
@@ -364,14 +363,14 @@ export function setupProtectTabHandlers(context = document, dependencies = {}) {
   }
 
   // Add handler for frozen pickup checkbox
-  console.log('[Protect-Debug] 🔍 Looking for #allow-frozen-pickup checkbox in context:', context);
+  productionLog('[Protect-Debug] 🔍 Looking for #allow-frozen-pickup checkbox in context:', context);
   const frozenCheckbox = context.querySelector('#allow-frozen-pickup');
-  console.log('[Protect-Debug] 📋 Frozen checkbox found?', !!frozenCheckbox, frozenCheckbox);
+  productionLog('[Protect-Debug] 📋 Frozen checkbox found?', !!frozenCheckbox, frozenCheckbox);
 
   if (frozenCheckbox) {
-    console.log('[Protect-Debug] ✅ Attaching change event handler to frozen checkbox');
+    productionLog('[Protect-Debug] ✅ Attaching change event handler to frozen checkbox');
     frozenCheckbox.addEventListener('change', e => {
-      console.log('[Protect-Debug] 🔔 FROZEN CHECKBOX CHANGED!', e.target.checked);
+      productionLog('[Protect-Debug] 🔔 FROZEN CHECKBOX CHANGED!', e.target.checked);
       if (!UnifiedState.data.protectionSettings) {
         UnifiedState.data.protectionSettings = {};
       }
@@ -380,9 +379,9 @@ export function setupProtectTabHandlers(context = document, dependencies = {}) {
       productionLog(`❄️ [PROTECTION] Frozen exception: ${e.target.checked ? 'enabled' : 'disabled'}`);
       applyHarvestRuleFn(dependencies);
     });
-    console.log('[Protect-Debug] ✅ Frozen checkbox handler attached successfully');
+    productionLog('[Protect-Debug] ✅ Frozen checkbox handler attached successfully');
   } else {
-    console.warn('[Protect-Debug] ⚠️ Frozen checkbox NOT FOUND in context!');
+    productionWarn('[Protect-Debug] ⚠️ Frozen checkbox NOT FOUND in context!');
   }
 
   // Initial status update
@@ -392,8 +391,7 @@ export function setupProtectTabHandlers(context = document, dependencies = {}) {
 }
 
 /* ====================================================================================
- * PROTECTION STATUS & DISPLAY (Phase 6)
- * ====================================================================================
+ * PROTECTION STATUS & DISPLAY * ====================================================================================
  */
 
 /**
@@ -452,8 +450,7 @@ export function updateProtectStatus(context = document, dependencies = {}) {
 }
 
 /* ====================================================================================
- * PROTECTION HOOKS & LOGIC (Phase 7)
- * ====================================================================================
+ * PROTECTION HOOKS & LOGIC * ====================================================================================
  */
 
 /**
@@ -531,7 +528,7 @@ export function applySellBlockThreshold(dependencies = {}) {
   } = dependencies;
 
   targetWindow.sellBlockThreshold = UnifiedState.data.sellBlockThreshold || 1.0;
-  console.log(`✅ Sell block threshold set to ${targetWindow.sellBlockThreshold}x`);
+  productionLog(`✅ Sell block threshold set to ${targetWindow.sellBlockThreshold}x`);
 }
 
 /**
@@ -568,18 +565,18 @@ export function initializeProtectionHooks(dependencies = {}) {
     if (!targetWindow.MagicCircle_RoomConnection) {
       if (roomConnectionRetries < MAX_ROOM_CONNECTION_RETRIES) {
         roomConnectionRetries++;
-        console.warn(`⏳ Waiting for RoomConnection (${roomConnectionRetries}/${MAX_ROOM_CONNECTION_RETRIES})...`);
+        productionWarn(`⏳ Waiting for RoomConnection (${roomConnectionRetries}/${MAX_ROOM_CONNECTION_RETRIES})...`);
         setTimeout(() => initializeProtectionHooks(dependencies), 1000);
         return;
       }
-      console.warn('⚠️ RoomConnection not found after max retries - continuing without protection hooks');
+      productionWarn('⚠️ RoomConnection not found after max retries - continuing without protection hooks');
       // Continue without it - non-critical feature
       return;
     }
 
     // Reset counter on success
     roomConnectionRetries = 0;
-    console.log('✅ MagicCircle_RoomConnection found - initializing protection hooks');
+    productionLog('✅ MagicCircle_RoomConnection found - initializing protection hooks');
 
     const originalSendMessage = targetWindow.MagicCircle_RoomConnection.sendMessage.bind(
       targetWindow.MagicCircle_RoomConnection
@@ -607,7 +604,7 @@ export function initializeProtectionHooks(dependencies = {}) {
           }
         } else if (msgType === 'PurchaseTool' && message.toolId) {
           if (UnifiedState.data.settings?.debugMode) {
-            console.log(`🔧 [PURCHASE-INTERCEPT] Tool Purchase Detected!`, {
+            productionLog(`🔧 [PURCHASE-INTERCEPT] Tool Purchase Detected!`, {
               toolId: message.toolId,
               toolIdType: typeof message.toolId,
               fullMessage: JSON.stringify(message)
@@ -616,16 +613,16 @@ export function initializeProtectionHooks(dependencies = {}) {
           if (typeof trackLocalPurchase === 'function') {
             trackLocalPurchase(message.toolId, 'tool', 1);
             if (UnifiedState.data.settings?.debugMode) {
-              console.log(`🔧 [PURCHASE-INTERCEPT] Called trackLocalPurchase with: "${message.toolId}"`);
+              productionLog(`🔧 [PURCHASE-INTERCEPT] Called trackLocalPurchase with: "${message.toolId}"`);
             }
           } else {
-            console.error(`❌ [PURCHASE-INTERCEPT] trackLocalPurchase function not available!`);
+            productionError(`❌ [PURCHASE-INTERCEPT] trackLocalPurchase function not available!`);
           }
         }
 
         // Check sell blocking
         if (isSellMessage && friendBonus < targetWindow.sellBlockThreshold) {
-          console.warn(
+          productionWarn(
             `[SellBlock] Blocked ${msgType} (friendBonus=${friendBonus} < ${targetWindow.sellBlockThreshold})`
           );
           return;
@@ -636,29 +633,29 @@ export function initializeProtectionHooks(dependencies = {}) {
           const tile = targetWindow.myGarden?.garden?.tileObjects?.[message.slot];
           const slotData = tile?.slots?.[message.slotsIndex];
 
-          console.log(`[HarvestCheck] Attempting harvest: slot=${message.slot}, index=${message.slotsIndex}`);
-          console.log(`[HarvestCheck] Tile data:`, tile);
-          console.log(`[HarvestCheck] Slot data:`, slotData);
+          productionLog(`[HarvestCheck] Attempting harvest: slot=${message.slot}, index=${message.slotsIndex}`);
+          productionLog(`[HarvestCheck] Tile data:`, tile);
+          productionLog(`[HarvestCheck] Slot data:`, slotData);
 
           if (slotData) {
             const species = slotData.species;
             const slotMutations = slotData.mutations || [];
 
-            console.log(`[HarvestCheck] Species: ${species}, Mutations:`, slotMutations);
-            console.log(`[HarvestCheck] currentHarvestRule exists:`, !!targetWindow.currentHarvestRule);
+            productionLog(`[HarvestCheck] Species: ${species}, Mutations:`, slotMutations);
+            productionLog(`[HarvestCheck] currentHarvestRule exists:`, !!targetWindow.currentHarvestRule);
 
             if (
               targetWindow.currentHarvestRule &&
               !targetWindow.currentHarvestRule({ species, mutations: slotMutations })
             ) {
-              console.log(`🔒 BLOCKED HarvestCrop: ${species} with mutations [${slotMutations.join(', ')}]`);
+              productionLog(`🔒 BLOCKED HarvestCrop: ${species} with mutations [${slotMutations.join(', ')}]`);
               return;
             }
-            console.log(`✅ ALLOWED HarvestCrop: ${species} with mutations [${slotMutations.join(', ')}]`);
+            productionLog(`✅ ALLOWED HarvestCrop: ${species} with mutations [${slotMutations.join(', ')}]`);
 
             // DIAGNOSTIC: Log when debug mode is enabled
             if (UnifiedState.data.settings?.debugMode) {
-              console.log('[FIX_HARVEST] Harvest handler called for:', species, 'Will attempt sync in 100ms...');
+              productionLog('[FIX_HARVEST] Harvest handler called for:', species, 'Will attempt sync in 100ms...');
             }
 
             // Sync slot index after harvest - works for both single and multi-harvest crops
@@ -676,7 +673,7 @@ export function initializeProtectionHooks(dependencies = {}) {
                   // Use globally exposed sync function
                   if (!window.syncSlotIndexFromGame) {
                     if (UnifiedState.data.settings?.debugMode) {
-                      console.error('[FIX_HARVEST] ERROR: syncSlotIndexFromGame not found on window!');
+                      productionError('[FIX_HARVEST] ERROR: syncSlotIndexFromGame not found on window!');
                     }
                     return;
                   }
@@ -685,7 +682,7 @@ export function initializeProtectionHooks(dependencies = {}) {
 
                   // Log slot sync when debug mode is enabled
                   if (UnifiedState.data.settings?.debugMode) {
-                    console.log('[FIX_HARVEST] Post-harvest slot sync:', {
+                    productionLog('[FIX_HARVEST] Post-harvest slot sync:', {
                       species,
                       preHarvest: preHarvestIndex,
                       postHarvest: newIndex !== null ? newIndex : preHarvestIndex,
@@ -703,17 +700,17 @@ export function initializeProtectionHooks(dependencies = {}) {
                     requestAnimationFrame(() => {
                       insertTurtleEstimate();
                       if (UnifiedState.data.settings?.debugMode) {
-                        console.log('[FIX_HARVEST] Refreshed value display');
+                        productionLog('[FIX_HARVEST] Refreshed value display');
                       }
                     });
                   }
                 } catch (error) {
-                  console.error('[FIX_HARVEST] Sync error:', error);
+                  productionError('[FIX_HARVEST] Sync error:', error);
                 }
               }, 100); // Small delay to let game update atom
             });
           } else {
-            console.warn(`[HarvestCheck] No slot data found for slot ${message.slot}, index ${message.slotsIndex}`);
+            productionWarn(`[HarvestCheck] No slot data found for slot ${message.slot}, index ${message.slotsIndex}`);
           }
         }
 
@@ -723,8 +720,8 @@ export function initializeProtectionHooks(dependencies = {}) {
           const petId = message.itemId || message.petId;
 
           if (UnifiedState.data.settings?.debugMode) {
-            console.log(`🐾 [PetSellDebug] Message type: ${msgType}`, message);
-            console.log(`🐾 [PetSellDebug] Locked abilities:`, lockedAbilities);
+            productionLog(`🐾 [PetSellDebug] Message type: ${msgType}`, message);
+            productionLog(`🐾 [PetSellDebug] Locked abilities:`, lockedAbilities);
           }
 
           if (lockedAbilities.length > 0 && petId) {
@@ -742,7 +739,7 @@ export function initializeProtectionHooks(dependencies = {}) {
             }
 
             if (UnifiedState.data.settings?.debugMode) {
-              console.log(`🐾 [PetSellDebug] Found pet:`, pet);
+              productionLog(`🐾 [PetSellDebug] Found pet:`, pet);
             }
 
             if (pet) {
@@ -751,14 +748,14 @@ export function initializeProtectionHooks(dependencies = {}) {
               const petMutations = pet.mutations || [];
 
               if (UnifiedState.data.settings?.debugMode) {
-                console.log(`🐾 [PetSellDebug] Pet mutations:`, petMutations);
+                productionLog(`🐾 [PetSellDebug] Pet mutations:`, petMutations);
 
                 // Check petAbility atom as backup
                 let abilityFromAtom = null;
                 if (UnifiedState.atoms.petAbility && UnifiedState.atoms.petAbility[petId]) {
                   const abilityData = UnifiedState.atoms.petAbility[petId];
                   abilityFromAtom = abilityData.lastAbilityTrigger?.abilityId;
-                  console.log(`🐾 [PetSellDebug] Pet ability from atom:`, abilityFromAtom);
+                  productionLog(`🐾 [PetSellDebug] Pet ability from atom:`, abilityFromAtom);
                 }
               }
 
@@ -767,7 +764,7 @@ export function initializeProtectionHooks(dependencies = {}) {
               const hasRainbowMutation = petMutations.includes('Rainbow');
 
               if (UnifiedState.data.settings?.debugMode) {
-                console.log(
+                productionLog(
                   `🐾 [PetSellDebug] Has Gold mutation: ${hasGoldMutation}, Has Rainbow mutation: ${hasRainbowMutation}`
                 );
               }
@@ -780,21 +777,21 @@ export function initializeProtectionHooks(dependencies = {}) {
               const shouldBlockRainbow = hasRainbowMutation && isRainbowGranterLocked;
 
               if (UnifiedState.data.settings?.debugMode) {
-                console.log(
+                productionLog(
                   `🐾 [PetSellDebug] Should block gold: ${shouldBlockGold}, Should block rainbow: ${shouldBlockRainbow}`
                 );
               }
 
               if (shouldBlockGold || shouldBlockRainbow) {
                 const blockedType = shouldBlockGold ? 'Gold' : 'Rainbow';
-                console.warn(`🐾 [PetLock] ❌ BLOCKED selling ${blockedType} pet (${blockedType} Granter is locked)`);
+                productionWarn(`🐾 [PetLock] ❌ BLOCKED selling ${blockedType} pet (${blockedType} Granter is locked)`);
                 return; // Block the sale
               }
               if (UnifiedState.data.settings?.debugMode) {
-                console.log(`🐾 [PetSellDebug] ✅ Pet mutations not locked, allowing sale`);
+                productionLog(`🐾 [PetSellDebug] ✅ Pet mutations not locked, allowing sale`);
               }
             } else if (UnifiedState.data.settings?.debugMode) {
-              console.log(`🐾 [PetSellDebug] ⚠️ Could not find pet with ID ${petId}`);
+              productionLog(`🐾 [PetSellDebug] ⚠️ Could not find pet with ID ${petId}`);
             }
           }
         }
@@ -803,7 +800,7 @@ export function initializeProtectionHooks(dependencies = {}) {
         // CRITICAL: PickupDecor message doesn't include decorId, only localTileIndex!
         // We need to look up what's at that position in the garden
         if (msgType === 'PickupDecor') {
-          console.log(`🏛️ [DecorCheck] PickupDecor message:`, JSON.stringify(message, null, 2));
+          productionLog(`🏛️ [DecorCheck] PickupDecor message:`, JSON.stringify(message, null, 2));
 
           const lockedDecor = UnifiedState.data.lockedDecor || [];
 
@@ -812,7 +809,7 @@ export function initializeProtectionHooks(dependencies = {}) {
             const tileType = message.tileType;
             const tileIndex = message.localTileIndex;
 
-            console.log(`🏛️ [DecorCheck] Looking for decor at ${tileType} tile ${tileIndex}`);
+            productionLog(`🏛️ [DecorCheck] Looking for decor at ${tileType} tile ${tileIndex}`);
 
             // Look up what decor is at this tile position
             let decorAtPosition = null;
@@ -834,18 +831,18 @@ export function initializeProtectionHooks(dependencies = {}) {
               }
             }
 
-            console.log(`🏛️ [DecorCheck] Decor at position: "${decorAtPosition}"`);
-            console.log(`🏛️ [DecorCheck] Locked decor list:`, lockedDecor);
+            productionLog(`🏛️ [DecorCheck] Decor at position: "${decorAtPosition}"`);
+            productionLog(`🏛️ [DecorCheck] Locked decor list:`, lockedDecor);
 
             // Block if this decor is locked
             if (decorAtPosition && lockedDecor.includes(decorAtPosition)) {
-              console.warn(`🏛️ [DecorLock] ❌ BLOCKED pickup of "${decorAtPosition}"`);
+              productionWarn(`🏛️ [DecorLock] ❌ BLOCKED pickup of "${decorAtPosition}"`);
               return; // Block the pickup
             }
             if (decorAtPosition) {
-              console.log(`🏛️ [DecorCheck] ✅ Decor "${decorAtPosition}" not locked, allowing pickup`);
+              productionLog(`🏛️ [DecorCheck] ✅ Decor "${decorAtPosition}" not locked, allowing pickup`);
             } else {
-              console.log(`🏛️ [DecorCheck] ⚠️ Could not find decor at tile position`);
+              productionLog(`🏛️ [DecorCheck] ⚠️ Could not find decor at tile position`);
             }
           }
         }
@@ -857,7 +854,7 @@ export function initializeProtectionHooks(dependencies = {}) {
 
         // Debug hook to see ALL FeedPet messages (native and ours)
         if (message?.type === 'FeedPet') {
-          console.log('[FEED-DEBUG] 🔍 FeedPet message being sent:', {
+          productionLog('[FEED-DEBUG] 🔍 FeedPet message being sent:', {
             type: message.type,
             petItemId: message.petItemId,
             cropItemId: message.cropItemId,
@@ -868,21 +865,21 @@ export function initializeProtectionHooks(dependencies = {}) {
           // Check if IDs look valid (UUIDs)
           const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
           if (!uuidRegex.test(message.petItemId)) {
-            console.error('[FEED-DEBUG] ❌ Invalid petItemId format:', message.petItemId);
+            productionError('[FEED-DEBUG] ❌ Invalid petItemId format:', message.petItemId);
           }
           if (!uuidRegex.test(message.cropItemId)) {
-            console.error('[FEED-DEBUG] ❌ Invalid cropItemId format:', message.cropItemId);
+            productionError('[FEED-DEBUG] ❌ Invalid cropItemId format:', message.cropItemId);
           }
         }
 
         return originalSendMessage(message, ...rest);
       } catch (err) {
-        console.error('[SendMessageHook] Error:', err);
+        productionError('[SendMessageHook] Error:', err);
         return originalSendMessage(message, ...rest);
       }
     };
 
-    console.log('✅ Harvest and sell protection hooks installed');
+    productionLog('✅ Harvest and sell protection hooks installed');
   }, 2000);
 
   // Apply initial rules
@@ -896,14 +893,11 @@ export function initializeProtectionHooks(dependencies = {}) {
  */
 
 export default {
-  // Tab UI (Phase 5)
-  setupProtectTabHandlers,
+  // Tab UI  setupProtectTabHandlers,
 
-  // Status Display (Phase 6)
-  updateProtectStatus,
+  // Status Display  updateProtectStatus,
 
-  // Protection Hooks (Phase 7)
-  applyHarvestRule,
+  // Protection Hooks  applyHarvestRule,
   applySellBlockThreshold,
   initializeProtectionHooks
 };

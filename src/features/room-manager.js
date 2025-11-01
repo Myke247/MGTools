@@ -12,6 +12,8 @@
  *
  * @module RoomManager
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * Firebase configuration for room status tracking
@@ -253,7 +255,7 @@ export function isDiscordEnvironment(dependencies = {}) {
 
     return isDiscordActivity;
   } catch (err) {
-    console.error('Failed to detect Discord environment:', err);
+    productionError('Failed to detect Discord environment:', err);
     return false;
   }
 }
@@ -271,7 +273,7 @@ export function getCurrentRoomCode(dependencies = {}) {
     const match = win.location.pathname.match(/\/r\/([^/]+)/);
     return match ? match[1].toUpperCase() : null;
   } catch (err) {
-    console.error('Failed to get room code:', err);
+    productionError('Failed to get room code:', err);
     return null;
   }
 }
@@ -290,7 +292,7 @@ export function getActualPlayerCount(dependencies = {}) {
     const roomState = targetWindow.MagicCircle_RoomConnection?.lastRoomStateJsonable;
     if (!roomState?.child?.data?.userSlots) {
       if (UnifiedState.data.settings.roomDebugMode) {
-        console.log('[Room Status] No userSlots data available', {
+        productionLog('[Room Status] No userSlots data available', {
           hasRoomConnection: !!targetWindow.MagicCircle_RoomConnection,
           hasRoomState: !!roomState,
           hasChild: !!roomState?.child,
@@ -302,11 +304,11 @@ export function getActualPlayerCount(dependencies = {}) {
     const userSlots = roomState.child.data.userSlots;
     const count = userSlots.filter(slot => slot !== null && slot !== undefined).length;
     if (UnifiedState.data.settings.roomDebugMode) {
-      console.log('[Room Status] Player count:', count, 'userSlots:', userSlots);
+      productionLog('[Room Status] Player count:', count, 'userSlots:', userSlots);
     }
     return count;
   } catch (err) {
-    console.error('[Room Status] Failed to get player count:', err);
+    productionError('[Room Status] Failed to get player count:', err);
     return null;
   }
 }
@@ -443,7 +445,7 @@ export async function initializeFirebase(dependencies = {}) {
             return { count, lastUpdate: Date.now(), reporter: getReporter(dependencies) };
           } catch (err) {
             if (UnifiedState.data.settings?.roomDebugMode) {
-              console.warn(`[Room API] Failed to fetch ${room}:`, err.message);
+              productionWarn(`[Room API] Failed to fetch ${room}:`, err.message);
             }
             return { count: 0, lastUpdate: Date.now(), reporter: getReporter(dependencies) };
           }
@@ -468,7 +470,7 @@ export async function initializeFirebase(dependencies = {}) {
           try {
             callback(snapshot);
           } catch (e) {
-            console.error('rooms onValue cb error', e);
+            productionError('rooms onValue cb error', e);
           }
         }
         tick();
@@ -488,7 +490,7 @@ export async function initializeFirebase(dependencies = {}) {
     productionLog('✅ /info rooms mode enabled (Firebase stubbed)');
     return firebase;
   } catch (err) {
-    console.error('❌ initializeFirebase (/info) failed', err);
+    productionError('❌ initializeFirebase (/info) failed', err);
     return null;
   }
 }

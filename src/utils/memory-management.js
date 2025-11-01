@@ -12,6 +12,8 @@
  *
  * @module utils/memory-management
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /* ============================================================================
  * CLEANUP HANDLER SYSTEM
@@ -57,7 +59,7 @@ export function initializeMemoryManagement(dependencies = {}) {
    * @param {Function} handler - Cleanup function to register
    *
    * @example
-   * MGA_addCleanupHandler(() => console.log('Cleaning up...'));
+   * MGA_addCleanupHandler(() => productionLog('Cleaning up...'));
    */
   function MGA_addCleanupHandler(handler) {
     if (typeof handler === 'function') {
@@ -129,7 +131,7 @@ export function initializeMemoryManagement(dependencies = {}) {
           handler();
           productionLog(`🧹 [MEMORY] Executed cleanup handler ${index + 1}`);
         } catch (error) {
-          console.error(`❌ [MEMORY] Cleanup handler ${index + 1} failed:`, error);
+          productionError(`❌ [MEMORY] Cleanup handler ${index + 1} failed:`, error);
         }
       });
 
@@ -170,7 +172,7 @@ export function initializeMemoryManagement(dependencies = {}) {
 
       productionLog('✅ [MEMORY] MGA cleanup completed successfully');
     } catch (error) {
-      console.error('❌ [MEMORY] MGA cleanup failed:', error);
+      productionError('❌ [MEMORY] MGA cleanup failed:', error);
     }
   }
 
@@ -201,7 +203,7 @@ export function initializeMemoryManagement(dependencies = {}) {
           productionLog(`💾 [MEMORY] Debounced save completed for ${key}`);
         }
       } catch (error) {
-        console.error(`❌ [MEMORY] Debounced save failed for ${key}:`, error);
+        productionError(`❌ [MEMORY] Debounced save failed for ${key}:`, error);
       }
       saveTimeouts.delete(key);
     }, MGA_MemoryConfig.saveDebounceMs);

@@ -91,747 +91,21 @@ var MGTools = (() => {
     isGMApiAvailable: () => isGMApiAvailable,
     localStorage: () => localStorage2
   });
-  var Storage2 = /* @__PURE__ */ (() => {
-    let initialized = false;
-    let storageType = null;
-    let gmApiAvailable = null;
-    const _gmApiWarningShown = false;
-    const memoryStore = {};
-    const storageTypes = {
-      GM: "gm",
-      LOCAL: "local",
-      SESSION: "session",
-      MEMORY: "memory"
-    };
-    let localStorageRef = null;
-    let sessionStorageRef = null;
-    function testGMStorage() {
-      if (gmApiAvailable !== null) return gmApiAvailable;
-      try {
-        if (typeof GM_setValue === "undefined" || typeof GM_getValue === "undefined") {
-          gmApiAvailable = false;
-          return false;
-        }
-        const testKey = "__mgtools_gm_test__";
-        const testValue = "test_" + Date.now();
-        GM_setValue(testKey, testValue);
-        const retrieved = GM_getValue(testKey, null);
-        if (typeof GM_deleteValue !== "undefined") {
-          try {
-            GM_deleteValue(testKey);
-          } catch (e) {
-          }
-        }
-        gmApiAvailable = retrieved === testValue;
-        return gmApiAvailable;
-      } catch (e) {
-        gmApiAvailable = false;
-        return false;
-      }
-    }
-    function getLocalStorage() {
-      if (localStorageRef) return localStorageRef;
-      try {
-        if (window.localStorage && typeof window.localStorage !== "undefined") {
-          const test = "__localStorage_test__";
-          window.localStorage.setItem(test, test);
-          window.localStorage.removeItem(test);
-          localStorageRef = window.localStorage;
-          return localStorageRef;
-        }
-      } catch (e) {
-        try {
-          const iframe = document.createElement("iframe");
-          iframe.style.display = "none";
-          iframe.style.position = "absolute";
-          iframe.style.width = "0";
-          iframe.style.height = "0";
-          if (document.body) {
-            document.body.appendChild(iframe);
-          } else {
-            document.documentElement.appendChild(iframe);
-          }
-          const iframeStorage = iframe.contentWindow.localStorage;
-          const test = "__mgtools_iframe_test__";
-          iframeStorage.setItem(test, test);
-          iframeStorage.removeItem(test);
-          localStorageRef = iframeStorage;
-          console.log("\u2705 [STORAGE] Using iframe localStorage workaround");
-          return localStorageRef;
-        } catch (iframeError) {
-        }
-      }
-      return null;
-    }
-    function getSessionStorage() {
-      if (sessionStorageRef) return sessionStorageRef;
-      try {
-        if (window.sessionStorage && typeof window.sessionStorage !== "undefined") {
-          const test = "__sessionStorage_test__";
-          window.sessionStorage.setItem(test, test);
-          window.sessionStorage.removeItem(test);
-          sessionStorageRef = window.sessionStorage;
-          return sessionStorageRef;
-        }
-      } catch (e) {
-      }
-      return null;
-    }
-    function initialize() {
-      if (initialized) return;
-      if (testGMStorage()) {
-        storageType = storageTypes.GM;
-        console.log("\u2705 [STORAGE] Using GM storage (persistent across domains)");
-      } else if (getLocalStorage()) {
-        storageType = storageTypes.LOCAL;
-        console.log("\u2705 [STORAGE] Using localStorage");
-      } else if (getSessionStorage()) {
-        storageType = storageTypes.SESSION;
-        console.warn("\u26A0\uFE0F [STORAGE] Using sessionStorage (data lost on tab close)");
-      } else {
-        storageType = storageTypes.MEMORY;
-        console.warn("\u26A0\uFE0F [STORAGE] Using memory storage (data lost on refresh)");
-      }
-      initialized = true;
-    }
-    function getItem(key, defaultValue = null) {
-      initialize();
-      try {
-        let value = null;
-        switch (storageType) {
-          case storageTypes.GM:
-            value = GM_getValue(key, null);
-            break;
-          case storageTypes.LOCAL:
-            value = localStorageRef.getItem(key);
-            break;
-          case storageTypes.SESSION:
-            value = sessionStorageRef.getItem(key);
-            break;
-          case storageTypes.MEMORY:
-            value = memoryStore[key] || null;
-            break;
-        }
-        if (value && typeof value === "string") {
-          try {
-            return JSON.parse(value);
-          } catch (e) {
-            return value;
-          }
-        }
-        return value !== null ? value : defaultValue;
-      } catch (e) {
-        console.error("[STORAGE] getItem error:", e);
-        return defaultValue;
-      }
-    }
-    function setItem(key, value) {
-      initialize();
-      try {
-        const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
-        switch (storageType) {
-          case storageTypes.GM:
-            GM_setValue(key, stringValue);
-            break;
-          case storageTypes.LOCAL:
-            localStorageRef.setItem(key, stringValue);
-            break;
-          case storageTypes.SESSION:
-            sessionStorageRef.setItem(key, stringValue);
-            break;
-          case storageTypes.MEMORY:
-            memoryStore[key] = stringValue;
-            break;
-        }
-        return true;
-      } catch (e) {
-        console.error("[STORAGE] setItem error:", e);
-        if (storageType !== storageTypes.MEMORY) {
-          try {
-            memoryStore[key] = typeof value === "object" ? JSON.stringify(value) : String(value);
-            console.warn("[STORAGE] Fallback to memory for key:", key);
-            return true;
-          } catch (e2) {
-          }
-        }
-        return false;
-      }
-    }
-    function removeItem(key) {
-      initialize();
-      try {
-        switch (storageType) {
-          case storageTypes.GM:
-            if (typeof GM_deleteValue !== "undefined") {
-              GM_deleteValue(key);
-            } else {
-              GM_setValue(key, void 0);
-            }
-            break;
-          case storageTypes.LOCAL:
-            localStorageRef.removeItem(key);
-            break;
-          case storageTypes.SESSION:
-            sessionStorageRef.removeItem(key);
-            break;
-          case storageTypes.MEMORY:
-            delete memoryStore[key];
-            break;
-        }
-        return true;
-      } catch (e) {
-        console.error("[STORAGE] removeItem error:", e);
-        return false;
-      }
-    }
-    function clear() {
-      initialize();
-      try {
-        switch (storageType) {
-          case storageTypes.GM:
-            console.warn("[STORAGE] GM storage clear not implemented");
-            break;
-          case storageTypes.LOCAL:
-            localStorageRef.clear();
-            break;
-          case storageTypes.SESSION:
-            sessionStorageRef.clear();
-            break;
-          case storageTypes.MEMORY:
-            Object.keys(memoryStore).forEach((key) => delete memoryStore[key]);
-            break;
-        }
-        return true;
-      } catch (e) {
-        console.error("[STORAGE] clear error:", e);
-        return false;
-      }
-    }
-    function getStorageType() {
-      initialize();
-      return storageType;
-    }
-    function getInfo() {
-      initialize();
-      return {
-        type: storageType,
-        gmAvailable: gmApiAvailable,
-        localStorageAvailable: localStorageRef !== null,
-        sessionStorageAvailable: sessionStorageRef !== null,
-        memoryKeys: Object.keys(memoryStore).length
-      };
-    }
-    return {
-      get: getItem,
-      set: setItem,
-      remove: removeItem,
-      clear,
-      getType: getStorageType,
-      getInfo,
-      // Legacy compatibility
-      getItem,
-      setItem,
-      removeItem,
-      // Storage type constants
-      TYPES: storageTypes
-    };
-  })();
-  var _safeStorage = Storage2;
-  var localStorage2 = {
-    getItem: (key) => Storage2.get(key),
-    setItem: (key, value) => Storage2.set(key, value),
-    removeItem: (key) => Storage2.remove(key),
-    clear: () => Storage2.clear(),
-    get length() {
-      console.warn("[STORAGE] localStorage.length not supported in unified storage");
-      return 0;
-    },
-    key: (_index) => {
-      console.warn("[STORAGE] localStorage.key() not supported in unified storage");
-      return null;
-    }
-  };
-  var StorageManager = Storage2;
-  var gmApiCheckResult = null;
-  var gmApiWarningShown = false;
-  function isGMApiAvailable() {
-    try {
-      if (gmApiCheckResult !== null) {
-        return gmApiCheckResult;
-      }
-      if (typeof GM_setValue === "undefined" || typeof GM_getValue === "undefined") {
-        gmApiCheckResult = false;
-        if (!gmApiWarningShown) {
-          try {
-            if (typeof logWarn === "function") {
-              logWarn("GM-STORAGE", "GM API functions not defined - using localStorage fallback");
-            } else {
-              console.warn("\u26A0\uFE0F [GM-STORAGE] GM API not available - using localStorage fallback");
-            }
-          } catch (e) {
-            console.warn("\u26A0\uFE0F [GM-STORAGE] GM API not available - using localStorage fallback");
-          }
-          gmApiWarningShown = true;
-        }
-        return false;
-      }
-      try {
-        const testKey = "__mgtools_gm_test__";
-        const testValue = "test_" + Date.now();
-        GM_setValue(testKey, testValue);
-        const retrieved = GM_getValue(testKey, null);
-        try {
-          if (typeof GM_deleteValue !== "undefined") {
-            GM_deleteValue(testKey);
-          }
-        } catch (e) {
-        }
-        if (retrieved === testValue) {
-          gmApiCheckResult = true;
-          try {
-            if (typeof logInfo === "function") {
-              logInfo("GM-STORAGE", "GM API fully functional");
-            } else {
-              console.log("\u2705 [GM-STORAGE] GM API fully functional");
-            }
-          } catch (e) {
-            console.log("\u2705 [GM-STORAGE] GM API fully functional");
-          }
-          return true;
-        } else {
-          throw new Error("GM_getValue returned incorrect value");
-        }
-      } catch (e) {
-        gmApiCheckResult = false;
-        if (!gmApiWarningShown) {
-          try {
-            if (typeof logWarn === "function") {
-              logWarn("GM-STORAGE", "GM API blocked by security policy - using localStorage fallback");
-            } else {
-              console.warn("\u26A0\uFE0F [GM-STORAGE] GM API blocked - using localStorage fallback");
-            }
-          } catch (e2) {
-            console.warn("\u26A0\uFE0F [GM-STORAGE] GM API blocked - using localStorage fallback");
-          }
-          gmApiWarningShown = true;
-        }
-        return false;
-      }
-    } catch (outerError) {
-      gmApiCheckResult = false;
-      gmApiWarningShown = true;
-      try {
-        console.warn("\u26A0\uFE0F [GM-STORAGE] Unexpected error testing GM API - using localStorage fallback");
-      } catch (e) {
-      }
-      return false;
-    }
-  }
-  function MGA_loadJSON(key, fallback = null) {
-    let keyLocal = key;
-    if (keyLocal && !String(keyLocal).startsWith("MGA_")) {
-      console.error(`\u274C [MGA-ISOLATION] CRITICAL: Attempted to load with non-MGA key: ${keyLocal}`);
-      try {
-        console.trace();
-      } catch (_) {
-      }
-      keyLocal = "MGA_" + keyLocal;
-    }
-    try {
-      const gmAvailable = typeof GM_getValue === "function" && typeof GM_setValue === "function";
-      const lsMain = typeof window !== "undefined" && window && window.localStorage ? window.localStorage : null;
-      const lsTarg = typeof targetWindow !== "undefined" && targetWindow && targetWindow.localStorage ? targetWindow.localStorage : null;
-      const readLS = (ls, k) => {
-        if (!ls) return null;
-        try {
-          return ls.getItem(k);
-        } catch (e) {
-          return null;
-        }
-      };
-      const toStr = (val) => val == null ? null : typeof val === "string" ? val : JSON.stringify(val);
-      const tryParseDeep = (val) => {
-        if (val == null) return null;
-        if (typeof val === "string") {
-          const s = val;
-          if (s === "" || s === "null" || s === "undefined") return null;
-          try {
-            let first = JSON.parse(s);
-            if (typeof first === "string") {
-              try {
-                first = JSON.parse(first);
-              } catch (e) {
-              }
-            }
-            return first;
-          } catch (e) {
-            return null;
-          }
-        }
-        if (typeof val === "object") return val;
-        return null;
-      };
-      const score = (obj) => {
-        if (!obj) return -1;
-        if (Array.isArray(obj)) return obj.length;
-        if (typeof obj === "object") return Object.keys(obj).length;
-        return 0;
-      };
-      const isEmpty = (obj) => {
-        if (!obj) return true;
-        if (Array.isArray(obj)) return obj.length === 0;
-        if (typeof obj === "object") return Object.keys(obj).length === 0;
-        return false;
-      };
-      let gmRaw = null;
-      try {
-        gmRaw = gmAvailable ? GM_getValue(keyLocal, null) : null;
-      } catch (e) {
-      }
-      const mainRaw = readLS(lsMain, keyLocal);
-      const targRaw = readLS(lsTarg, keyLocal);
-      const gmParsed = typeof gmRaw === "string" ? tryParseDeep(gmRaw) : tryParseDeep(toStr(gmRaw));
-      const mainParsed = tryParseDeep(mainRaw) || tryParseDeep(toStr(mainRaw));
-      const targParsed = tryParseDeep(targRaw) || tryParseDeep(toStr(targRaw));
-      const gmScore = score(gmParsed);
-      const mnScore = score(mainParsed);
-      const tgScore = score(targParsed);
-      let best = null;
-      let bestSrc = "none";
-      if (gmParsed && !isEmpty(gmParsed)) {
-        best = gmParsed;
-        bestSrc = "GM";
-      } else if (mainParsed && !isEmpty(mainParsed)) {
-        best = mainParsed;
-        bestSrc = "WIN";
-      } else if (targParsed && !isEmpty(targParsed)) {
-        best = targParsed;
-        bestSrc = "TGT";
-      }
-      try {
-        if (typeof productionLog === "function") {
-          productionLog(`[STORAGE-CHOICE] ${keyLocal}: gm=${gmScore} win=${mnScore} tgt=${tgScore} chosen=${bestSrc}`);
-        }
-      } catch (_) {
-      }
-      if (best && (typeof best === "object" || Array.isArray(best))) {
-        return best;
-      }
-      return typeof fallback === "undefined" ? null : fallback;
-    } catch (err) {
-      console.error("[MGA_loadJSON] Unexpected failure for key", keyLocal, err);
-      return typeof fallback === "undefined" ? null : fallback;
-    }
-  }
-  function MGA_saveJSON(key, value, retryCount = 0) {
-    let keyLocal = key;
-    let valueLocal = value;
-    try {
-      if (keyLocal === "MGA_petAbilityLogs" && Array.isArray(valueLocal)) {
-        const fp = (l) => {
-          const t = l && l.abilityType || "", p = l && l.petName || "", ts = l && l.timestamp || 0;
-          return t + "|" + p + "|" + String(ts);
-        };
-        const map = /* @__PURE__ */ new Map();
-        for (const l of valueLocal) {
-          const id = l.id || fp(l);
-          if (!map.has(id)) map.set(id, Object.assign({ id }, l));
-        }
-        valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-      }
-    } catch {
-    }
-    if (keyLocal && !keyLocal.startsWith("MGA_")) {
-      console.error(`\u274C [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
-      console.error(`\u274C [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
-      console.trace();
-      keyLocal = "MGA_" + keyLocal;
-    }
-    if (typeof window !== "undefined" && window.MGA_PERSISTENCE_GUARD?.initializationSavesBlocked && keyLocal === "MGA_data") {
-      const stack = new Error().stack;
-      if (stack && stack.includes("loadSavedData")) {
-        if (typeof productionLog === "function") {
-          productionLog("[PERSISTENCE-GUARD] Blocked premature save during initialization");
-          productionLog("[PERSISTENCE-GUARD] This protects user data from being overwritten");
-          productionLog("[PERSISTENCE-GUARD] Save will execute after initialization completes");
-        }
-        if (typeof UnifiedState !== "undefined" && UnifiedState?.data?.settings?.debugMode) {
-          console.trace("Blocked save location:");
-        }
-        return false;
-      }
-    }
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = 100;
-    try {
-      if (!isGMApiAvailable()) {
-        return MGA_saveJSON_localStorage_fallback(keyLocal, valueLocal);
-      }
-      if (keyLocal === "MGA_petPresets" || keyLocal === "MGA_seedsToDelete") {
-        if (typeof productionLog === "function") {
-          productionLog(
-            `[GM-STORAGE] Attempting to save critical data: ${keyLocal} (attempt ${retryCount + 1}/${MAX_RETRIES})`
-          );
-          productionLog(`[GM-STORAGE] Data type:`, typeof valueLocal);
-          productionLog(`[GM-STORAGE] Data content:`, valueLocal);
-        }
-      }
-      const jsonString = JSON.stringify(valueLocal);
-      GM_setValue(keyLocal, jsonString);
-      if (typeof productionLog === "function") {
-        productionLog(`[GM-STORAGE] GM_setValue executed for ${keyLocal}`);
-      }
-      try {
-        if (typeof localStorage2 !== "undefined" && localStorage2) {
-          localStorage2.setItem(keyLocal, jsonString);
-          if (typeof productionLog === "function") {
-            productionLog(`[GM-STORAGE] Also synced to localStorage for consistency`);
-          }
-        }
-      } catch (lsErr) {
-        if (typeof productionWarn === "function") {
-          productionWarn(`\u26A0\uFE0F [GM-STORAGE] Could not sync to localStorage (non-fatal):`, lsErr.message);
-        }
-      }
-      const verification = GM_getValue(keyLocal, null);
-      if (!verification) {
-        console.error(`\u274C [GM-STORAGE] Save verification failed for ${keyLocal} - no data retrieved!`);
-        if (retryCount < MAX_RETRIES - 1) {
-          if (typeof productionLog === "function") {
-            productionLog(`\u{1F504} [GM-STORAGE] Retrying save for ${keyLocal} in ${RETRY_DELAY}ms...`);
-          }
-          return new Promise((resolve) => {
-            setTimeout(() => {
-              resolve(MGA_saveJSON(key, value, retryCount + 1));
-            }, RETRY_DELAY);
-          });
-        }
-        console.error(`\u274C [GM-STORAGE] All retry attempts failed for ${keyLocal}`);
-        if (keyLocal === "MGA_petPresets" || keyLocal === "MGA_seedsToDelete") {
-          alert(`\u26A0\uFE0F Failed to save ${keyLocal.replace("MGA_", "")}! Your changes may not persist.`);
-        }
-        return false;
-      }
-      if (keyLocal === "MGA_petPresets" || keyLocal === "MGA_seedsToDelete") {
-        try {
-          const parsedVerification = JSON.parse(verification);
-          const originalKeys = Object.keys(valueLocal || {}).sort();
-          const savedKeys = Object.keys(parsedVerification || {}).sort();
-          if (JSON.stringify(originalKeys) !== JSON.stringify(savedKeys)) {
-            if (typeof productionWarn === "function") {
-              productionWarn(`\u26A0\uFE0F [GM-STORAGE] Data structure mismatch for ${keyLocal}, but save likely succeeded`);
-            }
-          }
-          if (typeof productionLog === "function") {
-            productionLog(`\u2705 [GM-STORAGE] Critical data verification passed for ${keyLocal}`);
-          }
-        } catch (e) {
-          if (typeof productionWarn === "function") {
-            productionWarn(`\u26A0\uFE0F [GM-STORAGE] Could not deep verify ${keyLocal}, but data exists`);
-          }
-        }
-      }
-      if (typeof productionLog === "function") {
-        if (keyLocal === "MGA_petPresets") {
-          productionLog("[GM-STORAGE] Pet presets saved successfully");
-        } else if (keyLocal.startsWith("MGA_")) {
-          productionLog(`[GM-STORAGE] Saved ${keyLocal}`);
-        }
-      }
-      return true;
-    } catch (error) {
-      console.error(`\u274C [GM-STORAGE] Failed to save ${keyLocal}:`, error);
-      console.error(`\u274C [GM-STORAGE] Error details:`, {
-        name: error.name,
-        message: error.message,
-        gmApiAvailable: typeof GM_setValue !== "undefined",
-        retryCount
-      });
-      const errorString = ("" + error).toLowerCase();
-      if (errorString.indexOf("quota") >= 0 || errorString.indexOf("exceeded") >= 0) {
-        if (typeof productionLog === "function") {
-          productionLog("\u{1F9F9} [STORAGE-CLEANUP] Quota exceeded - auto-cleaning debug caches...");
-        }
-        const dropKeys = ["console-history", "mga-debug-cache", "mga-temp-cache"];
-        for (let i = 0; i < dropKeys.length; i++) {
-          try {
-            localStorage2.removeItem(dropKeys[i]);
-            if (typeof productionLog === "function") {
-              productionLog(`\u{1F9F9} [STORAGE-CLEANUP] Removed: ${dropKeys[i]}`);
-            }
-          } catch (_e) {
-          }
-        }
-        if (retryCount === 0) {
-          if (typeof productionLog === "function") {
-            productionLog(`\u{1F504} [STORAGE-CLEANUP] Retrying save after cleanup...`);
-          }
-          return MGA_saveJSON(key, value, 1);
-        }
-      }
-      if (retryCount < MAX_RETRIES - 1) {
-        if (typeof productionLog === "function") {
-          productionLog(`\u{1F504} [GM-STORAGE] Retrying save for ${keyLocal} after error...`);
-        }
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(MGA_saveJSON(key, value, retryCount + 1));
-          }, RETRY_DELAY);
-        });
-      }
-      return false;
-    }
-  }
-  function MGA_saveJSON_localStorage_fallback(key, value) {
-    let valueLocal = value;
-    try {
-      if (key === "MGA_petAbilityLogs" && Array.isArray(valueLocal)) {
-        const fp = (l) => {
-          const t = l && l.abilityType || "", p = l && l.petName || "", ts = l && l.timestamp || 0;
-          return t + "|" + p + "|" + String(ts);
-        };
-        const map = /* @__PURE__ */ new Map();
-        for (const l of valueLocal) {
-          const id = l.id || fp(l);
-          if (!map.has(id)) map.set(id, Object.assign({ id }, l));
-        }
-        valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-      }
-    } catch {
-    }
-    try {
-      const jsonString = JSON.stringify(valueLocal);
-      StorageManager.setItem(key, jsonString);
-      const verification = StorageManager.getItem(key);
-      if (verification === jsonString) {
-        if (typeof productionLog === "function") {
-          productionLog(`[FALLBACK] Successfully saved ${key} to ${StorageManager.storageType}`);
-        }
-        return true;
-      } else {
-        console.error(`[FALLBACK] ${StorageManager.storageType} save verification failed for ${key}`);
-        return false;
-      }
-    } catch (error) {
-      const isQuotaError = error.name === "QuotaExceededError" || error.message.includes("quota") || error.message.includes("exceeded");
-      if (isQuotaError) {
-        console.error(`[FALLBACK] localStorage quota exceeded for ${key}!`);
-        console.error(`[FALLBACK] Try clearing browser console history or other localStorage data`);
-        console.error(`[FALLBACK] In Chrome DevTools: Application > Storage > Clear site data`);
-        if (key === "MGA_petPresets" || key === "MGA_seedsToDelete" || key === "MGA_data") {
-          alert(
-            `\u26A0\uFE0F localStorage quota exceeded!
 
-Your ${key.replace("MGA_", "")} cannot be saved.
-
-Fix:
-1. Open DevTools (F12)
-2. Go to Application tab
-3. Click "Clear site data"
-4. Reload the page`
-          );
-        }
-      } else {
-        console.error(`[FALLBACK] localStorage save failed for ${key}:`, error);
-      }
-      return false;
-    }
-  }
-  function _MGA_syncStorageBothWays() {
-    try {
-      const keys = [
-        "MGA_data",
-        "MGA_petPresets",
-        "MGA_petPresetsOrder",
-        "MGA_petAbilityLogs",
-        "MGA_petAbilityLogs_archive",
-        "MGA_seedsToDelete",
-        "MGA_autoDeleteEnabled",
-        "MGA_filterMode",
-        "MGA_abilityFilters",
-        "MGA_customMode",
-        "MGA_petFilters",
-        "MGA_petPresetHotkeys",
-        "MGA_hotkeys"
-      ];
-      const gmAvailable = typeof GM_getValue === "function" && typeof GM_setValue === "function";
-      const lsMain = typeof window !== "undefined" && window && window.localStorage ? window.localStorage : null;
-      const lsTarg = typeof targetWindow !== "undefined" && targetWindow && targetWindow.localStorage ? targetWindow.localStorage : null;
-      const readLS = (ls, k) => {
-        if (!ls) return null;
-        try {
-          return ls.getItem(k);
-        } catch (e) {
-          return null;
-        }
-      };
-      const writeLS = (ls, k, v) => {
-        try {
-          if (ls) ls.setItem(k, v);
-        } catch (e) {
-        }
-      };
-      const toStr = (val) => val == null ? null : typeof val === "string" ? val : JSON.stringify(val);
-      const tryParse = (s) => {
-        if (s == null) return null;
-        try {
-          const first = JSON.parse(s);
-          if (typeof first === "string") {
-            try {
-              return JSON.parse(first);
-            } catch (e) {
-              return first;
-            }
-          }
-          return first;
-        } catch (e) {
-          return null;
-        }
-      };
-      const score = (obj) => {
-        if (!obj) return -1;
-        if (Array.isArray(obj)) return obj.length;
-        if (typeof obj === "object") return Object.keys(obj).length;
-        return 0;
-      };
-      const isEmpty = (obj) => {
-        if (!obj) return true;
-        if (Array.isArray(obj)) return obj.length === 0;
-        if (typeof obj === "object") return Object.keys(obj).length === 0;
-        return false;
-      };
-      keys.forEach((key) => {
-        try {
-          const gmRaw = gmAvailable ? GM_getValue(key, null) : null;
-          const mainRaw = readLS(lsMain, key);
-          const targRaw = readLS(lsTarg, key);
-          const gmParsed = (typeof gmRaw === "string" ? tryParse(gmRaw) : gmRaw) || tryParse(toStr(gmRaw));
-          const mainParsed = tryParse(mainRaw) || tryParse(toStr(mainRaw));
-          const targParsed = tryParse(targRaw) || tryParse(toStr(targRaw));
-          let best = null;
-          if (gmParsed && !isEmpty(gmParsed)) best = gmParsed;
-          else if (mainParsed && !isEmpty(mainParsed)) best = mainParsed;
-          else if (targParsed && !isEmpty(targParsed)) best = targParsed;
-          if (best && (typeof best === "object" || Array.isArray(best))) {
-            const stable = JSON.stringify(best);
-            try {
-              if (gmAvailable) GM_setValue(key, stable);
-            } catch (e) {
-            }
-            writeLS(lsMain, key, stable);
-            writeLS(lsTarg, key, stable);
-            if (typeof productionLog === "function") {
-              productionLog(`[STORAGE-SYNC] ${key}: canonicalized across GM/WIN/TGT`);
-            }
-          }
-        } catch (innerErr) {
-          console.error("[STORAGE-SYNC] Error while syncing key", key, innerErr);
-        }
-      });
-    } catch (err) {
-      console.error("[STORAGE-SYNC] Sync failed:", err);
-    }
-  }
+  // src/core/logging.js
+  var logging_exports = {};
+  __export(logging_exports, {
+    Logger: () => Logger,
+    debugError: () => debugError,
+    debugLog: () => debugLog,
+    logDebug: () => logDebug,
+    logError: () => logError,
+    logInfo: () => logInfo2,
+    logWarn: () => logWarn2,
+    productionError: () => productionError2,
+    productionLog: () => productionLog2,
+    productionWarn: () => productionWarn2
+  });
 
   // src/utils/constants.js
   var CONFIG = {
@@ -965,19 +239,6 @@ Fix:
   }
 
   // src/core/logging.js
-  var logging_exports = {};
-  __export(logging_exports, {
-    Logger: () => Logger,
-    debugError: () => debugError,
-    debugLog: () => debugLog2,
-    logDebug: () => logDebug,
-    logError: () => logError,
-    logInfo: () => logInfo2,
-    logWarn: () => logWarn2,
-    productionError: () => productionError,
-    productionLog: () => productionLog2,
-    productionWarn: () => productionWarn2
-  });
   var Logger = (() => {
     const PRODUCTION = CONFIG.DEBUG.PRODUCTION;
     const DEBUG_FLAGS = CONFIG.DEBUG.FLAGS;
@@ -998,7 +259,7 @@ Fix:
       else if (level === LogLevel.WARN) console.warn(...args);
       else console.log(...args);
     }
-    function debugLog3(flag, message, data = null) {
+    function debugLog2(flag, message, data = null) {
       if (!PRODUCTION && DEBUG_FLAGS[flag]) {
         const timestamp = (/* @__PURE__ */ new Date()).toLocaleTimeString();
         log(LogLevel.DEBUG, `DEBUG-${flag}`, `${timestamp} ${message}`, data);
@@ -1021,7 +282,7 @@ Fix:
       info: (cat, msg, data) => log(LogLevel.INFO, cat, msg, data),
       debug: (cat, msg, data) => log(LogLevel.DEBUG, cat, msg, data),
       // Debug logging methods
-      debugLog: debugLog3,
+      debugLog: debugLog2,
       debugError: debugError2,
       // Legacy support methods
       productionLog: (...args) => {
@@ -1049,11 +310,754 @@ Fix:
   var logWarn2 = Logger.warn;
   var logInfo2 = Logger.info;
   var logDebug = Logger.debug;
-  var debugLog2 = Logger.debugLog;
+  var debugLog = Logger.debugLog;
   var debugError = Logger.debugError;
   var productionLog2 = Logger.productionLog;
   var productionWarn2 = Logger.productionWarn;
-  var productionError = Logger.productionError;
+  var productionError2 = Logger.productionError;
+
+  // src/core/storage.js
+  var Storage2 = /* @__PURE__ */ (() => {
+    let initialized = false;
+    let storageType = null;
+    let gmApiAvailable = null;
+    const _gmApiWarningShown = false;
+    const memoryStore = {};
+    const storageTypes = {
+      GM: "gm",
+      LOCAL: "local",
+      SESSION: "session",
+      MEMORY: "memory"
+    };
+    let localStorageRef = null;
+    let sessionStorageRef = null;
+    function testGMStorage() {
+      if (gmApiAvailable !== null) return gmApiAvailable;
+      try {
+        if (typeof GM_setValue === "undefined" || typeof GM_getValue === "undefined") {
+          gmApiAvailable = false;
+          return false;
+        }
+        const testKey = "__mgtools_gm_test__";
+        const testValue = "test_" + Date.now();
+        GM_setValue(testKey, testValue);
+        const retrieved = GM_getValue(testKey, null);
+        if (typeof GM_deleteValue !== "undefined") {
+          try {
+            GM_deleteValue(testKey);
+          } catch (e) {
+          }
+        }
+        gmApiAvailable = retrieved === testValue;
+        return gmApiAvailable;
+      } catch (e) {
+        gmApiAvailable = false;
+        return false;
+      }
+    }
+    function getLocalStorage() {
+      if (localStorageRef) return localStorageRef;
+      try {
+        if (window.localStorage && typeof window.localStorage !== "undefined") {
+          const test = "__localStorage_test__";
+          window.localStorage.setItem(test, test);
+          window.localStorage.removeItem(test);
+          localStorageRef = window.localStorage;
+          return localStorageRef;
+        }
+      } catch (e) {
+        try {
+          const iframe = document.createElement("iframe");
+          iframe.style.display = "none";
+          iframe.style.position = "absolute";
+          iframe.style.width = "0";
+          iframe.style.height = "0";
+          if (document.body) {
+            document.body.appendChild(iframe);
+          } else {
+            document.documentElement.appendChild(iframe);
+          }
+          const iframeStorage = iframe.contentWindow.localStorage;
+          const test = "__mgtools_iframe_test__";
+          iframeStorage.setItem(test, test);
+          iframeStorage.removeItem(test);
+          localStorageRef = iframeStorage;
+          productionLog2("\u2705 [STORAGE] Using iframe localStorage workaround");
+          return localStorageRef;
+        } catch (iframeError) {
+        }
+      }
+      return null;
+    }
+    function getSessionStorage() {
+      if (sessionStorageRef) return sessionStorageRef;
+      try {
+        if (window.sessionStorage && typeof window.sessionStorage !== "undefined") {
+          const test = "__sessionStorage_test__";
+          window.sessionStorage.setItem(test, test);
+          window.sessionStorage.removeItem(test);
+          sessionStorageRef = window.sessionStorage;
+          return sessionStorageRef;
+        }
+      } catch (e) {
+      }
+      return null;
+    }
+    function initialize() {
+      if (initialized) return;
+      if (testGMStorage()) {
+        storageType = storageTypes.GM;
+        productionLog2("\u2705 [STORAGE] Using GM storage (persistent across domains)");
+      } else if (getLocalStorage()) {
+        storageType = storageTypes.LOCAL;
+        productionLog2("\u2705 [STORAGE] Using localStorage");
+      } else if (getSessionStorage()) {
+        storageType = storageTypes.SESSION;
+        productionWarn2("\u26A0\uFE0F [STORAGE] Using sessionStorage (data lost on tab close)");
+      } else {
+        storageType = storageTypes.MEMORY;
+        productionWarn2("\u26A0\uFE0F [STORAGE] Using memory storage (data lost on refresh)");
+      }
+      initialized = true;
+    }
+    function getItem(key, defaultValue = null) {
+      initialize();
+      try {
+        let value = null;
+        switch (storageType) {
+          case storageTypes.GM:
+            value = GM_getValue(key, null);
+            break;
+          case storageTypes.LOCAL:
+            value = localStorageRef.getItem(key);
+            break;
+          case storageTypes.SESSION:
+            value = sessionStorageRef.getItem(key);
+            break;
+          case storageTypes.MEMORY:
+            value = memoryStore[key] || null;
+            break;
+        }
+        if (value && typeof value === "string") {
+          try {
+            return JSON.parse(value);
+          } catch (e) {
+            return value;
+          }
+        }
+        return value !== null ? value : defaultValue;
+      } catch (e) {
+        productionError2("[STORAGE] getItem error:", e);
+        return defaultValue;
+      }
+    }
+    function setItem(key, value) {
+      initialize();
+      try {
+        const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+        switch (storageType) {
+          case storageTypes.GM:
+            GM_setValue(key, stringValue);
+            break;
+          case storageTypes.LOCAL:
+            localStorageRef.setItem(key, stringValue);
+            break;
+          case storageTypes.SESSION:
+            sessionStorageRef.setItem(key, stringValue);
+            break;
+          case storageTypes.MEMORY:
+            memoryStore[key] = stringValue;
+            break;
+        }
+        return true;
+      } catch (e) {
+        productionError2("[STORAGE] setItem error:", e);
+        if (storageType !== storageTypes.MEMORY) {
+          try {
+            memoryStore[key] = typeof value === "object" ? JSON.stringify(value) : String(value);
+            productionWarn2("[STORAGE] Fallback to memory for key:", key);
+            return true;
+          } catch (e2) {
+          }
+        }
+        return false;
+      }
+    }
+    function removeItem(key) {
+      initialize();
+      try {
+        switch (storageType) {
+          case storageTypes.GM:
+            if (typeof GM_deleteValue !== "undefined") {
+              GM_deleteValue(key);
+            } else {
+              GM_setValue(key, void 0);
+            }
+            break;
+          case storageTypes.LOCAL:
+            localStorageRef.removeItem(key);
+            break;
+          case storageTypes.SESSION:
+            sessionStorageRef.removeItem(key);
+            break;
+          case storageTypes.MEMORY:
+            delete memoryStore[key];
+            break;
+        }
+        return true;
+      } catch (e) {
+        productionError2("[STORAGE] removeItem error:", e);
+        return false;
+      }
+    }
+    function clear() {
+      initialize();
+      try {
+        switch (storageType) {
+          case storageTypes.GM:
+            productionWarn2("[STORAGE] GM storage clear not implemented");
+            break;
+          case storageTypes.LOCAL:
+            localStorageRef.clear();
+            break;
+          case storageTypes.SESSION:
+            sessionStorageRef.clear();
+            break;
+          case storageTypes.MEMORY:
+            Object.keys(memoryStore).forEach((key) => delete memoryStore[key]);
+            break;
+        }
+        return true;
+      } catch (e) {
+        productionError2("[STORAGE] clear error:", e);
+        return false;
+      }
+    }
+    function getStorageType() {
+      initialize();
+      return storageType;
+    }
+    function getInfo() {
+      initialize();
+      return {
+        type: storageType,
+        gmAvailable: gmApiAvailable,
+        localStorageAvailable: localStorageRef !== null,
+        sessionStorageAvailable: sessionStorageRef !== null,
+        memoryKeys: Object.keys(memoryStore).length
+      };
+    }
+    return {
+      get: getItem,
+      set: setItem,
+      remove: removeItem,
+      clear,
+      getType: getStorageType,
+      getInfo,
+      // Legacy compatibility
+      getItem,
+      setItem,
+      removeItem,
+      // Storage type constants
+      TYPES: storageTypes
+    };
+  })();
+  var _safeStorage = Storage2;
+  var localStorage2 = {
+    getItem: (key) => Storage2.get(key),
+    setItem: (key, value) => Storage2.set(key, value),
+    removeItem: (key) => Storage2.remove(key),
+    clear: () => Storage2.clear(),
+    get length() {
+      productionWarn2("[STORAGE] localStorage.length not supported in unified storage");
+      return 0;
+    },
+    key: (_index) => {
+      productionWarn2("[STORAGE] localStorage.key() not supported in unified storage");
+      return null;
+    }
+  };
+  var StorageManager = Storage2;
+  var gmApiCheckResult = null;
+  var gmApiWarningShown = false;
+  function isGMApiAvailable() {
+    try {
+      if (gmApiCheckResult !== null) {
+        return gmApiCheckResult;
+      }
+      if (typeof GM_setValue === "undefined" || typeof GM_getValue === "undefined") {
+        gmApiCheckResult = false;
+        if (!gmApiWarningShown) {
+          try {
+            if (typeof logWarn === "function") {
+              logWarn("GM-STORAGE", "GM API functions not defined - using localStorage fallback");
+            } else {
+              productionWarn2("\u26A0\uFE0F [GM-STORAGE] GM API not available - using localStorage fallback");
+            }
+          } catch (e) {
+            productionWarn2("\u26A0\uFE0F [GM-STORAGE] GM API not available - using localStorage fallback");
+          }
+          gmApiWarningShown = true;
+        }
+        return false;
+      }
+      try {
+        const testKey = "__mgtools_gm_test__";
+        const testValue = "test_" + Date.now();
+        GM_setValue(testKey, testValue);
+        const retrieved = GM_getValue(testKey, null);
+        try {
+          if (typeof GM_deleteValue !== "undefined") {
+            GM_deleteValue(testKey);
+          }
+        } catch (e) {
+        }
+        if (retrieved === testValue) {
+          gmApiCheckResult = true;
+          try {
+            if (typeof logInfo === "function") {
+              logInfo("GM-STORAGE", "GM API fully functional");
+            } else {
+              productionLog2("\u2705 [GM-STORAGE] GM API fully functional");
+            }
+          } catch (e) {
+            productionLog2("\u2705 [GM-STORAGE] GM API fully functional");
+          }
+          return true;
+        } else {
+          throw new Error("GM_getValue returned incorrect value");
+        }
+      } catch (e) {
+        gmApiCheckResult = false;
+        if (!gmApiWarningShown) {
+          try {
+            if (typeof logWarn === "function") {
+              logWarn("GM-STORAGE", "GM API blocked by security policy - using localStorage fallback");
+            } else {
+              productionWarn2("\u26A0\uFE0F [GM-STORAGE] GM API blocked - using localStorage fallback");
+            }
+          } catch (e2) {
+            productionWarn2("\u26A0\uFE0F [GM-STORAGE] GM API blocked - using localStorage fallback");
+          }
+          gmApiWarningShown = true;
+        }
+        return false;
+      }
+    } catch (outerError) {
+      gmApiCheckResult = false;
+      gmApiWarningShown = true;
+      try {
+        productionWarn2("\u26A0\uFE0F [GM-STORAGE] Unexpected error testing GM API - using localStorage fallback");
+      } catch (e) {
+      }
+      return false;
+    }
+  }
+  function MGA_loadJSON(key, fallback = null) {
+    let keyLocal = key;
+    if (keyLocal && !String(keyLocal).startsWith("MGA_")) {
+      productionError2(`\u274C [MGA-ISOLATION] CRITICAL: Attempted to load with non-MGA key: ${keyLocal}`);
+      try {
+        console.trace();
+      } catch (_) {
+      }
+      keyLocal = "MGA_" + keyLocal;
+    }
+    try {
+      const gmAvailable = typeof GM_getValue === "function" && typeof GM_setValue === "function";
+      const lsMain = typeof window !== "undefined" && window && window.localStorage ? window.localStorage : null;
+      const lsTarg = typeof targetWindow !== "undefined" && targetWindow && targetWindow.localStorage ? targetWindow.localStorage : null;
+      const readLS = (ls, k) => {
+        if (!ls) return null;
+        try {
+          return ls.getItem(k);
+        } catch (e) {
+          return null;
+        }
+      };
+      const toStr = (val) => val == null ? null : typeof val === "string" ? val : JSON.stringify(val);
+      const tryParseDeep = (val) => {
+        if (val == null) return null;
+        if (typeof val === "string") {
+          const s = val;
+          if (s === "" || s === "null" || s === "undefined") return null;
+          try {
+            let first = JSON.parse(s);
+            if (typeof first === "string") {
+              try {
+                first = JSON.parse(first);
+              } catch (e) {
+              }
+            }
+            return first;
+          } catch (e) {
+            return null;
+          }
+        }
+        if (typeof val === "object") return val;
+        return null;
+      };
+      const score = (obj) => {
+        if (!obj) return -1;
+        if (Array.isArray(obj)) return obj.length;
+        if (typeof obj === "object") return Object.keys(obj).length;
+        return 0;
+      };
+      const isEmpty = (obj) => {
+        if (!obj) return true;
+        if (Array.isArray(obj)) return obj.length === 0;
+        if (typeof obj === "object") return Object.keys(obj).length === 0;
+        return false;
+      };
+      let gmRaw = null;
+      try {
+        gmRaw = gmAvailable ? GM_getValue(keyLocal, null) : null;
+      } catch (e) {
+      }
+      const mainRaw = readLS(lsMain, keyLocal);
+      const targRaw = readLS(lsTarg, keyLocal);
+      const gmParsed = typeof gmRaw === "string" ? tryParseDeep(gmRaw) : tryParseDeep(toStr(gmRaw));
+      const mainParsed = tryParseDeep(mainRaw) || tryParseDeep(toStr(mainRaw));
+      const targParsed = tryParseDeep(targRaw) || tryParseDeep(toStr(targRaw));
+      const gmScore = score(gmParsed);
+      const mnScore = score(mainParsed);
+      const tgScore = score(targParsed);
+      let best = null;
+      let bestSrc = "none";
+      if (gmParsed && !isEmpty(gmParsed)) {
+        best = gmParsed;
+        bestSrc = "GM";
+      } else if (mainParsed && !isEmpty(mainParsed)) {
+        best = mainParsed;
+        bestSrc = "WIN";
+      } else if (targParsed && !isEmpty(targParsed)) {
+        best = targParsed;
+        bestSrc = "TGT";
+      }
+      try {
+        if (typeof productionLog2 === "function") {
+          productionLog2(`[STORAGE-CHOICE] ${keyLocal}: gm=${gmScore} win=${mnScore} tgt=${tgScore} chosen=${bestSrc}`);
+        }
+      } catch (_) {
+      }
+      if (best && (typeof best === "object" || Array.isArray(best))) {
+        return best;
+      }
+      return typeof fallback === "undefined" ? null : fallback;
+    } catch (err) {
+      productionError2("[MGA_loadJSON] Unexpected failure for key", keyLocal, err);
+      return typeof fallback === "undefined" ? null : fallback;
+    }
+  }
+  function MGA_saveJSON(key, value, retryCount = 0) {
+    let keyLocal = key;
+    let valueLocal = value;
+    try {
+      if (keyLocal === "MGA_petAbilityLogs" && Array.isArray(valueLocal)) {
+        const fp = (l) => {
+          const t = l && l.abilityType || "", p = l && l.petName || "", ts = l && l.timestamp || 0;
+          return t + "|" + p + "|" + String(ts);
+        };
+        const map = /* @__PURE__ */ new Map();
+        for (const l of valueLocal) {
+          const id = l.id || fp(l);
+          if (!map.has(id)) map.set(id, Object.assign({ id }, l));
+        }
+        valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      }
+    } catch {
+    }
+    if (keyLocal && !keyLocal.startsWith("MGA_")) {
+      productionError2(`\u274C [MGA-ISOLATION] CRITICAL: Attempted to save with non-MGA key: ${keyLocal}`);
+      productionError2(`\u274C [MGA-ISOLATION] This would conflict with MainScript! Adding MGA_ prefix.`);
+      console.trace();
+      keyLocal = "MGA_" + keyLocal;
+    }
+    if (typeof window !== "undefined" && window.MGA_PERSISTENCE_GUARD?.initializationSavesBlocked && keyLocal === "MGA_data") {
+      const stack = new Error().stack;
+      if (stack && stack.includes("loadSavedData")) {
+        if (typeof productionLog2 === "function") {
+          productionLog2("[PERSISTENCE-GUARD] Blocked premature save during initialization");
+          productionLog2("[PERSISTENCE-GUARD] This protects user data from being overwritten");
+          productionLog2("[PERSISTENCE-GUARD] Save will execute after initialization completes");
+        }
+        if (typeof UnifiedState !== "undefined" && UnifiedState?.data?.settings?.debugMode) {
+          console.trace("Blocked save location:");
+        }
+        return false;
+      }
+    }
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 100;
+    try {
+      if (!isGMApiAvailable()) {
+        return MGA_saveJSON_localStorage_fallback(keyLocal, valueLocal);
+      }
+      if (keyLocal === "MGA_petPresets" || keyLocal === "MGA_seedsToDelete") {
+        if (typeof productionLog2 === "function") {
+          productionLog2(
+            `[GM-STORAGE] Attempting to save critical data: ${keyLocal} (attempt ${retryCount + 1}/${MAX_RETRIES})`
+          );
+          productionLog2(`[GM-STORAGE] Data type:`, typeof valueLocal);
+          productionLog2(`[GM-STORAGE] Data content:`, valueLocal);
+        }
+      }
+      const jsonString = JSON.stringify(valueLocal);
+      GM_setValue(keyLocal, jsonString);
+      if (typeof productionLog2 === "function") {
+        productionLog2(`[GM-STORAGE] GM_setValue executed for ${keyLocal}`);
+      }
+      try {
+        if (typeof localStorage2 !== "undefined" && localStorage2) {
+          localStorage2.setItem(keyLocal, jsonString);
+          if (typeof productionLog2 === "function") {
+            productionLog2(`[GM-STORAGE] Also synced to localStorage for consistency`);
+          }
+        }
+      } catch (lsErr) {
+        if (typeof productionWarn2 === "function") {
+          productionWarn2(`\u26A0\uFE0F [GM-STORAGE] Could not sync to localStorage (non-fatal):`, lsErr.message);
+        }
+      }
+      const verification = GM_getValue(keyLocal, null);
+      if (!verification) {
+        productionError2(`\u274C [GM-STORAGE] Save verification failed for ${keyLocal} - no data retrieved!`);
+        if (retryCount < MAX_RETRIES - 1) {
+          if (typeof productionLog2 === "function") {
+            productionLog2(`\u{1F504} [GM-STORAGE] Retrying save for ${keyLocal} in ${RETRY_DELAY}ms...`);
+          }
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(MGA_saveJSON(key, value, retryCount + 1));
+            }, RETRY_DELAY);
+          });
+        }
+        productionError2(`\u274C [GM-STORAGE] All retry attempts failed for ${keyLocal}`);
+        if (keyLocal === "MGA_petPresets" || keyLocal === "MGA_seedsToDelete") {
+          alert(`\u26A0\uFE0F Failed to save ${keyLocal.replace("MGA_", "")}! Your changes may not persist.`);
+        }
+        return false;
+      }
+      if (keyLocal === "MGA_petPresets" || keyLocal === "MGA_seedsToDelete") {
+        try {
+          const parsedVerification = JSON.parse(verification);
+          const originalKeys = Object.keys(valueLocal || {}).sort();
+          const savedKeys = Object.keys(parsedVerification || {}).sort();
+          if (JSON.stringify(originalKeys) !== JSON.stringify(savedKeys)) {
+            if (typeof productionWarn2 === "function") {
+              productionWarn2(`\u26A0\uFE0F [GM-STORAGE] Data structure mismatch for ${keyLocal}, but save likely succeeded`);
+            }
+          }
+          if (typeof productionLog2 === "function") {
+            productionLog2(`\u2705 [GM-STORAGE] Critical data verification passed for ${keyLocal}`);
+          }
+        } catch (e) {
+          if (typeof productionWarn2 === "function") {
+            productionWarn2(`\u26A0\uFE0F [GM-STORAGE] Could not deep verify ${keyLocal}, but data exists`);
+          }
+        }
+      }
+      if (typeof productionLog2 === "function") {
+        if (keyLocal === "MGA_petPresets") {
+          productionLog2("[GM-STORAGE] Pet presets saved successfully");
+        } else if (keyLocal.startsWith("MGA_")) {
+          productionLog2(`[GM-STORAGE] Saved ${keyLocal}`);
+        }
+      }
+      return true;
+    } catch (error) {
+      productionError2(`\u274C [GM-STORAGE] Failed to save ${keyLocal}:`, error);
+      productionError2(`\u274C [GM-STORAGE] Error details:`, {
+        name: error.name,
+        message: error.message,
+        gmApiAvailable: typeof GM_setValue !== "undefined",
+        retryCount
+      });
+      const errorString = ("" + error).toLowerCase();
+      if (errorString.indexOf("quota") >= 0 || errorString.indexOf("exceeded") >= 0) {
+        if (typeof productionLog2 === "function") {
+          productionLog2("\u{1F9F9} [STORAGE-CLEANUP] Quota exceeded - auto-cleaning debug caches...");
+        }
+        const dropKeys = ["console-history", "mga-debug-cache", "mga-temp-cache"];
+        for (let i = 0; i < dropKeys.length; i++) {
+          try {
+            localStorage2.removeItem(dropKeys[i]);
+            if (typeof productionLog2 === "function") {
+              productionLog2(`\u{1F9F9} [STORAGE-CLEANUP] Removed: ${dropKeys[i]}`);
+            }
+          } catch (_e) {
+          }
+        }
+        if (retryCount === 0) {
+          if (typeof productionLog2 === "function") {
+            productionLog2(`\u{1F504} [STORAGE-CLEANUP] Retrying save after cleanup...`);
+          }
+          return MGA_saveJSON(key, value, 1);
+        }
+      }
+      if (retryCount < MAX_RETRIES - 1) {
+        if (typeof productionLog2 === "function") {
+          productionLog2(`\u{1F504} [GM-STORAGE] Retrying save for ${keyLocal} after error...`);
+        }
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(MGA_saveJSON(key, value, retryCount + 1));
+          }, RETRY_DELAY);
+        });
+      }
+      return false;
+    }
+  }
+  function MGA_saveJSON_localStorage_fallback(key, value) {
+    let valueLocal = value;
+    try {
+      if (key === "MGA_petAbilityLogs" && Array.isArray(valueLocal)) {
+        const fp = (l) => {
+          const t = l && l.abilityType || "", p = l && l.petName || "", ts = l && l.timestamp || 0;
+          return t + "|" + p + "|" + String(ts);
+        };
+        const map = /* @__PURE__ */ new Map();
+        for (const l of valueLocal) {
+          const id = l.id || fp(l);
+          if (!map.has(id)) map.set(id, Object.assign({ id }, l));
+        }
+        valueLocal = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      }
+    } catch {
+    }
+    try {
+      const jsonString = JSON.stringify(valueLocal);
+      StorageManager.setItem(key, jsonString);
+      const verification = StorageManager.getItem(key);
+      if (verification === jsonString) {
+        if (typeof productionLog2 === "function") {
+          productionLog2(`[FALLBACK] Successfully saved ${key} to ${StorageManager.storageType}`);
+        }
+        return true;
+      } else {
+        productionError2(`[FALLBACK] ${StorageManager.storageType} save verification failed for ${key}`);
+        return false;
+      }
+    } catch (error) {
+      const isQuotaError = error.name === "QuotaExceededError" || error.message.includes("quota") || error.message.includes("exceeded");
+      if (isQuotaError) {
+        productionError2(`[FALLBACK] localStorage quota exceeded for ${key}!`);
+        productionError2(`[FALLBACK] Try clearing browser console history or other localStorage data`);
+        productionError2(`[FALLBACK] In Chrome DevTools: Application > Storage > Clear site data`);
+        if (key === "MGA_petPresets" || key === "MGA_seedsToDelete" || key === "MGA_data") {
+          alert(
+            `\u26A0\uFE0F localStorage quota exceeded!
+
+Your ${key.replace("MGA_", "")} cannot be saved.
+
+Fix:
+1. Open DevTools (F12)
+2. Go to Application tab
+3. Click "Clear site data"
+4. Reload the page`
+          );
+        }
+      } else {
+        productionError2(`[FALLBACK] localStorage save failed for ${key}:`, error);
+      }
+      return false;
+    }
+  }
+  function _MGA_syncStorageBothWays() {
+    try {
+      const keys = [
+        "MGA_data",
+        "MGA_petPresets",
+        "MGA_petPresetsOrder",
+        "MGA_petAbilityLogs",
+        "MGA_petAbilityLogs_archive",
+        "MGA_seedsToDelete",
+        "MGA_autoDeleteEnabled",
+        "MGA_filterMode",
+        "MGA_abilityFilters",
+        "MGA_customMode",
+        "MGA_petFilters",
+        "MGA_petPresetHotkeys",
+        "MGA_hotkeys"
+      ];
+      const gmAvailable = typeof GM_getValue === "function" && typeof GM_setValue === "function";
+      const lsMain = typeof window !== "undefined" && window && window.localStorage ? window.localStorage : null;
+      const lsTarg = typeof targetWindow !== "undefined" && targetWindow && targetWindow.localStorage ? targetWindow.localStorage : null;
+      const readLS = (ls, k) => {
+        if (!ls) return null;
+        try {
+          return ls.getItem(k);
+        } catch (e) {
+          return null;
+        }
+      };
+      const writeLS = (ls, k, v) => {
+        try {
+          if (ls) ls.setItem(k, v);
+        } catch (e) {
+        }
+      };
+      const toStr = (val) => val == null ? null : typeof val === "string" ? val : JSON.stringify(val);
+      const tryParse = (s) => {
+        if (s == null) return null;
+        try {
+          const first = JSON.parse(s);
+          if (typeof first === "string") {
+            try {
+              return JSON.parse(first);
+            } catch (e) {
+              return first;
+            }
+          }
+          return first;
+        } catch (e) {
+          return null;
+        }
+      };
+      const score = (obj) => {
+        if (!obj) return -1;
+        if (Array.isArray(obj)) return obj.length;
+        if (typeof obj === "object") return Object.keys(obj).length;
+        return 0;
+      };
+      const isEmpty = (obj) => {
+        if (!obj) return true;
+        if (Array.isArray(obj)) return obj.length === 0;
+        if (typeof obj === "object") return Object.keys(obj).length === 0;
+        return false;
+      };
+      keys.forEach((key) => {
+        try {
+          const gmRaw = gmAvailable ? GM_getValue(key, null) : null;
+          const mainRaw = readLS(lsMain, key);
+          const targRaw = readLS(lsTarg, key);
+          const gmParsed = (typeof gmRaw === "string" ? tryParse(gmRaw) : gmRaw) || tryParse(toStr(gmRaw));
+          const mainParsed = tryParse(mainRaw) || tryParse(toStr(mainRaw));
+          const targParsed = tryParse(targRaw) || tryParse(toStr(targRaw));
+          let best = null;
+          if (gmParsed && !isEmpty(gmParsed)) best = gmParsed;
+          else if (mainParsed && !isEmpty(mainParsed)) best = mainParsed;
+          else if (targParsed && !isEmpty(targParsed)) best = targParsed;
+          if (best && (typeof best === "object" || Array.isArray(best))) {
+            const stable = JSON.stringify(best);
+            try {
+              if (gmAvailable) GM_setValue(key, stable);
+            } catch (e) {
+            }
+            writeLS(lsMain, key, stable);
+            writeLS(lsTarg, key, stable);
+            if (typeof productionLog2 === "function") {
+              productionLog2(`[STORAGE-SYNC] ${key}: canonicalized across GM/WIN/TGT`);
+            }
+          }
+        } catch (innerErr) {
+          productionError2("[STORAGE-SYNC] Error while syncing key", key, innerErr);
+        }
+      });
+    } catch (err) {
+      productionError2("[STORAGE-SYNC] Sync failed:", err);
+    }
+  }
 
   // src/core/compat.js
   var compat_exports = {};
@@ -1067,7 +1071,7 @@ Fix:
     try {
       const isDiscord = /discord|overlay|electron/i.test(navigator.userAgent) || window.DiscordNative || window.__discordApp;
       if (isDiscord) {
-        console.log("\u{1F6E1}\uFE0F [CSP] External font loads disabled in Discord context.");
+        productionLog2("\u{1F6E1}\uFE0F [CSP] External font loads disabled in Discord context.");
       }
       const origCreateElement = Document.prototype.createElement;
       Document.prototype.createElement = function(tag) {
@@ -1077,7 +1081,7 @@ Fix:
             const origSetAttribute = el2.setAttribute;
             el2.setAttribute = function(name, value) {
               if (name === "href" && typeof value === "string" && /fonts\.googleapis/i.test(value)) {
-                console.log("\u{1F6E1}\uFE0F [CSP] Prevented external font link injection:", value);
+                productionLog2("\u{1F6E1}\uFE0F [CSP] Prevented external font link injection:", value);
                 return;
               }
               return origSetAttribute.apply(this, arguments);
@@ -1109,7 +1113,7 @@ Fix:
       try {
         const disabled = localStorage.getItem("mgtools_compat_disabled");
         if (disabled === "true") {
-          console.log("[COMPAT] Compatibility mode disabled by user");
+          productionLog2("[COMPAT] Compatibility mode disabled by user");
           this.detectionComplete = true;
           return;
         }
@@ -1120,7 +1124,7 @@ Fix:
           return;
         }
       } catch (e) {
-        console.warn("[COMPAT] Unable to check localStorage for compat settings", e);
+        productionWarn2("[COMPAT] Unable to check localStorage for compat settings", e);
       }
       const host = window.location.host;
       const isDiscordEmbed = host.includes("discordsays.com") || host.includes("discordactivities.com") || host.includes("discord.gg") || host.includes("discord.com") || // Check for Discord SDK presence
@@ -1159,26 +1163,26 @@ Fix:
         }
         this.detectionComplete = true;
         if (this.flags.enabled) {
-          console.log("[COMPAT] Compatibility mode ACTIVE", {
+          productionLog2("[COMPAT] Compatibility mode ACTIVE", {
             reason: this.detectionReason,
             violations: this.cspViolations.length
           });
         } else {
-          console.log("[COMPAT] Compatibility mode not needed, running in normal mode");
+          productionLog2("[COMPAT] Compatibility mode not needed, running in normal mode");
         }
       }, 500);
     },
     enableCompat(reason) {
       if (this.flags.enabled) return;
-      console.log(`[COMPAT] Enabling compatibility mode: ${reason}`);
+      productionLog2(`[COMPAT] Enabling compatibility mode: ${reason}`);
       const isDiscordReason = reason.includes("discord") || reason.includes("csp");
       if (isDiscordReason) {
-        console.log("\u{1F3AE} [DISCORD] Compatibility mode activated for Discord environment");
-        console.log("   \u{1F4CB} [DISCORD] Features enabled:");
-        console.log("      \u2022 Inline styles only (no external CSS)");
-        console.log("      \u2022 System fonts (no Google Fonts CDN)");
-        console.log("      \u2022 GM_xmlhttpRequest for network requests");
-        console.log("      \u2022 DOM mutation observer for UI persistence");
+        productionLog2("\u{1F3AE} [DISCORD] Compatibility mode activated for Discord environment");
+        productionLog2("   \u{1F4CB} [DISCORD] Features enabled:");
+        productionLog2("      \u2022 Inline styles only (no external CSS)");
+        productionLog2("      \u2022 System fonts (no Google Fonts CDN)");
+        productionLog2("      \u2022 GM_xmlhttpRequest for network requests");
+        productionLog2("      \u2022 DOM mutation observer for UI persistence");
       }
       this.detectionReason = reason;
       this.flags.enabled = true;
@@ -1206,7 +1210,7 @@ Fix:
         localStorage.removeItem("mgtools_compat_mode");
       } catch (e) {
       }
-      console.log("[COMPAT] Compatibility mode disabled");
+      productionLog2("[COMPAT] Compatibility mode disabled");
     },
     isEnabled() {
       return this.flags.enabled;
@@ -1216,7 +1220,7 @@ Fix:
   var isUserscript = typeof unsafeWindow !== "undefined";
   var targetWindow2 = isUserscript ? unsafeWindow : window;
   var targetDocument = targetWindow2.document;
-  console.log("[COMPAT] Context isolation initialized:", {
+  productionLog2("[COMPAT] Context isolation initialized:", {
     isUserscript,
     targetWindowType: targetWindow2.constructor.name,
     sameAsWindow: targetWindow2 === window
@@ -2191,7 +2195,7 @@ Fix:
       logInfo3("INIT", "No blocking modals detected - MGA initialization allowed");
       return true;
     } catch (error) {
-      console.error("\u274C [MODAL-CHECK] Error in modal detection:", error);
+      productionError2("\u274C [MODAL-CHECK] Error in modal detection:", error);
       if (win.MGA_DEBUG) {
         win.MGA_DEBUG.logError(error, "checkForGameModals");
       }
@@ -2318,7 +2322,7 @@ Fix:
         context
       };
       debugData.errorLogs.push(entry);
-      console.error(`\u{1F41B} [DEBUG-ERROR] ${context}:`, entry);
+      productionError2(`\u{1F41B} [DEBUG-ERROR] ${context}:`, entry);
     }
     const debugLogger = {
       logStage,
@@ -2392,7 +2396,7 @@ Fix:
       CompatibilityMode: CompatibilityMode2 = null,
       productionLog: productionLog3 = console.log.bind(console),
       productionWarn: productionWarn3 = console.warn.bind(console),
-      productionError: productionError2 = console.error.bind(console),
+      productionError: productionError3 = console.error.bind(console),
       logInfo: logInfo3 = console.log.bind(console),
       logWarn: logWarn3 = console.warn.bind(console)
     } = dependencies;
@@ -2593,7 +2597,7 @@ Fix:
             win.location.replace(u.toString());
           }
         } catch (e) {
-          productionError2("[WebSocket] Reload failed:", e);
+          productionError3("[WebSocket] Reload failed:", e);
           win.location.href = win.location.href + "?_t=" + Date.now();
         }
       }, wait);
@@ -2612,7 +2616,7 @@ Fix:
         scheduleReload(e.code, e.wasClean, e.reason);
       });
       ws.addEventListener("error", (e) => {
-        productionError2("[WebSocket] Error detected:", e);
+        productionError3("[WebSocket] Error detected:", e);
       });
       return ws;
     };
@@ -2844,7 +2848,7 @@ Fix:
 
 File saved to Downloads folder.`);
     } catch (error) {
-      console.error("\u274C [EXPORT] Failed to export presets:", error);
+      productionError2("\u274C [EXPORT] Failed to export presets:", error);
       alertFn(`\u274C Export failed!
 
 Error: ${error.message}`);
@@ -2899,7 +2903,7 @@ Version: ${importData.version || "Unknown"}
 Page will reload to apply changes.`);
           setTimeout(() => win.location.reload(), 1e3);
         } catch (error) {
-          console.error("\u274C [IMPORT] Failed to import presets:", error);
+          productionError2("\u274C [IMPORT] Failed to import presets:", error);
           alertFn(
             `\u274C Import failed!
 
@@ -2911,7 +2915,7 @@ Make sure you're importing a valid MGTools preset file.`
       };
       input.click();
     } catch (error) {
-      console.error("\u274C [IMPORT] Failed to create import dialog:", error);
+      productionError2("\u274C [IMPORT] Failed to create import dialog:", error);
       alertFn(`\u274C Import failed!
 
 Error: ${error.message}`);
@@ -3141,42 +3145,42 @@ Error: ${error.message}`);
       totals,
       suspectSources: Object.entries(totals).filter(([_k, v]) => v > 0).map(([k]) => k)
     };
-    console.log("\u{1F50D} ========== ABILITY LOGS STORAGE DIAGNOSTIC ==========");
-    console.log("\u{1F4CA} Summary:", report.summary);
-    console.log("");
-    console.log("\u{1F4C1} GM Storage:");
-    console.log("  Main:", report.sources.gmStorage.main.count, "logs");
-    console.log("  Archive:", report.sources.gmStorage.archive.count, "logs");
-    console.log("\u{1F4C1} Window localStorage:");
-    console.log("  Main:", report.sources.windowLocalStorage.main.count, "logs");
-    console.log("  Archive:", report.sources.windowLocalStorage.archive.count, "logs");
-    console.log("  Clear flag:", report.sources.windowLocalStorage.clearFlag);
+    productionLog2("\u{1F50D} ========== ABILITY LOGS STORAGE DIAGNOSTIC ==========");
+    productionLog2("\u{1F4CA} Summary:", report.summary);
+    productionLog2("");
+    productionLog2("\u{1F4C1} GM Storage:");
+    productionLog2("  Main:", report.sources.gmStorage.main.count, "logs");
+    productionLog2("  Archive:", report.sources.gmStorage.archive.count, "logs");
+    productionLog2("\u{1F4C1} Window localStorage:");
+    productionLog2("  Main:", report.sources.windowLocalStorage.main.count, "logs");
+    productionLog2("  Archive:", report.sources.windowLocalStorage.archive.count, "logs");
+    productionLog2("  Clear flag:", report.sources.windowLocalStorage.clearFlag);
     if (report.sources.targetWindowLocalStorage) {
-      console.log("\u{1F4C1} Target Window localStorage:");
-      console.log("  Main:", report.sources.targetWindowLocalStorage.main.count, "logs");
-      console.log("  Archive:", report.sources.targetWindowLocalStorage.archive.count, "logs");
+      productionLog2("\u{1F4C1} Target Window localStorage:");
+      productionLog2("  Main:", report.sources.targetWindowLocalStorage.main.count, "logs");
+      productionLog2("  Archive:", report.sources.targetWindowLocalStorage.archive.count, "logs");
     }
     if (report.sources.mgaDataNested) {
-      console.log("\u{1F4C1} MGA_data nested:", report.sources.mgaDataNested);
+      productionLog2("\u{1F4C1} MGA_data nested:", report.sources.mgaDataNested);
     }
     if (report.sources.compatibilityArray) {
-      console.log("\u{1F4C1} Compatibility array:", report.sources.compatibilityArray);
+      productionLog2("\u{1F4C1} Compatibility array:", report.sources.compatibilityArray);
     }
-    console.log("\u{1F4BE} Memory:", report.sources.memory.unifiedState.count, "logs");
-    console.log("");
-    console.log("\u{1F4CB} ========== DETAILED LOG LISTING ==========");
+    productionLog2("\u{1F4BE} Memory:", report.sources.memory.unifiedState.count, "logs");
+    productionLog2("");
+    productionLog2("\u{1F4CB} ========== DETAILED LOG LISTING ==========");
     const showLogs = (title, logs) => {
       if (logs && logs.length > 0) {
-        console.log(`
+        productionLog2(`
 ${title}:`);
         logs.forEach((log, i) => {
           const prefix = log.isMalformed ? "\u26A0\uFE0F MALFORMED" : log.isKnown ? "\u2705" : "\u2753 UNKNOWN";
-          console.log(`  ${i + 1}. ${prefix} [${log.fingerprint}]`);
-          console.log(`     ${log.ability} - ${log.pet}`);
+          productionLog2(`  ${i + 1}. ${prefix} [${log.fingerprint}]`);
+          productionLog2(`     ${log.ability} - ${log.pet}`);
           if (log.isMalformed) {
-            console.log(`     \u2192 Should be: "${log.normalizedAbility}"`);
+            productionLog2(`     \u2192 Should be: "${log.normalizedAbility}"`);
           }
-          console.log(`     ${log.time}`);
+          productionLog2(`     ${log.time}`);
         });
       }
     };
@@ -3204,18 +3208,18 @@ ${title}:`);
     }
     const totalMalformed = allSources.reduce((sum, src) => sum + (src.malformedCount || 0), 0);
     const totalUnknown = allSources.reduce((sum, src) => sum + (src.unknownCount || 0), 0);
-    console.log("\n=======================================================");
-    console.log("\u{1F4A1} TIPS:");
-    console.log("  \u2022 Look for logs with identical fingerprints across multiple storage locations");
-    console.log("  \u2022 If a log persists after clear, check which storage still contains it");
+    productionLog2("\n=======================================================");
+    productionLog2("\u{1F4A1} TIPS:");
+    productionLog2("  \u2022 Look for logs with identical fingerprints across multiple storage locations");
+    productionLog2("  \u2022 If a log persists after clear, check which storage still contains it");
     if (totalMalformed > 0) {
-      console.log(`  \u2022 \u26A0\uFE0F Found ${totalMalformed} MALFORMED ability name(s) - missing spaces before roman numerals`);
-      console.log('  \u2022 Malformed logs may not clear properly. Enable Debug Mode and click "Clear Logs".');
+      productionLog2(`  \u2022 \u26A0\uFE0F Found ${totalMalformed} MALFORMED ability name(s) - missing spaces before roman numerals`);
+      productionLog2('  \u2022 Malformed logs may not clear properly. Enable Debug Mode and click "Clear Logs".');
     }
     if (totalUnknown > 0) {
-      console.log(`  \u2022 \u2753 Found ${totalUnknown} UNKNOWN ability type(s) - not in known abilities list`);
+      productionLog2(`  \u2022 \u2753 Found ${totalUnknown} UNKNOWN ability type(s) - not in known abilities list`);
     }
-    console.log("=======================================================");
+    productionLog2("=======================================================");
     logDebug2("ABILITY-LOGS", "\u2705 Diagnostic complete - see console for full report");
     return report;
   }
@@ -3286,13 +3290,13 @@ ${title}:`);
               win.localStorage.removeItem(key);
               productionLog3(`\u{1F5D1}\uFE0F [MIGRATION] Removed ${key} from localStorage`);
             } else {
-              console.error(`\u274C [MIGRATION] Verification failed for ${key} - keeping localStorage version`);
+              productionError2(`\u274C [MIGRATION] Verification failed for ${key} - keeping localStorage version`);
             }
           } else {
             productionLog3(`\u{1F4DD} [MIGRATION] No data found for ${key} in localStorage`);
           }
         } catch (error) {
-          console.error(`\u274C [MIGRATION] Failed to migrate ${key}:`, error);
+          productionError2(`\u274C [MIGRATION] Failed to migrate ${key}:`, error);
         }
         if (ric) {
           ric(() => migrateKeys(keyIndex + 1));
@@ -3303,7 +3307,7 @@ ${title}:`);
       migrateKeys();
       return { success: true, migratedCount, totalDataSize };
     } catch (error) {
-      console.error(`\u274C [MIGRATION] Migration process failed:`, error);
+      productionError2(`\u274C [MIGRATION] Migration process failed:`, error);
       return { success: false, error: error.message };
     }
   }
@@ -3339,7 +3343,7 @@ ${title}:`);
     trackPopoutWindow: () => trackPopoutWindow
   });
   function setManagedInterval(name, callback, delay, dependencies = {}) {
-    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState, debugLog: debugLog3 = console.log } = dependencies;
+    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState, debugLog: debugLog2 = console.log } = dependencies;
     if (UnifiedState3?.intervals?.[name]) {
       clearInterval(UnifiedState3.intervals[name]);
     }
@@ -3347,24 +3351,24 @@ ${title}:`);
     if (UnifiedState3 && UnifiedState3.intervals) {
       UnifiedState3.intervals[name] = intervalId;
     }
-    debugLog3("PERFORMANCE", `Created managed interval: ${name} (${delay}ms)`);
+    debugLog2("PERFORMANCE", `Created managed interval: ${name} (${delay}ms)`);
     return intervalId;
   }
   function clearManagedInterval(name, dependencies = {}) {
-    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState, debugLog: debugLog3 = console.log } = dependencies;
+    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState, debugLog: debugLog2 = console.log } = dependencies;
     if (UnifiedState3?.intervals?.[name]) {
       clearInterval(UnifiedState3.intervals[name]);
       UnifiedState3.intervals[name] = null;
-      debugLog3("PERFORMANCE", `Cleared managed interval: ${name}`);
+      debugLog2("PERFORMANCE", `Cleared managed interval: ${name}`);
     }
   }
   function clearAllManagedIntervals(dependencies = {}) {
-    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState, debugLog: debugLog3 = console.log } = dependencies;
+    const { UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState, debugLog: debugLog2 = console.log } = dependencies;
     if (UnifiedState3 && UnifiedState3.intervals) {
       Object.keys(UnifiedState3.intervals).forEach((name) => {
         clearManagedInterval(name, dependencies);
       });
-      debugLog3("PERFORMANCE", "Cleared all managed intervals");
+      debugLog2("PERFORMANCE", "Cleared all managed intervals");
     }
   }
   function trackPopoutWindow(popoutWindow, dependencies = {}) {
@@ -3434,7 +3438,7 @@ ${title}:`);
       targetWindow3.MagicCircle_RoomConnection.sendMessage(message);
       return true;
     } catch (error) {
-      console.error("\u274C Error sending message:", error);
+      productionError2("\u274C Error sending message:", error);
       return false;
     }
   }
@@ -3454,22 +3458,19 @@ ${title}:`);
       targetWindow3.MagicCircle_RoomConnection.sendMessage(msg);
       return true;
     } catch (error) {
-      console.error("\u274C sendToGame error:", error);
+      productionError2("\u274C sendToGame error:", error);
       return false;
     }
   }
   var jotaiStore = null;
   function captureJotaiStore(dependencies = {}) {
-    const {
-      targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null,
-      productionLog: productionLog3 = console.log
-    } = dependencies;
+    const { targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null, productionLog: productionLog3 = console.log } = dependencies;
     if (jotaiStore) return jotaiStore;
     try {
       const directStore = targetWindow3.__jotaiStore || targetWindow3.jotaiStore;
       if (directStore && typeof directStore.get === "function" && typeof directStore.set === "function") {
         jotaiStore = directStore;
-        console.log("\u2705 [STORE] Captured Jotai store from window.__jotaiStore");
+        productionLog3("\u2705 [STORE] Captured Jotai store from window.__jotaiStore");
         return jotaiStore;
       }
       const hook = targetWindow3.__REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -3487,7 +3488,7 @@ ${title}:`);
               const value = fiber?.pendingProps?.value;
               if (value && typeof value.get === "function" && typeof value.set === "function" && typeof value.sub === "function") {
                 jotaiStore = value;
-                console.log("\u2705 [STORE] Captured Jotai store from React fiber tree");
+                productionLog3("\u2705 [STORE] Captured Jotai store from React fiber tree");
                 return jotaiStore;
               }
               if (fiber.child) stack.push(fiber.child);
@@ -3502,7 +3503,7 @@ ${title}:`);
         for (const [key, value] of atomCache.entries()) {
           if (value?.store && typeof value.store.get === "function") {
             jotaiStore = value.store;
-            console.log("\u2705 [STORE] Extracted Jotai store from atom cache metadata");
+            productionLog3("\u2705 [STORE] Extracted Jotai store from atom cache metadata");
             return jotaiStore;
           }
         }
@@ -3511,7 +3512,7 @@ ${title}:`);
       productionLog3("\u23F3 [STORE] Store not found - will fall back to direct atom cache reading");
       return null;
     } catch (error) {
-      console.error("[STORE] Error capturing Jotai store:", error);
+      productionError2("[STORE] Error capturing Jotai store:", error);
       return null;
     }
   }
@@ -3544,10 +3545,10 @@ ${title}:`);
       return;
     }
     if (retryCount === 0) {
-      console.log("  - targetWindow.jotaiAtomCache:", typeof targetWindow3.jotaiAtomCache, targetWindow3.jotaiAtomCache);
-      console.log("  - isUserscript:", isUserscript2, "(using unsafeWindow:", isUserscript2 ? "YES" : "NO)");
+      productionLog3("  - targetWindow.jotaiAtomCache:", typeof targetWindow3.jotaiAtomCache, targetWindow3.jotaiAtomCache);
+      productionLog3("  - isUserscript:", isUserscript2, "(using unsafeWindow:", isUserscript2 ? "YES" : "NO)");
       const jotaiKeys = Object.keys(targetWindow3).filter((k) => k.toLowerCase().includes("jotai"));
-      console.log('  - Keys with "jotai" on targetWindow:', jotaiKeys);
+      productionLog3('  - Keys with "jotai" on targetWindow:', jotaiKeys);
     }
     let atomCache = null;
     if (targetWindow3.jotaiAtomCache) {
@@ -3561,12 +3562,12 @@ ${title}:`);
     }
     if (!atomCache || !atomCache.get) {
       if (retryCount >= maxRetries) {
-        console.error(
+        productionError2(
           `\u274C [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries (${maxRetries / 2}s)`
         );
-        console.error(`\u274C [ATOM-HOOK] Final check - targetWindow.jotaiAtomCache:`, targetWindow3.jotaiAtomCache);
-        console.error(`\u274C [ATOM-HOOK] Using unsafeWindow:`, isUserscript2);
-        console.error(`\u274C [ATOM-HOOK] Script will continue with reduced functionality`);
+        productionError2(`\u274C [ATOM-HOOK] Final check - targetWindow.jotaiAtomCache:`, targetWindow3.jotaiAtomCache);
+        productionError2(`\u274C [ATOM-HOOK] Using unsafeWindow:`, isUserscript2);
+        productionError2(`\u274C [ATOM-HOOK] Script will continue with reduced functionality`);
         productionWarn3(`\u26A0\uFE0F [ATOM-HOOK] Gave up waiting for atom store for ${windowKey} after ${maxRetries} retries`);
         productionWarn3(`\u26A0\uFE0F [ATOM-HOOK] Script will continue with reduced functionality`);
         return;
@@ -3631,7 +3632,7 @@ ${title}:`);
       });
       productionLog3(`\u{1F4E6} Stored atom reference for ${windowKey} (can now re-query for fresh data)`);
     } catch (error) {
-      console.error(`\u274C Error hooking ${atomPath}:`, error);
+      productionError2(`\u274C Error hooking ${atomPath}:`, error);
     }
   }
   function listenToSlotIndexAtom2(dependencies = {}) {
@@ -3646,7 +3647,7 @@ ${title}:`);
     productionLog3("\u{1F50D} [SLOT-ATOM] Starting slot index atom listener...");
     if (typeof targetWindow3._mgtools_currentSlotIndex === "undefined") {
       targetWindow3._mgtools_currentSlotIndex = 0;
-      console.log("\u{1F3AF} [SLOT-ATOM] Initialized slot index to 0");
+      productionLog3("\u{1F3AF} [SLOT-ATOM] Initialized slot index to 0");
     }
     const tryHookingViaCache = () => {
       const atomCache = targetWindow3.jotaiAtomCache?.cache || targetWindow3.jotaiAtomCache;
@@ -3669,7 +3670,7 @@ ${title}:`);
             const idx = Number.isFinite(value) ? value : 0;
             if (targetWindow3._mgtools_currentSlotIndex !== idx) {
               targetWindow3._mgtools_currentSlotIndex = idx;
-              console.log(`\u{1F3AF} [SLOT-ATOM-CACHE] Slot index changed to: ${idx}`);
+              productionLog3(`\u{1F3AF} [SLOT-ATOM-CACHE] Slot index changed to: ${idx}`);
               if (typeof insertTurtleEstimate3 === "function") {
                 requestAnimationFrame(() => insertTurtleEstimate3());
               }
@@ -3729,7 +3730,7 @@ ${title}:`);
       function setSlotIndex(idx) {
         targetWindow3._mgtools_currentSlotIndex = idx;
         if (CONFIG2.DEBUG.FLAGS.FIX_VALIDATION) {
-          console.log("[FIX_SLOT] Set slot index to:", idx);
+          productionLog3("[FIX_SLOT] Set slot index to:", idx);
         }
       }
       function syncSlotIndexFromGame() {
@@ -3751,7 +3752,7 @@ ${title}:`);
           });
           if (CONFIG2.DEBUG.FLAGS.FIX_VALIDATION) {
             targetWindow3._mgtools_syncCount = (targetWindow3._mgtools_syncCount || 0) + 1;
-            console.log("[FIX_HARVEST] Synced to game slot:", {
+            productionLog3("[FIX_HARVEST] Synced to game slot:", {
               from: currentIndex,
               to: gameIndex,
               syncCount: targetWindow3._mgtools_syncCount
@@ -3772,7 +3773,7 @@ ${title}:`);
         } else if (direction === "backward") {
           targetWindow3._mgtools_currentSlotIndex = (targetWindow3._mgtools_currentSlotIndex - 1 + maxIndex) % maxIndex;
         }
-        console.log(
+        productionLog3(
           `\u{1F3AF} [SLOT-KEY] Cycled ${direction} - slot index: ${targetWindow3._mgtools_currentSlotIndex}/${maxIndex}`
         );
         setTimeout(() => {
@@ -3792,7 +3793,7 @@ ${title}:`);
           if (currentHash !== lastCropHash) {
             targetWindow3._mgtools_currentSlotIndex = 0;
             lastCropHash = currentHash;
-            console.log(`\u{1F504} [SLOT-KEY] New crop detected, reset index to 0`);
+            productionLog3(`\u{1F504} [SLOT-KEY] New crop detected, reset index to 0`);
           }
           if (e.key.toLowerCase() === "x") {
             updateSlotIndex("forward");
@@ -3812,16 +3813,16 @@ ${title}:`);
           const hasLeftArrow = button.querySelector('svg[data-icon="chevron-left"]') || button.innerHTML.includes("chevron-left") || button.getAttribute("aria-label")?.includes("Previous");
           const hasRightArrow = button.querySelector('svg[data-icon="chevron-right"]') || button.innerHTML.includes("chevron-right") || button.getAttribute("aria-label")?.includes("Next");
           if (hasLeftArrow) {
-            console.log("\u2B05\uFE0F [SLOT-ARROW] Left arrow clicked");
+            productionLog3("\u2B05\uFE0F [SLOT-ARROW] Left arrow clicked");
             updateSlotIndex("backward");
           } else if (hasRightArrow) {
-            console.log("\u27A1\uFE0F [SLOT-ARROW] Right arrow clicked");
+            productionLog3("\u27A1\uFE0F [SLOT-ARROW] Right arrow clicked");
             updateSlotIndex("forward");
           }
         },
         true
       );
-      console.log("\u2705 [SLOT-ATOM] Key and arrow watchers installed");
+      productionLog3("\u2705 [SLOT-ATOM] Key and arrow watchers installed");
     };
     setupKeyWatcher();
     let attempts = 0;
@@ -3923,7 +3924,7 @@ ${title}:`);
             handler();
             productionLog3(`\u{1F9F9} [MEMORY] Executed cleanup handler ${index + 1}`);
           } catch (error) {
-            console.error(`\u274C [MEMORY] Cleanup handler ${index + 1} failed:`, error);
+            productionError2(`\u274C [MEMORY] Cleanup handler ${index + 1} failed:`, error);
           }
         });
         if (targetWindow3 && targetWindow3.MGA_Internal && targetWindow3.MGA_Internal.eventListeners) {
@@ -3951,7 +3952,7 @@ ${title}:`);
         }
         productionLog3("\u2705 [MEMORY] MGA cleanup completed successfully");
       } catch (error) {
-        console.error("\u274C [MEMORY] MGA cleanup failed:", error);
+        productionError2("\u274C [MEMORY] MGA cleanup failed:", error);
       }
     }
     function MGA_debouncedSave(key, data) {
@@ -3965,7 +3966,7 @@ ${title}:`);
             productionLog3(`\u{1F4BE} [MEMORY] Debounced save completed for ${key}`);
           }
         } catch (error) {
-          console.error(`\u274C [MEMORY] Debounced save failed for ${key}:`, error);
+          productionError2(`\u274C [MEMORY] Debounced save failed for ${key}:`, error);
         }
         saveTimeouts.delete(key);
       }, MGA_MemoryConfig.saveDebounceMs);
@@ -4641,7 +4642,7 @@ ${title}:`);
   function makeDraggable(element, handle, dependencies = {}) {
     const {
       targetDocument: targetDocument2 = typeof document !== "undefined" ? document : null,
-      debugLog: debugLog3 = () => {
+      debugLog: debugLog2 = () => {
       },
       saveMainHUDPosition: savePositionFn = null
     } = dependencies;
@@ -4679,7 +4680,7 @@ ${title}:`);
       element.style.zIndex = "999999";
       handle.style.cursor = "grabbing";
       targetDocument2.body.style.userSelect = "none";
-      debugLog3("OVERLAY_LIFECYCLE", "Started dragging main HUD", {
+      debugLog2("OVERLAY_LIFECYCLE", "Started dragging main HUD", {
         elementClass: element.className,
         startPosition: { left: startLeft, top: startTop }
       });
@@ -4741,7 +4742,7 @@ ${title}:`);
         if (savePositionFn) {
           savePositionFn(finalPosition);
         }
-        debugLog3("OVERLAY_LIFECYCLE", "Finished dragging main HUD", {
+        debugLog2("OVERLAY_LIFECYCLE", "Finished dragging main HUD", {
           elementClass: element.className,
           finalPosition
         });
@@ -4755,7 +4756,7 @@ ${title}:`);
       if (justFinishedDrag) {
         e.preventDefault();
         e.stopPropagation();
-        debugLog3("OVERLAY_LIFECYCLE", "Second mousedown blocked (just finished drag)");
+        debugLog2("OVERLAY_LIFECYCLE", "Second mousedown blocked (just finished drag)");
         justFinishedDrag = false;
         return;
       }
@@ -4796,20 +4797,20 @@ ${title}:`);
     });
   }
   function saveMainHUDPosition(position, dependencies = {}) {
-    const { MGA_saveJSON: MGA_saveJSON2 = null, debugLog: debugLog3 = () => {
+    const { MGA_saveJSON: MGA_saveJSON2 = null, debugLog: debugLog2 = () => {
     }, debugError: debugError2 = () => {
     } } = dependencies;
     try {
       if (MGA_saveJSON2) {
         MGA_saveJSON2("MGA_mainHUDPosition", position);
       }
-      debugLog3("OVERLAY_LIFECYCLE", "Saved main HUD position", { position });
+      debugLog2("OVERLAY_LIFECYCLE", "Saved main HUD position", { position });
     } catch (error) {
       debugError2("OVERLAY_LIFECYCLE", "Failed to save main HUD position", error, { position });
     }
   }
   function loadMainHUDPosition(element, dependencies = {}) {
-    const { MGA_loadJSON: MGA_loadJSON2 = null, debugLog: debugLog3 = () => {
+    const { MGA_loadJSON: MGA_loadJSON2 = null, debugLog: debugLog2 = () => {
     }, debugError: debugError2 = () => {
     } } = dependencies;
     try {
@@ -4821,7 +4822,7 @@ ${title}:`);
         if (!isNaN(leftPx) && !isNaN(topPx) && leftPx >= 0 && topPx >= 0 && leftPx < window.innerWidth && topPx < window.innerHeight) {
           element.style.left = savedPosition.left;
           element.style.top = savedPosition.top;
-          debugLog3("OVERLAY_LIFECYCLE", "Restored main HUD position", { position: savedPosition });
+          debugLog2("OVERLAY_LIFECYCLE", "Restored main HUD position", { position: savedPosition });
         }
       }
     } catch (error) {
@@ -4917,7 +4918,7 @@ ${title}:`);
   function makeToggleButtonDraggable(toggleBtn, dependencies = {}) {
     const {
       isMGAEvent = () => true,
-      debugLog: debugLog3 = () => {
+      debugLog: debugLog2 = () => {
       },
       saveToggleButtonPosition: savePositionFn = null,
       UnifiedState: UnifiedState3 = null,
@@ -5002,7 +5003,7 @@ ${title}:`);
           if (savePositionFn) {
             savePositionFn(finalPosition);
           }
-          debugLog3("OVERLAY_LIFECYCLE", "Toggle button dragged to new position", finalPosition);
+          debugLog2("OVERLAY_LIFECYCLE", "Toggle button dragged to new position", finalPosition);
         } else {
           toggleBtn.style.willChange = "auto";
           toggleBtn.style.cursor = "grab";
@@ -5018,7 +5019,7 @@ ${title}:`);
               UnifiedState3.data.settings.panelVisible = newVisibility;
               MGA_saveJSON2("MGA_data", UnifiedState3.data);
             }
-            debugLog3("OVERLAY_LIFECYCLE", `Panel toggled: ${newVisibility ? "visible" : "hidden"}`);
+            debugLog2("OVERLAY_LIFECYCLE", `Panel toggled: ${newVisibility ? "visible" : "hidden"}`);
           }
         }
         clickStarted = false;
@@ -5026,20 +5027,20 @@ ${title}:`);
     });
   }
   function saveToggleButtonPosition(position, dependencies = {}) {
-    const { MGA_saveJSON: MGA_saveJSON2 = null, debugLog: debugLog3 = () => {
+    const { MGA_saveJSON: MGA_saveJSON2 = null, debugLog: debugLog2 = () => {
     }, debugError: debugError2 = () => {
     } } = dependencies;
     try {
       if (MGA_saveJSON2) {
         MGA_saveJSON2("MGA_toggleButtonPosition", position);
       }
-      debugLog3("OVERLAY_LIFECYCLE", "Saved toggle button position", { position });
+      debugLog2("OVERLAY_LIFECYCLE", "Saved toggle button position", { position });
     } catch (error) {
       debugError2("OVERLAY_LIFECYCLE", "Failed to save toggle button position", error, { position });
     }
   }
   function loadToggleButtonPosition(toggleBtn, dependencies = {}) {
-    const { MGA_loadJSON: MGA_loadJSON2 = null, debugLog: debugLog3 = () => {
+    const { MGA_loadJSON: MGA_loadJSON2 = null, debugLog: debugLog2 = () => {
     }, debugError: debugError2 = () => {
     } } = dependencies;
     try {
@@ -5054,7 +5055,7 @@ ${title}:`);
             toggleBtn.style.bottom = "";
             toggleBtn.style.left = savedPosition.left;
             toggleBtn.style.top = savedPosition.top;
-            debugLog3("OVERLAY_LIFECYCLE", "Restored toggle button position", { position: savedPosition });
+            debugLog2("OVERLAY_LIFECYCLE", "Restored toggle button position", { position: savedPosition });
           }
         }
       }
@@ -6862,7 +6863,7 @@ ${title}:`);
       return;
     }
     if (!targetDocument2.body) {
-      console.error("[MGTools] \u26A0\uFE0F Body not ready, retrying UI creation in 100ms...");
+      productionError2("[MGTools] \u26A0\uFE0F Body not ready, retrying UI creation in 100ms...");
       setTimeout(
         () => createUnifiedUI({
           targetDocument: targetDocument2,
@@ -6903,11 +6904,11 @@ ${title}:`);
       const preloadImg = new Image();
       const promise = new Promise((resolve) => {
         preloadImg.onload = () => {
-          console.log(`[MGTools] \u2705 Preloaded ${key} icon`);
+          productionLog3(`[MGTools] \u2705 Preloaded ${key} icon`);
           resolve();
         };
         preloadImg.onerror = () => {
-          console.warn(`[MGTools] \u26A0\uFE0F Failed to preload ${key} icon, will use fallback`);
+          productionWarn2(`[MGTools] \u26A0\uFE0F Failed to preload ${key} icon, will use fallback`);
           resolve();
         };
       });
@@ -6919,7 +6920,7 @@ ${title}:`);
       new Promise((resolve) => setTimeout(resolve, 500))
       // 500ms timeout
     ]).then(() => {
-      console.log("[MGTools] Icon preloading complete, continuing with UI creation");
+      productionLog3("[MGTools] Icon preloading complete, continuing with UI creation");
     });
     const dock = targetDocument2.createElement("div");
     dock.id = "mgh-dock";
@@ -6991,7 +6992,7 @@ ${title}:`);
           return;
         }
         retryCount++;
-        console.log(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
+        productionLog3(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
         setTimeout(() => {
           const newImg = targetDocument2.createElement("img");
           newImg.src = icons[tabName];
@@ -6999,7 +7000,7 @@ ${title}:`);
           newImg.onerror = loadWithRetry;
           newImg.onload = () => {
             img.replaceWith(newImg);
-            console.log(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
+            productionLog3(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
           };
         }, retryDelay * retryCount);
       };
@@ -7060,7 +7061,7 @@ ${title}:`);
           return;
         }
         retryCount++;
-        console.log(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
+        productionLog3(`[MGTools] Retrying image load for ${tabName} (attempt ${retryCount}/${maxRetries})`);
         setTimeout(() => {
           const newImg = targetDocument2.createElement("img");
           newImg.src = icons[tabName];
@@ -7068,7 +7069,7 @@ ${title}:`);
           newImg.onerror = loadWithRetry;
           newImg.onload = () => {
             img.replaceWith(newImg);
-            console.log(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
+            productionLog3(`[MGTools] Successfully loaded ${tabName} icon on retry ${retryCount}`);
           };
         }, retryDelay * retryCount);
       };
@@ -7239,12 +7240,12 @@ ${title}:`);
       const dockHidden = dock && (dock.style.display === "none" || window.getComputedStyle(dock).display === "none");
       const sidebarHidden = sidebar && (sidebar.style.display === "none" || window.getComputedStyle(sidebar).display === "none");
       if (!dock || !sidebar || dockHidden || sidebarHidden) {
-        if (!dock) console.warn("[MGTools] Dock element missing");
-        if (!sidebar) console.warn("[MGTools] Sidebar element missing");
-        if (dockHidden) console.warn("[MGTools] Dock is hidden (display:none)");
-        if (sidebarHidden) console.warn("[MGTools] Sidebar is hidden (display:none)");
+        if (!dock) productionWarn2("[MGTools] Dock element missing");
+        if (!sidebar) productionWarn2("[MGTools] Sidebar element missing");
+        if (dockHidden) productionWarn2("[MGTools] Dock is hidden (display:none)");
+        if (sidebarHidden) productionWarn2("[MGTools] Sidebar is hidden (display:none)");
         if (dockHidden || sidebarHidden) {
-          console.warn("[MGTools] Clearing corrupted visibility state...");
+          productionWarn2("[MGTools] Clearing corrupted visibility state...");
           localStorage.removeItem("mgh_toolbar_visible");
         }
         retryCount++;
@@ -7256,11 +7257,11 @@ ${title}:`);
               createUnifiedUI2();
               checkAndRetry();
             } catch (error) {
-              console.error("[MGTools TEST] UI recreation failed:", error);
+              productionError2("[MGTools TEST] UI recreation failed:", error);
             }
           }, delay);
         } else {
-          console.error("[MGTools TEST] UI failed to load. Please report this issue.");
+          productionError2("[MGTools TEST] UI failed to load. Please report this issue.");
           try {
             const msg = targetDocument2.createElement("div");
             msg.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#ff4444;color:white;padding:20px;border-radius:10px;z-index:999999;font-family:Arial,sans-serif;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
@@ -7270,7 +7271,7 @@ ${title}:`);
               if (msg.parentNode) msg.parentNode.removeChild(msg);
             }, 1e4);
           } catch (e) {
-            console.error("[MGTools TEST] Emergency notification failed:", e);
+            productionError2("[MGTools TEST] Emergency notification failed:", e);
           }
         }
       } else {
@@ -7323,7 +7324,7 @@ ${title}:`);
         e.stopPropagation();
         toolbarVisible = !toolbarVisible;
         applyVisibility(toolbarVisible, true);
-        console.log(`[MGTools] Alt+M: Toolbar ${toolbarVisible ? "shown" : "hidden"}`);
+        productionLog3(`[MGTools] Alt+M: Toolbar ${toolbarVisible ? "shown" : "hidden"}`);
       }
     };
     document2.addEventListener("keydown", toggleHandler, { passive: false, capture: true });
@@ -7374,19 +7375,19 @@ ${title}:`);
         const currentIndex = SIZES.indexOf(currentSize);
         const nextIndex = (currentIndex + 1) % SIZES.length;
         applyDockSize(SIZES[nextIndex], true);
-        console.log(`[MGTools] Alt+=: Dock size \u2192 ${SIZE_LABELS[SIZES[nextIndex]]}`);
+        productionLog2(`[MGTools] Alt+=: Dock size \u2192 ${SIZE_LABELS[SIZES[nextIndex]]}`);
       } else if (e.altKey && (e.key === "-" || e.key === "_")) {
         e.preventDefault();
         e.stopPropagation();
         const currentIndex = SIZES.indexOf(currentSize);
         const prevIndex = (currentIndex - 1 + SIZES.length) % SIZES.length;
         applyDockSize(SIZES[prevIndex], true);
-        console.log(`[MGTools] Alt+-: Dock size \u2192 ${SIZE_LABELS[SIZES[prevIndex]]}`);
+        productionLog2(`[MGTools] Alt+-: Dock size \u2192 ${SIZE_LABELS[SIZES[prevIndex]]}`);
       } else if (e.altKey && (e.key === "x" || e.key === "X")) {
         e.preventDefault();
         e.stopPropagation();
         resetDockPosition2();
-        console.log(`[MGTools] Alt+X: Dock position reset to default`);
+        productionLog2(`[MGTools] Alt+X: Dock position reset to default`);
       }
     };
     document2.addEventListener("keydown", sizeHandler, { passive: false, capture: true });
@@ -7398,20 +7399,20 @@ ${title}:`);
     try {
       const serialized = JSON.stringify(position);
       localStorage.setItem("mgh_dock_position", serialized);
-      console.log(`[DOCK-SAVE] left=${position.left}, top=${position.top}, typeof=string (len=${serialized.length})`);
+      productionLog2(`[DOCK-SAVE] left=${position.left}, top=${position.top}, typeof=string (len=${serialized.length})`);
     } catch (e) {
-      console.warn("[DOCK-SAVE] Exception during save:", e);
+      productionWarn2("[DOCK-SAVE] Exception during save:", e);
     }
   }
   function resetDockPosition({ targetDocument: targetDocument2, showNotificationToast: showNotificationToast2 }) {
     try {
       const dock = targetDocument2.getElementById("mgh-dock");
       if (!dock) {
-        console.warn("[DOCK-RESET] Dock element not found");
+        productionWarn2("[DOCK-RESET] Dock element not found");
         return;
       }
       localStorage.removeItem("mgh_dock_position");
-      console.log("[DOCK-RESET] Cleared saved position");
+      productionLog2("[DOCK-RESET] Cleared saved position");
       const dockWidth = dock.offsetWidth || 380;
       const defaultLeft = window.innerWidth - dockWidth - 20;
       const defaultTop = 100;
@@ -7420,14 +7421,14 @@ ${title}:`);
       dock.style.transform = "none";
       dock.style.bottom = "auto";
       dock.style.right = "auto";
-      console.log(`[DOCK-RESET] Reset to default position: left=${defaultLeft}, top=${defaultTop}`);
+      productionLog2(`[DOCK-RESET] Reset to default position: left=${defaultLeft}, top=${defaultTop}`);
       try {
         showNotificationToast2("\u{1F3E0} Dock Reset - Position reset to default", "success");
       } catch (e) {
-        console.log("[DOCK-RESET] Toast notification unavailable");
+        productionLog2("[DOCK-RESET] Toast notification unavailable");
       }
     } catch (e) {
-      console.warn("[DOCK-RESET] Exception during reset:", e);
+      productionWarn2("[DOCK-RESET] Exception during reset:", e);
     }
   }
   function cleanupCorruptedDockPosition() {
@@ -7436,28 +7437,28 @@ ${title}:`);
       if (!saved) return;
       if (typeof saved === "object" && saved !== null) {
         if (typeof saved.left === "number" && typeof saved.top === "number") {
-          console.log("[DOCK-CLEANUP] Found valid object position, keeping it");
+          productionLog2("[DOCK-CLEANUP] Found valid object position, keeping it");
           return;
         } else {
-          console.log("[DOCK-CLEANUP] Detected invalid object shape, clearing");
+          productionLog2("[DOCK-CLEANUP] Detected invalid object shape, clearing");
           localStorage.removeItem("mgh_dock_position");
           return;
         }
       }
       if (typeof saved === "string" && (saved === "[object Object]" || saved.startsWith("[object"))) {
-        console.log("[DOCK-CLEANUP] Detected corrupted position data, clearing");
+        productionLog2("[DOCK-CLEANUP] Detected corrupted position data, clearing");
         localStorage.removeItem("mgh_dock_position");
         return;
       }
       try {
         JSON.parse(saved);
-        console.log("[DOCK-CLEANUP] Position data is valid");
+        productionLog2("[DOCK-CLEANUP] Position data is valid");
       } catch (parseError) {
-        console.log("[DOCK-CLEANUP] Invalid JSON in position data, clearing");
+        productionLog2("[DOCK-CLEANUP] Invalid JSON in position data, clearing");
         localStorage.removeItem("mgh_dock_position");
       }
     } catch (e) {
-      console.warn("[DOCK-CLEANUP] Error during cleanup:", e);
+      productionWarn2("[DOCK-CLEANUP] Error during cleanup:", e);
       localStorage.removeItem("mgh_dock_position");
     }
   }
@@ -7504,7 +7505,7 @@ ${title}:`);
       handlerSetups
     } = deps;
     if (!(UnifiedState3.data.popouts.widgets instanceof Map)) {
-      console.warn("[MGTools] widgets was not a Map, re-initializing");
+      productionWarn2("[MGTools] widgets was not a Map, re-initializing");
       UnifiedState3.data.popouts.widgets = /* @__PURE__ */ new Map();
     }
     const existingPopout = targetDocument2.querySelector(`.mgh-popout[data-tab="${tabName}"]`);
@@ -7609,14 +7610,14 @@ ${title}:`);
       applyThemeToPopoutWidget2(popout, popoutThemeStyles);
     }
     escHandler = (e) => {
-      console.log("[MGTools DEBUG] Popout keydown event:", e.key, "Target:", e.target.tagName);
+      productionLog2("[MGTools DEBUG] Popout keydown event:", e.key, "Target:", e.target.tagName);
       if (e.key === "Escape") {
-        console.log("[MGTools DEBUG] ESC detected, closing popout:", tabName);
+        productionLog2("[MGTools DEBUG] ESC detected, closing popout:", tabName);
         closePopout();
       }
     };
     targetDocument2.addEventListener("keydown", escHandler);
-    console.log("[MGTools DEBUG] ESC listener added for popout:", tabName);
+    productionLog2("[MGTools DEBUG] ESC listener added for popout:", tabName);
     makeElementResizable2(popout, {
       minWidth: 320,
       minHeight: 200,
@@ -7696,14 +7697,14 @@ ${title}:`);
       UnifiedState: UnifiedState3,
       productionLog: productionLog3,
       productionWarn: productionWarn3,
-      debugLog: debugLog3,
+      debugLog: debugLog2,
       trackPopoutWindow: trackPopoutWindow2,
       contentGetters,
       handlerSetups,
       UNIFIED_STYLES: UNIFIED_STYLES2
     } = deps;
     if (!(UnifiedState3.data.popouts.windows instanceof Map)) {
-      console.warn("[MGTools] windows was not a Map, re-initializing");
+      productionWarn3("[MGTools] windows was not a Map, re-initializing");
       UnifiedState3.data.popouts.windows = /* @__PURE__ */ new Map();
     }
     productionLog3(`\u{1F517} Opening ${tabName} tab in pop-out window...`);
@@ -7727,7 +7728,7 @@ ${title}:`);
     UnifiedState3.data.popouts.windows.set(tabName, popoutWindow);
     popoutWindow.addEventListener("beforeunload", () => {
       UnifiedState3.data.popouts.windows.delete(tabName);
-      debugLog3("POPOUT_LIFECYCLE", `Removed ${tabName} from windows Map`);
+      debugLog2("POPOUT_LIFECYCLE", `Removed ${tabName} from windows Map`);
     });
     let content = "";
     switch (tabName) {
@@ -7841,7 +7842,7 @@ ${title}:`);
 
         function refreshPopoutContent(tabName) {
             if (!mainWindow || mainWindow.closed) {
-                console.warn('\u26A0\uFE0F Main window is closed. Cannot refresh content.');
+                productionWarn('\u26A0\uFE0F Main window is closed. Cannot refresh content.');
                 return;
             }
 
@@ -7900,7 +7901,7 @@ ${title}:`);
                 mainWindow.setupRoomJoinButtons.call(mainWindow);
             }
 
-            console.log('Pop-out content refreshed for:', tabName);
+            productionLog('Pop-out content refreshed for:', tabName);
         }
 
         // Expose refresh function on window object for external access
@@ -7923,7 +7924,7 @@ ${title}:`);
 
         // Cleanup when window closes
         window.addEventListener('beforeunload', () => {
-            console.log('Pop-out window closing for:', currentTabName);
+            productionLog('Pop-out window closing for:', currentTabName);
         });
     <\/script>
 </body>
@@ -8007,9 +8008,9 @@ ${title}:`);
     }
   }
   function setupOverlayHandlers(deps, overlay, tabName) {
-    const { debugLog: debugLog3, debugError: debugError2, UnifiedState: UnifiedState3, handlerSetups } = deps;
+    const { debugLog: debugLog2, debugError: debugError2, UnifiedState: UnifiedState3, handlerSetups } = deps;
     try {
-      debugLog3("HANDLER_SETUP", `Setting up handlers for content-only overlay ${tabName}`, {
+      debugLog2("HANDLER_SETUP", `Setting up handlers for content-only overlay ${tabName}`, {
         overlayId: overlay.id
       });
       switch (tabName) {
@@ -8017,7 +8018,7 @@ ${title}:`);
           handlerSetups.setupAbilitiesTabHandlers(overlay);
           if (overlay) {
             handlerSetups.updateAbilityLogDisplay(overlay);
-            debugLog3("ABILITY_LOGS", "Populated ability logs for content-only overlay", {
+            debugLog2("ABILITY_LOGS", "Populated ability logs for content-only overlay", {
               logCount: UnifiedState3.data.petAbilityLogs.length
             });
           }
@@ -8059,7 +8060,7 @@ ${title}:`);
     const {
       targetDocument: targetDocument2,
       UnifiedState: UnifiedState3,
-      debugLog: debugLog3,
+      debugLog: debugLog2,
       productionLog: productionLog3,
       getGameViewport: getGameViewport2,
       findOptimalPosition: findOptimalPosition2,
@@ -8071,22 +8072,22 @@ ${title}:`);
       closeInGameOverlay: closeInGameOverlay2
     } = deps;
     if (!(UnifiedState3.data.popouts.overlays instanceof Map)) {
-      console.warn("[MGTools] overlays was not a Map, re-initializing");
+      productionWarn2("[MGTools] overlays was not a Map, re-initializing");
       UnifiedState3.data.popouts.overlays = /* @__PURE__ */ new Map();
     }
-    debugLog3("OVERLAY_LIFECYCLE", `Creating content-only overlay for ${tabName} tab`);
+    debugLog2("OVERLAY_LIFECYCLE", `Creating content-only overlay for ${tabName} tab`);
     if (UnifiedState3.data.popouts.overlays.has(tabName)) {
       const existingOverlay = UnifiedState3.data.popouts.overlays.get(tabName);
       if (existingOverlay && targetDocument2.contains(existingOverlay)) {
         if (existingOverlay.style.display !== "none") {
           existingOverlay.remove();
           UnifiedState3.data.popouts.overlays.delete(tabName);
-          debugLog3("OVERLAY_LIFECYCLE", `Toggled OFF: ${tabName} overlay removed`);
+          debugLog2("OVERLAY_LIFECYCLE", `Toggled OFF: ${tabName} overlay removed`);
           return null;
         } else {
           existingOverlay.style.display = "block";
           existingOverlay.style.zIndex = "999999";
-          debugLog3("OVERLAY_LIFECYCLE", `Toggled ON: ${tabName} overlay shown`);
+          debugLog2("OVERLAY_LIFECYCLE", `Toggled ON: ${tabName} overlay shown`);
           return existingOverlay;
         }
       }
@@ -8128,13 +8129,13 @@ ${title}:`);
       overlay.style.background = popoutTheme.background;
       overlay.style.backgroundBlendMode = "";
     }
-    debugLog3("POP_OUT_DESIGN", `Applied content-only theme for ${tabName}`, {
+    debugLog2("POP_OUT_DESIGN", `Applied content-only theme for ${tabName}`, {
       background: popoutTheme.background,
       dimensions: `${overlay.style.width} x ${overlay.style.height}`
     });
     overlay.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        debugLog3("POP_OUT_DESIGN", `Closing overlay ${tabName} via ESC key`);
+        debugLog2("POP_OUT_DESIGN", `Closing overlay ${tabName} via ESC key`);
         closeInGameOverlay2(deps, tabName);
       }
     });
@@ -8275,7 +8276,7 @@ ${title}:`);
     addResizeHandleToOverlay2(deps, overlay);
     loadOverlayPosition2(deps, overlay);
     loadOverlayDimensions2(deps, overlay);
-    debugLog3("POP_OUT_DESIGN", `Content added to overlay for ${tabName}`, {
+    debugLog2("POP_OUT_DESIGN", `Content added to overlay for ${tabName}`, {
       hasContent: !!contentHTML
     });
     targetDocument2.body.appendChild(overlay);
@@ -8310,19 +8311,19 @@ ${title}:`);
     setTimeout(() => {
       setupOverlayHandlers(deps, overlay, tabName);
     }, 100);
-    debugLog3("OVERLAY_LIFECYCLE", `Content-only overlay created for ${tabName}`, {
+    debugLog2("OVERLAY_LIFECYCLE", `Content-only overlay created for ${tabName}`, {
       dimensions: `${overlay.style.width} x ${overlay.style.height}`,
       overlayId: overlay.id
     });
     return overlay;
   }
   function makeEntireOverlayDraggable(deps, overlay) {
-    const { targetDocument: targetDocument2, debugLog: debugLog3, getGameViewport: getGameViewport2, saveOverlayPosition: saveOverlayPosition2 } = deps;
+    const { targetDocument: targetDocument2, debugLog: debugLog2, getGameViewport: getGameViewport2, saveOverlayPosition: saveOverlayPosition2 } = deps;
     let isDragging = false;
     const dragOffset = { x: 0, y: 0 };
     let animationFrame = null;
     let dragStartTime = 0;
-    debugLog3("OVERLAY_LIFECYCLE", "Setting up invisible dragging for entire overlay", {
+    debugLog2("OVERLAY_LIFECYCLE", "Setting up invisible dragging for entire overlay", {
       overlayId: overlay.id
     });
     overlay.addEventListener("mousedown", (e) => {
@@ -8351,7 +8352,7 @@ ${title}:`);
         overlay.classList.add("mga-dragging");
         targetDocument2.body.style.userSelect = "none";
         targetDocument2.body.style.cursor = "grabbing !important";
-        debugLog3("OVERLAY_LIFECYCLE", "Started invisible dragging", { overlayId: overlay.id });
+        debugLog2("OVERLAY_LIFECYCLE", "Started invisible dragging", { overlayId: overlay.id });
       }
       if (!isDragging) return;
       if (animationFrame) {
@@ -8389,7 +8390,7 @@ ${title}:`);
             left: overlay.style.left,
             top: overlay.style.top
           });
-          debugLog3("OVERLAY_LIFECYCLE", "Finished invisible dragging", {
+          debugLog2("OVERLAY_LIFECYCLE", "Finished invisible dragging", {
             overlayId: overlay.id,
             position: { left: overlay.style.left, top: overlay.style.top }
           });
@@ -8409,9 +8410,9 @@ ${title}:`);
     };
   }
   function addResizeHandleToOverlay(deps, overlay) {
-    const { productionLog: productionLog3, debugLog: debugLog3, makeElementResizable: makeElementResizable2, MGA_loadJSON: MGA_loadJSON2, MGA_saveJSON: MGA_saveJSON2 } = deps;
+    const { productionLog: productionLog3, debugLog: debugLog2, makeElementResizable: makeElementResizable2, MGA_loadJSON: MGA_loadJSON2, MGA_saveJSON: MGA_saveJSON2 } = deps;
     productionLog3("\u{1F527} [RESIZE DEBUG] Adding resize handle to overlay:", overlay.id);
-    debugLog3("RESIZE", "Adding resize handle to overlay", { overlayId: overlay.id });
+    debugLog2("RESIZE", "Adding resize handle to overlay", { overlayId: overlay.id });
     const existingHandle = overlay.querySelector(".mga-resize-handle");
     if (existingHandle) {
       existingHandle.remove();
@@ -8439,12 +8440,12 @@ ${title}:`);
     overlay._resizeObserver = observer;
   }
   function saveOverlayDimensions(deps, overlayId, dimensions) {
-    const { MGA_loadJSON: MGA_loadJSON2, MGA_saveJSON: MGA_saveJSON2, debugLog: debugLog3, debugError: debugError2 } = deps;
+    const { MGA_loadJSON: MGA_loadJSON2, MGA_saveJSON: MGA_saveJSON2, debugLog: debugLog2, debugError: debugError2 } = deps;
     try {
       const savedDimensions = MGA_loadJSON2("MGA_overlayDimensions", {});
       savedDimensions[overlayId] = dimensions;
       MGA_saveJSON2("MGA_overlayDimensions", savedDimensions);
-      debugLog3("OVERLAY_LIFECYCLE", "Saved overlay dimensions", {
+      debugLog2("OVERLAY_LIFECYCLE", "Saved overlay dimensions", {
         overlayId,
         dimensions
       });
@@ -8456,7 +8457,7 @@ ${title}:`);
     }
   }
   function loadOverlayDimensions(deps, overlay) {
-    const { MGA_loadJSON: MGA_loadJSON2, debugLog: debugLog3, debugError: debugError2, applyResponsiveTextScaling } = deps;
+    const { MGA_loadJSON: MGA_loadJSON2, debugLog: debugLog2, debugError: debugError2, applyResponsiveTextScaling } = deps;
     try {
       const savedDimensions = MGA_loadJSON2("MGA_overlayDimensions", {});
       const dimensions = savedDimensions[overlay.id];
@@ -8467,7 +8468,7 @@ ${title}:`);
           overlay.style.width = dimensions.width;
           overlay.style.height = dimensions.height;
           applyResponsiveTextScaling(overlay, width, height);
-          debugLog3("OVERLAY_LIFECYCLE", "Restored overlay dimensions", {
+          debugLog2("OVERLAY_LIFECYCLE", "Restored overlay dimensions", {
             overlayId: overlay.id,
             dimensions
           });
@@ -8480,7 +8481,7 @@ ${title}:`);
     }
   }
   function findOptimalPosition(deps, tabName, gameViewport) {
-    const { MGA_loadJSON: MGA_loadJSON2, debugLog: debugLog3, hasCollisionAtPosition: hasCollisionAtPosition2, findPositionInZone: findPositionInZone2 } = deps;
+    const { MGA_loadJSON: MGA_loadJSON2, debugLog: debugLog2, hasCollisionAtPosition: hasCollisionAtPosition2, findPositionInZone: findPositionInZone2 } = deps;
     const overlayWidth = 240;
     const overlayHeight = 140;
     const margin = 15;
@@ -8493,7 +8494,7 @@ ${title}:`);
       const topPx = parseInt(savedPosition.top);
       if (!isNaN(leftPx) && !isNaN(topPx) && leftPx >= gameViewport.left && topPx >= gameViewport.top && leftPx + overlayWidth <= gameViewport.right && topPx + overlayHeight <= gameViewport.bottom) {
         if (!hasCollisionAtPosition2(deps, leftPx, topPx, overlayWidth, overlayHeight)) {
-          debugLog3("OVERLAY_LIFECYCLE", "Using saved position with no collisions", {
+          debugLog2("OVERLAY_LIFECYCLE", "Using saved position with no collisions", {
             tabName,
             position: { left: leftPx, top: topPx }
           });
@@ -8546,7 +8547,7 @@ ${title}:`);
     for (const zone of priorityZones) {
       const position = findPositionInZone2(deps, zone, overlayWidth, overlayHeight, snapGrid, mainHudBuffer);
       if (position) {
-        debugLog3("OVERLAY_LIFECYCLE", `Found optimal position in ${zone.name}`, {
+        debugLog2("OVERLAY_LIFECYCLE", `Found optimal position in ${zone.name}`, {
           tabName,
           position,
           zone: zone.name
@@ -8559,7 +8560,7 @@ ${title}:`);
     let attempts = 0;
     while (attempts < 20) {
       if (!hasCollisionAtPosition2(deps, fallbackX, fallbackY, overlayWidth, overlayHeight)) {
-        debugLog3("OVERLAY_LIFECYCLE", "Using fallback position (no collision found)", {
+        debugLog2("OVERLAY_LIFECYCLE", "Using fallback position (no collision found)", {
           tabName,
           position: { left: fallbackX, top: fallbackY },
           attempts
@@ -8570,7 +8571,7 @@ ${title}:`);
       fallbackY += 30;
       attempts++;
     }
-    debugLog3("OVERLAY_LIFECYCLE", "Using last resort position (all attempts had collisions)", {
+    debugLog2("OVERLAY_LIFECYCLE", "Using last resort position (all attempts had collisions)", {
       tabName,
       position: { left: margin, top: margin }
     });
@@ -8624,12 +8625,12 @@ ${title}:`);
     return false;
   }
   function saveOverlayPosition(deps, overlayId, position) {
-    const { MGA_loadJSON: MGA_loadJSON2, MGA_saveJSON: MGA_saveJSON2, debugLog: debugLog3, debugError: debugError2 } = deps;
+    const { MGA_loadJSON: MGA_loadJSON2, MGA_saveJSON: MGA_saveJSON2, debugLog: debugLog2, debugError: debugError2 } = deps;
     try {
       const savedPositions = MGA_loadJSON2("MGA_overlayPositions", {});
       savedPositions[overlayId] = position;
       MGA_saveJSON2("MGA_overlayPositions", savedPositions);
-      debugLog3("OVERLAY_LIFECYCLE", "Saved overlay position", {
+      debugLog2("OVERLAY_LIFECYCLE", "Saved overlay position", {
         overlayId,
         position
       });
@@ -8641,7 +8642,7 @@ ${title}:`);
     }
   }
   function loadOverlayPosition(deps, overlay) {
-    const { MGA_loadJSON: MGA_loadJSON2, debugLog: debugLog3, debugError: debugError2, getGameViewport: getGameViewport2 } = deps;
+    const { MGA_loadJSON: MGA_loadJSON2, debugLog: debugLog2, debugError: debugError2, getGameViewport: getGameViewport2 } = deps;
     try {
       const savedPositions = MGA_loadJSON2("MGA_overlayPositions", {});
       const position = savedPositions[overlay.id];
@@ -8652,12 +8653,12 @@ ${title}:`);
         if (!isNaN(leftPx) && !isNaN(topPx) && leftPx >= gameViewport.left && topPx >= gameViewport.top && leftPx < gameViewport.right && topPx < gameViewport.bottom) {
           overlay.style.left = position.left;
           overlay.style.top = position.top;
-          debugLog3("OVERLAY_LIFECYCLE", "Restored overlay position", {
+          debugLog2("OVERLAY_LIFECYCLE", "Restored overlay position", {
             overlayId: overlay.id,
             position
           });
         } else {
-          debugLog3("OVERLAY_LIFECYCLE", "Saved position out of bounds, using default", {
+          debugLog2("OVERLAY_LIFECYCLE", "Saved position out of bounds, using default", {
             overlayId: overlay.id,
             savedPosition: position,
             viewport: gameViewport
@@ -8688,9 +8689,9 @@ ${title}:`);
     }
   }
   function updatePureOverlayContent(deps, overlay, tabName) {
-    const { productionLog: productionLog3, debugLog: debugLog3, debugError: debugError2, contentGetters, setupPureOverlayHandlers: setupPureOverlayHandlers2, addResizeHandleToOverlay: addResizeHandleToOverlay2 } = deps;
+    const { productionLog: productionLog3, debugLog: debugLog2, debugError: debugError2, contentGetters, setupPureOverlayHandlers: setupPureOverlayHandlers2, addResizeHandleToOverlay: addResizeHandleToOverlay2 } = deps;
     try {
-      debugLog3("OVERLAY_LIFECYCLE", `Updating pure overlay content for ${tabName}`, {
+      debugLog2("OVERLAY_LIFECYCLE", `Updating pure overlay content for ${tabName}`, {
         overlayId: overlay.id
       });
       let content = "";
@@ -8835,18 +8836,18 @@ ${title}:`);
     }
   }
   function setupPureOverlayHandlers(deps, overlay, tabName) {
-    const { productionLog: productionLog3, debugLog: debugLog3, debugError: debugError2, UnifiedState: UnifiedState3, handlerSetups } = deps;
+    const { productionLog: productionLog3, debugLog: debugLog2, debugError: debugError2, UnifiedState: UnifiedState3, handlerSetups } = deps;
     setTimeout(() => {
       try {
         productionLog3(`\u{1F527} [HANDLER-SETUP] Setting up handlers for ${tabName} overlay`);
-        debugLog3("HANDLER_SETUP", `Setting up pure overlay handlers for ${tabName}`, {
+        debugLog2("HANDLER_SETUP", `Setting up pure overlay handlers for ${tabName}`, {
           overlayId: overlay.id
         });
         switch (tabName) {
           case "abilities":
             handlerSetups.setupAbilitiesTabHandlers(overlay);
             handlerSetups.updateAbilityLogDisplay(overlay);
-            debugLog3("ABILITY_LOGS", "Set up ability logs for pure overlay", {
+            debugLog2("ABILITY_LOGS", "Set up ability logs for pure overlay", {
               logCount: UnifiedState3.data.petAbilityLogs.length,
               overlayId: overlay.id
             });
@@ -8891,7 +8892,7 @@ ${title}:`);
     }
   }
   function updateOverlayContent(deps, contentArea, tabName) {
-    const { targetDocument: targetDocument2, debugLog: debugLog3, debugError: debugError2, UnifiedState: UnifiedState3, contentGetters, handlerSetups } = deps;
+    const { targetDocument: targetDocument2, debugLog: debugLog2, debugError: debugError2, UnifiedState: UnifiedState3, contentGetters, handlerSetups } = deps;
     let content = "";
     switch (tabName) {
       case "pets":
@@ -8936,7 +8937,7 @@ ${title}:`);
     setTimeout(() => {
       try {
         const parentOverlay = contentArea.closest(".mga-overlay") || contentArea.parentElement;
-        debugLog3("HANDLER_SETUP", `Setting up handlers for ${tabName}`, {
+        debugLog2("HANDLER_SETUP", `Setting up handlers for ${tabName}`, {
           overlayFound: !!parentOverlay,
           overlayClass: parentOverlay?.className,
           contentAreaClass: contentArea?.className
@@ -8946,13 +8947,13 @@ ${title}:`);
             handlerSetups.setupAbilitiesTabHandlers(parentOverlay);
             if (parentOverlay) {
               handlerSetups.updateAbilityLogDisplay(parentOverlay);
-              debugLog3("ABILITY_LOGS", "Populated ability logs for new overlay", {
+              debugLog2("ABILITY_LOGS", "Populated ability logs for new overlay", {
                 logCount: UnifiedState3.data.petAbilityLogs.length,
                 overlayId: parentOverlay?.id || "no-id"
               });
               setTimeout(() => {
                 handlerSetups.updateAbilityLogDisplay(parentOverlay);
-                debugLog3("ABILITY_LOGS", "Secondary refresh for ability logs completed");
+                debugLog2("ABILITY_LOGS", "Secondary refresh for ability logs completed");
               }, 500);
             } else {
               debugError2(
@@ -8991,7 +8992,7 @@ ${title}:`);
     const {
       UnifiedState: UnifiedState3,
       targetDocument: targetDocument2,
-      debugLog: debugLog3,
+      debugLog: debugLog2,
       closeInGameOverlay: closeInGameOverlay2,
       createInGameOverlay: createInGameOverlay2,
       openTabInSeparateWindow: openTabInSeparateWindow2,
@@ -9003,16 +9004,16 @@ ${title}:`);
       if (existingOverlay && targetDocument2.contains(existingOverlay)) {
         closeInGameOverlay2(deps, tabName);
         updatePopoutButtonState2(deps, buttonElement, false);
-        debugLog3("OVERLAY_LIFECYCLE", `Toggled OFF: ${tabName} overlay closed`);
+        debugLog2("OVERLAY_LIFECYCLE", `Toggled OFF: ${tabName} overlay closed`);
       } else {
         createInGameOverlay2(deps, tabName);
         updatePopoutButtonState2(deps, buttonElement, true);
-        debugLog3("OVERLAY_LIFECYCLE", `Toggled ON: ${tabName} overlay opened`);
+        debugLog2("OVERLAY_LIFECYCLE", `Toggled ON: ${tabName} overlay opened`);
       }
     } else {
       openTabInSeparateWindow2(deps, tabName);
       updatePopoutButtonState2(deps, buttonElement, true);
-      debugLog3("OVERLAY_LIFECYCLE", `Opened separate window for ${tabName}`);
+      debugLog2("OVERLAY_LIFECYCLE", `Opened separate window for ${tabName}`);
     }
   }
   function updatePopoutButtonState(deps, buttonElement, isActive) {
@@ -9323,7 +9324,7 @@ ${title}:`);
         }
       }
     } catch (error) {
-      console.error("[MGTools] Failed to toggle main HUD:", error);
+      productionError2("[MGTools] Failed to toggle main HUD:", error);
     }
   }
 
@@ -10145,7 +10146,7 @@ ${title}:`);
         }
       });
     } catch (error) {
-      console.error("[MGTools] Failed to sync theme to windows:", error);
+      productionError2("[MGTools] Failed to sync theme to windows:", error);
     }
   }
 
@@ -10362,12 +10363,12 @@ ${title}:`);
   function getSeedsTabContent(dependencies = {}) {
     const {
       UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      debugLog: debugLog3 = () => {
+      debugLog: debugLog2 = () => {
       },
       productionLog: productionLog3 = () => {
       }
     } = dependencies;
-    debugLog3("SEEDS_TAB", "getSeedsTabContent() called - generating full content");
+    debugLog2("SEEDS_TAB", "getSeedsTabContent() called - generating full content");
     productionLog3("\u{1F50D} [SEEDS DEBUG] getSeedsTabContent() called - generating content");
     const seedGroups = [
       { name: "Common", color: "#fff", seeds: ["Carrot", "Strawberry", "Aloe"] },
@@ -10472,7 +10473,7 @@ ${title}:`);
       });
       html += "</div></div>";
     });
-    debugLog3("SEEDS_TAB", "getSeedsTabContent() returning HTML", { htmlLength: html.length });
+    debugLog2("SEEDS_TAB", "getSeedsTabContent() returning HTML", { htmlLength: html.length });
     productionLog3("\u{1F50D} [SEEDS DEBUG] Returning HTML:", {
       htmlLength: html.length,
       htmlPreview: html.substring(0, 200)
@@ -12705,16 +12706,16 @@ ${title}:`);
         try {
           const parsed = JSON.parse(dockPos);
           if (typeof parsed !== "object" || parsed === null || parsed.x !== void 0 && typeof parsed.x !== "number" || parsed.y !== void 0 && typeof parsed.y !== "number") {
-            console2.warn("\u26A0\uFE0F Corrupted dock position detected, clearing...");
+            productionWarn2("\u26A0\uFE0F Corrupted dock position detected, clearing...");
             localStorage3.removeItem("mgh_dock_position");
           }
         } catch (e) {
-          console2.warn("\u26A0\uFE0F Invalid dock position JSON, clearing...", e);
+          productionWarn2("\u26A0\uFE0F Invalid dock position JSON, clearing...", e);
           localStorage3.removeItem("mgh_dock_position");
         }
       }
     } catch (error) {
-      console2.error("\u274C Error cleaning dock position:", error);
+      productionError2("\u274C Error cleaning dock position:", error);
     }
   }
   function generateDemoTiles(count, { dateNow, mathRandom }) {
@@ -12741,7 +12742,7 @@ ${title}:`);
   function sortInventoryKeepHeadAndSendMovesOptimized(inventoryObj, options = {}, deps) {
     const { connection, console: console2 } = deps;
     if (!inventoryObj || !Array.isArray(inventoryObj.items)) {
-      console2.error("[MGTOOLS-FIX-D] Invalid inventory object passed to sorter.");
+      productionError2("[MGTOOLS-FIX-D] Invalid inventory object passed to sorter.");
       return null;
     }
     const items = inventoryObj.items;
@@ -12940,7 +12941,7 @@ ${title}:`);
       if (connection && typeof connection.sendMessage === "function") {
         connection.sendMessage(msg);
       } else {
-        console2.warn("[MGTOOLS-FIX-D] MagicCircle_RoomConnection not available \u2014 simulated move:", msg);
+        productionWarn2("[MGTOOLS-FIX-D] MagicCircle_RoomConnection not available \u2014 simulated move:", msg);
       }
     }
     const moves = [];
@@ -12953,12 +12954,12 @@ ${title}:`);
       if (alreadySame) continue;
       const curIndex = findIndexInWorking(desiredItem);
       if (curIndex === -1) {
-        console2.warn("[MGTOOLS-FIX-D] Could not find desired item in current inventory for", desiredItem);
+        productionWarn2("[MGTOOLS-FIX-D] Could not find desired item in current inventory for", desiredItem);
         continue;
       }
       const moveId = getMoveItemId(desiredItem);
       if (!moveId) {
-        console2.warn("[MGTOOLS-FIX-D] No moveItemId for", desiredItem);
+        productionWarn2("[MGTOOLS-FIX-D] No moveItemId for", desiredItem);
         continue;
       }
       moves.push({ moveId, from: curIndex, to: targetIndex });
@@ -12968,7 +12969,7 @@ ${title}:`);
     for (const m of moves) {
       sendMove(m.moveId, m.to);
     }
-    console2.log("[MGTOOLS-FIX-D] \u2705 Sort completed. Moves sent:", moves.length, moves);
+    productionLog2("[MGTOOLS-FIX-D] \u2705 Sort completed. Moves sent:", moves.length, moves);
     return targetOrder;
   }
   function initializeStandalone(deps) {
@@ -13047,7 +13048,7 @@ ${title}:`);
       productionLog3("\u2705 Magic Garden Assistant Demo initialized successfully!");
       productionLog3("\u{1F3AF} Try the features - they work with realistic demo data");
     } catch (error) {
-      console2.error("\u274C Failed to initialize demo mode:", error);
+      productionError2("\u274C Failed to initialize demo mode:", error);
       debugError2("STANDALONE_INIT", "Demo initialization failed", error);
       UnifiedState3.initialized = false;
     }
@@ -13174,10 +13175,10 @@ ${title}:`);
             startIntervals2();
             productionLog3("\u2705 [FAILSAFE] Successfully started intervals");
           } else {
-            console2.error("\u274C [FAILSAFE] startIntervals function not found!");
+            productionError2("\u274C [FAILSAFE] startIntervals function not found!");
           }
         } catch (e) {
-          console2.error("\u274C [FAILSAFE] Could not start intervals:", e);
+          productionError2("\u274C [FAILSAFE] Could not start intervals:", e);
         }
       } else {
         productionLog3("\u2705 [FAILSAFE] Intervals already running, no action needed");
@@ -13194,7 +13195,7 @@ ${title}:`);
       console: console2,
       productionLog: productionLog3,
       productionWarn: productionWarn3,
-      debugLog: debugLog3,
+      debugLog: debugLog2,
       debugError: debugError2,
       MGA_DEBUG,
       loadSavedData: loadSavedData2,
@@ -13281,22 +13282,22 @@ ${title}:`);
         }
         (async () => {
           try {
-            console2.log("[MGTools Feed] \u{1F50D} Waiting for Jotai atom cache before initializing feed buttons...");
+            productionLog3("[MGTools Feed] \u{1F50D} Waiting for Jotai atom cache before initializing feed buttons...");
             const maxWait = 1e4;
             const startTime = Date.now();
             let atomCacheReady = false;
             while (Date.now() - startTime < maxWait) {
               if (targetWindow3.jotaiAtomCache) {
                 const elapsed = Date.now() - startTime;
-                console2.log(`[MGTools Feed] \u2705 Jotai atom cache ready after ${elapsed}ms`);
+                productionLog3(`[MGTools Feed] \u2705 Jotai atom cache ready after ${elapsed}ms`);
                 UnifiedState3.jotaiReady = true;
                 atomCacheReady = true;
                 if (!deps.jotaiStore) {
                   deps.jotaiStore = deps.captureJotaiStore();
                   if (deps.jotaiStore) {
-                    console2.log("[MGTools Feed] \u2705 Also captured Jotai store");
+                    productionLog3("[MGTools Feed] \u2705 Also captured Jotai store");
                   } else {
-                    console2.log("[MGTools Feed] \u2139\uFE0F Store not captured, will use direct atom cache reading");
+                    productionLog3("[MGTools Feed] \u2139\uFE0F Store not captured, will use direct atom cache reading");
                   }
                 }
                 break;
@@ -13304,23 +13305,23 @@ ${title}:`);
               await new Promise((r) => setTimeout2(r, 200));
             }
             if (!atomCacheReady) {
-              console2.warn("[MGTools Feed] \u26A0\uFE0F Jotai atom cache not ready after timeout - initializing anyway");
+              productionWarn3("[MGTools Feed] \u26A0\uFE0F Jotai atom cache not ready after timeout - initializing anyway");
               UnifiedState3.jotaiReady = false;
             }
             initializeInstantFeedButtons2();
           } catch (error) {
-            console2.error("[MGTools] Error initializing instant feed buttons:", error);
+            productionError2("[MGTools] Error initializing instant feed buttons:", error);
           }
         })();
         setTimeout2(() => {
           try {
             initializeSortInventoryButton();
           } catch (error) {
-            console2.error("[MGTools] Error initializing sort inventory button:", error);
+            productionError2("[MGTools] Error initializing sort inventory button:", error);
           }
         }, 1500);
       } catch (error) {
-        console2.error("\u274C Error creating UI:", error);
+        productionError2("\u274C Error creating UI:", error);
         try {
           const errorDiv = document2.createElement("div");
           errorDiv.style.cssText = `
@@ -13345,7 +13346,7 @@ ${title}:`);
         `;
           document2.body.appendChild(errorDiv);
         } catch (e) {
-          console2.error("Failed to show error UI:", e);
+          productionError2("Failed to show error UI:", e);
         }
         if (MGA_DEBUG) {
           MGA_DEBUG.logError(error, "createUnifiedUI");
@@ -13405,9 +13406,11 @@ ${title}:`);
               }
             });
           } else if (typeof overlays === "object") {
-            productionLog3("[DATA-PERSISTENCE] \u26A0\uFE0F Popouts overlays is a plain object (JSON deserialized), skipping iteration");
+            productionLog3(
+              "[DATA-PERSISTENCE] \u26A0\uFE0F Popouts overlays is a plain object (JSON deserialized), skipping iteration"
+            );
           } else {
-            debugLog3("[DATA-PERSISTENCE] Unexpected popouts.overlays type:", typeof overlays);
+            debugLog2("[DATA-PERSISTENCE] Unexpected popouts.overlays type:", typeof overlays);
           }
         }
       }, 1e3);
@@ -13450,30 +13453,30 @@ ${title}:`);
       }
       productionLog3("\u2705 Magic Garden Unified Assistant initialized successfully!");
       targetWindow3.MGA_SHOW_UI = function() {
-        console2.log("%c\u{1F527} MGTools Recovery", "color: #4CAF50; font-weight: bold; font-size: 14px");
-        console2.log("Clearing corrupted UI state...");
+        productionLog3("%c\u{1F527} MGTools Recovery", "color: #4CAF50; font-weight: bold; font-size: 14px");
+        productionLog3("Clearing corrupted UI state...");
         try {
           deps.localStorage.removeItem("mgh_toolbar_visible");
           deps.localStorage.removeItem("mgh_dock_position");
           deps.localStorage.removeItem("mgh_dock_orientation");
-          console2.log("\u2705 State cleared. Reloading page...");
+          productionLog3("\u2705 State cleared. Reloading page...");
           setTimeout2(() => deps.location.reload(), 500);
         } catch (e) {
-          console2.error("\u274C Recovery failed:", e);
-          console2.log("Try manually: localStorage.clear() then refresh");
+          productionError2("\u274C Recovery failed:", e);
+          productionLog3("Try manually: localStorage.clear() then refresh");
         }
       };
-      console2.log(
+      productionLog3(
         "%c\u{1F3AE} MGTools v" + (typeof deps.GM_info !== "undefined" ? deps.GM_info.script.version : "1.1.1") + " Loaded",
         "color: #4CAF50; font-weight: bold; font-size: 14px"
       );
-      console2.log("%c\u{1F4A1} UI not showing? Run in console: MGA_SHOW_UI()", "color: #FFC107; font-size: 12px");
+      productionLog3("%c\u{1F4A1} UI not showing? Run in console: MGA_SHOW_UI()", "color: #FFC107; font-size: 12px");
       const testUI = document2.querySelector('div[style*="Test UI Active"]') || document2.querySelector('div[style*="MGA Test UI"]') || Array.from(document2.querySelectorAll("div")).find(
         (div) => div.textContent && div.textContent.includes("Test UI Active")
       );
       if (testUI) {
         testUI.remove();
-        debugLog3("UI_LIFECYCLE", "Test UI removed after successful initialization");
+        debugLog2("UI_LIFECYCLE", "Test UI removed after successful initialization");
       }
       setManagedInterval2(
         "connectionCheck",
@@ -13490,17 +13493,17 @@ ${title}:`);
         5e3
       );
     } catch (error) {
-      console2.error("\u274C Failed to initialize Magic Garden Unified Assistant:", error);
-      console2.error("Stack trace:", error.stack);
+      productionError2("\u274C Failed to initialize Magic Garden Unified Assistant:", error);
+      productionError2("Stack trace:", error.stack);
       UnifiedState3.initialized = false;
     }
   }
   function initializeBasedOnEnvironment(deps) {
     const { detectEnvironment: detectEnvironment3, initializeScript: initializeScript2, waitForGameReady: waitForGameReady2, initializeStandalone: initializeStandalone2, console: console2, productionLog: productionLog3 } = deps;
-    console2.log("\u{1F50D}\u{1F50D}\u{1F50D} [EXECUTION] ENTERED initializeBasedOnEnvironment()");
-    console2.log("\u{1F50D} [EXECUTION] About to call detectEnvironment()");
+    productionLog3("\u{1F50D}\u{1F50D}\u{1F50D} [EXECUTION] ENTERED initializeBasedOnEnvironment()");
+    productionLog3("\u{1F50D} [EXECUTION] About to call detectEnvironment()");
     const environment = detectEnvironment3();
-    console2.log("\u{1F50D} [EXECUTION] detectEnvironment() returned:", environment);
+    productionLog3("\u{1F50D} [EXECUTION] detectEnvironment() returned:", environment);
     productionLog3("\u{1F4CA} Environment Analysis:", {
       domain: environment.domain,
       strategy: environment.initStrategy,
@@ -14054,7 +14057,7 @@ ${title}:`);
          * @returns {boolean} True if connection available
          * @example
          * if (MGA.debug.checkConnection()) {
-         *   console.log('Connected to game');
+         *   productionLog('Connected to game');
          * }
          */
         checkConnection: () => {
@@ -14068,7 +14071,7 @@ ${title}:`);
          * @returns {boolean} True if send succeeded
          * @example
          * if (MGA.debug.testSendMessage()) {
-         *   console.log('Send message works');
+         *   productionLog('Send message works');
          * }
          */
         testSendMessage: () => {
@@ -14324,7 +14327,7 @@ ${title}:`);
             }
             productionLog3("\u2705 Pet presets imported successfully");
           } catch (e) {
-            console.error("\u274C Failed to import pet presets:", e);
+            productionError2("\u274C Failed to import pet presets:", e);
           }
         },
         /**
@@ -14357,7 +14360,7 @@ ${title}:`);
             updateTabContent();
             productionLog3("\u2705 All data imported successfully");
           } catch (e) {
-            console.error("\u274C Failed to import data:", e);
+            productionError2("\u274C Failed to import data:", e);
           }
         }
       },
@@ -14483,7 +14486,7 @@ ${title}:`);
          * @returns {Object} Pet state from UnifiedState, window, and Room
          * @example
          * const pets = MGA.debugControls.checkPets();
-         * console.log('Active pets:', pets.unifiedState);
+         * productionLog('Active pets:', pets.unifiedState);
          */
         checkPets: () => {
           productionLog3("\u{1F43E} [DEBUG] Current pet state:");
@@ -14501,7 +14504,7 @@ ${title}:`);
          * @returns {Array} Updated pet list
          * @example
          * const pets = MGA.debugControls.refreshPets();
-         * console.log('Refreshed pets:', pets);
+         * productionLog('Refreshed pets:', pets);
          */
         refreshPets: () => {
           productionLog3("\u{1F504} [DEBUG] Manually refreshing pets from room state");
@@ -14514,7 +14517,7 @@ ${title}:`);
          * @returns {Object} Interval status object
          * @example
          * const intervals = MGA.debugControls.listIntervals();
-         * console.log('Active intervals:', intervals);
+         * productionLog('Active intervals:', intervals);
          */
         listIntervals: () => {
           productionLog3("\u23F0 [DEBUG] Active managed intervals:");
@@ -14598,7 +14601,7 @@ ${title}:`);
     };
   }
   function createErrorRecovery(dependencies) {
-    const { targetDocument: targetDocument2, debugError: debugError2, debugLog: debugLog3 } = dependencies;
+    const { targetDocument: targetDocument2, debugError: debugError2, debugLog: debugLog2 } = dependencies;
     return {
       /**
        * Wraps a function with error handling.
@@ -14665,7 +14668,7 @@ ${title}:`);
               debugError2("ERROR_RECOVERY", `Final retry failed for ${context}`, error);
               throw error;
             }
-            debugLog3("ERROR_RECOVERY", `Retry ${i + 1}/${maxRetries} for ${context}`);
+            debugLog2("ERROR_RECOVERY", `Retry ${i + 1}/${maxRetries} for ${context}`);
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
@@ -15022,14 +15025,14 @@ ${title}:`);
       // 30 seconds default
     } = dependencies;
     if (!setManagedInterval2) {
-      console.warn("\u26A0\uFE0F setManagedInterval not provided, auto-save cannot be setup");
+      productionWarn2("\u26A0\uFE0F setManagedInterval not provided, auto-save cannot be setup");
       return;
     }
     setManagedInterval2(
       "autoSave",
       () => {
         if (!UnifiedState3 || !MGA_saveJSON2) {
-          console.warn("\u26A0\uFE0F UnifiedState or MGA_saveJSON not available for auto-save");
+          productionWarn2("\u26A0\uFE0F UnifiedState or MGA_saveJSON not available for auto-save");
           return;
         }
         MGA_saveJSON2("MGA_petPresets", UnifiedState3.data.petPresets);
@@ -15053,11 +15056,11 @@ ${title}:`);
       MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
       clearAllManagedIntervals: clearAllManagedIntervals2,
       closeAllPopoutWindows: closeAllPopoutWindows2,
-      debugLog: debugLog3 = console.log,
+      debugLog: debugLog2 = console.log,
       targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null
     } = dependencies;
     if (!targetWindow3) {
-      console.warn("\u26A0\uFE0F targetWindow not available, cleanup handler cannot be setup");
+      productionWarn2("\u26A0\uFE0F targetWindow not available, cleanup handler cannot be setup");
       return;
     }
     targetWindow3.addEventListener("beforeunload", () => {
@@ -15076,7 +15079,7 @@ ${title}:`);
       if (closeAllPopoutWindows2) {
         closeAllPopoutWindows2({ UnifiedState: UnifiedState3 });
       }
-      debugLog3("PERFORMANCE", "Cleanup completed on window unload");
+      debugLog2("PERFORMANCE", "Cleanup completed on window unload");
     });
   }
   function setupEventHandlers(dependencies = {}) {
@@ -15549,12 +15552,12 @@ ${title}:`);
       link.download = `mgtools-presets-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      console.log(`\u2705 [EXPORT] Successfully exported ${presetCount} pet presets`);
+      productionLog(`\u2705 [EXPORT] Successfully exported ${presetCount} pet presets`);
       alert(`\u2705 Exported ${presetCount} pet presets!
 
 File saved to Downloads folder.`);
     } catch (error) {
-      console.error("\u274C [EXPORT] Failed to export presets:", error);
+      productionError("\u274C [EXPORT] Failed to export presets:", error);
       alert(`\u274C Export failed!
 
 Error: ${error.message}`);
@@ -15586,20 +15589,20 @@ Version: ${importData.version || "Unknown"}
 \u26A0\uFE0F This will OVERWRITE your current presets!`
           );
           if (!confirmed) {
-            console.log("\u23F8\uFE0F [IMPORT] User cancelled import");
+            productionLog("\u23F8\uFE0F [IMPORT] User cancelled import");
             return;
           }
           UnifiedState3.data.petPresets = importData.presets;
           UnifiedState3.data.petPresetsOrder = importData.presetsOrder || [];
           MGA_saveJSON2("MGA_petPresets", importData.presets);
           MGA_saveJSON2("MGA_petPresetsOrder", importData.presetsOrder || []);
-          console.log(`\u2705 [IMPORT] Successfully imported ${importCount} pet presets`);
+          productionLog(`\u2705 [IMPORT] Successfully imported ${importCount} pet presets`);
           alert(`\u2705 Imported ${importCount} presets!
 
 Page will reload to apply changes.`);
           setTimeout(() => window.location.reload(), 1e3);
         } catch (error) {
-          console.error("\u274C [IMPORT] Failed to import presets:", error);
+          productionError("\u274C [IMPORT] Failed to import presets:", error);
           alert(
             `\u274C Import failed!
 
@@ -15611,7 +15614,7 @@ Make sure you're importing a valid MGTools preset file.`
       };
       input.click();
     } catch (error) {
-      console.error("\u274C [IMPORT] Failed to create import dialog:", error);
+      productionError("\u274C [IMPORT] Failed to create import dialog:", error);
       alert(`\u274C Import failed!
 
 Error: ${error.message}`);
@@ -15626,7 +15629,7 @@ Error: ${error.message}`);
         if (!pet || !pet.id) return;
         const currentHunger = pet.hunger !== void 0 ? Number(pet.hunger) : null;
         if (currentHunger === null || isNaN(currentHunger)) {
-          console.log(`\u26A0\uFE0F [PET-HUNGER] ${pet.petSpecies || "Pet"} has no hunger data - skipping`);
+          productionLog(`\u26A0\uFE0F [PET-HUNGER] ${pet.petSpecies || "Pet"} has no hunger data - skipping`);
           return;
         }
         const petName = pet.petSpecies || "Pet";
@@ -15639,7 +15642,7 @@ Error: ${error.message}`);
         const lastAlertTime = petHungerLastAlertTime[pet.id] || 0;
         const timeSinceLastAlert = now - lastAlertTime;
         if (UnifiedState3.data.settings?.debugMode) {
-          console.log(
+          productionLog(
             `\u{1F43E} [PET-HUNGER-DEBUG] ${petName} (ID: ${pet.id}): ${hungerPercent.toFixed(1)}% (hunger=${currentHunger}/${estimatedMaxHunger}), threshold=${thresholdPercent}%, lastPercent=${lastPercent.toFixed(1)}%, timeSinceLastAlert=${(timeSinceLastAlert / 1e3).toFixed(0)}s`
           );
         }
@@ -15650,7 +15653,7 @@ Error: ${error.message}`);
         const justCrossed = hungerPercent < thresholdPercent && lastPercent >= thresholdPercent;
         if (needsAlert || justCrossed || criticalNeedsAlert) {
           const reason = isCritical ? "CRITICAL hunger level" : justCrossed ? "crossed threshold" : "below threshold (throttle expired)";
-          console.log(
+          productionLog(
             `\u{1F43E} [PET-HUNGER] ${petName} is getting hungry! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%) - Reason: ${reason}`
           );
           const volume = UnifiedState3.data.settings.notifications.volume || 0.3;
@@ -15661,13 +15664,13 @@ Error: ${error.message}`);
         if (hungerPercent >= thresholdPercent && lastAlertTime > 0) {
           delete petHungerLastAlertTime[pet.id];
           if (UnifiedState3.data.settings?.debugMode) {
-            console.log(`\u{1F43E} [PET-HUNGER-DEBUG] ${petName} fed above threshold, reset alert timer`);
+            productionLog(`\u{1F43E} [PET-HUNGER-DEBUG] ${petName} fed above threshold, reset alert timer`);
           }
         }
         lastPetHungerStates[pet.id] = currentHunger;
       });
     } catch (error) {
-      console.error("\u274C [PET-HUNGER] Error checking pet hunger:", error);
+      productionError("\u274C [PET-HUNGER] Error checking pet hunger:", error);
     }
   }
   function scanAndAlertHungryPets(UnifiedState3, playPetNotificationSound2, showNotificationToast2) {
@@ -15681,7 +15684,7 @@ Error: ${error.message}`);
         if (!pet || !pet.id) return;
         const currentHunger = pet.hunger !== void 0 ? Number(pet.hunger) : null;
         if (currentHunger === null || isNaN(currentHunger)) {
-          console.log(`\u26A0\uFE0F [PET-HUNGER] ${pet.petSpecies || "Pet"} has no hunger data in scan - skipping`);
+          productionLog(`\u26A0\uFE0F [PET-HUNGER] ${pet.petSpecies || "Pet"} has no hunger data in scan - skipping`);
           return;
         }
         const estimatedMaxHunger = SPECIES_MAX_HUNGER[pet.petSpecies] || 1e5;
@@ -15689,7 +15692,7 @@ Error: ${error.message}`);
         const petName = pet.petSpecies || "Pet";
         if (hungerPercent < thresholdPercent) {
           hungryCount += 1;
-          console.log(
+          productionLog(
             `\u{1F43E} [PET-HUNGER] Initial scan: ${petName} needs feeding! (${hungerPercent.toFixed(1)}% < ${thresholdPercent}%)`
           );
           showNotificationToast2(`\u26A0\uFE0F ${petName} needs feeding! Only ${Math.round(hungerPercent)}% full`, "warning");
@@ -15700,12 +15703,12 @@ Error: ${error.message}`);
       if (hungryCount > 0) {
         const volume = UnifiedState3.data.settings.notifications.volume || 0.3;
         playPetNotificationSound2(volume);
-        console.log(`\u{1F43E} [PET-HUNGER] Initial scan found ${hungryCount} hungry pet(s)`);
+        productionLog(`\u{1F43E} [PET-HUNGER] Initial scan found ${hungryCount} hungry pet(s)`);
       } else {
-        console.log(`\u{1F43E} [PET-HUNGER] Initial scan: All pets are well-fed`);
+        productionLog(`\u{1F43E} [PET-HUNGER] Initial scan: All pets are well-fed`);
       }
     } catch (error) {
-      console.error("\u274C [PET-HUNGER] Error scanning for hungry pets:", error);
+      productionError("\u274C [PET-HUNGER] Error scanning for hungry pets:", error);
     }
   }
   function calculateTimeUntilHungry(pet, UnifiedState3) {
@@ -15717,10 +15720,10 @@ Error: ${error.message}`);
     let totalHungerReduction = 0;
     const activePets = window.activePets || UnifiedState3.atoms.activePets || [];
     if (UnifiedState3.data.settings?.debugMode) {
-      console.log("\u{1F356} [HUNGER-CALC] Calculating for pet:", pet.petSpecies);
-      console.log("\u{1F356} [HUNGER-CALC] Active pets:", activePets.length);
+      productionLog("\u{1F356} [HUNGER-CALC] Calculating for pet:", pet.petSpecies);
+      productionLog("\u{1F356} [HUNGER-CALC] Active pets:", activePets.length);
       activePets.forEach((p, i) => {
-        console.log(`\u{1F356} [HUNGER-CALC] Pet ${i}:`, {
+        productionLog(`\u{1F356} [HUNGER-CALC] Pet ${i}:`, {
           species: p.petSpecies,
           abilities: p.abilities,
           strength: p.strength,
@@ -15732,7 +15735,7 @@ Error: ${error.message}`);
       if (p.abilities && Array.isArray(p.abilities)) {
         p.abilities.forEach((ability) => {
           if (UnifiedState3.data.settings?.debugMode) {
-            console.log("\u{1F356} [HUNGER-CALC] Checking ability:", ability);
+            productionLog("\u{1F356} [HUNGER-CALC] Checking ability:", ability);
           }
           const abilityType = typeof ability === "string" ? ability : ability.abilityType || ability.type || ability;
           if (typeof abilityType === "string") {
@@ -15741,7 +15744,7 @@ Error: ${error.message}`);
               const strength = (p.strength || p.str || 100) / 100;
               totalHungerReduction += reduction * strength;
               if (UnifiedState3.data.settings?.debugMode) {
-                console.log(
+                productionLog(
                   `\u{1F356} [HUNGER-CALC] Found ${abilityType} on ${p.petSpecies}, STR: ${p.strength || p.str}, reduction: ${reduction}, strength mult: ${strength}`
                 );
               }
@@ -15751,7 +15754,7 @@ Error: ${error.message}`);
       }
     });
     if (UnifiedState3.data.settings?.debugMode && totalHungerReduction > 0) {
-      console.log(`\u{1F356} [HUNGER-CALC] Total hunger reduction: ${(totalHungerReduction * 100).toFixed(1)}%`);
+      productionLog(`\u{1F356} [HUNGER-CALC] Total hunger reduction: ${(totalHungerReduction * 100).toFixed(1)}%`);
     }
     totalHungerReduction = Math.min(totalHungerReduction, 0.9);
     const timeRemaining = baseDepletionTime / Math.max(0.1, 1 - totalHungerReduction) * (currentHunger / maxHunger);
@@ -15763,30 +15766,30 @@ Error: ${error.message}`);
     return `${totalMinutes}m`;
   }
   function getActivePetsFromRoomState(targetWindow3, UnifiedState3) {
-    console.log("\u{1F527} [DEBUG] getActivePetsFromRoomState() called - checking for pets...");
+    productionLog("\u{1F527} [DEBUG] getActivePetsFromRoomState() called - checking for pets...");
     try {
       const roomState = targetWindow3.MagicCircle_RoomConnection?.lastRoomStateJsonable;
       if (!roomState?.child?.data) {
-        console.log("\u{1F43E} [SIMPLE-PETS] No room state data");
+        productionLog("\u{1F43E} [SIMPLE-PETS] No room state data");
         return [];
       }
       let petData = null;
       if (roomState.child.data.field1 !== void 0) {
         petData = roomState.child.data;
-        console.log("\u{1F43E} [SIMPLE-PETS] Found pet data in child.data directly");
+        productionLog("\u{1F43E} [SIMPLE-PETS] Found pet data in child.data directly");
       }
       if (!petData) {
         if (UnifiedState3.data.settings?.debugMode) {
-          console.log("\u{1F43E} [SIMPLE-PETS] No pet data found in room state");
+          productionLog("\u{1F43E} [SIMPLE-PETS] No pet data found in room state");
         }
         if (window.activePets && window.activePets.length > 0) {
           if (UnifiedState3.data.settings?.debugMode) {
-            console.log("\u{1F43E} [FALLBACK] Using pets from myPetSlotsAtom:", window.activePets);
+            productionLog("\u{1F43E} [FALLBACK] Using pets from myPetSlotsAtom:", window.activePets);
           }
           return window.activePets;
         }
         if (UnifiedState3.data.settings?.debugMode) {
-          console.log("\u{1F43E} [SIMPLE-PETS] No pet data found in room state or atoms");
+          productionLog("\u{1F43E} [SIMPLE-PETS] No pet data found in room state or atoms");
         }
         return [];
       }
@@ -15797,10 +15800,10 @@ Error: ${error.message}`);
           pets.push({ petSpecies: species, slot: index + 1 });
         }
       });
-      console.log("\u{1F43E} [SIMPLE-PETS] Extracted pets:", pets);
+      productionLog("\u{1F43E} [SIMPLE-PETS] Extracted pets:", pets);
       return pets;
     } catch (error) {
-      console.log("\u{1F43E} [SIMPLE-PETS] Error:", error.message);
+      productionLog("\u{1F43E} [SIMPLE-PETS] Error:", error.message);
       return [];
     }
   }
@@ -15808,11 +15811,11 @@ Error: ${error.message}`);
     const roomPets = getActivePetsFromRoomState(targetWindow3, UnifiedState3);
     const previousCount = UnifiedState3.atoms.activePets?.length || 0;
     if (window.activePets && window.activePets.length > 0 && window.activePets[0] && window.activePets[0].hunger !== void 0) {
-      console.log("\u{1F43E} [SIMPLE-PETS] Preserving existing full pet data from atom (has hunger)");
+      productionLog("\u{1F43E} [SIMPLE-PETS] Preserving existing full pet data from atom (has hunger)");
       roomPets.forEach((roomPet, index) => {
         if (window.activePets[index] && !window.activePets[index].petSpecies && roomPet.petSpecies) {
           window.activePets[index].petSpecies = roomPet.petSpecies;
-          console.log(`\u{1F43E} [SIMPLE-PETS] Added missing species ${roomPet.petSpecies} to slot ${index + 1}`);
+          productionLog(`\u{1F43E} [SIMPLE-PETS] Added missing species ${roomPet.petSpecies} to slot ${index + 1}`);
         }
       });
       UnifiedState3.atoms.activePets = window.activePets;
@@ -15822,7 +15825,7 @@ Error: ${error.message}`);
     window.activePets = roomPets;
     const newCount = roomPets.length;
     if (newCount !== previousCount) {
-      console.log(`\u{1F43E} [SIMPLE-PETS] Pet count changed: ${previousCount} \u2192 ${newCount}`);
+      productionLog(`\u{1F43E} [SIMPLE-PETS] Pet count changed: ${previousCount} \u2192 ${newCount}`);
       if (UnifiedState3.activeTab === "pets" && updateActivePetsDisplay2) {
         const context = document.getElementById("mga-tab-content");
         if (context) {
@@ -15838,7 +15841,7 @@ Error: ${error.message}`);
       petItemId,
       cropItemId
     };
-    console.log("[MGA] Feed payload:", payload);
+    productionLog("[MGA] Feed payload:", payload);
     return rcSend2(payload);
   }
   async function feedPetEnsureSync(petItemId, cropItemId, petIndex, rcSend2, waitForServer, _enableDebugPeek = false) {
@@ -15857,21 +15860,21 @@ Error: ${error.message}`);
       }
       const msgStr = JSON.stringify(msg);
       if (msgStr.includes(payload.petItemId) && msgStr.includes(payload.cropItemId)) {
-        console.log("[Feed-Verify] \u{1F50D} Fallback match on IDs in:", msg.type || "unknown");
+        productionLog("[Feed-Verify] \u{1F50D} Fallback match on IDs in:", msg.type || "unknown");
         return true;
       }
       return false;
     };
-    console.log("[Feed-Debug] \u{1F680} Sending feed command");
+    productionLog("[Feed-Debug] \u{1F680} Sending feed command");
     await sendFeedPet(petItemId, cropItemId, rcSend2);
     const ack = await waitForServer(makePredicate({ type: "FeedPet", payload: { petItemId, cropItemId } })).catch(
       () => null
     );
     if (ack) {
-      console.log("[Feed-Verify] \u2705 verified by server event");
+      productionLog("[Feed-Verify] \u2705 verified by server event");
       return { verified: true };
     }
-    console.warn("[Feed-Verify] \u274C no ack/delta in timeout period");
+    productionWarn("[Feed-Verify] \u274C no ack/delta in timeout period");
     return { verified: false };
   }
   function updatePetPresetDropdown(context, UnifiedState3, targetDocument2) {
@@ -15890,12 +15893,12 @@ Error: ${error.message}`);
       select.value = currentValue;
     }
     if (UnifiedState3.data.settings?.debugMode) {
-      console.log("[PETS_UI] Updated preset dropdown without full refresh");
+      productionLog("[PETS_UI] Updated preset dropdown without full refresh");
     }
   }
   function updateActivePetsDisplay(context, UnifiedState3, calculateTimeUntilHungry2, formatHungerTimer2, retryCount = 0) {
     if (UnifiedState3.data.settings?.debugMode) {
-      console.log("\u{1F43E} [ACTIVE-PETS] Updating display", {
+      productionLog("\u{1F43E} [ACTIVE-PETS] Updating display", {
         retryCount,
         unifiedStateActivePets: UnifiedState3.atoms.activePets?.length || 0,
         windowActivePets: window.activePets?.length || 0,
@@ -15905,7 +15908,7 @@ Error: ${error.message}`);
     const activePets = UnifiedState3.atoms.activePets || window.activePets || [];
     if (activePets.length === 0 && retryCount < 3) {
       if (UnifiedState3.data.settings?.debugMode) {
-        console.log(`\u{1F43E} [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
+        productionLog(`\u{1F43E} [ACTIVE-PETS] No pets found, retrying in ${100 * (retryCount + 1)}ms...`);
       }
       setTimeout(
         () => updateActivePetsDisplay(context, UnifiedState3, calculateTimeUntilHungry2, formatHungerTimer2, retryCount + 1),
@@ -15939,7 +15942,7 @@ Error: ${error.message}`);
       display.innerHTML = innerHTML;
     });
     if (UnifiedState3.data.settings?.debugMode) {
-      console.log("\u{1F43E} [ACTIVE-PETS] Updated display elements:", {
+      productionLog("\u{1F43E} [ACTIVE-PETS] Updated display elements:", {
         elementsFound: activePetsDisplays.length,
         activePetsCount: activePets.length
       });
@@ -15960,8 +15963,8 @@ Error: ${error.message}`);
     }
   }
   function movePreset(presetName, direction, context, UnifiedState3, MGA_saveJSON2, refreshPresetsList2, refreshSeparateWindowPopouts2, updateTabContent) {
-    console.log(`\u{1F6A8} [CRITICAL] movePreset called: ${presetName} ${direction}`);
-    console.log(`\u{1F6A8} [CRITICAL] Current order:`, UnifiedState3.data.petPresetsOrder);
+    productionLog(`\u{1F6A8} [CRITICAL] movePreset called: ${presetName} ${direction}`);
+    productionLog(`\u{1F6A8} [CRITICAL] Current order:`, UnifiedState3.data.petPresetsOrder);
     ensurePresetOrder(UnifiedState3);
     const currentIndex = UnifiedState3.data.petPresetsOrder.indexOf(presetName);
     if (currentIndex === -1) return;
@@ -15977,13 +15980,13 @@ Error: ${error.message}`);
     UnifiedState3.data.petPresetsOrder[currentIndex] = UnifiedState3.data.petPresetsOrder[newIndex];
     UnifiedState3.data.petPresetsOrder[newIndex] = temp;
     MGA_saveJSON2("MGA_petPresetsOrder", UnifiedState3.data.petPresetsOrder);
-    console.log(`\u{1F6A8} [CRITICAL] Order after swap:`, UnifiedState3.data.petPresetsOrder);
+    productionLog(`\u{1F6A8} [CRITICAL] Order after swap:`, UnifiedState3.data.petPresetsOrder);
     refreshPresetsList2(context, UnifiedState3, MGA_saveJSON2);
     refreshSeparateWindowPopouts2("pets");
     if (UnifiedState3.activeTab === "pets") {
       updateTabContent();
     }
-    console.log(`\u{1F4CB} [PET-PRESETS] Moved preset "${presetName}" ${direction}`);
+    productionLog(`\u{1F4CB} [PET-PRESETS] Moved preset "${presetName}" ${direction}`);
   }
   function getDragAfterElement(container, y) {
     const draggableElements = [...container.querySelectorAll(".mga-preset:not(.dragging)")];
@@ -16042,7 +16045,7 @@ Error: ${error.message}`);
       `;
     presetsList.appendChild(presetDiv);
     if (UnifiedState3.data.settings?.debugMode) {
-      console.log(`[PETS_UI] Added preset ${name} to list without full refresh`);
+      productionLog(`[PETS_UI] Added preset ${name} to list without full refresh`);
     }
   }
   function setupPetsTabHandlers(context, deps) {
@@ -16066,10 +16069,10 @@ Error: ${error.message}`);
       exportPetPresets: exportPetPresetsFn,
       importPetPresets: importPetPresetsFn
     } = deps;
-    console.log("\u{1F6A8} [CRITICAL] Setting up pet preset handlers");
+    productionLog("\u{1F6A8} [CRITICAL] Setting up pet preset handlers");
     const presetsContainer = context.querySelector("#presets-list");
     if (presetsContainer) {
-      console.log("\u{1F6A8} [CRITICAL] Found presets container, adding delegation");
+      productionLog("\u{1F6A8} [CRITICAL] Found presets container, adding delegation");
       if (presetsContainer._mgaClickHandler) {
         presetsContainer.removeEventListener("click", presetsContainer._mgaClickHandler);
       }
@@ -16080,9 +16083,9 @@ Error: ${error.message}`);
         e.stopPropagation();
         const action = btn.dataset.action;
         const presetName = btn.dataset.preset;
-        console.log(`\u{1F6A8} [CRITICAL] Delegated click: action=${action}, preset=${presetName}`);
+        productionLog(`\u{1F6A8} [CRITICAL] Delegated click: action=${action}, preset=${presetName}`);
         if (action === "move-up") {
-          console.log(`\u{1F6A8} [CRITICAL] Moving ${presetName} UP`);
+          productionLog(`\u{1F6A8} [CRITICAL] Moving ${presetName} UP`);
           movePreset2(
             presetName,
             "up",
@@ -16095,7 +16098,7 @@ Error: ${error.message}`);
             }
           );
         } else if (action === "move-down") {
-          console.log(`\u{1F6A8} [CRITICAL] Moving ${presetName} DOWN`);
+          productionLog(`\u{1F6A8} [CRITICAL] Moving ${presetName} DOWN`);
           movePreset2(
             presetName,
             "down",
@@ -16108,28 +16111,28 @@ Error: ${error.message}`);
             }
           );
         } else if (action === "save") {
-          console.log(`\u{1F6A8} [CRITICAL] Saving preset ${presetName}`);
+          productionLog(`\u{1F6A8} [CRITICAL] Saving preset ${presetName}`);
           UnifiedState3.data.petPresets[presetName] = (UnifiedState3.atoms.activePets || []).slice(0, 3);
           MGA_saveJSON2("MGA_petPresets", UnifiedState3.data.petPresets);
           refreshPresetsList2(context, UnifiedState3, MGA_saveJSON2);
         } else if (action === "place") {
-          console.log(`\u{1F6A8} [CRITICAL] Placing preset ${presetName}`);
+          productionLog(`\u{1F6A8} [CRITICAL] Placing preset ${presetName}`);
           debouncedPlacePetPreset(presetName);
         } else if (action === "remove") {
-          console.log(`[CRITICAL] Removing preset ${presetName}`);
+          productionLog(`[CRITICAL] Removing preset ${presetName}`);
           delete UnifiedState3.data.petPresets[presetName];
           if (UnifiedState3.data.petPresetHotkeys[presetName]) {
             const deletedHotkey = UnifiedState3.data.petPresetHotkeys[presetName];
             delete UnifiedState3.data.petPresetHotkeys[presetName];
             MGA_saveJSON2("MGA_petPresetHotkeys", UnifiedState3.data.petPresetHotkeys);
-            console.log(`[MGTOOLS] Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
+            productionLog(`[MGTOOLS] Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
           }
           MGA_saveJSON2("MGA_petPresets", UnifiedState3.data.petPresets);
           refreshPresetsList2(context, UnifiedState3, MGA_saveJSON2);
         }
       };
       presetsContainer.addEventListener("click", presetsContainer._mgaClickHandler);
-      console.log("\u{1F6A8} [CRITICAL] Event delegation handler attached successfully");
+      productionLog("\u{1F6A8} [CRITICAL] Event delegation handler attached successfully");
       context.querySelectorAll(".mga-hotkey-btn").forEach((btn) => {
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -16138,7 +16141,7 @@ Error: ${error.message}`);
         });
       });
     } else {
-      console.log("\u{1F6A8} [CRITICAL] ERROR: presets container not found!");
+      productionLog("\u{1F6A8} [CRITICAL] ERROR: presets container not found!");
     }
     const input = context.querySelector("#preset-name-input");
     if (input) {
@@ -16169,13 +16172,13 @@ Error: ${error.message}`);
         });
         inputElement.addEventListener("focus", (e) => {
           if (UnifiedState3.data.settings.debugMode) {
-            console.log("\u{1F512} Input focused - Game keys isolated");
+            productionLog("\u{1F512} Input focused - Game keys isolated");
           }
           e.stopPropagation();
         });
         inputElement.addEventListener("blur", (e) => {
           if (UnifiedState3.data.settings.debugMode) {
-            console.log("\u{1F513} Input blurred - Game keys restored");
+            productionLog("\u{1F513} Input blurred - Game keys restored");
           }
           e.stopPropagation();
         });
@@ -16214,16 +16217,16 @@ Error: ${error.message}`);
         const select = context.querySelector("#preset-quick-select");
         const presetName = select.value;
         if (!presetName) {
-          console.warn("[PETS] No preset selected");
+          productionWarn("[PETS] No preset selected");
           return;
         }
         if (!UnifiedState3.data.petPresets[presetName]) {
-          console.warn("[PETS] Preset not found:", presetName);
+          productionWarn("[PETS] Preset not found:", presetName);
           return;
         }
         const preset = UnifiedState3.data.petPresets[presetName];
         if (!preset || !Array.isArray(preset) || preset.length === 0) {
-          console.warn("[PETS] Preset is empty or invalid:", preset);
+          productionWarn("[PETS] Preset is empty or invalid:", preset);
           return;
         }
         const maxSlots = 3;
@@ -16237,12 +16240,12 @@ Error: ${error.message}`);
               if (currentPet && desiredPet) {
                 if (currentPet.id === desiredPet.id) {
                   if (UnifiedState3.data.settings?.debugMode) {
-                    console.log(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
+                    productionLog(`[PET-SWAP] Slot ${slot + 1}: Already equipped (${currentPet.id}), skipping`);
                   }
                   return;
                 }
                 if (UnifiedState3.data.settings?.debugMode) {
-                  console.log(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} \u2192 ${desiredPet.id}`);
+                  productionLog(`[PET-SWAP] Slot ${slot + 1}: Swapping ${currentPet.id} \u2192 ${desiredPet.id}`);
                 }
                 safeSendMessage2({
                   scopePath: ["Room", "Quinoa"],
@@ -16252,7 +16255,7 @@ Error: ${error.message}`);
                 });
               } else if (!currentPet && desiredPet) {
                 if (UnifiedState3.data.settings?.debugMode) {
-                  console.log(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
+                  productionLog(`[PET-SWAP] Slot ${slot + 1}: Placing ${desiredPet.id} (empty slot)`);
                 }
                 safeSendMessage2({
                   scopePath: ["Room", "Quinoa"],
@@ -16264,7 +16267,7 @@ Error: ${error.message}`);
                 });
               } else if (currentPet && !desiredPet) {
                 if (UnifiedState3.data.settings?.debugMode) {
-                  console.log(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
+                  productionLog(`[PET-SWAP] Slot ${slot + 1}: Storing ${currentPet.id} (no preset pet)`);
                 }
                 safeSendMessage2({
                   scopePath: ["Room", "Quinoa"],
@@ -16324,7 +16327,7 @@ Error: ${error.message}`);
             }
           });
           if (UnifiedState3.data.settings?.debugMode) {
-            console.log(`[BUTTON_INTERACTIONS] Created new preset: ${name} without full DOM refresh`);
+            productionLog(`[BUTTON_INTERACTIONS] Created new preset: ${name} without full DOM refresh`);
           }
         } else if (!name) {
           input2.focus();
@@ -16349,7 +16352,7 @@ Error: ${error.message}`);
         importPetPresetsFn(UnifiedState3, MGA_saveJSON2);
       });
     }
-    console.log("[PETS_UI] Event handlers setup complete");
+    productionLog("[PETS_UI] Event handlers setup complete");
   }
   function getPetsPopoutContent2(deps) {
     const { UnifiedState: UnifiedState3, calculateTimeUntilHungry: calculateTimeUntilHungry2, formatHungerTimer: formatHungerTimer2, ensurePresetOrder: ensurePresetOrder2 } = deps;
@@ -16608,10 +16611,10 @@ Error: ${error.message}`);
             const deletedHotkey = UnifiedState3.data.petPresetHotkeys[presetName];
             delete UnifiedState3.data.petPresetHotkeys[presetName];
             MGA_saveJSON2("MGA_petPresetHotkeys", UnifiedState3.data.petPresetHotkeys);
-            console.log(`[MGTOOLS-FIX] \u2705 Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
+            productionLog3(`[MGTOOLS-FIX] \u2705 Cleared hotkey "${deletedHotkey}" for deleted preset: ${presetName}`);
           }
           if (!saveSuccess) {
-            console.error("\u274C Failed to save after removing preset");
+            productionError("\u274C Failed to save after removing preset");
             alert("\u26A0\uFE0F Failed to save changes! The preset removal may not persist.");
           }
           refreshPresetsList2(context, UnifiedState3, MGA_saveJSON2);
@@ -17714,12 +17717,12 @@ Error: ${error.message}`);
     formatLogData: formatLogData3,
     UnifiedState: UnifiedState3,
     targetDocument: targetDocument2,
-    debugLog: debugLog3,
+    debugLog: debugLog2,
     CONFIG: CONFIG2
   }) {
     const abilityLogs = context.querySelector("#ability-logs");
     if (!abilityLogs) {
-      debugLog3("ABILITY_LOGS", "No ability logs element found in context", {
+      debugLog2("ABILITY_LOGS", "No ability logs element found in context", {
         isDocument: context === document,
         className: context.className || "unknown"
       });
@@ -17728,7 +17731,7 @@ Error: ${error.message}`);
     const isOverlay = context.classList?.contains("mga-overlay-content-only");
     const isDragInProgress = context.getAttribute?.("data-dragging") === "true";
     if (isOverlay && isDragInProgress) {
-      debugLog3("ABILITY_LOGS", "Skipping content update during drag operation", {
+      debugLog2("ABILITY_LOGS", "Skipping content update during drag operation", {
         overlayId: context.id
       });
       return;
@@ -17737,13 +17740,13 @@ Error: ${error.message}`);
     const filteredLogs = logs.filter(
       (log) => shouldLogAbility3(log.abilityType, log.petName, { UnifiedState: UnifiedState3, categorizeAbilityToFilterKey: categorizeAbilityToFilterKey3 })
     );
-    debugLog3("ABILITY_LOGS", "Updating ability log display", {
+    debugLog2("ABILITY_LOGS", "Updating ability log display", {
       totalLogs: logs.length,
       filteredLogs: filteredLogs.length,
       filterMode: UnifiedState3.data.filterMode
     });
     if (CONFIG2?.DEBUG?.FLAGS?.FIX_VALIDATION) {
-      console.log("[FIX_ABILITY_LOGS] Update called:", {
+      productionLog("[FIX_ABILITY_LOGS] Update called:", {
         totalLogs: logs.length,
         filteredLogs: filteredLogs.length,
         filterMode: UnifiedState3.data.filterMode,
@@ -17829,12 +17832,12 @@ Error: ${error.message}`);
       (context.head || context.querySelector("head") || targetDocument2.head).appendChild(logStyles);
     }
   }
-  function updateLogVisibility(context, { UnifiedState: UnifiedState3, debugLog: debugLog3 }) {
+  function updateLogVisibility(context, { UnifiedState: UnifiedState3, debugLog: debugLog2 }) {
     const abilityLogs = context.querySelector("#ability-logs");
     if (!abilityLogs) return;
     const filterMode = UnifiedState3.data.filterMode || "categories";
     const logItems = abilityLogs.querySelectorAll(".mga-log-item");
-    debugLog3("ABILITY_LOGS", "Updating log visibility via CSS", {
+    debugLog2("ABILITY_LOGS", "Updating log visibility via CSS", {
       filterMode,
       totalItems: logItems.length
     });
@@ -17853,22 +17856,22 @@ Error: ${error.message}`);
       item.style.display = shouldShow ? "" : "none";
     });
   }
-  function updateAllLogVisibility({ UnifiedState: UnifiedState3, targetDocument: targetDocument2, debugLog: debugLog3, updateLogVisibility: updateLogVisibility3 }) {
-    debugLog3("ABILITY_LOGS", "Updating log visibility across all contexts");
-    updateLogVisibility3(document, { UnifiedState: UnifiedState3, debugLog: debugLog3 });
+  function updateAllLogVisibility({ UnifiedState: UnifiedState3, targetDocument: targetDocument2, debugLog: debugLog2, updateLogVisibility: updateLogVisibility3 }) {
+    debugLog2("ABILITY_LOGS", "Updating log visibility across all contexts");
+    updateLogVisibility3(document, { UnifiedState: UnifiedState3, debugLog: debugLog2 });
     const allOverlays = targetDocument2.querySelectorAll(".mga-overlay-content-only, .mga-overlay");
     allOverlays.forEach((overlay) => {
       if (overlay.offsetParent === null) return;
       if (overlay.querySelector("#ability-logs")) {
-        updateLogVisibility3(overlay, { UnifiedState: UnifiedState3, debugLog: debugLog3 });
+        updateLogVisibility3(overlay, { UnifiedState: UnifiedState3, debugLog: debugLog2 });
       }
     });
   }
   function updateAllAbilityLogDisplays(force, dependencies) {
-    const { UnifiedState: UnifiedState3, targetDocument: targetDocument2, debugLog: debugLog3, CONFIG: CONFIG2, updateAbilityLogDisplay: updateAbilityLogDisplay3, lastLogCount } = dependencies;
+    const { UnifiedState: UnifiedState3, targetDocument: targetDocument2, debugLog: debugLog2, CONFIG: CONFIG2, updateAbilityLogDisplay: updateAbilityLogDisplay3, lastLogCount } = dependencies;
     const currentLogCount = UnifiedState3.data.petAbilityLogs?.length || 0;
     if (CONFIG2?.DEBUG?.FLAGS?.FIX_VALIDATION) {
-      console.log("[FIX_ABILITY_LOGS] Update called:", {
+      productionLog("[FIX_ABILITY_LOGS] Update called:", {
         force,
         currentLogCount,
         lastLogCount: lastLogCount.value,
@@ -17877,18 +17880,18 @@ Error: ${error.message}`);
       });
     }
     if (!force && currentLogCount === lastLogCount.value) {
-      debugLog3("ABILITY_LOGS", "Skipping update - no new logs");
+      debugLog2("ABILITY_LOGS", "Skipping update - no new logs");
       return;
     }
     lastLogCount.value = currentLogCount;
-    debugLog3("ABILITY_LOGS", "Updating ability logs across all contexts");
+    debugLog2("ABILITY_LOGS", "Updating ability logs across all contexts");
     updateAbilityLogDisplay3(document, dependencies);
     const allOverlays = targetDocument2.querySelectorAll(".mga-overlay-content-only, .mga-overlay, .mgh-popout");
     allOverlays.forEach((overlay) => {
       if (overlay.offsetParent === null) return;
       if (overlay.querySelector("#ability-logs")) {
         updateAbilityLogDisplay3(overlay, dependencies);
-        debugLog3("ABILITY_LOGS", "Updated overlay/widget ability logs", {
+        debugLog2("ABILITY_LOGS", "Updated overlay/widget ability logs", {
           overlayId: overlay.id || overlay.className
         });
       }
@@ -17903,18 +17906,18 @@ Error: ${error.message}`);
             if (typeof dependencies.setupAbilitiesTabHandlers === "function") {
               dependencies.setupAbilitiesTabHandlers.call(window, windowRef.document);
             }
-            debugLog3("ABILITY_LOGS", "Updated pop-out via direct DOM manipulation");
+            debugLog2("ABILITY_LOGS", "Updated pop-out via direct DOM manipulation");
           } else if (windowRef.refreshPopoutContent && typeof windowRef.refreshPopoutContent === "function") {
             windowRef.refreshPopoutContent("abilities");
-            debugLog3("ABILITY_LOGS", "Updated pop-out via refresh function");
+            debugLog2("ABILITY_LOGS", "Updated pop-out via refresh function");
           }
         } catch (e) {
-          debugLog3("ABILITY_LOGS", "Error updating separate window:", e.message);
+          debugLog2("ABILITY_LOGS", "Error updating separate window:", e.message);
           try {
             windowRef.location.reload();
-            debugLog3("ABILITY_LOGS", "Forced pop-out refresh via reload");
+            debugLog2("ABILITY_LOGS", "Forced pop-out refresh via reload");
           } catch (e2) {
-            debugLog3("ABILITY_LOGS", "Window is dead, removing reference");
+            debugLog2("ABILITY_LOGS", "Window is dead, removing reference");
             UnifiedState3.data.popouts.windows.delete(tabName);
           }
         }
@@ -17998,22 +18001,22 @@ Error: ${error.message}`);
           const freshPetSlots = await getAtomValue("myPetSlotInfosAtom");
           if (freshPetSlots?.[petIndex]) {
             pet = freshPetSlots[petIndex];
-            console.log("[MGTOOLS-FIX-A] Using fresh pet data from Jotai atom cache (Tier 1)");
+            productionLog("[MGTOOLS-FIX-A] Using fresh pet data from Jotai atom cache (Tier 1)");
           }
         } catch (e) {
-          console.warn("[MGTOOLS-FIX-A] Tier 1 (atom cache) failed:", e.message);
+          productionWarn("[MGTOOLS-FIX-A] Tier 1 (atom cache) failed:", e.message);
         }
       }
       if (!pet && UnifiedState3.atoms.activePets?.[petIndex]) {
         pet = UnifiedState3.atoms.activePets[petIndex];
-        console.log("[MGTOOLS-FIX-A] Using UnifiedState atoms (Tier 2)");
+        productionLog("[MGTOOLS-FIX-A] Using UnifiedState atoms (Tier 2)");
       }
       if (!pet && targetWindow3.myData?.petSlots?.[petIndex]) {
         pet = targetWindow3.myData.petSlots[petIndex];
-        console.log("[MGTOOLS-FIX-A] Using window.myData (Tier 3)");
+        productionLog("[MGTOOLS-FIX-A] Using window.myData (Tier 3)");
       }
       if (!pet) {
-        console.error("[MGTOOLS-FIX-A] \u274C No pet data available from any source");
+        productionError("[MGTOOLS-FIX-A] \u274C No pet data available from any source");
         alert("Pet data not ready. Please wait a moment and try again.");
         flashButton2(buttonEl, "error");
         buttonEl.disabled = false;
@@ -18023,16 +18026,16 @@ Error: ${error.message}`);
       }
       const species = pet.petSpecies;
       const petItemId = pet.id;
-      console.log("[Feed-Flow-1] \u{1F43E} Active Pet:", {
+      productionLog("[Feed-Flow-1] \u{1F43E} Active Pet:", {
         species,
         petItemId: petItemId.substring(0, 8) + "...",
         hunger: pet.hunger,
         hungerPercentage: pet.hunger ? `${pet.hunger}%` : "N/A"
       });
       const compatibleCrops = PET_FEED_CATALOG[species];
-      console.log(`[Feed-Flow-2] \u{1F33E} Compatible crops for ${species}:`, compatibleCrops || []);
+      productionLog(`[Feed-Flow-2] \u{1F33E} Compatible crops for ${species}:`, compatibleCrops || []);
       if (!compatibleCrops || compatibleCrops.length === 0) {
-        console.error("[MGTools Feed] No compatible crops for", species);
+        productionError("[MGTools Feed] No compatible crops for", species);
         flashButton2(buttonEl, "error");
         buttonEl.disabled = false;
         buttonEl.textContent = "Feed";
@@ -18048,20 +18051,20 @@ Error: ${error.message}`);
           const freshInventory = await getAtomValue("myCropInventoryAtom");
           if (freshInventory?.items) {
             inventoryItems = freshInventory.items;
-            console.log("[MGTOOLS-FIX-A] Using fresh inventory from Jotai atom cache (Tier 1)");
+            productionLog("[MGTOOLS-FIX-A] Using fresh inventory from Jotai atom cache (Tier 1)");
           }
         } catch (e) {
-          console.warn("[MGTOOLS-FIX-A] Inventory Tier 1 (atom cache) failed:", e.message);
+          productionWarn("[MGTOOLS-FIX-A] Inventory Tier 1 (atom cache) failed:", e.message);
         }
       }
       if (!inventoryItems) {
         try {
           inventoryItems = readAtom3("myCropItemsAtom") || [];
           if (inventoryItems.length > 0) {
-            console.log("[MGTOOLS-FIX-A] Using myCropItemsAtom (Tier 1.5)");
+            productionLog("[MGTOOLS-FIX-A] Using myCropItemsAtom (Tier 1.5)");
           }
         } catch (e) {
-          console.warn("[MGTOOLS-FIX-A] myCropItemsAtom failed:", e.message);
+          productionWarn("[MGTOOLS-FIX-A] myCropItemsAtom failed:", e.message);
         }
       }
       if (!inventoryItems || inventoryItems.length === 0) {
@@ -18069,18 +18072,18 @@ Error: ${error.message}`);
           inventoryItems = UnifiedState3.atoms.inventory.items.filter(
             (i) => i.itemType === "Produce" || i.itemType === "Crop"
           );
-          console.log("[MGTOOLS-FIX-A] Using UnifiedState inventory (Tier 2)");
+          productionLog("[MGTOOLS-FIX-A] Using UnifiedState inventory (Tier 2)");
         }
       }
       if (!inventoryItems || inventoryItems.length === 0) {
         if (targetWindow3.myData?.inventory?.items) {
           inventoryItems = targetWindow3.myData.inventory.items;
-          console.log("[MGTOOLS-FIX-A] Using window.myData inventory (Tier 3)");
+          productionLog("[MGTOOLS-FIX-A] Using window.myData inventory (Tier 3)");
         }
       }
-      console.log("[Feed-Inventory] Fresh read:", inventoryItems?.length || 0, "items");
+      productionLog("[Feed-Inventory] Fresh read:", inventoryItems?.length || 0, "items");
       if (!inventoryItems || inventoryItems.length === 0) {
-        console.error("[MGTOOLS-FIX-A] \u274C No inventory data available from any source");
+        productionError("[MGTOOLS-FIX-A] \u274C No inventory data available from any source");
         alert("Inventory not ready. Please wait a moment.");
         flashButton2(buttonEl, "error");
         buttonEl.disabled = false;
@@ -18088,13 +18091,13 @@ Error: ${error.message}`);
         buttonEl.style.opacity = "1";
         return;
       }
-      console.log("[Feed-Flow-3] \u{1F4E6} Full inventory:", {
+      productionLog("[Feed-Flow-3] \u{1F4E6} Full inventory:", {
         count: inventoryItems.length,
         species: inventoryItems.map((item) => item.species),
         items: inventoryItems
       });
       const favoritedSpecies = UnifiedState3.data?.autoFavorite?.selectedSpecies || [];
-      console.log("[Feed-Flow-4] \u{1F6AB} Favorited species:", favoritedSpecies);
+      productionLog("[Feed-Flow-4] \u{1F6AB} Favorited species:", favoritedSpecies);
       const nonFavoritedCompatibleCrops = inventoryItems.filter((item) => {
         if (!item || !item.species || !item.id) return false;
         const isCompatible = compatibleCrops.includes(item.species);
@@ -18102,18 +18105,18 @@ Error: ${error.message}`);
         const notUsed = !usedCropIds.has(item.id);
         return isCompatible && !isFavorited && notUsed;
       });
-      console.log("[Feed-Flow-5] \u2705 Non-favorited compatible crops available:", {
+      productionLog("[Feed-Flow-5] \u2705 Non-favorited compatible crops available:", {
         count: nonFavoritedCompatibleCrops.length,
         species: nonFavoritedCompatibleCrops.map((item) => item.species),
         items: nonFavoritedCompatibleCrops
       });
       const cropToFeed = nonFavoritedCompatibleCrops[0];
-      console.log(`[Feed-Flow-6] \u2753 Compatible crop exists: ${!!cropToFeed}`);
+      productionLog(`[Feed-Flow-6] \u2753 Compatible crop exists: ${!!cropToFeed}`);
       if (!cropToFeed) {
-        console.error("[MGTools Feed] No feedable crops (compatible, non-favorited, unused)");
-        console.log("[MGTools Feed] Compatible species:", compatibleCrops);
-        console.log("[MGTools Feed] Favorited species:", favoritedSpecies);
-        console.log("[MGTools Feed] Used crop IDs:", Array.from(usedCropIds));
+        productionError("[MGTools Feed] No feedable crops (compatible, non-favorited, unused)");
+        productionLog("[MGTools Feed] Compatible species:", compatibleCrops);
+        productionLog("[MGTools Feed] Favorited species:", favoritedSpecies);
+        productionLog("[MGTools Feed] Used crop IDs:", Array.from(usedCropIds));
         usedCropIds.clear();
         flashButton2(buttonEl, "error");
         buttonEl.disabled = false;
@@ -18123,13 +18126,13 @@ Error: ${error.message}`);
       }
       usedCropIds.add(cropToFeed.id);
       const cropItemId = cropToFeed?.id || cropToFeed?.inventoryItemId || cropToFeed?.itemId;
-      console.log("[Feed-Flow-7a] \u{1F9EA} Selected crop:", {
+      productionLog("[Feed-Flow-7a] \u{1F9EA} Selected crop:", {
         species: cropToFeed?.species,
         fullItem: cropToFeed,
         resolvedId: cropItemId
       });
       if (!cropItemId) {
-        console.error("[Feed] No valid ID found in crop item:", cropToFeed);
+        productionError("[Feed] No valid ID found in crop item:", cropToFeed);
         flashButton2(buttonEl, "error");
         buttonEl.disabled = false;
         buttonEl.textContent = "Feed";
@@ -18141,8 +18144,8 @@ Error: ${error.message}`);
         (item) => item.id === cropItemId || item.inventoryItemId === cropItemId || item.itemId === cropItemId
       );
       if (!cropStillExists) {
-        console.error("[Feed] Crop no longer in inventory! ID:", cropItemId);
-        console.log(
+        productionError("[Feed] Crop no longer in inventory! ID:", cropItemId);
+        productionLog(
           "[Feed] Current inventory IDs:",
           currentInventory.map((i) => i.id || i.inventoryItemId || i.itemId)
         );
@@ -18156,16 +18159,16 @@ Error: ${error.message}`);
       const slotsNow = readMyPetSlots() || [];
       const reboundPetItemId = slotsNow?.[petIndex]?.id || petItemId;
       if (reboundPetItemId !== petItemId) {
-        console.warn("[Feed-Guard] Rebound petItemId from slots", {
+        productionWarn("[Feed-Guard] Rebound petItemId from slots", {
           old: petItemId,
           new: reboundPetItemId,
           petIndex
         });
       }
-      console.log("[Feed-Debug] \u{1F680} Sending FeedPet message with inventoryItemId");
+      productionLog("[Feed-Debug] \u{1F680} Sending FeedPet message with inventoryItemId");
       try {
         await sendFeedPet2(reboundPetItemId, cropItemId);
-        console.log(`[MGTools Feed] \u{1F680} Sent feed: ${species} with ${cropToFeed.species}`);
+        productionLog(`[MGTools Feed] \u{1F680} Sent feed: ${species} with ${cropToFeed.species}`);
         flashButton2(buttonEl, "success");
         setTimeout(() => {
           buttonEl.disabled = false;
@@ -18174,13 +18177,13 @@ Error: ${error.message}`);
         }, 200);
         feedPetEnsureSync2(reboundPetItemId, cropItemId, petIndex, false).then((result) => {
           if (!result?.verified) {
-            console.warn("[MGTools Feed] \u26A0\uFE0F Background verification failed (feed may have worked anyway)");
+            productionWarn("[MGTools Feed] \u26A0\uFE0F Background verification failed (feed may have worked anyway)");
           } else {
-            console.log("[MGTools Feed] \u2705 Background verification succeeded");
+            productionLog("[MGTools Feed] \u2705 Background verification succeeded");
           }
-        }).catch((err) => console.warn("[MGTools Feed] Background verification error:", err));
+        }).catch((err) => productionWarn("[MGTools Feed] Background verification error:", err));
       } catch (err) {
-        console.warn("[MGTools Feed] \u26A0\uFE0F Feed failed:", err.message);
+        productionWarn("[MGTools Feed] \u26A0\uFE0F Feed failed:", err.message);
         flashButton2(buttonEl, "error");
         usedCropIds.delete(cropToFeed.id);
         buttonEl.disabled = false;
@@ -18188,7 +18191,7 @@ Error: ${error.message}`);
         buttonEl.style.opacity = "1";
       }
     } catch (error) {
-      console.error("[MGTools Feed] Error:", error);
+      productionError("[MGTools Feed] Error:", error);
       flashButton2(buttonEl, "error");
       buttonEl.disabled = false;
       buttonEl.textContent = "Feed";
@@ -18203,7 +18206,7 @@ Error: ${error.message}`);
       }
       try {
         isInjecting = true;
-        console.log("[MGTools Feed] \u{1F50D} Starting container-based injection...");
+        productionLog3("[MGTools Feed] \u{1F50D} Starting container-based injection...");
         const existingButtons = targetDocument2.querySelectorAll(".mgtools-instant-feed-btn");
         const existingIndices = /* @__PURE__ */ new Set();
         existingButtons.forEach((btn) => {
@@ -18233,7 +18236,7 @@ Error: ${error.message}`);
           return isOnScreen && hasReasonableSize && isInValidVerticalRange;
         }).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top).slice(0, 3);
         if (petAvatarCanvases.length === 0) {
-          console.warn("[MGTools Feed] \u26A0\uFE0F No pet avatar canvases found!");
+          productionWarn("[MGTools Feed] \u26A0\uFE0F No pet avatar canvases found!");
           isInjecting = false;
           return;
         }
@@ -18261,12 +18264,12 @@ Error: ${error.message}`);
               levelsUp++;
             }
             if (candidates.length === 0) {
-              console.warn(`[MGTools Feed] \u26A0\uFE0F No valid container found for pet ${index + 1}`);
+              productionWarn(`[MGTools Feed] \u26A0\uFE0F No valid container found for pet ${index + 1}`);
               return;
             }
             candidates.sort((a, b) => a.area - b.area);
             const targetContainer = candidates[0].element;
-            console.log(`[MGTools Feed] \u{1F4D0} Selected container:`, {
+            productionLog3(`[MGTools Feed] \u{1F4D0} Selected container:`, {
               width: candidates[0].width.toFixed(1),
               height: candidates[0].height.toFixed(1),
               tagName: targetContainer.tagName
@@ -18282,26 +18285,26 @@ Error: ${error.message}`);
             targetContainer.appendChild(btn);
             productionLog3(`[MGTools Feed] Injected feed button ${index + 1}`);
           } catch (err) {
-            console.error(`[MGTools Feed] Error processing canvas ${index + 1}:`, err);
+            productionError(`[MGTools Feed] Error processing canvas ${index + 1}:`, err);
           }
         });
         isInjecting = false;
       } catch (error) {
-        console.error("[MGTools Feed] Error in injectInstantFeedButtons:", error);
+        productionError("[MGTools Feed] Error in injectInstantFeedButtons:", error);
         isInjecting = false;
       }
     };
   }
   function initializeInstantFeedButtons({ targetDocument: targetDocument2, targetWindow: targetWindow3, UnifiedState: UnifiedState3, handleInstantFeed: handleInstantFeed2, captureJotaiStore: captureJotaiStore2, productionLog: productionLog3 }, options = {}) {
     const { pollInterval = 2e3 } = options;
-    console.log("[MGTools Feed] \u{1F680} Initializing instant feed buttons with polling interval...");
+    productionLog3("[MGTools Feed] \u{1F680} Initializing instant feed buttons with polling interval...");
     let jotaiStore2 = null;
     if (!jotaiStore2) {
       jotaiStore2 = captureJotaiStore2();
       if (jotaiStore2) {
-        console.log("[MGTools Feed] \u2705 Jotai store captured at initialization");
+        productionLog3("[MGTools Feed] \u2705 Jotai store captured at initialization");
       } else {
-        console.log("[MGTools Feed] \u23F3 Jotai store not ready yet - will use fallback data");
+        productionLog3("[MGTools Feed] \u23F3 Jotai store not ready yet - will use fallback data");
       }
     }
     function findVisiblePetContainers() {
@@ -18359,7 +18362,7 @@ Error: ${error.message}`);
         container.appendChild(btn);
         return true;
       } catch (err) {
-        console.error(`[MGTools Feed] Error injecting button ${index + 1}:`, err);
+        productionError(`[MGTools Feed] Error injecting button ${index + 1}:`, err);
         return false;
       }
     }
@@ -18384,14 +18387,14 @@ Error: ${error.message}`);
           checkAndInjectButtons();
         }
       } catch (err) {
-        console.error("[MGTools Feed] Error in polling:", err);
+        productionError("[MGTools Feed] Error in polling:", err);
       }
     }, pollInterval);
     if (!targetWindow3.MGToolsIntervals) {
       targetWindow3.MGToolsIntervals = [];
     }
     targetWindow3.MGToolsIntervals.push(interval);
-    console.log(
+    productionLog3(
       `[MGTools Feed] \u2705 Polling active (${pollInterval}ms) - buttons will auto-reappear when containers become visible`
     );
     productionLog3("\u2705 [MGTools] Instant feed buttons initialized with polling detection");
@@ -18465,7 +18468,7 @@ Error: ${error.message}`);
         productionLog3("\u{1F3B5} [CUSTOM-SOUND] Playing custom ability sound");
         return;
       } catch (err) {
-        console.error("Failed to play custom ability sound:", err);
+        productionError("Failed to play custom ability sound:", err);
       }
     }
     if (!customSound) {
@@ -18505,7 +18508,7 @@ Error: ${error.message}`);
   }
   function setupAbilitiesTabHandlers(context = document, dependencies, options = {}) {
     const {
-      debugLog: debugLog3,
+      debugLog: debugLog2,
       switchFilterMode: switchFilterMode2,
       selectAllFilters: selectAllFilters3,
       selectNoneFilters: selectNoneFilters3,
@@ -18528,7 +18531,7 @@ Error: ${error.message}`);
       MGA_AbilityCache: MGA_AbilityCache2
     } = dependencies;
     let { lastLogCount } = options;
-    debugLog3("ABILITY_LOGS", "Setting up abilities tab handlers with context", {
+    debugLog2("ABILITY_LOGS", "Setting up abilities tab handlers with context", {
       isDocument: context === document,
       className: context.className || "document"
     });
@@ -18571,7 +18574,7 @@ Error: ${error.message}`);
           UnifiedState3.data.abilityFilters[filterKey] = e.target.checked;
           MGA_saveJSON2("MGA_abilityFilters", UnifiedState3.data.abilityFilters);
           updateAllLogVisibility3();
-          debugLog3("ABILITY_LOGS", `Filter ${filterKey} changed to ${e.target.checked}, updated visibility via CSS`);
+          debugLog2("ABILITY_LOGS", `Filter ${filterKey} changed to ${e.target.checked}, updated visibility via CSS`);
         });
       }
     });
@@ -18729,7 +18732,7 @@ Error: ${error.message}`);
     if (diagnoseLogsBtn && !diagnoseLogsBtn.hasAttribute("data-handler-setup")) {
       diagnoseLogsBtn.setAttribute("data-handler-setup", "true");
       diagnoseLogsBtn.addEventListener("click", () => {
-        console.log("\u{1F50D} Running ability logs storage diagnostic...");
+        productionLog3("\u{1F50D} Running ability logs storage diagnostic...");
         const report = MGA_diagnoseAbilityLogStorage2();
         const totalWithLogs = report.summary.totalLocationsWithLogs;
         if (totalWithLogs === 0) {
@@ -18752,7 +18755,7 @@ Error: ${error.message}`);
         UnifiedState3.data.popouts.overlays.forEach((overlay, tabName) => {
           if (tabName === "abilities" && overlay && overlay.offsetParent !== null) {
             updateAbilityLogDisplay3(overlay);
-            debugLog3("ABILITY_LOGS", "Updated overlay with new timestamp format");
+            debugLog2("ABILITY_LOGS", "Updated overlay with new timestamp format");
           }
         });
         updateAllAbilityLogDisplays3(true);
@@ -18781,7 +18784,7 @@ Error: ${error.message}`);
     // Pet Feeding
     sendFeedPet,
     feedPetEnsureSync,
-    // UI Helpers (Phase 3)
+    // UI Helpers
     updatePetPresetDropdown,
     updateActivePetsDisplay,
     ensurePresetOrder,
@@ -18790,17 +18793,17 @@ Error: ${error.message}`);
     refreshPresetsList,
     addPresetToList,
     setupPetsTabHandlers,
-    // Tab Content Generators (Phase 3 - continued)
+    // Tab Content Generators
     getPetsPopoutContent: getPetsPopoutContent2,
     setupPetPopoutHandlers: setupPetPopoutHandlers2,
     getPetsTabContent,
-    // Ability Calculation Helpers (Game-specific)
+    // Ability Calculation Helpers
     getTurtleExpectations,
     estimateUntilLatestCrop,
     getAbilityExpectations,
     getEggExpectations,
     getGrowthExpectations,
-    // Auto-Favorite System (Phase 4)
+    // Auto-Favorite System
     initAutoFavorite,
     favoriteSpecies,
     unfavoriteSpecies,
@@ -18808,7 +18811,7 @@ Error: ${error.message}`);
     unfavoriteMutation,
     favoritePetAbility,
     unfavoritePetAbility,
-    // Additional Pet Functions (Phase 5)
+    // Additional Pet Functions
     playPetNotificationSound,
     placePetPreset,
     loadPetPreset,
@@ -18817,18 +18820,18 @@ Error: ${error.message}`);
     shouldLogAbility,
     categorizeAbilityToFilterKey,
     monitorPetAbilities,
-    // Ability Log Utilities (Phase 6)
+    // Ability Log Utilities
     getAllUniqueAbilities,
     populateIndividualAbilities,
     selectAllFilters,
     selectNoneFilters,
     exportAbilityLogs,
     loadPresetByNumber,
-    // Supporting Utilities (Phase 6)
+    // Supporting Utilities
     normalizeAbilityName: normalizeAbilityName2,
     formatTimestamp,
     getGardenCropIfUnique,
-    // Ability Log Management (Phase 7)
+    // Ability Log Management
     KNOWN_ABILITY_TYPES: KNOWN_ABILITY_TYPES2,
     isKnownAbilityType: isKnownAbilityType2,
     initAbilityCache,
@@ -18837,19 +18840,19 @@ Error: ${error.message}`);
     categorizeAbility,
     formatLogData,
     formatRelativeTime,
-    // Display Update Functions (Phase 8)
+    // Display Update Functions
     updateAbilityLogDisplay,
     updateLogVisibility,
     updateAllLogVisibility,
     updateAllAbilityLogDisplays,
-    // Instant Feed Core Functions (Phase 9)
+    // Instant Feed Core Functions
     createInstantFeedButton,
     flashButton,
     handleInstantFeed,
-    // Instant Feed Initialization & Polling (Phase 10)
+    // Instant Feed Initialization & Polling
     injectInstantFeedButtons,
     initializeInstantFeedButtons,
-    // Additional Pet Management Functions (Phase 11)
+    // Additional Pet Management Functions
     presetHasCropEater,
     cycleToNextPreset,
     playAbilityNotificationSound,
@@ -19313,7 +19316,7 @@ Error: ${error.message}`);
     const {
       targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null,
       getLocalPurchaseCount: getPurchasesFn = getLocalPurchaseCount,
-      productionError: productionError2 = console.error
+      productionError: productionError3 = console.error
     } = dependencies;
     try {
       const shop = targetWindow3?.globalShop?.shops;
@@ -19344,7 +19347,7 @@ Error: ${error.message}`);
       const stock = Math.max(0, initial - purchased);
       return stock;
     } catch (e) {
-      productionError2("[SHOP] getItemStock error:", e);
+      productionError3("[SHOP] getItemStock error:", e);
       return 0;
     }
   }
@@ -20231,7 +20234,7 @@ Error: ${error.message}`);
             restockDetected = true;
             timerWasDecreasing = false;
             if (UnifiedState3?.data?.settings?.debugMode) {
-              console.log(
+              productionLog3(
                 `[SHOP DEBUG] Restock detected for ${type}! Pattern: ${lastTimerValue}s \u2192 ${currentTimer}s (was decreasing, then increased)`
               );
             }
@@ -20367,7 +20370,7 @@ Error: ${error.message}`);
       getLocalPurchaseCount: getPurchaseCountFn = getLocalPurchaseCount,
       startInventoryCounter: startCounterFn = startInventoryCounter,
       productionLog: productionLog3 = typeof window !== "undefined" && window.productionLog,
-      productionError: productionError2 = typeof window !== "undefined" && window.productionError,
+      productionError: productionError3 = typeof window !== "undefined" && window.productionError,
       alert: alertFn = typeof window !== "undefined" ? window.alert : console.log,
       console: consoleObj = console
     } = dependencies;
@@ -20444,8 +20447,8 @@ Error: ${error.message}`);
         const stock = Math.max(0, initial - purchased);
         return stock;
       } catch (e) {
-        if (productionError2) {
-          productionError2("[SHOP-TAB] getItemStock error:", e);
+        if (productionError3) {
+          productionError3("[SHOP-TAB] getItemStock error:", e);
         }
         return 0;
       }
@@ -21229,7 +21232,7 @@ Error: ${error.message}`);
     return checkForWatchedItems(dependencies);
   }
   var shop_default = {
-    // Phase 1: Constants & Utilities
+    // Constants & Utilities
     SHOP_IMAGE_MAP,
     SHOP_COLOR_GROUPS,
     SHOP_RAINBOW_ITEMS,
@@ -21241,7 +21244,7 @@ Error: ${error.message}`);
     preloadShopImages,
     flashPurchaseFeedback,
     showFloatingMsg,
-    // Phase 2: Inventory & Stock Management
+    // Inventory & Stock Management
     loadPurchaseTracker,
     savePurchaseTracker,
     trackLocalPurchase,
@@ -21252,12 +21255,12 @@ Error: ${error.message}`);
     getItemStackCap,
     flashInventoryFullFeedback,
     getItemStock,
-    // Phase 3: Shop Item Elements & Purchase Logic
+    // Shop Item Elements & Purchase Logic
     isShopDataReady,
     waitForShopData,
     createShopItemElement,
     buyItem,
-    // Phase 4: Shop Windows & Overlays
+    // Shop Windows & Overlays
     SEED_SPECIES_SHOP,
     EGG_IDS_SHOP,
     refreshAllShopWindows,
@@ -21272,10 +21275,10 @@ Error: ${error.message}`);
     makeShopWindowDraggable,
     setupShopWindowHandlers,
     getItemValue,
-    // Phase 5: Shop Tab Content
+    // Shop Tab Content
     getShopTabContent,
     setupShopTabHandlers,
-    // Phase 6: Shop Monitoring & Restock Detection
+    // Shop Monitoring & Restock Detection
     checkForWatchedItems,
     checkShopRestock,
     scheduleRefresh,
@@ -21339,7 +21342,7 @@ Error: ${error.message}`);
       oscillator.stop(audioContext.currentTime + duration / 1e3);
       productionLog3(`\u{1F50A} [NOTIFICATIONS] Sound played for rare item!`);
     } catch (error) {
-      console.error("\u274C [NOTIFICATIONS] Failed to play notification sound:", error);
+      productionError("\u274C [NOTIFICATIONS] Failed to play notification sound:", error);
     }
   }
   function playTripleBeepNotification(volume = 0.3, dependencies = {}) {
@@ -21488,7 +21491,7 @@ Error: ${error.message}`);
         audio.play();
         productionLog3(`\u{1F3B5} [CUSTOM-SOUND] Playing custom ${soundType} sound`);
       } catch (err) {
-        console.error(`Failed to play custom ${soundType} sound:`, err);
+        productionError(`Failed to play custom ${soundType} sound:`, err);
         defaultPlayFunc(volume);
       }
     } else {
@@ -21939,7 +21942,7 @@ Error: ${error.message}`);
         setTimeout(() => toast2.remove(), 300);
       }, 5e3);
     } catch (error) {
-      console.error("\u274C [TOAST] Error showing notification toast:", error);
+      productionError("\u274C [TOAST] Error showing notification toast:", error);
     }
   }
   function getNotificationsTabContent(dependencies = {}) {
@@ -22979,7 +22982,7 @@ Error: ${error.message}`);
     }
     if (active.classList?.contains("chakra-input")) {
       if (UnifiedState3?.data?.settings?.debugMode) {
-        console.log("[FIX_HOTKEYS] Blocking - Chakra UI input detected");
+        productionLog("[FIX_HOTKEYS] Blocking - Chakra UI input detected");
       }
       return true;
     }
@@ -23024,7 +23027,7 @@ Error: ${error.message}`);
       (pattern) => activeClasses.toLowerCase().includes(pattern) || activeId.toLowerCase().includes(pattern)
     );
     if (hasChatPattern && (tagName === "div" || tagName === "span" || active.isContentEditable)) {
-      console.log("[FIX_HOTKEYS] Blocking hotkey - detected chat input:", {
+      productionLog("[FIX_HOTKEYS] Blocking hotkey - detected chat input:", {
         tag: tagName,
         classes: activeClasses,
         id: activeId,
@@ -23040,7 +23043,7 @@ Error: ${error.message}`);
       if (chatPatterns.some(
         (pattern) => parentClasses.toLowerCase().includes(pattern) || parentId.toLowerCase().includes(pattern)
       )) {
-        console.log("[FIX_HOTKEYS] Blocking hotkey - active element in chat container:", {
+        productionLog("[FIX_HOTKEYS] Blocking hotkey - active element in chat container:", {
           parentTag: parent.tagName,
           parentClasses,
           parentId,
@@ -23183,7 +23186,7 @@ Error: ${error.message}`);
       }
       if (UnifiedState3.data.settings?.debugMode) {
         const active = targetDocument2.activeElement;
-        console.log("[FIX_HOTKEYS] Hotkey blocked - typing detected:", {
+        productionLog3("[FIX_HOTKEYS] Hotkey blocked - typing detected:", {
           key: e.key,
           tag: active?.tagName,
           id: active?.id,
@@ -23350,25 +23353,25 @@ Error: ${error.message}`);
     }
   }
   var hotkeys_default = {
-    // Recording Functions (Phase 1)
+    // Recording Functions
     startRecordingHotkey,
     stopRecordingHotkey,
     startRecordingHotkeyMGTools,
-    // Input Detection (Phase 1)
+    // Input Detection
     shouldBlockHotkey,
     isTypingInInput,
-    // Key Parsing Utilities (Phase 1)
+    // Key Parsing Utilities
     parseKeyCombo,
     getProperKeyCode,
-    // Key Simulation & Matching (Phase 2)
+    // Key Simulation & Matching
     matchesKeyCombo,
     simulateKeyDown,
     simulateKeyUp,
-    // Event Handlers (Phase 3)
+    // Event Handlers
     handleHotkeyPress,
     handleHotkeyRelease,
     initializeHotkeySystem,
-    // Tab UI (Phase 4)
+    // Tab UI
     setupHotkeysTabHandlers
   };
 
@@ -23494,12 +23497,12 @@ Error: ${error.message}`);
     }
     const speciesCheckboxes = context.querySelectorAll(".protect-species-checkbox");
     const mutationCheckboxes = context.querySelectorAll(".protect-mutation-checkbox");
-    console.log(
+    productionLog3(
       `\u2705 [Protect] Found ${speciesCheckboxes.length} species checkboxes, ${mutationCheckboxes.length} mutation checkboxes`
     );
     context.querySelectorAll(".protect-species-checkbox").forEach((checkbox) => {
       checkbox.addEventListener("change", (e) => {
-        console.log("[Protect] \u{1F514} Species checkbox changed!", e.target.value, "checked:", e.target.checked);
+        productionLog3("[Protect] \u{1F514} Species checkbox changed!", e.target.value, "checked:", e.target.checked);
         const species = e.target.value;
         if (e.target.checked) {
           if (!lockedCrops.species.includes(species)) {
@@ -23508,16 +23511,16 @@ Error: ${error.message}`);
         } else {
           lockedCrops.species = lockedCrops.species.filter((s) => s !== species);
         }
-        console.log("[Protect] Saving species change:", species, e.target.checked);
+        productionLog3("[Protect] Saving species change:", species, e.target.checked);
         MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        console.log("[Protect] Save completed");
+        productionLog3("[Protect] Save completed");
         updateProtectStatusFn(context, dependencies);
         applyHarvestRuleFn(dependencies);
       });
     });
     context.querySelectorAll(".protect-mutation-checkbox").forEach((checkbox) => {
       checkbox.addEventListener("change", (e) => {
-        console.log("[Protect] \u{1F514} Mutation checkbox changed!", e.target.value, "checked:", e.target.checked);
+        productionLog3("[Protect] \u{1F514} Mutation checkbox changed!", e.target.value, "checked:", e.target.checked);
         const mutation = e.target.value;
         if (mutation === "Lock All Mutations") {
           const allMutationCheckboxes = context.querySelectorAll(".protect-mutation-checkbox");
@@ -23559,9 +23562,9 @@ Error: ${error.message}`);
             }
           }
         }
-        console.log("[Protect] Saving mutation change:", mutation, e.target.checked);
+        productionLog3("[Protect] Saving mutation change:", mutation, e.target.checked);
         MGA_saveJSON2("MGA_data", UnifiedState3.data);
-        console.log("[Protect] Save completed");
+        productionLog3("[Protect] Save completed");
         updateProtectStatusFn(context, dependencies);
         applyHarvestRuleFn(dependencies);
       });
@@ -23624,13 +23627,13 @@ Error: ${error.message}`);
         applySellBlockThresholdFn(dependencies);
       });
     }
-    console.log("[Protect-Debug] \u{1F50D} Looking for #allow-frozen-pickup checkbox in context:", context);
+    productionLog3("[Protect-Debug] \u{1F50D} Looking for #allow-frozen-pickup checkbox in context:", context);
     const frozenCheckbox = context.querySelector("#allow-frozen-pickup");
-    console.log("[Protect-Debug] \u{1F4CB} Frozen checkbox found?", !!frozenCheckbox, frozenCheckbox);
+    productionLog3("[Protect-Debug] \u{1F4CB} Frozen checkbox found?", !!frozenCheckbox, frozenCheckbox);
     if (frozenCheckbox) {
-      console.log("[Protect-Debug] \u2705 Attaching change event handler to frozen checkbox");
+      productionLog3("[Protect-Debug] \u2705 Attaching change event handler to frozen checkbox");
       frozenCheckbox.addEventListener("change", (e) => {
-        console.log("[Protect-Debug] \u{1F514} FROZEN CHECKBOX CHANGED!", e.target.checked);
+        productionLog3("[Protect-Debug] \u{1F514} FROZEN CHECKBOX CHANGED!", e.target.checked);
         if (!UnifiedState3.data.protectionSettings) {
           UnifiedState3.data.protectionSettings = {};
         }
@@ -23639,9 +23642,9 @@ Error: ${error.message}`);
         productionLog3(`\u2744\uFE0F [PROTECTION] Frozen exception: ${e.target.checked ? "enabled" : "disabled"}`);
         applyHarvestRuleFn(dependencies);
       });
-      console.log("[Protect-Debug] \u2705 Frozen checkbox handler attached successfully");
+      productionLog3("[Protect-Debug] \u2705 Frozen checkbox handler attached successfully");
     } else {
-      console.warn("[Protect-Debug] \u26A0\uFE0F Frozen checkbox NOT FOUND in context!");
+      productionWarn("[Protect-Debug] \u26A0\uFE0F Frozen checkbox NOT FOUND in context!");
     }
     updateProtectStatusFn(context, dependencies);
     applyHarvestRuleFn(dependencies);
@@ -23724,7 +23727,7 @@ Error: ${error.message}`);
       targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null
     } = dependencies;
     targetWindow3.sellBlockThreshold = UnifiedState3.data.sellBlockThreshold || 1;
-    console.log(`\u2705 Sell block threshold set to ${targetWindow3.sellBlockThreshold}x`);
+    productionLog(`\u2705 Sell block threshold set to ${targetWindow3.sellBlockThreshold}x`);
   }
   function initializeProtectionHooks(dependencies = {}) {
     const {
@@ -23741,15 +23744,15 @@ Error: ${error.message}`);
       if (!targetWindow3.MagicCircle_RoomConnection) {
         if (roomConnectionRetries < MAX_ROOM_CONNECTION_RETRIES) {
           roomConnectionRetries++;
-          console.warn(`\u23F3 Waiting for RoomConnection (${roomConnectionRetries}/${MAX_ROOM_CONNECTION_RETRIES})...`);
+          productionWarn(`\u23F3 Waiting for RoomConnection (${roomConnectionRetries}/${MAX_ROOM_CONNECTION_RETRIES})...`);
           setTimeout(() => initializeProtectionHooks(dependencies), 1e3);
           return;
         }
-        console.warn("\u26A0\uFE0F RoomConnection not found after max retries - continuing without protection hooks");
+        productionWarn("\u26A0\uFE0F RoomConnection not found after max retries - continuing without protection hooks");
         return;
       }
       roomConnectionRetries = 0;
-      console.log("\u2705 MagicCircle_RoomConnection found - initializing protection hooks");
+      productionLog("\u2705 MagicCircle_RoomConnection found - initializing protection hooks");
       const originalSendMessage = targetWindow3.MagicCircle_RoomConnection.sendMessage.bind(
         targetWindow3.MagicCircle_RoomConnection
       );
@@ -23771,7 +23774,7 @@ Error: ${error.message}`);
             }
           } else if (msgType === "PurchaseTool" && message.toolId) {
             if (UnifiedState3.data.settings?.debugMode) {
-              console.log(`\u{1F527} [PURCHASE-INTERCEPT] Tool Purchase Detected!`, {
+              productionLog(`\u{1F527} [PURCHASE-INTERCEPT] Tool Purchase Detected!`, {
                 toolId: message.toolId,
                 toolIdType: typeof message.toolId,
                 fullMessage: JSON.stringify(message)
@@ -23780,14 +23783,14 @@ Error: ${error.message}`);
             if (typeof trackLocalPurchase2 === "function") {
               trackLocalPurchase2(message.toolId, "tool", 1);
               if (UnifiedState3.data.settings?.debugMode) {
-                console.log(`\u{1F527} [PURCHASE-INTERCEPT] Called trackLocalPurchase with: "${message.toolId}"`);
+                productionLog(`\u{1F527} [PURCHASE-INTERCEPT] Called trackLocalPurchase with: "${message.toolId}"`);
               }
             } else {
-              console.error(`\u274C [PURCHASE-INTERCEPT] trackLocalPurchase function not available!`);
+              productionError(`\u274C [PURCHASE-INTERCEPT] trackLocalPurchase function not available!`);
             }
           }
           if (isSellMessage && friendBonus < targetWindow3.sellBlockThreshold) {
-            console.warn(
+            productionWarn(
               `[SellBlock] Blocked ${msgType} (friendBonus=${friendBonus} < ${targetWindow3.sellBlockThreshold})`
             );
             return;
@@ -23795,21 +23798,21 @@ Error: ${error.message}`);
           if (msgType === "HarvestCrop") {
             const tile = targetWindow3.myGarden?.garden?.tileObjects?.[message.slot];
             const slotData = tile?.slots?.[message.slotsIndex];
-            console.log(`[HarvestCheck] Attempting harvest: slot=${message.slot}, index=${message.slotsIndex}`);
-            console.log(`[HarvestCheck] Tile data:`, tile);
-            console.log(`[HarvestCheck] Slot data:`, slotData);
+            productionLog(`[HarvestCheck] Attempting harvest: slot=${message.slot}, index=${message.slotsIndex}`);
+            productionLog(`[HarvestCheck] Tile data:`, tile);
+            productionLog(`[HarvestCheck] Slot data:`, slotData);
             if (slotData) {
               const species = slotData.species;
               const slotMutations = slotData.mutations || [];
-              console.log(`[HarvestCheck] Species: ${species}, Mutations:`, slotMutations);
-              console.log(`[HarvestCheck] currentHarvestRule exists:`, !!targetWindow3.currentHarvestRule);
+              productionLog(`[HarvestCheck] Species: ${species}, Mutations:`, slotMutations);
+              productionLog(`[HarvestCheck] currentHarvestRule exists:`, !!targetWindow3.currentHarvestRule);
               if (targetWindow3.currentHarvestRule && !targetWindow3.currentHarvestRule({ species, mutations: slotMutations })) {
-                console.log(`\u{1F512} BLOCKED HarvestCrop: ${species} with mutations [${slotMutations.join(", ")}]`);
+                productionLog(`\u{1F512} BLOCKED HarvestCrop: ${species} with mutations [${slotMutations.join(", ")}]`);
                 return;
               }
-              console.log(`\u2705 ALLOWED HarvestCrop: ${species} with mutations [${slotMutations.join(", ")}]`);
+              productionLog(`\u2705 ALLOWED HarvestCrop: ${species} with mutations [${slotMutations.join(", ")}]`);
               if (UnifiedState3.data.settings?.debugMode) {
-                console.log("[FIX_HARVEST] Harvest handler called for:", species, "Will attempt sync in 100ms...");
+                productionLog("[FIX_HARVEST] Harvest handler called for:", species, "Will attempt sync in 100ms...");
               }
               const preHarvestIndex = window._mgtools_currentSlotIndex || 0;
               const qmt = typeof queueMicrotask === "function" ? queueMicrotask : (fn) => Promise.resolve().then(fn);
@@ -23818,13 +23821,13 @@ Error: ${error.message}`);
                   try {
                     if (!window.syncSlotIndexFromGame) {
                       if (UnifiedState3.data.settings?.debugMode) {
-                        console.error("[FIX_HARVEST] ERROR: syncSlotIndexFromGame not found on window!");
+                        productionError("[FIX_HARVEST] ERROR: syncSlotIndexFromGame not found on window!");
                       }
                       return;
                     }
                     const newIndex = window.syncSlotIndexFromGame();
                     if (UnifiedState3.data.settings?.debugMode) {
-                      console.log("[FIX_HARVEST] Post-harvest slot sync:", {
+                      productionLog("[FIX_HARVEST] Post-harvest slot sync:", {
                         species,
                         preHarvest: preHarvestIndex,
                         postHarvest: newIndex !== null ? newIndex : preHarvestIndex,
@@ -23837,25 +23840,25 @@ Error: ${error.message}`);
                       requestAnimationFrame(() => {
                         insertTurtleEstimate3();
                         if (UnifiedState3.data.settings?.debugMode) {
-                          console.log("[FIX_HARVEST] Refreshed value display");
+                          productionLog("[FIX_HARVEST] Refreshed value display");
                         }
                       });
                     }
                   } catch (error) {
-                    console.error("[FIX_HARVEST] Sync error:", error);
+                    productionError("[FIX_HARVEST] Sync error:", error);
                   }
                 }, 100);
               });
             } else {
-              console.warn(`[HarvestCheck] No slot data found for slot ${message.slot}, index ${message.slotsIndex}`);
+              productionWarn(`[HarvestCheck] No slot data found for slot ${message.slot}, index ${message.slotsIndex}`);
             }
           }
           if (msgType.toLowerCase().includes("pet") && msgType.toLowerCase().includes("sell")) {
             const lockedAbilities = UnifiedState3.data.lockedPetAbilities || [];
             const petId = message.itemId || message.petId;
             if (UnifiedState3.data.settings?.debugMode) {
-              console.log(`\u{1F43E} [PetSellDebug] Message type: ${msgType}`, message);
-              console.log(`\u{1F43E} [PetSellDebug] Locked abilities:`, lockedAbilities);
+              productionLog(`\u{1F43E} [PetSellDebug] Message type: ${msgType}`, message);
+              productionLog(`\u{1F43E} [PetSellDebug] Locked abilities:`, lockedAbilities);
             }
             if (lockedAbilities.length > 0 && petId) {
               let pet = null;
@@ -23866,23 +23869,23 @@ Error: ${error.message}`);
                 pet = UnifiedState3.atoms.inventory.items.find((item) => item.id === petId && item.itemType === "Pet");
               }
               if (UnifiedState3.data.settings?.debugMode) {
-                console.log(`\u{1F43E} [PetSellDebug] Found pet:`, pet);
+                productionLog(`\u{1F43E} [PetSellDebug] Found pet:`, pet);
               }
               if (pet) {
                 const petMutations = pet.mutations || [];
                 if (UnifiedState3.data.settings?.debugMode) {
-                  console.log(`\u{1F43E} [PetSellDebug] Pet mutations:`, petMutations);
+                  productionLog(`\u{1F43E} [PetSellDebug] Pet mutations:`, petMutations);
                   let abilityFromAtom = null;
                   if (UnifiedState3.atoms.petAbility && UnifiedState3.atoms.petAbility[petId]) {
                     const abilityData = UnifiedState3.atoms.petAbility[petId];
                     abilityFromAtom = abilityData.lastAbilityTrigger?.abilityId;
-                    console.log(`\u{1F43E} [PetSellDebug] Pet ability from atom:`, abilityFromAtom);
+                    productionLog(`\u{1F43E} [PetSellDebug] Pet ability from atom:`, abilityFromAtom);
                   }
                 }
                 const hasGoldMutation = petMutations.includes("Gold");
                 const hasRainbowMutation = petMutations.includes("Rainbow");
                 if (UnifiedState3.data.settings?.debugMode) {
-                  console.log(
+                  productionLog(
                     `\u{1F43E} [PetSellDebug] Has Gold mutation: ${hasGoldMutation}, Has Rainbow mutation: ${hasRainbowMutation}`
                   );
                 }
@@ -23891,30 +23894,30 @@ Error: ${error.message}`);
                 const shouldBlockGold = hasGoldMutation && isGoldGranterLocked;
                 const shouldBlockRainbow = hasRainbowMutation && isRainbowGranterLocked;
                 if (UnifiedState3.data.settings?.debugMode) {
-                  console.log(
+                  productionLog(
                     `\u{1F43E} [PetSellDebug] Should block gold: ${shouldBlockGold}, Should block rainbow: ${shouldBlockRainbow}`
                   );
                 }
                 if (shouldBlockGold || shouldBlockRainbow) {
                   const blockedType = shouldBlockGold ? "Gold" : "Rainbow";
-                  console.warn(`\u{1F43E} [PetLock] \u274C BLOCKED selling ${blockedType} pet (${blockedType} Granter is locked)`);
+                  productionWarn(`\u{1F43E} [PetLock] \u274C BLOCKED selling ${blockedType} pet (${blockedType} Granter is locked)`);
                   return;
                 }
                 if (UnifiedState3.data.settings?.debugMode) {
-                  console.log(`\u{1F43E} [PetSellDebug] \u2705 Pet mutations not locked, allowing sale`);
+                  productionLog(`\u{1F43E} [PetSellDebug] \u2705 Pet mutations not locked, allowing sale`);
                 }
               } else if (UnifiedState3.data.settings?.debugMode) {
-                console.log(`\u{1F43E} [PetSellDebug] \u26A0\uFE0F Could not find pet with ID ${petId}`);
+                productionLog(`\u{1F43E} [PetSellDebug] \u26A0\uFE0F Could not find pet with ID ${petId}`);
               }
             }
           }
           if (msgType === "PickupDecor") {
-            console.log(`\u{1F3DB}\uFE0F [DecorCheck] PickupDecor message:`, JSON.stringify(message, null, 2));
+            productionLog(`\u{1F3DB}\uFE0F [DecorCheck] PickupDecor message:`, JSON.stringify(message, null, 2));
             const lockedDecor = UnifiedState3.data.lockedDecor || [];
             if (lockedDecor.length > 0) {
               const tileType = message.tileType;
               const tileIndex = message.localTileIndex;
-              console.log(`\u{1F3DB}\uFE0F [DecorCheck] Looking for decor at ${tileType} tile ${tileIndex}`);
+              productionLog(`\u{1F3DB}\uFE0F [DecorCheck] Looking for decor at ${tileType} tile ${tileIndex}`);
               let decorAtPosition = null;
               if (targetWindow3.myGarden?.garden) {
                 const garden = targetWindow3.myGarden.garden;
@@ -23930,16 +23933,16 @@ Error: ${error.message}`);
                   }
                 }
               }
-              console.log(`\u{1F3DB}\uFE0F [DecorCheck] Decor at position: "${decorAtPosition}"`);
-              console.log(`\u{1F3DB}\uFE0F [DecorCheck] Locked decor list:`, lockedDecor);
+              productionLog(`\u{1F3DB}\uFE0F [DecorCheck] Decor at position: "${decorAtPosition}"`);
+              productionLog(`\u{1F3DB}\uFE0F [DecorCheck] Locked decor list:`, lockedDecor);
               if (decorAtPosition && lockedDecor.includes(decorAtPosition)) {
-                console.warn(`\u{1F3DB}\uFE0F [DecorLock] \u274C BLOCKED pickup of "${decorAtPosition}"`);
+                productionWarn(`\u{1F3DB}\uFE0F [DecorLock] \u274C BLOCKED pickup of "${decorAtPosition}"`);
                 return;
               }
               if (decorAtPosition) {
-                console.log(`\u{1F3DB}\uFE0F [DecorCheck] \u2705 Decor "${decorAtPosition}" not locked, allowing pickup`);
+                productionLog(`\u{1F3DB}\uFE0F [DecorCheck] \u2705 Decor "${decorAtPosition}" not locked, allowing pickup`);
               } else {
-                console.log(`\u{1F3DB}\uFE0F [DecorCheck] \u26A0\uFE0F Could not find decor at tile position`);
+                productionLog(`\u{1F3DB}\uFE0F [DecorCheck] \u26A0\uFE0F Could not find decor at tile position`);
               }
             }
           }
@@ -23947,7 +23950,7 @@ Error: ${error.message}`);
             targetWindow3.__mga_lastScopePath = message.scopePath.slice();
           }
           if (message?.type === "FeedPet") {
-            console.log("[FEED-DEBUG] \u{1F50D} FeedPet message being sent:", {
+            productionLog("[FEED-DEBUG] \u{1F50D} FeedPet message being sent:", {
               type: message.type,
               petItemId: message.petItemId,
               cropItemId: message.cropItemId,
@@ -23956,30 +23959,27 @@ Error: ${error.message}`);
             });
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             if (!uuidRegex.test(message.petItemId)) {
-              console.error("[FEED-DEBUG] \u274C Invalid petItemId format:", message.petItemId);
+              productionError("[FEED-DEBUG] \u274C Invalid petItemId format:", message.petItemId);
             }
             if (!uuidRegex.test(message.cropItemId)) {
-              console.error("[FEED-DEBUG] \u274C Invalid cropItemId format:", message.cropItemId);
+              productionError("[FEED-DEBUG] \u274C Invalid cropItemId format:", message.cropItemId);
             }
           }
           return originalSendMessage(message, ...rest);
         } catch (err) {
-          console.error("[SendMessageHook] Error:", err);
+          productionError("[SendMessageHook] Error:", err);
           return originalSendMessage(message, ...rest);
         }
       };
-      console.log("\u2705 Harvest and sell protection hooks installed");
+      productionLog("\u2705 Harvest and sell protection hooks installed");
     }, 2e3);
     applyHarvestRuleFn(dependencies);
     applySellBlockThresholdFn(dependencies);
   }
   var protection_default = {
-    // Tab UI (Phase 5)
-    setupProtectTabHandlers,
-    // Status Display (Phase 6)
-    updateProtectStatus,
-    // Protection Hooks (Phase 7)
-    applyHarvestRule,
+    // Tab UI  setupProtectTabHandlers,
+    // Status Display  updateProtectStatus,
+    // Protection Hooks  applyHarvestRule,
     applySellBlockThreshold,
     initializeProtectionHooks
   };
@@ -24002,7 +24002,7 @@ Error: ${error.message}`);
     const {
       targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null,
       hookAtomForTileOverrides = typeof window !== "undefined" && window.hookAtomForTileOverrides,
-      debugLog: debugLog3 = console.log,
+      debugLog: debugLog2 = console.log,
       debugError: debugError2 = console.error
     } = dependencies;
     if (!targetWindow3.jotaiAtomCache) {
@@ -24019,7 +24019,7 @@ Error: ${error.message}`);
           "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom",
           "currentCrop"
         );
-        debugLog3("CROP_HIGHLIGHT", "Crop highlighting atom hooks initialized");
+        debugLog2("CROP_HIGHLIGHT", "Crop highlighting atom hooks initialized");
       }
     } catch (error) {
       debugError2("CROP_HIGHLIGHT", "Failed to initialize crop highlighting atoms", error);
@@ -24031,7 +24031,7 @@ Error: ${error.message}`);
       productionLog: productionLog3 = console.log,
       productionWarn: productionWarn3 = console.warn,
       queueNotification: queueNotification2 = typeof window !== "undefined" && window.queueNotification,
-      debugLog: debugLog3 = console.log,
+      debugLog: debugLog2 = console.log,
       debugError: debugError2 = console.error
     } = dependencies;
     try {
@@ -24039,12 +24039,12 @@ Error: ${error.message}`);
         targetWindow3.removeAllTileOverrides();
         productionLog3("\u{1F331} Cleared all crop highlighting");
         if (queueNotification2) queueNotification2("\u{1F9F9} Cleared all crop highlighting", false);
-        debugLog3("CROP_HIGHLIGHTING", "Cleared all tile overrides");
+        debugLog2("CROP_HIGHLIGHTING", "Cleared all tile overrides");
         return true;
       }
       productionWarn3("\u{1F331} removeAllTileOverrides function not available");
       if (queueNotification2) queueNotification2("\u26A0\uFE0F Cannot clear highlighting - game not fully loaded", false);
-      debugLog3("CROP_HIGHLIGHTING", "removeAllTileOverrides function not found in window object");
+      debugLog2("CROP_HIGHLIGHTING", "removeAllTileOverrides function not found in window object");
       return false;
     } catch (error) {
       debugError2("CROP_HIGHLIGHTING", "Failed to clear crop highlighting", error);
@@ -24083,7 +24083,7 @@ Error: ${error.message}`);
       targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null,
       productionLog: productionLog3 = console.log,
       productionWarn: productionWarn3 = console.warn,
-      productionError: productionError2 = console.error,
+      productionError: productionError3 = console.error,
       queueNotification: queueNotification2 = typeof window !== "undefined" && window.queueNotification,
       debugCropHighlighting: debugFn = debugCropHighlighting
     } = dependencies;
@@ -24145,12 +24145,12 @@ Error: ${error.message}`);
         }, 100);
         return true;
       } catch (highlightError) {
-        productionError2("\u{1F331} Error during highlighting:", highlightError);
+        productionError3("\u{1F331} Error during highlighting:", highlightError);
         if (queueNotification2) queueNotification2(`\u274C Crop highlighting failed: ${highlightError.message}`, false);
         return false;
       }
     } catch (error) {
-      productionError2("\u274C Failed to apply crop highlighting:", error);
+      productionError3("\u274C Failed to apply crop highlighting:", error);
       if (queueNotification2) queueNotification2(`\u274C Crop highlighting system error: ${error.message}`, false);
       return false;
     }
@@ -24190,7 +24190,7 @@ Error: ${error.message}`);
           }
           e.preventDefault();
         } catch (err) {
-          console.error("\u274C Error handling Ctrl+C highlight action", err);
+          productionError2("\u274C Error handling Ctrl+C highlight action", err);
         }
       }
     });
@@ -24200,17 +24200,17 @@ Error: ${error.message}`);
     const {
       targetWindow: targetWindow3 = typeof window !== "undefined" ? window : null,
       productionLog: productionLog3 = console.log,
-      debugLog: debugLog3 = console.log,
+      debugLog: debugLog2 = console.log,
       debugError: debugError2 = console.error
     } = dependencies;
     productionLog3("\u{1F331} [DEBUG] setupCropHighlightingSystem() called - setting up crop highlighting...");
     if (typeof targetWindow3.removeAllTileOverrides !== "function") {
-      debugLog3("CROP_HIGHLIGHT", "Crop highlighting utilities not available - they should have been installed earlier");
+      debugLog2("CROP_HIGHLIGHT", "Crop highlighting utilities not available - they should have been installed earlier");
     } else {
-      debugLog3("CROP_HIGHLIGHT", "Crop highlighting utilities confirmed available");
+      debugLog2("CROP_HIGHLIGHT", "Crop highlighting utilities confirmed available");
     }
     if (cropHighlightInstalled) {
-      debugLog3("CROP_HIGHLIGHT", "Crop highlighting system already installed");
+      debugLog2("CROP_HIGHLIGHT", "Crop highlighting system already installed");
       return;
     }
     function cropHighlightHandler(e) {
@@ -24220,9 +24220,9 @@ Error: ${error.message}`);
         try {
           if (typeof targetWindow3.removeAllTileOverrides === "function") {
             targetWindow3.removeAllTileOverrides();
-            debugLog3("CROP_HIGHLIGHT", "Ctrl+H \u2192 cleared all tile highlights");
+            debugLog2("CROP_HIGHLIGHT", "Ctrl+H \u2192 cleared all tile highlights");
           } else {
-            debugLog3("CROP_HIGHLIGHT", "removeAllTileOverrides function not available");
+            debugLog2("CROP_HIGHLIGHT", "removeAllTileOverrides function not available");
           }
         } catch (err) {
           debugError2("CROP_HIGHLIGHT", "Failed to clear highlights", err);
@@ -24231,7 +24231,7 @@ Error: ${error.message}`);
     }
     targetWindow3.addEventListener("keydown", cropHighlightHandler, true);
     cropHighlightInstalled = true;
-    debugLog3("CROP_HIGHLIGHT", "Ctrl+H crop highlight hotkey installed");
+    debugLog2("CROP_HIGHLIGHT", "Ctrl+H crop highlight hotkey installed");
   }
   function setupCropHighlightingHandlers(context = document, dependencies = {}) {
     const {
@@ -24254,15 +24254,12 @@ Error: ${error.message}`);
   var crop_highlighting_default = {
     // Atom Initialization
     initializeCropHighlightingAtoms,
-    // Core Functions (Phase 1)
-    clearCropHighlighting,
+    // Core Functions  clearCropHighlighting,
     debugCropHighlighting,
     applyCropHighlighting,
-    // Automatic & Hotkeys (Phase 2)
-    setupAutomaticCropHighlighting,
-    setupCropHighlightingSystem,
-    // Event Handlers (Phase 3)
-    setupCropHighlightingHandlers
+    // Automatic & Hotkeys  setupAutomaticCropHighlighting,
+    setupCropHighlightingSystem
+    // Event Handlers  setupCropHighlightingHandlers
   };
 
   // src/features/crop-value.js
@@ -24416,10 +24413,10 @@ Error: ${error.message}`);
     if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0) {
       if (slotIndex < sortedIndices.length) {
         actualSlotIndex = sortedIndices[slotIndex];
-        console.log(`\u{1F504} [CROP-VALUE] Using sorted index: position ${slotIndex} \u2192 actual slot ${actualSlotIndex}`);
+        productionLog2(`\u{1F504} [CROP-VALUE] Using sorted index: position ${slotIndex} \u2192 actual slot ${actualSlotIndex}`);
       }
     }
-    console.log(`\u{1F4CA} [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
+    productionLog2(`\u{1F4CA} [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
       displayIndex: slotIndex,
       actualSlotIndex,
       cropCount: currentCrop.length,
@@ -24427,20 +24424,20 @@ Error: ${error.message}`);
       sortedIndices
     });
     if (actualSlotIndex < 0 || actualSlotIndex >= currentCrop.length) {
-      console.error(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
+      productionError2(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
       targetWindow3._mgtools_currentSlotIndex = 0;
       return 0;
     }
     const slot = currentCrop[actualSlotIndex];
     if (!slot || !slot.species) {
-      console.log(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
+      productionLog2(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
       return 0;
     }
     const multiplier = calcMult(slot.mutations, dependencies);
     const speciesVal = speciesValues[slot.species] || 0;
     const scale = slot.targetScale || 1;
     const value = Math.round(multiplier * speciesVal * scale * friendBonus);
-    console.log(
+    productionLog2(
       `\u{1F4B0} [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`,
       {
         species: slot.species,
@@ -24479,7 +24476,7 @@ Error: ${error.message}`);
       return true;
     } catch (e) {
       if (UnifiedState3?.data?.settings?.debugMode) {
-        console.error("[CROP-VALUE] \u274C Error validating tooltip element:", e);
+        productionError2("[CROP-VALUE] \u274C Error validating tooltip element:", e);
       }
       return false;
     }
@@ -24520,7 +24517,7 @@ Error: ${error.message}`);
       }
     }
     if (!validateTooltip(currentPlantTooltipFlexbox, dependencies)) {
-      console.warn("[CROP-VALUE] \u26A0\uFE0F Rejected invalid tooltip position - skipping slot value display");
+      productionWarn2("[CROP-VALUE] \u26A0\uFE0F Rejected invalid tooltip position - skipping slot value display");
       return;
     }
     let currentCrop = targetWindow3.currentCrop || UnifiedState3.atoms.currentCrop;
@@ -24830,20 +24827,16 @@ Error: ${error.message}`);
     productionLog3("\u2705 [TURTLE-TIMER] Turtle timer initialized successfully");
   }
   var crop_value_default = {
-    // Constants (Phase 1)
-    SPECIES_VALUES,
+    // Constants  SPECIES_VALUES,
     COLOR_MULT,
     WEATHER_MULT,
     TIME_MULT,
     WEATHER_TIME_COMBO,
-    // Multiplier Calculation (Phase 1)
-    calculateMutationMultiplier,
-    // Value Calculation (Phase 2)
-    getCurrentSlotIndex,
+    // Multiplier Calculation  calculateMutationMultiplier,
+    // Value Calculation  getCurrentSlotIndex,
     calculateCurrentSlotValue,
     isValidTooltipElement,
-    // Turtle Timer & UI Integration (Phase 3)
-    insertTurtleEstimate,
+    // Turtle Timer & UI Integration  insertTurtleEstimate,
     initializeTurtleTimer
   };
 
@@ -25218,7 +25211,7 @@ Error: ${error.message}`);
     constructor({
       UnifiedState: UnifiedState3,
       targetDocument: targetDocument2,
-      debugLog: debugLog3,
+      debugLog: debugLog2,
       debugError: debugError2,
       updateTabContent,
       updatePureOverlayContent: updatePureOverlayContent2,
@@ -25227,7 +25220,7 @@ Error: ${error.message}`);
     }) {
       this.UnifiedState = UnifiedState3;
       this.targetDocument = targetDocument2;
-      this.debugLog = debugLog3;
+      this.debugLog = debugLog2;
       this.debugError = debugError2;
       this.updateTabContent = updateTabContent;
       this.updatePureOverlayContent = updatePureOverlayContent2;
@@ -25578,14 +25571,14 @@ Error: ${error.message}`);
         MGA_saveJSON: MGA_saveJSON2 = () => {
         },
         MGA_loadJSON: MGA_loadJSON2 = () => ({}),
-        debugLog: debugLog3 = console.log.bind(console),
+        debugLog: debugLog2 = console.log.bind(console),
         debugError: debugError2 = console.error.bind(console),
         window: win = typeof window !== "undefined" ? window : null
       } = dependencies;
       this.UnifiedState = UnifiedState3;
       this.MGA_saveJSON = MGA_saveJSON2;
       this.MGA_loadJSON = MGA_loadJSON2;
-      this.debugLog = debugLog3;
+      this.debugLog = debugLog2;
       this.debugError = debugError2;
       this.window = win;
       this.activeTimers = /* @__PURE__ */ new Map();
@@ -26123,7 +26116,7 @@ Error: ${error.message}`);
       return true;
     } catch (e) {
       if (UnifiedState3?.data?.settings?.debugMode) {
-        console.error("[CROP-VALUE] \u274C Error validating tooltip element:", e);
+        productionError2("[CROP-VALUE] \u274C Error validating tooltip element:", e);
       }
       return false;
     }
@@ -26152,10 +26145,10 @@ Error: ${error.message}`);
     if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0) {
       if (slotIndex < sortedIndices.length) {
         actualSlotIndex = sortedIndices[slotIndex];
-        console.log(`\u{1F504} [CROP-VALUE] Using sorted index: position ${slotIndex} \u2192 actual slot ${actualSlotIndex}`);
+        productionLog2(`\u{1F504} [CROP-VALUE] Using sorted index: position ${slotIndex} \u2192 actual slot ${actualSlotIndex}`);
       }
     }
-    console.log(`\u{1F4CA} [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
+    productionLog2(`\u{1F4CA} [CROP-VALUE] Calculating value for slot ${actualSlotIndex}/${currentCrop.length}`, {
       displayIndex: slotIndex,
       actualSlotIndex,
       cropCount: currentCrop.length,
@@ -26163,20 +26156,20 @@ Error: ${error.message}`);
       sortedIndices
     });
     if (actualSlotIndex < 0 || actualSlotIndex >= currentCrop.length) {
-      console.error(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
+      productionError2(`[CROP-VALUE] Invalid slot index: ${actualSlotIndex} for crop array length: ${currentCrop.length}`);
       win._mgtools_currentSlotIndex = 0;
       return 0;
     }
     const slot = currentCrop[actualSlotIndex];
     if (!slot || !slot.species) {
-      console.log(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
+      productionLog2(`[CROP-VALUE] No species at slot ${actualSlotIndex}`, slot);
       return 0;
     }
     const multiplier = calculateMutationMultiplier3(slot.mutations);
     const speciesVal = speciesValues[slot.species] || 0;
     const scale = slot.targetScale || 1;
     const value = Math.round(multiplier * speciesVal * scale * friendBonus);
-    console.log(
+    productionLog2(
       `\u{1F4B0} [CROP-VALUE] Slot ${actualSlotIndex}/${currentCrop.length}: ${slot.species} = ${value.toLocaleString()}`,
       {
         species: slot.species,
@@ -26226,7 +26219,7 @@ Error: ${error.message}`);
       }
     }
     if (!isValidTooltip(currentPlantTooltipFlexbox, dependencies)) {
-      console.warn("[CROP-VALUE] \u26A0\uFE0F Rejected invalid tooltip position - skipping slot value display");
+      productionWarn2("[CROP-VALUE] \u26A0\uFE0F Rejected invalid tooltip position - skipping slot value display");
       return;
     }
     let currentCrop = targetWindow3.currentCrop || UnifiedState3.atoms.currentCrop;
@@ -26369,7 +26362,7 @@ Error: ${error.message}`);
       insertTurtleEstimate: insertEstimate = insertTurtleEstimate2,
       requestAnimationFrame: raf = typeof requestAnimationFrame !== "undefined" ? requestAnimationFrame : setTimeout
     } = dependencies;
-    console.log("\u{1F422}\u{1F422}\u{1F422} [TURTLE-TIMER-START] initializeTurtleTimer() called!");
+    productionLog3("\u{1F422}\u{1F422}\u{1F422} [TURTLE-TIMER-START] initializeTurtleTimer() called!");
     productionLog3("\u{1F422} [TURTLE-TIMER] Initializing crop growth estimate...");
     if (typeof win._mgtools_currentSlotIndex === "undefined") {
       win._mgtools_currentSlotIndex = 0;
@@ -26521,57 +26514,57 @@ Error: ${error.message}`);
     );
     productionLog3("\u2705 [TURTLE-TIMER] Turtle timer initialized successfully");
     const debugCropDetectionFunc = function debugCropDetection() {
-      console.log("=== MANUAL CROP DETECTION DEBUG ===");
+      productionLog3("=== MANUAL CROP DETECTION DEBUG ===");
       const atomCache = win.jotaiAtomCache?.cache || win.jotaiAtomCache;
-      console.log("atomCache exists:", !!atomCache);
+      productionLog3("atomCache exists:", !!atomCache);
       if (atomCache && atomCache.get) {
-        console.log("Atom cache entries count:", atomCache.size || "unknown");
+        productionLog3("Atom cache entries count:", atomCache.size || "unknown");
         try {
           const allKeys = Array.from(atomCache.keys ? atomCache.keys() : []);
-          console.log("Total atoms:", allKeys.length);
+          productionLog3("Total atoms:", allKeys.length);
           const cropAtoms = allKeys.filter(
             (k) => k.includes("Crop") || k.includes("crop") || k.includes("Grow") || k.includes("Egg")
           );
-          console.log("Crop-related atoms:", cropAtoms);
+          productionLog3("Crop-related atoms:", cropAtoms);
           const atom = atomCache.get(
             "/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom"
           );
-          console.log("Current crop atom:", atom);
+          productionLog3("Current crop atom:", atom);
           if (atom) {
-            console.log("Atom properties:", Object.keys(atom));
-            console.log("Atom.debugValue:", atom.debugValue);
-            console.log("Atom.init:", atom.init);
+            productionLog3("Atom properties:", Object.keys(atom));
+            productionLog3("Atom.debugValue:", atom.debugValue);
+            productionLog3("Atom.init:", atom.init);
             const tw = win;
             if (tw.__foundJotaiStore) {
-              console.log("Found store, trying to read...");
+              productionLog3("Found store, trying to read...");
               try {
                 const val = tw.__foundJotaiStore.get(atom);
-                console.log("\u2705 Store.get(atom) returned:", val);
+                productionLog3("\u2705 Store.get(atom) returned:", val);
               } catch (e) {
-                console.log("\u274C Error reading from store:", e);
+                productionLog3("\u274C Error reading from store:", e);
               }
             } else {
-              console.log("\u26A0\uFE0F No Jotai store found yet");
+              productionLog3("\u26A0\uFE0F No Jotai store found yet");
             }
           }
         } catch (e) {
-          console.log("Error exploring atoms:", e);
+          productionLog3("Error exploring atoms:", e);
         }
       }
-      console.log("Calling insertTurtleEstimate()...");
+      productionLog3("Calling insertTurtleEstimate()...");
       if (typeof insertEstimate === "function") {
         insertEstimate(dependencies);
       } else {
-        console.log("\u274C insertTurtleEstimate not available in this context");
+        productionLog3("\u274C insertTurtleEstimate not available in this context");
       }
     };
     try {
       win.debugCropDetection = debugCropDetectionFunc;
       targetWindow3.debugCropDetection = debugCropDetectionFunc;
-      console.log("\u{1F4A1} TIP: Run window.debugCropDetection() in console to debug crop detection");
-      console.log("\u{1F4A1} Available in: window, targetWindow");
+      productionLog3("\u{1F4A1} TIP: Run window.debugCropDetection() in console to debug crop detection");
+      productionLog3("\u{1F4A1} Available in: window, targetWindow");
     } catch (e) {
-      console.log("\u26A0\uFE0F Could not attach debugCropDetection:", e);
+      productionLog3("\u26A0\uFE0F Could not attach debugCropDetection:", e);
     }
   }
   function checkTurtleTimer(dependencies = {}) {
@@ -26781,7 +26774,7 @@ Error: ${error.message}`);
       }
       return isDiscordActivity;
     } catch (err) {
-      console.error("Failed to detect Discord environment:", err);
+      productionError2("Failed to detect Discord environment:", err);
       return false;
     }
   }
@@ -26791,7 +26784,7 @@ Error: ${error.message}`);
       const match = win.location.pathname.match(/\/r\/([^/]+)/);
       return match ? match[1].toUpperCase() : null;
     } catch (err) {
-      console.error("Failed to get room code:", err);
+      productionError2("Failed to get room code:", err);
       return null;
     }
   }
@@ -26801,7 +26794,7 @@ Error: ${error.message}`);
       const roomState = targetWindow3.MagicCircle_RoomConnection?.lastRoomStateJsonable;
       if (!roomState?.child?.data?.userSlots) {
         if (UnifiedState3.data.settings.roomDebugMode) {
-          console.log("[Room Status] No userSlots data available", {
+          productionLog2("[Room Status] No userSlots data available", {
             hasRoomConnection: !!targetWindow3.MagicCircle_RoomConnection,
             hasRoomState: !!roomState,
             hasChild: !!roomState?.child,
@@ -26813,11 +26806,11 @@ Error: ${error.message}`);
       const userSlots = roomState.child.data.userSlots;
       const count = userSlots.filter((slot) => slot !== null && slot !== void 0).length;
       if (UnifiedState3.data.settings.roomDebugMode) {
-        console.log("[Room Status] Player count:", count, "userSlots:", userSlots);
+        productionLog2("[Room Status] Player count:", count, "userSlots:", userSlots);
       }
       return count;
     } catch (err) {
-      console.error("[Room Status] Failed to get player count:", err);
+      productionError2("[Room Status] Failed to get player count:", err);
       return null;
     }
   }
@@ -26895,7 +26888,7 @@ Error: ${error.message}`);
               return { count, lastUpdate: Date.now(), reporter: getReporter(dependencies) };
             } catch (err) {
               if (UnifiedState3.data.settings?.roomDebugMode) {
-                console.warn(`[Room API] Failed to fetch ${room}:`, err.message);
+                productionWarn2(`[Room API] Failed to fetch ${room}:`, err.message);
               }
               return { count: 0, lastUpdate: Date.now(), reporter: getReporter(dependencies) };
             }
@@ -26915,7 +26908,7 @@ Error: ${error.message}`);
             try {
               callback(snapshot);
             } catch (e) {
-              console.error("rooms onValue cb error", e);
+              productionError2("rooms onValue cb error", e);
             }
           }
           tick();
@@ -26935,7 +26928,7 @@ Error: ${error.message}`);
       productionLog3("\u2705 /info rooms mode enabled (Firebase stubbed)");
       return firebase;
     } catch (err) {
-      console.error("\u274C initializeFirebase (/info) failed", err);
+      productionError2("\u274C initializeFirebase (/info) failed", err);
       return null;
     }
   }
@@ -27840,7 +27833,7 @@ Error: ${error.message}`);
       logDebug: logDebug2 = console.log,
       productionLog: productionLog3 = console.log,
       productionWarn: productionWarn3 = console.warn,
-      productionError: productionError2 = console.error,
+      productionError: productionError3 = console.error,
       GM_setValue: gmSetValue = typeof GM_setValue !== "undefined" ? GM_setValue : null,
       GM_getValue: gmGetValue = typeof GM_getValue !== "undefined" ? GM_getValue : null,
       GM_xmlhttpRequest: gmXhr = typeof GM_xmlhttpRequest !== "undefined" ? GM_xmlhttpRequest : null
@@ -28045,7 +28038,7 @@ Error: ${error.message}`);
                   }
                 }
               } catch (err) {
-                console.error("[MGTP] clear logs failed", err);
+                productionError3("[MGTP] clear logs failed", err);
               }
             }
           },
@@ -28147,21 +28140,21 @@ Error: ${error.message}`);
             const url1 = API_V1(roomIdOrName);
             data = await fetchWithFetch(url1, roomIdOrName);
             if (roomDebugMode) {
-              console.log(`[ROOMS] \u2705 Fetch succeeded for ${roomIdOrName}:`, data);
+              productionLog3(`[ROOMS] \u2705 Fetch succeeded for ${roomIdOrName}:`, data);
             }
           } catch (e1) {
             try {
               const url1 = API_V1(roomIdOrName);
               if (roomDebugMode) {
-                console.log(`[ROOMS] \u{1F504} Retrying ${roomIdOrName} with GM_xmlhttpRequest`);
+                productionLog3(`[ROOMS] \u{1F504} Retrying ${roomIdOrName} with GM_xmlhttpRequest`);
               }
               data = await fetchWithGM(url1, roomIdOrName);
               if (roomDebugMode) {
-                console.log(`[ROOMS] \u2705 GM fetch succeeded for ${roomIdOrName}:`, data);
+                productionLog3(`[ROOMS] \u2705 GM fetch succeeded for ${roomIdOrName}:`, data);
               }
             } catch (e2) {
               if (roomDebugMode) {
-                console.warn(`[ROOMS] \u274C Failed to fetch ${roomIdOrName}:`, e1.message);
+                productionWarn3(`[ROOMS] \u274C Failed to fetch ${roomIdOrName}:`, e1.message);
               }
               throw new Error(`All methods failed for ${roomIdOrName}`);
             }
@@ -28171,12 +28164,12 @@ Error: ${error.message}`);
           if (isDiscordRoom && roomIdToName[roomIdOrName]) {
             storageKey = roomIdToName[roomIdOrName].toUpperCase();
             if (roomDebugMode && online > 0) {
-              console.log(`[ROOMS] \u{1F4CA} Discord room ${roomIdToName[roomIdOrName]}: ${online} players`);
+              productionLog3(`[ROOMS] \u{1F4CA} Discord room ${roomIdToName[roomIdOrName]}: ${online} players`);
             }
           } else {
             storageKey = roomIdOrName.toUpperCase();
             if (roomDebugMode && online > 0) {
-              console.log(`[ROOMS] \u{1F4CA} ${roomIdOrName}: ${online} players`);
+              productionLog3(`[ROOMS] \u{1F4CA} ${roomIdOrName}: ${online} players`);
             }
           }
           counts[storageKey] = online;
@@ -28189,7 +28182,7 @@ Error: ${error.message}`);
           }
           counts[storageKey] = 0;
           if (roomDebugMode) {
-            console.warn(
+            productionWarn3(
               `[ROOMS] \u26A0\uFE0F ${isDiscordRoom ? "Discord room" : "Room"} ${roomIdOrName.substring(0, 30)}... failed:`,
               e.message
             );
@@ -28212,13 +28205,13 @@ Error: ${error.message}`);
           if (lastTickWhenHidden > 0 && now2 - lastTickWhenHidden < 3e4) {
             if (roomDebugMode) {
               const secondsSinceLastPoll = Math.floor((now2 - lastTickWhenHidden) / 1e3);
-              console.log(`[ROOMS] \u23F8\uFE0F Skipping tick - UI hidden (last poll ${secondsSinceLastPoll}s ago)`);
+              productionLog3(`[ROOMS] \u23F8\uFE0F Skipping tick - UI hidden (last poll ${secondsSinceLastPoll}s ago)`);
             }
             return;
           }
           lastTickWhenHidden = now2;
           if (roomDebugMode) {
-            console.log("[ROOMS] \u{1F504} Polling while UI hidden (30s interval)");
+            productionLog3("[ROOMS] \u{1F504} Polling while UI hidden (30s interval)");
           }
         } else {
           lastTickWhenHidden = 0;
@@ -28229,12 +28222,12 @@ Error: ${error.message}`);
             roomIdToName[room.id] = room.name;
           });
           if (roomDebugMode) {
-            console.log("[ROOMS] \u{1F5FA}\uFE0F Built Discord room lookup map:", Object.keys(roomIdToName).length, "rooms");
+            productionLog3("[ROOMS] \u{1F5FA}\uFE0F Built Discord room lookup map:", Object.keys(roomIdToName).length, "rooms");
           }
         }
         const names = [...TRACKED, ...extra, ...discordRoomIds];
         if (roomDebugMode) {
-          console.log(
+          productionLog3(
             `[ROOMS] \u{1F504} Tick running: ${names.length} total rooms (${TRACKED.length} MG/Custom, ${discordRoomIds.length} Discord)`
           );
         }
@@ -28251,14 +28244,14 @@ Error: ${error.message}`);
           if (roomDebugMode) {
             const discordKeys = Object.keys(counts).filter((k) => k.startsWith("PLAY"));
             if (discordKeys.length > 0) {
-              console.log(
+              productionLog3(
                 "[ROOMS] \u{1F4DD} Sample Discord room counts:",
                 discordKeys.slice(0, 5).map((k) => `${k}:${counts[k]}`).join(", ")
               );
             }
           }
         } catch (e) {
-          console.error("[ROOMS] \u274C Tick error:", e);
+          productionError3("[ROOMS] \u274C Tick error:", e);
         }
         if (typeof correctWindow.UnifiedState !== "undefined" && correctWindow.UnifiedState?.data) {
           correctWindow.UnifiedState.data.roomStatus = correctWindow.UnifiedState.data.roomStatus || {};
@@ -28267,7 +28260,7 @@ Error: ${error.message}`);
             targetWindow3.MGA_saveJSON("MGA_roomStatus", correctWindow.UnifiedState.data.roomStatus);
           }
           if (roomDebugMode) {
-            console.log(`[ROOMS] \u2705 Updated ${Object.keys(counts).length} room counts in UnifiedState`);
+            productionLog3(`[ROOMS] \u2705 Updated ${Object.keys(counts).length} room counts in UnifiedState`);
           }
           if (typeof targetWindow3.refreshSeparateWindowPopouts === "function") {
             try {
@@ -28340,8 +28333,8 @@ Error: ${error.message}`);
       correctWindow.testDiscordRoomFetch = async function(roomId) {
         const testId = roomId || "i-1425232387037462538-gc-1399110335469977781-1411124424676999308";
         const url = `${apiBase}/api/rooms/${encodeURIComponent(testId)}/info`;
-        console.log("[ROOMS TEST] Testing:", testId.substring(0, 40) + "...");
-        console.log("[ROOMS TEST] URL:", url);
+        productionLog3("[ROOMS TEST] Testing:", testId.substring(0, 40) + "...");
+        productionLog3("[ROOMS TEST] URL:", url);
         try {
           const response = await fetch(url, {
             method: "GET",
@@ -28350,13 +28343,13 @@ Error: ${error.message}`);
           });
           if (!response.ok) {
             const text = await response.text();
-            console.error("[ROOMS TEST] \u274C HTTP", response.status, "-", text);
+            productionError3("[ROOMS TEST] \u274C HTTP", response.status, "-", text);
             return;
           }
           const data = await response.json();
-          console.log("[ROOMS TEST] \u2705 Success! Players:", data.numPlayers ?? "NOT FOUND", "| Full data:", data);
+          productionLog3("[ROOMS TEST] \u2705 Success! Players:", data.numPlayers ?? "NOT FOUND", "| Full data:", data);
         } catch (e) {
-          console.error("[ROOMS TEST] \u274C Fetch failed:", e);
+          productionError3("[ROOMS TEST] \u274C Fetch failed:", e);
         }
       };
     })();
@@ -28542,7 +28535,7 @@ Error: ${error.message}`);
               location.replace(u.toString());
             }
           } catch (e) {
-            productionError2("[WebSocket] Reload failed:", e);
+            productionError3("[WebSocket] Reload failed:", e);
             location.href = location.href + "?_t=" + Date.now();
           }
         }, wait);
@@ -28561,7 +28554,7 @@ Error: ${error.message}`);
           scheduleReload(e.code, e.wasClean, e.reason);
         });
         ws.addEventListener("error", (e) => {
-          productionError2("[WebSocket] Error detected:", e);
+          productionError3("[WebSocket] Error detected:", e);
         });
         return ws;
       };
@@ -28705,7 +28698,7 @@ Error: ${error.message}`);
         if (targetWindow3.UnifiedState?.data) targetWindow3.UnifiedState.data.petAbilityLogs = [];
         if (Array.isArray(targetWindow3.petAbilityLogs)) targetWindow3.petAbilityLogs.length = 0;
       } catch (e) {
-        console.error("[MGTools] hardClear logs failed", e);
+        productionError3("[MGTools] hardClear logs failed", e);
       }
     }
     targetWindow3.MGTOOLS_hardClearAbilityLogs = hardClear;
@@ -29082,7 +29075,7 @@ Error: ${error.message}`);
       UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
       MGA_getAllLogs: MGA_getAllLogs2 = typeof window !== "undefined" && window.MGA_getAllLogs,
       shouldLogAbility: shouldLogAbility3 = typeof window !== "undefined" && window.shouldLogAbility,
-      debugLog: debugLog3 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
+      debugLog: debugLog2 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
       },
       targetDocument: targetDocument2 = typeof document !== "undefined" ? document : null,
       CONFIG: CONFIG2 = typeof window !== "undefined" && window.CONFIG,
@@ -29093,7 +29086,7 @@ Error: ${error.message}`);
     const ctx = context || targetDocument2;
     const abilityLogs = ctx.querySelector("#ability-logs");
     if (!abilityLogs) {
-      debugLog3("ABILITY_LOGS", "No ability logs element found in context", {
+      debugLog2("ABILITY_LOGS", "No ability logs element found in context", {
         isDocument: ctx === targetDocument2,
         className: ctx.className || "unknown"
       });
@@ -29102,7 +29095,7 @@ Error: ${error.message}`);
     const isOverlay = ctx.classList?.contains("mga-overlay-content-only");
     const isDragInProgress = ctx.getAttribute?.("data-dragging") === "true";
     if (isOverlay && isDragInProgress) {
-      debugLog3("ABILITY_LOGS", "Skipping content update during drag operation", {
+      debugLog2("ABILITY_LOGS", "Skipping content update during drag operation", {
         overlayId: ctx.id
       });
       return;
@@ -29111,7 +29104,7 @@ Error: ${error.message}`);
     const filteredLogs = logs.filter((log) => {
       return shouldLogAbility3 ? shouldLogAbility3(log.abilityType, log.petName) : true;
     });
-    debugLog3("ABILITY_LOGS", "Updating ability log display", {
+    debugLog2("ABILITY_LOGS", "Updating ability log display", {
       totalLogs: logs.length,
       filteredLogs: filteredLogs.length,
       filterMode: UnifiedState3?.data?.filterMode
@@ -29259,7 +29252,7 @@ Error: ${error.message}`);
     const {
       UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
       lastLogCount = typeof window !== "undefined" && window.lastLogCount,
-      debugLog: debugLog3 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
+      debugLog: debugLog2 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
       },
       targetDocument: targetDocument2 = typeof document !== "undefined" ? document : null,
       CONFIG: CONFIG2 = typeof window !== "undefined" && window.CONFIG,
@@ -29277,20 +29270,20 @@ Error: ${error.message}`);
       });
     }
     if (!force && currentLogCount === lastLogCount) {
-      debugLog3("ABILITY_LOGS", "Skipping update - no new logs");
+      debugLog2("ABILITY_LOGS", "Skipping update - no new logs");
       return;
     }
     if (typeof window !== "undefined" && window.lastLogCount !== void 0) {
       window.lastLogCount = currentLogCount;
     }
-    debugLog3("ABILITY_LOGS", "Updating ability logs across all contexts");
+    debugLog2("ABILITY_LOGS", "Updating ability logs across all contexts");
     updateAbilityLogDisplay2(targetDocument2, dependencies);
     const allOverlays = targetDocument2.querySelectorAll(".mga-overlay-content-only, .mga-overlay, .mgh-popout");
     allOverlays.forEach((overlay) => {
       if (overlay.offsetParent === null) return;
       if (overlay.querySelector("#ability-logs")) {
         updateAbilityLogDisplay2(overlay, dependencies);
-        debugLog3("ABILITY_LOGS", "Updated overlay/widget ability logs", {
+        debugLog2("ABILITY_LOGS", "Updated overlay/widget ability logs", {
           overlayId: overlay.id || overlay.className
         });
       }
@@ -29299,7 +29292,7 @@ Error: ${error.message}`);
   function updateLogVisibility2(context = null, dependencies = {}) {
     const {
       UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
-      debugLog: debugLog3 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
+      debugLog: debugLog2 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
       }
     } = dependencies;
     const ctx = context || (typeof document !== "undefined" ? document : null);
@@ -29307,7 +29300,7 @@ Error: ${error.message}`);
     if (!abilityLogs) return;
     const filterMode = UnifiedState3?.data?.filterMode || "categories";
     const logItems = abilityLogs.querySelectorAll(".mga-log-item");
-    debugLog3("ABILITY_LOGS", "Updating log visibility via CSS", {
+    debugLog2("ABILITY_LOGS", "Updating log visibility via CSS", {
       filterMode,
       totalItems: logItems.length
     });
@@ -29328,11 +29321,11 @@ Error: ${error.message}`);
   }
   function updateAllLogVisibility2(dependencies = {}) {
     const {
-      debugLog: debugLog3 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
+      debugLog: debugLog2 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
       },
       targetDocument: targetDocument2 = typeof document !== "undefined" ? document : null
     } = dependencies;
-    debugLog3("ABILITY_LOGS", "Updating log visibility across all contexts");
+    debugLog2("ABILITY_LOGS", "Updating log visibility across all contexts");
     updateLogVisibility2(targetDocument2, dependencies);
     const allOverlays = targetDocument2.querySelectorAll(".mga-overlay-content-only, .mga-overlay");
     allOverlays.forEach((overlay) => {
@@ -29552,7 +29545,7 @@ Error: ${error.message}`);
       UnifiedState: UnifiedState3 = typeof window !== "undefined" && window.UnifiedState,
       MGA_saveJSON: MGA_saveJSON2 = typeof window !== "undefined" && window.MGA_saveJSON,
       MGA_loadJSON: MGA_loadJSON2 = typeof window !== "undefined" && window.MGA_loadJSON,
-      debugLog: debugLog3 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
+      debugLog: debugLog2 = typeof window !== "undefined" && window.debugLog ? window.debugLog : () => {
       },
       logDebug: logDebug2 = typeof window !== "undefined" && window.logDebug ? window.logDebug : () => {
       },
@@ -29579,7 +29572,7 @@ Error: ${error.message}`);
       setTimeout: setTimeoutFn = typeof setTimeout !== "undefined" ? setTimeout : null
     } = dependencies;
     const ctx = context || (typeof document !== "undefined" ? document : null);
-    debugLog3("ABILITY_LOGS", "Setting up abilities tab handlers with context", {
+    debugLog2("ABILITY_LOGS", "Setting up abilities tab handlers with context", {
       isDocument: ctx === (typeof document !== "undefined" ? document : null),
       className: ctx.className || "document"
     });
@@ -29626,7 +29619,7 @@ Error: ${error.message}`);
             MGA_saveJSON2("MGA_abilityFilters", UnifiedState3?.data?.abilityFilters);
           }
           updateAllLogVisibility2(dependencies);
-          debugLog3("ABILITY_LOGS", `Filter ${filterKey} changed to ${e.target.checked}, updated visibility via CSS`);
+          debugLog2("ABILITY_LOGS", `Filter ${filterKey} changed to ${e.target.checked}, updated visibility via CSS`);
         });
       }
     });
@@ -29830,7 +29823,7 @@ Error: ${error.message}`);
           UnifiedState3.data.popouts.overlays.forEach((overlay, tabName) => {
             if (tabName === "abilities" && overlay && overlay.offsetParent !== null) {
               updateAbilityLogDisplay2(overlay, dependencies);
-              debugLog3("ABILITY_LOGS", "Updated overlay with new timestamp format");
+              debugLog2("ABILITY_LOGS", "Updated overlay with new timestamp format");
             }
           });
         }
@@ -30069,7 +30062,7 @@ ${title}:`);
   }
 
   // src/index.js
-  console.log("[MGTools DEBUG] *** index.js IIFE executing! ***");
+  productionLog2("[MGTools DEBUG] *** index.js IIFE executing! ***");
   var MGTools = {
     // Core Infrastructure
     Core: {
@@ -30170,7 +30163,7 @@ ${title}:`);
       }
       initializationStarted = true;
       try {
-        console.log("[MGTools] \u{1F680} Starting v2.0.0 (Modular Architecture)");
+        productionLog2("[MGTools] \u{1F680} Starting v2.0.0 (Modular Architecture)");
         if (early_traps_exports?.installAllEarlyTraps) {
           installAllEarlyTraps({
             unsafeWindow: typeof unsafeWindow !== "undefined" ? unsafeWindow : null,
@@ -30178,7 +30171,7 @@ ${title}:`);
             document,
             console
           });
-          console.log("[MGTools] \u2705 Early traps installed");
+          productionLog2("[MGTools] \u2705 Early traps installed");
         }
         let attempts = 0;
         const maxAttempts = 20;
@@ -30189,7 +30182,7 @@ ${title}:`);
           const hasConnection = window.MagicCircle_RoomConnection && typeof window.MagicCircle_RoomConnection === "object";
           const hasBasicDom = document.body && document.readyState === "complete";
           if (hasAtoms && hasConnection || attempts >= maxAttempts) {
-            console.log("[MGTools] \u2705 Game ready, initializing with LEGACY bootstrap (COMPLETE working code)...");
+            productionLog2("[MGTools] \u2705 Game ready, initializing with LEGACY bootstrap (COMPLETE working code)...");
             try {
               const targetWin = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
               const updateTabContentFn = () => {
@@ -30279,7 +30272,7 @@ ${title}:`);
                 // Logging
                 productionLog: productionLog2,
                 productionWarn: productionWarn2,
-                debugLog: debugLog2,
+                debugLog,
                 debugError,
                 MGA_DEBUG: targetWin.MGA_DEBUG || null,
                 // Initialization functions - call directly without wrapper
@@ -30330,11 +30323,14 @@ ${title}:`);
                   syncThemeToAllWindows,
                   ...depsOverride
                 }),
-                applyUltraCompactMode: (enabled, depsOverride) => applyUltraCompactMode2({
-                  document,
-                  productionLog: productionLog2,
-                  ...depsOverride
-                }, enabled),
+                applyUltraCompactMode: (enabled, depsOverride) => applyUltraCompactMode2(
+                  {
+                    document,
+                    productionLog: productionLog2,
+                    ...depsOverride
+                  },
+                  enabled
+                ),
                 applyWeatherSetting: (depsOverride) => applyWeatherSetting({
                   UnifiedState: UnifiedState2,
                   document,
@@ -30354,7 +30350,7 @@ ${title}:`);
                 // UI functions from Overlay module - CRITICAL: Must pass configuration object!
                 createUnifiedUI: () => {
                   if (!createUnifiedUI) {
-                    console.error("[MGTools] createUnifiedUI not available in Overlay module");
+                    productionError("[MGTools] createUnifiedUI not available in Overlay module");
                     return;
                   }
                   createUnifiedUI({
@@ -30365,18 +30361,21 @@ ${title}:`);
                     makeDockDraggable: (dock) => {
                       makeDraggable(dock, dock, {
                         targetDocument: document,
-                        debugLog: debugLog2,
+                        debugLog,
                         saveMainHUDPosition: (pos) => saveDockPosition(pos)
                       });
                     },
                     // Tab and window management - WIRED with actual implementations!
                     openSidebarTab: (tabName) => {
                       if (openSidebarTab) {
-                        openSidebarTab({
-                          targetDocument: document,
-                          UnifiedState: UnifiedState2,
-                          updateTabContent: updateTabContentFn
-                        }, tabName);
+                        openSidebarTab(
+                          {
+                            targetDocument: document,
+                            UnifiedState: UnifiedState2,
+                            updateTabContent: updateTabContentFn
+                          },
+                          tabName
+                        );
                       }
                     },
                     toggleShopWindows: () => {
@@ -30390,22 +30389,28 @@ ${title}:`);
                     },
                     openPopoutWidget: (tabName) => {
                       if (openPopoutWidget) {
-                        openPopoutWidget({
-                          targetDocument: document,
-                          UnifiedState: UnifiedState2,
-                          makePopoutDraggable: makePopoutDraggable || (() => {
-                          }),
-                          makeElementResizable: makeElementResizable || (() => {
-                          }),
-                          generateThemeStyles: (settings, isPopout) => generateThemeStyles({}, settings, isPopout),
-                          applyThemeToPopoutWidget: (popout, themeStyles) => applyThemeToPopoutWidget({ targetDocument: document }, popout, themeStyles),
-                          stopInventoryCounter: () => stopInventoryCounter?.({ targetDocument: document, UnifiedState: UnifiedState2 }),
-                          getCachedTabContent,
-                          contentGetters: {},
-                          // TODO: wire content getters
-                          handlerSetups: {}
-                          // TODO: wire handler setups
-                        }, tabName);
+                        openPopoutWidget(
+                          {
+                            targetDocument: document,
+                            UnifiedState: UnifiedState2,
+                            makePopoutDraggable: makePopoutDraggable || (() => {
+                            }),
+                            makeElementResizable: makeElementResizable || (() => {
+                            }),
+                            generateThemeStyles: (settings, isPopout) => generateThemeStyles({}, settings, isPopout),
+                            applyThemeToPopoutWidget: (popout, themeStyles) => applyThemeToPopoutWidget({ targetDocument: document }, popout, themeStyles),
+                            stopInventoryCounter: () => stopInventoryCounter?.({
+                              targetDocument: document,
+                              UnifiedState: UnifiedState2
+                            }),
+                            getCachedTabContent,
+                            contentGetters: {},
+                            // TODO: wire content getters
+                            handlerSetups: {}
+                            // TODO: wire handler setups
+                          },
+                          tabName
+                        );
                       }
                     },
                     // Version checker
@@ -30673,15 +30678,15 @@ ${title}:`);
                 clearManagedInterval,
                 captureJotaiStore: () => captureJotaiStore({ targetWindow: targetWin, productionLog: productionLog2 })
               });
-              console.log("[MGTools] \u2705 Legacy bootstrap initialization complete!");
+              productionLog2("[MGTools] \u2705 Legacy bootstrap initialization complete!");
             } catch (error) {
-              console.error("[MGTools] \u274C Initialization failed:", error);
-              console.error("[MGTools] Stack:", error.stack);
+              productionError("[MGTools] \u274C Initialization failed:", error);
+              productionError("[MGTools] Stack:", error.stack);
             }
             return true;
           }
           if (attempts % 4 === 0) {
-            console.log(`[MGTools] \u23F3 Waiting for game... (attempt ${attempts}/${maxAttempts})`);
+            productionLog2(`[MGTools] \u23F3 Waiting for game... (attempt ${attempts}/${maxAttempts})`);
           }
           return false;
         };
@@ -30693,27 +30698,27 @@ ${title}:`);
           }, 500);
         }
       } catch (error) {
-        console.error("[MGTools] \u274C Initialization failed:", error);
-        console.error("[MGTools] Stack:", error.stack);
+        productionError("[MGTools] \u274C Initialization failed:", error);
+        productionError("[MGTools] Stack:", error.stack);
       }
     };
     const isDiscordEnv = window.location.href?.includes("discordsays.com");
     const initDelay = isDiscordEnv ? 2e3 : 500;
     try {
       if (document.readyState === "complete" || document.readyState === "interactive") {
-        console.log(`[MGTools] Page ready (${document.readyState}), initializing in ${initDelay}ms...`);
+        productionLog2(`[MGTools] Page ready (${document.readyState}), initializing in ${initDelay}ms...`);
         setTimeout(initializeWhenReady, initDelay);
       } else {
-        console.log("[MGTools] Waiting for page load...");
+        productionLog2("[MGTools] Waiting for page load...");
         window.addEventListener("load", () => {
           setTimeout(initializeWhenReady, initDelay);
         });
         document.addEventListener("DOMContentLoaded", () => {
-          console.log("[MGTools] DOM ready, waiting for complete load...");
+          productionLog2("[MGTools] DOM ready, waiting for complete load...");
         });
       }
     } catch (error) {
-      console.error("[MGTools] \u274C Initialization setup failed:", error);
+      productionError("[MGTools] \u274C Initialization setup failed:", error);
       setTimeout(initializeWhenReady, 1e3);
     }
   }

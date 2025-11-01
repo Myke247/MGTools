@@ -11,6 +11,8 @@
  *
  * @module ModalDetection
  */
+import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
+
 
 /**
  * Check for game modals that might block initialization
@@ -87,7 +89,7 @@ export function checkForGameModals(dependencies = {}) {
 
     return true;
   } catch (error) {
-    console.error('❌ [MODAL-CHECK] Error in modal detection:', error);
+    productionError('❌ [MODAL-CHECK] Error in modal detection:', error);
     if (win.MGA_DEBUG) {
       win.MGA_DEBUG.logError(error, 'checkForGameModals');
     }
@@ -254,7 +256,7 @@ export function createDebugLogger(dependencies = {}) {
       context
     };
     debugData.errorLogs.push(entry);
-    console.error(`🐛 [DEBUG-ERROR] ${context}:`, entry);
+    productionError(`🐛 [DEBUG-ERROR] ${context}:`, entry);
   }
 
   // Store debug functions globally
