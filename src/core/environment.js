@@ -13,7 +13,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * Detect execution environment and game readiness state
  * Determines if running in game environment, Discord embed, or standalone mode

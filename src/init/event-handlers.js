@@ -11,7 +11,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /* ============================================================================
  * AUTO-SAVE INTERVAL
  * ============================================================================ */

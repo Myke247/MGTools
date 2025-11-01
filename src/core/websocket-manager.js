@@ -14,7 +14,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * Configuration object for WebSocket reconnection behavior
  * @typedef {object} WebSocketConfig

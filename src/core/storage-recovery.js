@@ -14,7 +14,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * List of all known ability types for validation
  * @constant {string[]}

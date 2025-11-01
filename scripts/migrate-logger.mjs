@@ -97,9 +97,18 @@ function migrateFile(filePath) {
 
   // Replace console calls
   let replacements = 0;
-  content = content.replace(/console\.error\(/g, () => { replacements++; return 'productionError('; });
-  content = content.replace(/console\.warn\(/g, () => { replacements++; return 'productionWarn('; });
-  content = content.replace(/console\.log\(/g, () => { replacements++; return 'productionLog('; });
+  content = content.replace(/console\.error\(/g, () => {
+    replacements++;
+    return 'productionError(';
+  });
+  content = content.replace(/console\.warn\(/g, () => {
+    replacements++;
+    return 'productionWarn(';
+  });
+  content = content.replace(/console\.log\(/g, () => {
+    replacements++;
+    return 'productionLog(';
+  });
 
   if (content !== originalContent) {
     fs.writeFileSync(filePath, content, 'utf8');

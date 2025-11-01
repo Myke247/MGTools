@@ -14,7 +14,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * Firebase configuration for room status tracking
  * @constant {object}

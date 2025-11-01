@@ -13,7 +13,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * Check for game modals that might block initialization
  * Filters out normal game UI elements like drag overlays

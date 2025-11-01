@@ -20,7 +20,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * Initialize MGTP Overlay system
  *

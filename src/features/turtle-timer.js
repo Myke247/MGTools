@@ -17,7 +17,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * Generate hash for crop change detection
  *

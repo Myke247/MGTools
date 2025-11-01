@@ -21,7 +21,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /* ====================================================================================
  * IMPORTS
  * ====================================================================================
@@ -457,7 +456,7 @@ export default {
   applyCropHighlighting,
 
   // Automatic & Hotkeys  setupAutomaticCropHighlighting,
-  setupCropHighlightingSystem,
+  setupCropHighlightingSystem
 
   // Event Handlers  setupCropHighlightingHandlers
 };

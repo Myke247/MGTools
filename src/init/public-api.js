@@ -17,7 +17,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 // ============================================================================
 // SECTION 1: ABILITY LOG PERSISTENCE WORKAROUNDS
 // ============================================================================

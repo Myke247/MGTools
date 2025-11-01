@@ -18,7 +18,6 @@
  */
 import { productionLog, productionError, productionWarn, debugLog } from '../core/logging.js';
 
-
 /**
  * Generate complete theme styles based on settings
  * Creates gradient backgrounds, textures, effects, and opacity settings
