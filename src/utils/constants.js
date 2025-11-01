@@ -22,7 +22,7 @@
 export const CONFIG = {
   // Version Information
   VERSION: {
-    CURRENT: '2.0.0',
+    CURRENT: '2.1.0',
     CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
     CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
     DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',

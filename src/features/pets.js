@@ -1,111 +1,8 @@
 /**
  * PET MANAGEMENT MODULE
- * ====================================================================================
- * All pet-related functionality extracted from monolith
+ * Pet presets, hunger monitoring, instant feed, ability logging, and UI
  *
  * @module features/pets
- *
- * Phase 1 Extraction (Complete):
- * - Pet Presets (import/export) - ~99 lines
- * - Pet Hunger Monitoring - ~320 lines
- *
- * Phase 2 Extraction (Complete):
- * - Pet Detection & State - ~114 lines
- * - Pet Feeding Logic - ~47 lines
- *
- * Phase 3 Extraction (Complete):
- * - Pet UI Helper Functions - ~291 lines ✅
- * - Pet Event Handlers (setupPetsTabHandlers) - ~377 lines ✅
- * - Pet Tab Content HTML Generators - ~736 lines ✅
- *   • getPetsPopoutContent() - ~127 lines
- *   • setupPetPopoutHandlers() - ~223 lines
- *   • getPetsTabContent() - ~150 lines
- * - Pet Ability Calculation Helpers - ~176 lines ✅
- *   • getTurtleExpectations() - Growth boost calculations
- *   • estimateUntilLatestCrop() - Crop timing with turtle boost
- *   • getAbilityExpectations() - Generic ability calculator
- *   • getEggExpectations() - Egg growth boost
- *   • getGrowthExpectations() - Plant growth boost
- *
- * Phase 4 (Complete):
- * - Auto-Favorite Integration - ~304 lines ✅
- *   • initAutoFavorite() - Main initialization
- *   • favoriteSpecies() - Favorite all crops of a species
- *   • favoriteMutation() - Favorite all crops with mutation
- *   • favoritePetAbility() - Favorite pets with specific abilities
- *   • unfavorite* stubs - Preserve existing favorites
- *
- * Phase 5 (Complete):
- * - Additional Pet Functions - ~485 lines ✅
- *   • playPetNotificationSound() - Sound playback
- *   • placePetPreset() - Load preset with swap logic
- *   • loadPetPreset() - Alternative preset loader
- *   • getAllUniquePets() - Extract unique pet species
- *   • populatePetSpeciesList() - UI population
- *   • shouldLogAbility() - Ability filtering logic
- *   • categorizeAbilityToFilterKey() - Ability categorization
- *   • monitorPetAbilities() - Main ability monitoring (~201 lines)
- *
- * Phase 6 (Complete):
- * - Ability Log Utilities & Supporting Functions - ~273 lines ✅
- *   • getAllUniqueAbilities() - Extract unique abilities
- *   • populateIndividualAbilities() - UI population (~40 lines)
- *   • selectAllFilters() - Select all filters by mode (~26 lines)
- *   • selectNoneFilters() - Deselect all filters by mode (~20 lines)
- *   • exportAbilityLogs() - CSV export (~29 lines)
- *   • loadPresetByNumber() - Load preset by index
- *   • normalizeAbilityName() - Name normalization (~17 lines)
- *   • formatTimestamp() - Timestamp formatting with cache (~33 lines)
- *   • getGardenCropIfUnique() - Unique crop detection (~22 lines)
- *
- * Phase 7 (Complete):
- * - Ability Log Management & Display Helpers - ~129 lines ✅
- *   • KNOWN_ABILITY_TYPES - Constant array (~40 lines)
- *   • isKnownAbilityType() - Ability validation
- *   • initAbilityCache() - Cache initialization (~15 lines)
- *   • MGA_manageLogMemory() - Log archiving (~18 lines)
- *   • MGA_getAllLogs() - Retrieve all logs (~11 lines)
- *   • categorizeAbility() - Alternative categorization (~16 lines)
- *   • formatLogData() - Format log data objects
- *   • formatRelativeTime() - Relative time formatting
- *
- * Phase 8 (Complete):
- * - Display Update Functions - ~316 lines ✅
- *   • updateAbilityLogDisplay() - Main log renderer with styling (~195 lines)
- *   • updateLogVisibility() - CSS-based visibility toggle (~28 lines)
- *   • updateAllLogVisibility() - Visibility orchestrator (~12 lines)
- *   • updateAllAbilityLogDisplays() - Update across all contexts (~66 lines)
- *
- * Phase 9 (Complete):
- * - Instant Feed Core Functions - ~365 lines ✅
- *   • createInstantFeedButton() - Game-native styled feed button (~58 lines)
- *   • flashButton() - Success/error visual feedback (~14 lines)
- *   • handleInstantFeed() - 3-tier fallback feed logic with auto-favorite protection (~293 lines)
- *
- * Phase 10 (Complete):
- * - Instant Feed Initialization & Polling - ~287 lines ✅
- *   • injectInstantFeedButtons() - Container-based button injection (~133 lines)
- *   • initializeInstantFeedButtons() - Polling-based initialization with auto-reinjection (~154 lines)
- *
- * Phase 11 (Complete):
- * - Additional Pet Management Functions - ~415 lines ✅
- *   • presetHasCropEater() - Detect Crop Eater ability in presets (~26 lines)
- *   • cycleToNextPreset() - Cycle through presets, skip Crop Eater (~41 lines)
- *   • playAbilityNotificationSound() - Ability notification sound playback (~51 lines)
- *   • setupAbilitiesTabHandlers() - Ability log tab event handlers (~297 lines)
- *
- * NOTE: Pet Preset UI functions (updatePetPresetDropdown, updateActivePetsDisplay,
- * ensurePresetOrder, movePreset, getDragAfterElement, refreshPresetsList, addPresetToList)
- * were already extracted in Phase 3 above.
- *
- * ✅ PET MODULE EXTRACTION 100% COMPLETE!
- * Total Extracted: ~5,295 lines (exceeded 5,000 estimate by 5.9%)
- * Progress: 100% - All pet-related functionality successfully modularized!
- *
- * Dependencies:
- * - Core: storage, logging
- * - State: UnifiedState (passed as parameter or global)
- * - UI: toast notifications, sound playback
  */
 
 /* ====================================================================================
@@ -191,7 +88,7 @@ export function exportPetPresets(UnifiedState) {
 
     // Create export object with metadata
     const exportData = {
-      version: '2.0.0',
+      version: '2.1.0',
       exportDate: new Date().toISOString(),
       presetCount: presetCount,
       presets: presets,

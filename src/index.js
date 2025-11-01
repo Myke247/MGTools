@@ -12,7 +12,7 @@
  * Previous: MGTP Overlay (+1,176), Runtime Utilities (+680), Event Handlers (+150)
  *
  * @module index
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 // CRITICAL DEBUG: Verify script loads AT ALL
@@ -195,7 +195,7 @@ export const MGTools = {
 
   // Metadata
   _meta: {
-    version: '2.0.0',
+    version: '2.1.0',
     buildType: 'modular',
     modulesCount: 55,
     phase: 'F',

@@ -89,7 +89,7 @@ export function initAutoFavorite({ UnifiedState, targetWindow, productionLog }) 
 function checkAndFavoriteNewItems({ inventory, UnifiedState, targetWindow, productionLog }) {
   if (!inventory?.items) return;
 
-  // DEFENSIVE: Ensure petAbilities array exists (v2.0.0 fix for upgrade path)
+  // DEFENSIVE: Ensure petAbilities array exists (v2.1.0 fix for upgrade path)
   if (!UnifiedState.data.settings.autoFavorite.petAbilities) {
     UnifiedState.data.settings.autoFavorite.petAbilities = [];
   }

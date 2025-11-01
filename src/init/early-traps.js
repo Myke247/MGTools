@@ -302,7 +302,7 @@ export function logDiagnostics(dependencies = {}) {
 
   consoleFn.error('🚨🚨🚨 MGTOOLS LOADING - IF YOU SEE THIS, SCRIPT IS RUNNING 🚨🚨🚨');
   consoleFn.log('[MGTOOLS-DEBUG] 1. Script file loaded');
-  consoleFn.log('[MGTOOLS-DEBUG] ⚡ VERSION: 2.0.0 - Pet auto-favorite fixes + Micro/Mini dock sizes');
+  consoleFn.log('[MGTOOLS-DEBUG] ⚡ VERSION: 2.1.0 - Modular architecture + Firebase integration');
   consoleFn.log('[MGTOOLS-DEBUG] 🕐 Load Time:', new DateClass().toISOString());
   consoleFn.log('[MGTOOLS-DEBUG] 2. Location:', win?.location?.href || 'unknown');
   consoleFn.log('[MGTOOLS-DEBUG] 3. Navigator:', nav?.userAgent || 'unknown');
