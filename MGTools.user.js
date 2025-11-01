@@ -30062,7 +30062,6 @@ ${title}:`);
   }
 
   // src/index.js
-  productionLog2("[MGTools DEBUG] *** index.js IIFE executing! ***");
   var MGTools = {
     // Core Infrastructure
     Core: {
