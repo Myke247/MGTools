@@ -100,3 +100,28 @@ complete-*.json
 !.claude/PROJECT_CONTEXT.md
 # Note: Only PROJECT_CONTEXT.md is committed (technical project docs)
 # Everything else in .claude/ stays local (AI conversations, session notes, etc.)
+
+# Temporary analysis and testing documentation
+DIAGNOSTIC_PLAN.md
+DISCORD_ROOMS_FIX.md
+QUICK_FIX_COMPLETE.md
+README_TEST_THIS_NOW.md
+REBUILD_COMPLETE_ANALYSIS.md
+TEST_THIS_VERSION.md
+ARCHITECTURAL_COMPARISON.md
+
+# Build artifacts and test versions (keep only MGTools.user.js in root)
+MGTools.built.user.js
+MGTools.patched.user.js
+MGToolsModular.user.js
+MGToolsMonolith.user.js
+
+# Patch files (temporary fixes)
+*.patch
+migrate-logger.sh
+
+# Archive files
+*.zip
+
+# Firebase rules (should be in separate repo)
+SECURE_FIREBASE_RULES.json
