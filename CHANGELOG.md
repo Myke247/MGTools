@@ -1,5 +1,15 @@
 # Changelog - MGTools
 
+## Version 2.1.1 (2025-11-06)
+
+**Bug Fixes:**
+- Fixed turtle timer display in crop tooltips
+- Fixed pet preset swapping functionality
+- Fixed crop value tooltip display on tiles
+
+---
+
+
 ## Version 2.0.0 (2025-10-24)
 
 **Breaking Changes:**
