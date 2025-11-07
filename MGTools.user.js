@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MGTools
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
+// @version      2.1.1
 // @description  All-in-one assistant for Magic Garden with beautiful unified UI (Enhanced Discord Support!)
 // @author       Unified Script
 // @updateURL    https://github.com/Myke247/MGTools/raw/refs/heads/Live-Beta/MGTools.user.js
@@ -612,7 +612,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
   const CONFIG = {
     // Version Information
     VERSION: {
-      CURRENT: '2.0.0',
+      CURRENT: '2.1.1',
       CHECK_URL_STABLE: 'https://raw.githubusercontent.com/Myke247/MGTools/main/MGTools.user.js',
       CHECK_URL_BETA: 'https://raw.githubusercontent.com/Myke247/MGTools/Live-Beta/MGTools.user.js',
       DOWNLOAD_URL_STABLE: 'https://github.com/Myke247/MGTools/raw/refs/heads/main/MGTools.user.js',
@@ -6837,7 +6837,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
     // --- Tiered readers for atoms with UnifiedState fallback ---
     const readMyPetSlots = () => {
       try {
-        return getAtomValue('myPetSlotInfosAtom');
+        return getAtomValue('myPrimitivePetSlotsAtom');
       } catch {
         /* atom unavailable */
       }
@@ -23568,7 +23568,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           const value = atom.__originalRead(t);
 
           try {
-            const tileObjects = value?.garden?.tileObjects;
+            const tileObjects = value?.data?.garden?.tileObjects || value?.garden?.tileObjects;
 
             if (tileObjects != null) {
               let overridesApplied = 0;
@@ -23628,9 +23628,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
             console.error('hookAtomForTileOverrides: error applying tile overrides', err);
           }
 
-          // Expose full value for console inspection
+          // Expose full value for console inspection (extract .data if present for myUserSlotAtom)
           try {
-            window[windowKey] = value;
+            window[windowKey] = value?.data || value;
           } catch (e) {}
 
           return value;
@@ -23785,7 +23785,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       try {
         hookAtomForTileOverrides(
-          '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom',
+          '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/baseAtoms.ts/myUserSlotAtom',
           'gardenInfo'
         );
         hookAtomForTileOverrides(
@@ -24128,7 +24128,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           productionLog('🔄 Re-hooking atoms...');
           if (targetWindow.jotaiAtomCache) {
             hookAtomForTileOverrides(
-              '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom',
+              '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/baseAtoms.ts/myUserSlotAtom',
               'gardenInfo'
             );
             hookAtomForTileOverrides(
@@ -27047,7 +27047,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Hook #1: Pet SPECIES data (for active pets display)
       hookAtom(
-        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/_archive/myPetSlotsAtom.ts/myPetSlotsAtom',
+        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myPrimitivePetSlotsAtom',
         'activePets',
         petSlots => {
           if (UnifiedState.data.settings?.debugMode) {
@@ -27174,7 +27174,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Hook inventory
       hookAtom(
-        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myInventoryAtom',
+        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/inventoryAtoms.ts/myInventoryAtom',
         'inventory',
         () => updateValues()
       );
@@ -27199,11 +27199,11 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
       // Hook garden data AND myData for auto-favorite
       hookAtom(
-        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myDataAtom',
+        '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/baseAtoms.ts/myUserSlotAtom',
         'myGarden',
         value => {
-          targetWindow.myGarden = value; // Needed for harvest protection
-          targetWindow.myData = value; // Needed for auto-favorite
+          targetWindow.myGarden = value?.data || value; // Extract .data property (has garden, inventory, petSlots)
+          targetWindow.myData = value?.data || value; // Extract .data property for feed buttons & auto-favorite
           updateValues();
         }
       );
@@ -27789,244 +27789,176 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
 
     function insertTurtleEstimate() {
       const doc = targetDocument || document;
+      const ROOT_SEL = '.McFlex.css-fsggty';
+      const INNER_SEL = '.McFlex.css-1omaybc, .McFlex.css-1c3sifn';
+      const MARKER_VALUE = 'tm-crop-price-value';
+      const MARKER_TURTLE = 'tm-turtle-timer';
 
-      // Remove existing turtle estimates and slot values
-      doc
-        .querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
-        .forEach(el => el.remove());
-
-      // CORRECT SELECTOR: Get the last child's parent (where weight/mutations are shown)
-      let currentPlantTooltipFlexbox = doc.querySelector(
-        'div.QuinoaUI > div.McFlex:nth-of-type(2) > div.McGrid > div.McFlex:nth-of-type(3) > :first-child > :last-child p'
-      )?.parentElement;
-
-      if (!currentPlantTooltipFlexbox) {
-        // PERFORMANCE FIX: Validate tooltip position before using fallback selectors
-        // This prevents slot value from appearing in top-left corner UI elements
-        const altSelectors = [
-          'div.QuinoaUI .McFlex .McGrid',
-          '[class*="tooltip"] [class*="flex"]',
-          'div[class*="plant"] div[class*="info"]',
-          '.McFlex .McGrid .McFlex',
-          'div.QuinoaUI div.McFlex div.McGrid'
-        ];
-
-        for (const sel of altSelectors) {
-          const el = doc.querySelector(sel);
-          if (el && isValidTooltipElement(el)) {
-            currentPlantTooltipFlexbox = el;
-            break;
-          }
-        }
-
-        if (!currentPlantTooltipFlexbox) {
-          return;
-        }
-      }
-
-      // Final validation: Ensure element is in valid screen position
-      if (!isValidTooltipElement(currentPlantTooltipFlexbox)) {
-        console.warn('[CROP-VALUE] ⚠️ Rejected invalid tooltip position - skipping slot value display');
-        return;
-      }
-
-      // Try multiple ways to get current crop/egg
+      // Get current crop/egg data from atoms
       let currentCrop = targetWindow.currentCrop || UnifiedState.atoms.currentCrop;
       const currentEgg = targetWindow.currentEgg || UnifiedState.atoms.currentEgg;
 
-      // FALLBACK: Try to get from game state directly
       if (!currentCrop && !currentEgg) {
-        // Try different possible locations
-        const possibleLocations = [
-          targetWindow.gameState?.currentCrop,
-          targetWindow.gameState?.currentEgg,
-          targetWindow.UnifiedState?.atoms?.currentCrop,
-          targetWindow.garden?.currentTile?.crop,
-          targetWindow.playerState?.standingOn?.crop,
-          targetWindow.jotaiAtomCache?.get?.(
-            '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom'
-          )?.debugValue
-        ];
+        return; // No data available
+      }
 
-        for (const loc of possibleLocations) {
-          if (loc) {
-            currentCrop = Array.isArray(loc) ? loc : [loc];
-            break;
-          }
-        }
+      // Find all tooltip root elements
+      const rootElements = Array.from(doc.querySelectorAll(ROOT_SEL));
+      if (rootElements.length === 0) {
+        return; // No tooltip visible
+      }
 
-        // ULTIMATE FALLBACK: Parse the tooltip DOM itself since game is rendering it
-        if (!currentCrop && !currentEgg && currentPlantTooltipFlexbox) {
-          const tooltipText = currentPlantTooltipFlexbox.textContent || '';
+      // Process each root element
+      rootElements.forEach(rootEl => {
+        const innerElements = Array.from(rootEl.querySelectorAll(INNER_SEL));
 
-          // Look for egg species names (Common Egg, Rare Egg, etc.)
-          // FIXED: Changed "Mythic" to "Mythical", added "Uncommon", removed non-existent "Epic" and "Special"
-          const eggPattern = /(Common|Uncommon|Rare|Legendary|Mythical)\s*Egg/i;
-          const eggMatch = tooltipText.match(eggPattern);
+        innerElements.forEach(inner => {
+          // Check if we're looking at an egg
+          const isPlantedEgg = currentCrop?.[0]?.species?.endsWith('Egg') ||
+                               currentCrop?.[0]?.species?.includes('Egg') ||
+                               currentCrop?.[0]?.type === 'egg' ||
+                               currentCrop?.[0]?.category === 'egg';
+          const isEgg = currentEgg || isPlantedEgg;
 
-          if (eggMatch) {
-            const eggSpecies = eggMatch[0].replace(/\s+/g, '');
-            currentCrop = [
-              {
-                species: eggSpecies,
-                type: 'egg',
-                category: 'egg',
-                isEgg: true
-              }
-            ];
-          } else {
-            // Try to find crop species (Carrot, Wheat, etc.)
-            const cropPatterns = [
-              /Carrot/i,
-              /Wheat/i,
-              /Corn/i,
-              /Tomato/i,
-              /Potato/i,
-              /Pumpkin/i,
-              /Watermelon/i,
-              /Strawberry/i,
-              /Blueberry/i,
-              /Rose/i,
-              /Tulip/i,
-              /Sunflower/i,
-              /Daisy/i,
-              /Lily/i
-            ];
+          if (isEgg) {
+            // Handle egg timer
+            const activePets = targetWindow.activePets || UnifiedState.atoms.activePets;
+            const eggExpectations = getEggExpectations(activePets);
 
-            for (const pattern of cropPatterns) {
-              const cropMatch = tooltipText.match(pattern);
-              if (cropMatch) {
-                currentCrop = [
-                  {
-                    species: cropMatch[0],
-                    type: 'crop',
-                    category: 'plant'
+            if (eggExpectations && eggExpectations.expectedMinutesRemoved > 0) {
+              // Find time element in tooltip
+              const timeElement = [...inner.childNodes].find(el =>
+                /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test((el.textContent || '').trim())
+              );
+
+              if (timeElement) {
+                const timeText = timeElement.textContent.trim();
+                const timeMatch = timeText.match(/(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/);
+
+                if (timeMatch) {
+                  const hours = parseInt(timeMatch[1] || '0', 10);
+                  const minutes = parseInt(timeMatch[2] || '0', 10);
+                  const seconds = parseInt(timeMatch[3] || '0', 10);
+                  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+                  if (totalSeconds > 0) {
+                    const remainingRealMinutes = totalSeconds / 60;
+                    const effectiveRate = eggExpectations.expectedMinutesRemoved + 1;
+                    const boostedRealMinutes = remainingRealMinutes / effectiveRate;
+                    const boostedTotalSeconds = boostedRealMinutes * 60;
+                    const boostedHours = Math.floor(boostedTotalSeconds / 3600);
+                    const boostedMinutes = Math.floor((boostedTotalSeconds % 3600) / 60);
+
+                    const timerText = boostedHours > 0
+                      ? `🥚 Egg: ${boostedHours}h ${boostedMinutes}m`
+                      : `🥚 Egg: ${boostedMinutes}m`;
+
+                    ensureSpanAtEnd(inner, timerText, MARKER_TURTLE, '#fbbf24');
                   }
-                ];
-                break;
+                }
               }
             }
-          }
-        }
-      }
-
-      // Check if we're looking at an egg (multiple ways)
-      const isPlantedEgg1 = currentCrop?.[0]?.species?.endsWith('Egg');
-      const isPlantedEgg2 = currentCrop?.[0]?.species?.includes('Egg');
-      const isPlantedEgg3 = currentCrop?.[0]?.type === 'egg';
-      const isPlantedEgg4 = currentCrop?.[0]?.category === 'egg';
-
-      const isPlantedEgg = isPlantedEgg1 || isPlantedEgg2 || isPlantedEgg3 || isPlantedEgg4;
-      const isEgg = currentEgg || isPlantedEgg;
-
-      if (isEgg) {
-        // Handle egg timer with actual calculations
-        const activePets = targetWindow.activePets || UnifiedState.atoms.activePets;
-        const eggExpectations = getEggExpectations(activePets);
-
-        // CRITICAL: Find the ACTUAL time element in the tooltip (same way as crops)
-        const timeElement = [...currentPlantTooltipFlexbox.childNodes].find(el =>
-          /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test((el.textContent || '').trim())
-        );
-
-        if (!timeElement) {
-          return;
-        }
-
-        const timeText = timeElement.textContent.trim();
-
-        // Parse the actual remaining time from tooltip
-        const timeMatch = timeText.match(/(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/);
-        if (!timeMatch) {
-          return;
-        }
-
-        const hours = parseInt(timeMatch[1] || '0', 10);
-        const minutes = parseInt(timeMatch[2] || '0', 10);
-        const seconds = parseInt(timeMatch[3] || '0', 10);
-
-        // Convert to total seconds
-        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-
-        if (totalSeconds <= 0) {
-          return;
-        }
-
-        if (eggExpectations && eggExpectations.expectedMinutesRemoved > 0) {
-          // Calculate boosted time
-          const remainingRealMinutes = totalSeconds / 60;
-          const effectiveRate = eggExpectations.expectedMinutesRemoved + 1;
-          const boostedRealMinutes = remainingRealMinutes / effectiveRate;
-          const boostedTotalSeconds = boostedRealMinutes * 60;
-
-          const boostedHours = Math.floor(boostedTotalSeconds / 3600);
-          const boostedMinutes = Math.floor((boostedTotalSeconds % 3600) / 60);
-          const boostedSeconds = Math.floor(boostedTotalSeconds % 60);
-
-          const eggEstimateEl = doc.createElement('p');
-          eggEstimateEl.dataset.turtletimerEstimate = 'true';
-
-          // Format output similar to crop timer
-          if (boostedHours > 0) {
-            eggEstimateEl.textContent = `🥚 Egg: ${boostedHours}h ${boostedMinutes}m`;
-          } else {
-            eggEstimateEl.textContent = `🥚 Egg: ${boostedMinutes}m ${boostedSeconds}s`;
+            return; // Don't process value for eggs
           }
 
-          eggEstimateEl.style.color = '#fbbf24'; // Yellow color
-          currentPlantTooltipFlexbox.appendChild(eggEstimateEl);
-        }
-        return;
+          // Handle crops
+          if (!currentCrop || currentCrop.length === 0) return;
+
+          // Show turtle estimate if crop is growing
+          const timeElement = [...inner.childNodes].find(el =>
+            /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test((el.textContent || '').trim())
+          );
+
+          if (timeElement) {
+            const activePets = targetWindow.activePets || UnifiedState.atoms.activePets;
+            const slotIndex = getCurrentSlotIndex(currentCrop);
+            const sortedIndices = UnifiedState.atoms.sortedSlotIndices || window.sortedSlotIndices;
+            let actualSlotIndex = slotIndex;
+
+            if (sortedIndices && Array.isArray(sortedIndices) && sortedIndices.length > 0 && slotIndex < sortedIndices.length) {
+              actualSlotIndex = sortedIndices[slotIndex];
+            }
+
+            const estimate = estimateUntilLatestCrop(currentCrop, activePets, actualSlotIndex);
+            if (estimate) {
+              ensureSpanAtEnd(inner, estimate, MARKER_TURTLE, '#4ade80');
+            }
+          }
+
+          // Show crop value
+          const slotValue = calculateCurrentSlotValue(currentCrop);
+          if (slotValue > 0) {
+            const valueText = Number(slotValue).toLocaleString();
+            ensureSpanAtEnd(inner, valueText, MARKER_VALUE, '#FFD84D', true);
+          }
+        });
+      });
+    }
+
+    // Helper function to create/update spans (ref.user.js pattern)
+    function ensureSpanAtEnd(inner, text, markerClass, color, showCoinIcon = false) {
+      const COIN_URL = 'https://cdn.discordapp.com/emojis/1425389207525920808.webp?size=96';
+      const ICON_CLASS = markerClass + '-icon';
+      const LABEL_CLASS = markerClass + '-label';
+
+      // Find or create the marker span
+      const spans = Array.from(inner.querySelectorAll(`:scope > span.${markerClass}`));
+      let span = spans[0] || null;
+
+      // Remove duplicates
+      for (let i = 1; i < spans.length; i++) {
+        spans[i].remove();
       }
 
-      if (!currentCrop || currentCrop.length === 0) return;
+      if (!span) {
+        span = document.createElement('span');
+        span.className = markerClass;
+      }
 
-      const currentSlotIndex = getCurrentSlotIndex(currentCrop);
+      // Style the span
+      span.style.display = 'block';
+      span.style.marginTop = '6px';
+      span.style.fontWeight = '700';
+      span.style.color = color;
+      span.style.fontSize = '14px';
 
-      // Find time element (for growing crops)
-      const timeElement = [...currentPlantTooltipFlexbox.childNodes].find(el =>
-        /^\d+h(?: \d+m)?(?: \d+s)?$|^\d+m(?: \d+s)?$|^\d+s$/.test((el.textContent || '').trim())
-      );
-
-      // Show turtle estimate if there's a time element and crop is growing
-      if (timeElement) {
-        const activePets = targetWindow.activePets || UnifiedState.atoms.activePets;
-
-        // Get the current slot index for turtle timer
-        const slotIndex = getCurrentSlotIndex(currentCrop);
-        const sortedIndices = UnifiedState.atoms.sortedSlotIndices || window.sortedSlotIndices;
-        let actualSlotIndex = slotIndex;
-
-        if (
-          sortedIndices &&
-          Array.isArray(sortedIndices) &&
-          sortedIndices.length > 0 &&
-          slotIndex < sortedIndices.length
-        ) {
-          actualSlotIndex = sortedIndices[slotIndex];
+      // Add coin icon if needed
+      if (showCoinIcon) {
+        let icon = span.querySelector(`:scope > img.${ICON_CLASS}`);
+        if (!icon) {
+          icon = document.createElement('img');
+          icon.className = ICON_CLASS;
+          icon.alt = '';
+          icon.setAttribute('aria-hidden', 'true');
+          icon.style.width = '14px';
+          icon.style.height = '14px';
+          icon.style.display = 'inline-block';
+          icon.style.verticalAlign = 'middle';
+          icon.style.marginRight = '4px';
+          icon.style.userSelect = 'none';
+          icon.style.pointerEvents = 'none';
+          span.insertBefore(icon, span.firstChild);
         }
-
-        // Pass the actual slot index to estimate function
-        const estimate = estimateUntilLatestCrop(currentCrop, activePets, actualSlotIndex);
-
-        if (estimate) {
-          const estimateEl = doc.createElement('p');
-          estimateEl.dataset.turtletimerEstimate = 'true';
-          estimateEl.textContent = estimate;
-          estimateEl.style.color = '#4ade80'; // Green-400 color
-          currentPlantTooltipFlexbox.appendChild(estimateEl);
+        if (icon.src !== COIN_URL) {
+          icon.src = COIN_URL;
         }
       }
 
-      // Show current slot value
-      const slotValue = calculateCurrentSlotValue(currentCrop);
-      if (slotValue > 0) {
-        const slotValueEl = doc.createElement('p');
-        slotValueEl.dataset.turtletimerSlotValue = 'true';
-        slotValueEl.innerHTML =
-          `<img src="https://cdn.discordapp.com/emojis/1425389207525920808.webp?size=96" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 2px; display: inline-block;">` +
-          Number(slotValue).toLocaleString();
-        currentPlantTooltipFlexbox.appendChild(slotValueEl);
+      // Add or update label
+      let label = span.querySelector(`:scope > span.${LABEL_CLASS}`);
+      if (!label) {
+        label = document.createElement('span');
+        label.className = LABEL_CLASS;
+        label.style.display = 'inline';
+        span.appendChild(label);
+      }
+      if (label.textContent !== text) {
+        label.textContent = text;
+      }
+
+      // Append to parent if not already there
+      if (inner.lastElementChild !== span) {
+        inner.appendChild(span);
       }
     }
 
@@ -28124,18 +28056,20 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       );
 
-      // Hook currentCrop atom
+      // Hook currentCrop atom (using unique windowKey to avoid conflict with crop highlighting hook)
       hookAtom(
         '/home/runner/work/magiccircle.gg/magiccircle.gg/client/src/games/Quinoa/atoms/myAtoms.ts/myCurrentGrowSlotsAtom',
-        'currentCrop',
+        'currentCropForValue',
         value => {
           // CRITICAL: Extract the actual crop data from the atom value
-          // The atom might return {garden: {tileObjects: [...]}} not just the crop array
+          // The atom might return {data: {garden: {tileObjects: [...]}}} or {garden: {tileObjects: [...]}} or just an array
           let cropData = null;
-          if (value?.garden?.tileObjects) {
-            cropData = value.garden.tileObjects;
+          if (value?.data?.garden?.tileObjects) {
+            cropData = value.data.garden.tileObjects; // NEW: Check nested .data structure first
+          } else if (value?.garden?.tileObjects) {
+            cropData = value.garden.tileObjects; // Fallback to old structure
           } else if (Array.isArray(value)) {
-            cropData = value;
+            cropData = value; // Direct array fallback
           }
 
           // Store the extracted crop data
@@ -28154,6 +28088,9 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
           return value; // Return original value to game
         }
       );
+
+      // Initial call to display tooltips immediately
+      requestAnimationFrame(() => insertTurtleEstimate());
 
       const doc = targetDocument;
 
@@ -28313,34 +28250,6 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
         }
       }, 1000); // Check every second
 
-      // Predicate: check if keypress is as movement key
-      const isMovementKeypress = e =>
-        !e.ctrlKey &&
-        !e.shiftKey &&
-        ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code);
-
-      // Curried helper: takes a handler and runs it only if it's a movement key
-      const onMovementKey = handler => e => {
-        if (isMovementKeypress(e)) handler(e);
-      };
-
-      // Remove turtle timer hints on movement key down
-      doc.addEventListener(
-        'keydown',
-        onMovementKey(() => {
-          doc
-            .querySelectorAll('[data-turtletimer-estimate="true"], [data-turtletimer-slot-value="true"]')
-            .forEach(el => el.remove());
-        })
-      );
-
-      // Insert turtle estimate on movement key up
-      doc.addEventListener(
-        'keyup',
-        onMovementKey(() => {
-          insertTurtleEstimate();
-        })
-      );
 
       // Slot index tracking is now handled by listenToSlotIndexAtom()
       // which directly listens to the game's myCurrentGrowSlotIndex atom
@@ -31195,7 +31104,7 @@ console.log('[MGTOOLS-DEBUG] 4. Window type:', window === window.top ? 'TOP' : '
               // Tier 1: Try Jotai atom cache (only need cache, not store!)
               if (targetWindow.jotaiAtomCache) {
                 try {
-                  const freshPetSlots = await getAtomValue('myPetSlotInfosAtom');
+                  const freshPetSlots = await getAtomValue('myPrimitivePetSlotsAtom');
                   if (freshPetSlots?.[petIndex]) {
                     pet = freshPetSlots[petIndex];
                     console.log('[MGTOOLS-FIX-A] Using fresh pet data from Jotai atom cache (Tier 1)');
